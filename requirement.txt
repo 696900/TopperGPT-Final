@@ -1,9 +1,0 @@
-requirement.txt
-streamlit
-razorpay
-groq
-openai
-firebase-admin
-pypdf
-fpdf
-gtts
