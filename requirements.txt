@@ -1,9 +1,8 @@
-requirement
 streamlit
-razorpay
 groq
+razorpay
 openai
 firebase-admin
 pypdf
 fpdf
-gtts
+gTTS
