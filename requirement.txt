@@ -1,4 +1,4 @@
-requirement
+requirement.txt
 streamlit
 razorpay
 groq
