@@ -1,155 +1,99 @@
 import streamlit as st
 from groq import Groq
-import pypdf
+import google.generativeai as genai
 import os
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="TopperGPT Pro",
     page_icon="🎓",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# --- 2. SECURE CONFIGURATION (Fetch from Streamlit Secrets) ---
-# Note: Ensure these names match exactly in your Streamlit Dashboard Secrets
+# --- 2. SECURE CONFIGURATION ---
 try:
-    GROQ_API_KEY = st.secrets["GROQ_API_KEY"] #
-    RZP_KEY_ID = st.secrets["RAZORPAY_KEY_ID"] #
-    # Firebase key optional for now but kept for structure
-    FIREBASE_API_KEY = st.secrets.get("FIREBASE_API_KEY", "") #
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+    RZP_KEY_ID = st.secrets["RAZORPAY_KEY_ID"]
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"] #
+    
+    # AI Setup
+    genai.configure(api_key=GEMINI_API_KEY)
+    client_groq = Groq(api_key=GROQ_API_KEY)
 except Exception as e:
-    st.error("Secrets not found! Please check Streamlit Dashboard Settings > Secrets.")
+    st.error("Secrets missing! Please check GROQ_API_KEY, RAZORPAY_KEY_ID, and GEMINI_API_KEY in Streamlit Secrets.")
     st.stop()
 
-# --- 3. SESSION STATE INITIALIZATION ---
+# --- 3. SESSION STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "is_pro" not in st.session_state:
-    st.session_state.is_pro = False # Default user is FREE
+if "pdf_text" not in st.session_state:
+    st.session_state.pdf_text = None
 
-# --- 4. SIDEBAR (User Profile & Credits) ---
-with st.sidebar:
-    st.title("👤 User Profile")
-    st.info(f"Status: {'✅ PRO' if st.session_state.is_pro else '🆓 FREE Tier'}") #
-    
-    if not st.session_state.is_pro:
-        if st.button("🚀 Upgrade to PRO (₹99)"):
-            st.warning("Payment integration coming soon! (Verification in progress)") #
-    
-    st.divider()
-    st.markdown("### 🛠️ Quick Tools")
-    if st.button("Clear Chat History"):
-        st.session_state.messages = []
-        st.rerun()
+# --- 4. MAIN INTERFACE ---
+st.title("🎓 TopperGPT: Your AI Study Studio")
 
-# --- 5. MAIN INTERFACE (Multi-Feature Tabs) ---
-st.title("🎓 TopperGPT: Your Personal AI Study Studio")
-st.markdown("---")
-
-# NotebookLM inspired feature tabs
-tab1, tab2, tab3, tab4 = st.tabs([
+# Saare Tabs wapas add kar diye hain
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "💬 Chat with PDF", 
     "🎥 YouTube Analyzer", 
     "🎧 AI Study Podcast", 
-    "🧠 Mind Maps & Quizzes"
+    "🧠 Mind Maps & Quizzes",
+    "⚖️ Legal & Policies" # Razorpay fix
 ])
 
-# --- TAB 1: PDF CHAT (Core Feature) ---
+# --- TAB 1: PDF CHAT ---
 with tab1:
-    st.subheader("📚 Upload & Analyze your Notes")
-    
-    # 1. PDF Upload widget (Key dena zaroori hai memory ke liye)
-    pdf_file = st.file_uploader("Upload your study material", type=["pdf"], key="unique_study_uploader")
-
-    # 2. FILE PROCESSING & PERSISTENT MEMORY
-    # Agar nayi file aayi hai toh hi processing hogi
+    st.subheader("📚 Analyze your Notes")
+    pdf_file = st.file_uploader("Upload PDF", type=["pdf"], key="pdf_chat_uploader")
     if pdf_file:
-        if "pdf_mem" not in st.session_state or st.session_state.get("last_file") != pdf_file.name:
-            with st.spinner("🧠 AI is reading your PDF..."):
-                try:
-                    import pypdf
-                    reader = pypdf.PdfReader(pdf_file)
-                    extracted_text = ""
-                    for page in reader.pages:
-                        page_text = page.extract_text()
-                        if page_text:
-                            extracted_text += page_text
-                    
-                    # Memory mein hamesha ke liye save
-                    st.session_state.pdf_mem = extracted_text
-                    st.session_state.last_file = pdf_file.name
-                    st.success(f"✅ {pdf_file.name} is ready for Chat!")
-                except Exception as e:
-                    st.error(f"Error reading PDF: {e}")
-
-    st.divider()
-
-    # 3. CHAT DISPLAY
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    # 4. AI LOGIC (Strict Context Injection)
-    if user_query := st.chat_input("Ask from your notes..."):
-        st.session_state.messages.append({"role": "user", "content": user_query})
-        with st.chat_message("user"):
-            st.markdown(user_query)
-
-        # Check agar memory mein PDF text hai
-        if "pdf_mem" in st.session_state and st.session_state.pdf_mem:
-            try:
-                client = Groq(api_key=GROQ_API_KEY)
-                
-                # Context limit setting (8000 chars safe side)
-                doc_context = st.session_state.pdf_mem[:8000]
-                
-                # AI ko Force karna ki PDF ka text dekhe
-                system_instr = f"You are a study expert. Answer strictly using this PDF content: \n\n{doc_context}"
-                
-                final_messages = [
-                    {"role": "system", "content": system_instr},
-                    {"role": "user", "content": user_query}
-                ]
-                
-                comp = client.chat.completions.create(
-                    messages=final_messages,
-                    model="llama-3.1-8b-instant" # Latest model
-                )
-                
-                ai_reply = comp.choices[0].message.content
-                st.session_state.messages.append({"role": "assistant", "content": ai_reply})
-                with st.chat_message("assistant"):
-                    st.markdown(ai_reply)
-                st.rerun()
-
-            except Exception as e:
-                st.error(f"AI Service Error: {e}")
-        else:
-            # Ye warning tab aati hai jab memory khali ho
-            st.warning("⚠️ OOPS! Please upload the PDF again and wait for the 'Success' message.")
+        st.success(f"File '{pdf_file.name}' detected! Ready to chat.")
+    st.info("Chat logic will be activated here tomorrow.")
 
 # --- TAB 2: YOUTUBE ANALYZER ---
 with tab2:
-    st.subheader("🎥 Instant Video Insights")
-    yt_url = st.text_input("Paste YouTube Video URL")
-    if st.button("Analyze Video"):
-        st.info("Extracting transcript and generating study notes... (Coming Soon)")
+    st.subheader("🎥 YouTube Video to Notes")
+    yt_url = st.text_input("Enter YouTube Video URL:", placeholder="https://youtube.com/watch?v=...")
+    if st.button("Extract Knowledge"):
+        st.warning("YouTube transcript feature is being configured.")
 
-# --- TAB 3: AI PODCAST ---
+# --- TAB 3: AI STUDY PODCAST ---
 with tab3:
-    st.subheader("🎧 Listen to your Notes")
-    st.write("Convert your study material into an AI-generated audio podcast.")
-    if st.button("Generate Audio Guide"):
-        st.warning("Audio synthesis (gTTS) module will be active once logic is updated.") #
+    st.subheader("🎧 Convert Notes to Audio")
+    st.write("Generate a professional AI podcast from your study material.")
+    if st.button("Generate Podcast"):
+        st.info("Audio generation (Gemini + gTTS) setup in progress.")
 
-# --- TAB 4: STUDY EXPERT ---
+# --- TAB 4: MIND MAPS & QUIZZES ---
 with tab4:
-    st.subheader("🧠 Visual & Interactive Learning")
+    st.subheader("🧠 Interactive Learning")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.button("Create Mind Map")
+    with col_b:
+        st.button("Generate Practice Quiz")
+
+# --- TAB 5: LEGAL & POLICIES (Razorpay Verification) ---
+with tab5:
+    st.header("Legal Information & Policies")
+    st.info("Required for Razorpay Payment Gateway Verification.")
+    
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Generate Mind Map"):
-            st.write("Mapping your topics visually...")
+        st.subheader("1. Privacy Policy")
+        st.write("We do not store your PDFs permanently. Data is used only for real-time AI analysis.")
+        st.subheader("2. Terms and Conditions")
+        st.write("Service is for educational purposes. Users must not upload malicious content.")
     with col2:
-        if st.button("Create Practice Quiz"):
-            st.write("Generating flashcards and MCQ questions...")
+        st.subheader("3. Refund & Cancellation")
+        st.write("Subscription fees are non-refundable once the PRO features are accessed.")
+        st.subheader("4. Contact Us")
+        st.write("Email: support@toppergpt.com | Location: Neral, Maharashtra, India.")
+
+# --- SIDEBAR ---
+with st.sidebar:
+    st.markdown("### 👤 Account Status")
+    st.success("FREE Tier")
+    st.markdown("---")
+    if st.button("🗑️ Clear History"):
+        st.session_state.messages = []
+        st.rerun()
