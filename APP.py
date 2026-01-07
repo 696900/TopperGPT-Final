@@ -8,7 +8,7 @@ st.set_page_config(
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
-)
+
 
 # --- 2. SECURE CONFIGURATION (Fetch from Streamlit Secrets) ---
 # Note: Ensure these names match exactly in your Streamlit Dashboard Secrets
@@ -60,23 +60,46 @@ with tab1:
     uploaded_file = st.file_uploader("Upload a PDF file to begin", type=["pdf"]) #
     
     if uploaded_file:
-        st.success(f"File '{uploaded_file.name}' uploaded successfully!")
-        st.info("AI is ready! Ask anything about this document below.")
-
-    # Chat Display Area
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # Chat Input
-    if prompt := st.chat_input("Ask a question from your notes..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        # PDF se text nikaalna
+        import pypdf
+        pdf_reader = pypdf.PdfReader(uploaded_file)
+        pdf_text = ""
+        for page in pdf_reader.pages:
+            pdf_text += page.extract_text()
         
-        # Groq AI Logic Placeholder
-        with st.chat_message("assistant"):
-            st.write("Processing your request with Groq AI...") #
+        st.success(f"File '{uploaded_file.name}' read successfully!")
+
+        # Chat Display Area (Purani messages dikhane ke liye)
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        # Chat Input
+        if prompt := st.chat_input("Ask a question from your notes..."):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+            
+            # Groq AI Logic
+            try:
+                client = Groq(api_key=GROQ_API_KEY)
+                # Limit context to first 4000 chars to avoid token errors
+                full_prompt = f"Context: {pdf_text[:4000]}\n\nQuestion: {prompt}"
+                
+                completion = client.chat.completions.create(
+                    messages=[{"role": "user", "content": full_prompt}],
+                    model="llama3-8b-8192", # Fast and stable
+                )
+                
+                response = completion.choices[0].message.content
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                with st.chat_message("assistant"):
+                    st.markdown(response)
+                st.rerun()
+            except Exception as e:
+                st.error(f"AI Error: {e}")
+        
+        
 
 # --- TAB 2: YOUTUBE ANALYZER ---
 with tab2:
