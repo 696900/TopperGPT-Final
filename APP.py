@@ -89,7 +89,7 @@ with tab1:
                 
                 completion = client.chat.completions.create(
                     messages=[{"role": "user", "content": full_prompt}],
-                    model="llama3-8b-8192", # Fast and stable
+                    model="llama-3.1-8b-instant", # Fast and stable
                 )
                 
                 response = completion.choices[0].message.content
