@@ -1,5 +1,6 @@
 import streamlit as st
 from groq import Groq
+import pypdf
 import os
 
 # --- 1. PAGE CONFIGURATION ---
