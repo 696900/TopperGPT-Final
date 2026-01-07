@@ -9,7 +9,7 @@ st.set_page_config(
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
-
+)
 
 # --- 2. SECURE CONFIGURATION (Fetch from Streamlit Secrets) ---
 # Note: Ensure these names match exactly in your Streamlit Dashboard Secrets
