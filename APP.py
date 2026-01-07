@@ -58,51 +58,53 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # --- TAB 1: PDF CHAT (Core Feature) ---
 with tab1:
     st.subheader("📚 Upload & Analyze your Notes")
-    uploaded_file = st.file_uploader("Upload a PDF file to begin", type=["pdf"]) #
+    uploaded_file = st.file_uploader("Upload a PDF file to begin", type=["pdf"], key="pdf_uploader")
     
+    # 1. PDF Text ko Permanent Memory (Session State) mein save karna
     if uploaded_file:
-        # Step 1: PDF se text nikal kar Session State mein hamesha ke liye save karna
-        if "pdf_content" not in st.session_state:
-            import pypdf
-            pdf_reader = pypdf.PdfReader(uploaded_file)
-            extracted_text = ""
-            for page in pdf_reader.pages:
-                extracted_text += page.extract_text()
-            st.session_state.pdf_content = extracted_text # Memory mein save ho gaya
-            st.success(f"File '{uploaded_file.name}' read successfully!")
+        if "extracted_text" not in st.session_state:
+            with st.spinner("Reading PDF... Please wait."):
+                import pypdf
+                pdf_reader = pypdf.PdfReader(uploaded_file)
+                full_text = ""
+                for page in pdf_reader.pages:
+                    text = page.extract_text()
+                    if text:
+                        full_text += text
+                st.session_state.extracted_text = full_text # Memory mein save ho gaya
+                st.success(f"File '{uploaded_file.name}' loaded into memory!")
 
-        # Chat History Display
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+    # 2. Chat history dikhana
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-        # Chat Input
-        if prompt := st.chat_input("Ask a question from your notes..."):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-            
+    # 3. Chat Logic
+    if prompt := st.chat_input("Ask a question from your notes..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # AI ko memory se text bhejba
+        if "extracted_text" in st.session_state:
             try:
                 client = Groq(api_key=GROQ_API_KEY)
                 
-                # Step 2: Session State se text utha kar AI ko bhejna
-                # Isse AI kabhi ye nahi bolega ki "share the text"
-                context_text = st.session_state.get("pdf_content", "")
+                # Context limit (Groq limits ke liye thoda chota rakha hai)
+                pdf_context = st.session_state.extracted_text[:8000] 
                 
+                # Strict instructions for AI
                 messages_for_ai = [
                     {
                         "role": "system", 
-                        "content": f"You are a study assistant. Answer questions ONLY based on this PDF text: {context_text[:7000]}"
+                        "content": f"You are a study expert. Answer strictly based on this PDF text: \n\n{pdf_context}"
                     },
-                    {
-                        "role": "user", 
-                        "content": prompt
-                    }
+                    {"role": "user", "content": prompt}
                 ]
                 
                 completion = client.chat.completions.create(
                     messages=messages_for_ai,
-                    model="llama-3.1-8b-instant", # Working model
+                    model="llama-3.1-8b-instant", # working model
                 )
                 
                 response = completion.choices[0].message.content
@@ -113,7 +115,8 @@ with tab1:
                 
             except Exception as e:
                 st.error(f"AI Error: {e}")
-        
+        else:
+            st.warning("Please upload a PDF first so I can see the content!")
 
 # --- TAB 2: YOUTUBE ANALYZER ---
 with tab2:
