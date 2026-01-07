@@ -61,45 +61,52 @@ with tab1:
     uploaded_file = st.file_uploader("Upload a PDF file to begin", type=["pdf"]) #
     
     if uploaded_file:
-        # PDF se text nikaalna
+        # PDF se text nikalna (Har baar refresh par nikalega taaki AI ke paas rahe)
         import pypdf
         pdf_reader = pypdf.PdfReader(uploaded_file)
         pdf_text = ""
         for page in pdf_reader.pages:
             pdf_text += page.extract_text()
         
-        st.success(f"File '{uploaded_file.name}' read successfully!")
+        st.success(f"File '{uploaded_file.name}' read successfully!") #
 
-        # Chat Display Area (Purani messages dikhane ke liye)
+        # Chat History Display
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
         # Chat Input
         if prompt := st.chat_input("Ask a question from your notes..."):
+            # User ka message dikhana aur save karna
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
             
-            # Groq AI Logic
+            # AI Logic (Groq)
             try:
                 client = Groq(api_key=GROQ_API_KEY)
-                # Limit context to first 4000 chars to avoid token errors
-                full_prompt = f"Context: {pdf_text[:4000]}\n\nQuestion: {prompt}"
+                
+                # Sabse zaroori: PDF ka text aur User ka sawal ek saath bhejna
+                # Limit context to 5000 chars to stay safe with token limits
+                full_prompt = f"Context from PDF: {pdf_text[:5000]}\n\nUser Question: {prompt}"
                 
                 completion = client.chat.completions.create(
                     messages=[{"role": "user", "content": full_prompt}],
-                    model="llama-3.1-8b-instant", # Fast and stable
+                    model="llama-3.1-8b-instant", # Fix for decommissioned error
                 )
                 
                 response = completion.choices[0].message.content
+                
+                # Assistant ka jawab save aur display karna
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 with st.chat_message("assistant"):
                     st.markdown(response)
+                
+                # Page refresh taaki chat history update ho jaye
                 st.rerun()
+                
             except Exception as e:
-                st.error(f"AI Error: {e}")
-        
+                st.error(f"AI Error: {e}") #
         
 
 # --- TAB 2: YOUTUBE ANALYZER ---
