@@ -58,53 +58,64 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # --- TAB 1: PDF CHAT (Core Feature) ---
 with tab1:
     st.subheader("📚 Upload & Analyze your Notes")
-    uploaded_file = st.file_uploader("Upload a PDF file to begin", type=["pdf"], key="pdf_uploader")
     
-    # 1. PDF Text ko Permanent Memory (Session State) mein save karna
-    if uploaded_file:
-        if "extracted_text" not in st.session_state:
-            with st.spinner("Reading PDF... Please wait."):
-                import pypdf
-                pdf_reader = pypdf.PdfReader(uploaded_file)
-                full_text = ""
-                for page in pdf_reader.pages:
-                    text = page.extract_text()
-                    if text:
-                        full_text += text
-                st.session_state.extracted_text = full_text # Memory mein save ho gaya
-                st.success(f"File '{uploaded_file.name}' loaded into memory!")
+    # PDF Upload
+    uploaded_file = st.file_uploader("Upload your PDF", type=["pdf"], key="pdf_key")
 
-    # 2. Chat history dikhana
+    # 1. PDF Reading aur Memory Logic
+    if uploaded_file:
+        # Check agar ye nayi file hai ya purani
+        if "file_name" not in st.session_state or st.session_state.file_name != uploaded_file.name:
+            with st.spinner("Extracting text from PDF..."):
+                try:
+                    import pypdf
+                    reader = pypdf.PdfReader(uploaded_file)
+                    text = ""
+                    for page in reader.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text += page_text
+                    
+                    # Memory mein save karo
+                    st.session_state.pdf_text = text
+                    st.session_state.file_name = uploaded_file.name
+                    st.success(f"Successfully loaded: {uploaded_file.name}")
+                except Exception as e:
+                    st.error(f"Error reading PDF: {e}")
+
+    st.divider()
+
+    # 2. Chat History Display
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # 3. Chat Logic
+    # 3. Chat Input aur AI Logic
     if prompt := st.chat_input("Ask a question from your notes..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # AI ko memory se text bhejba
-        if "extracted_text" in st.session_state:
+        # Check agar memory mein PDF text hai
+        if "pdf_text" in st.session_state and st.session_state.pdf_text:
             try:
                 client = Groq(api_key=GROQ_API_KEY)
                 
-                # Context limit (Groq limits ke liye thoda chota rakha hai)
-                pdf_context = st.session_state.extracted_text[:8000] 
+                # Context limit (8000 chars) taaki AI crash na ho
+                context = st.session_state.pdf_text[:8000]
                 
-                # Strict instructions for AI
-                messages_for_ai = [
+                # AI ko strict instructions
+                messages = [
                     {
                         "role": "system", 
-                        "content": f"You are a study expert. Answer strictly based on this PDF text: \n\n{pdf_context}"
+                        "content": f"You are a helpful study expert. Use the following text extracted from a PDF to answer the user's questions: \n\n{context}"
                     },
                     {"role": "user", "content": prompt}
                 ]
                 
                 completion = client.chat.completions.create(
-                    messages=messages_for_ai,
-                    model="llama-3.1-8b-instant", # working model
+                    messages=messages,
+                    model="llama-3.1-8b-instant", # Working model
                 )
                 
                 response = completion.choices[0].message.content
@@ -112,11 +123,11 @@ with tab1:
                 with st.chat_message("assistant"):
                     st.markdown(response)
                 st.rerun()
-                
+
             except Exception as e:
                 st.error(f"AI Error: {e}")
         else:
-            st.warning("Please upload a PDF first so I can see the content!")
+            st.warning("Please upload a PDF first so I can analyze it!")
 
 # --- TAB 2: YOUTUBE ANALYZER ---
 with tab2:
