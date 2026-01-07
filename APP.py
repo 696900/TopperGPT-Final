@@ -61,21 +61,21 @@ with tab1:
     uploaded_file = st.file_uploader("Upload a PDF file to begin", type=["pdf"]) #
     
     if uploaded_file:
-        # PDF se text nikalna (Har baar refresh par nikalega taaki AI ke paas rahe)
-        import pypdf
-        pdf_reader = pypdf.PdfReader(uploaded_file)
-        pdf_text = ""
-        for page in pdf_reader.pages:
-            pdf_text += page.extract_text()
-        
-        st.success(f"File '{uploaded_file.name}' read successfully!") #
+        # Step 1: PDF se text nikal kar Session State mein hamesha ke liye save karna
+        if "pdf_content" not in st.session_state:
+            import pypdf
+            pdf_reader = pypdf.PdfReader(uploaded_file)
+            extracted_text = ""
+            for page in pdf_reader.pages:
+                extracted_text += page.extract_text()
+            st.session_state.pdf_content = extracted_text # Memory mein save ho gaya
+            st.success(f"File '{uploaded_file.name}' read successfully!")
 
         # Chat History Display
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # Chat Input
         # Chat Input
         if prompt := st.chat_input("Ask a question from your notes..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
@@ -85,12 +85,14 @@ with tab1:
             try:
                 client = Groq(api_key=GROQ_API_KEY)
                 
-                # Zaroori: AI ko strict instruction dena ki PDF ka data use kare
-                # Humne context window ko thoda chota rakha hai safety ke liye
+                # Step 2: Session State se text utha kar AI ko bhejna
+                # Isse AI kabhi ye nahi bolega ki "share the text"
+                context_text = st.session_state.get("pdf_content", "")
+                
                 messages_for_ai = [
                     {
                         "role": "system", 
-                        "content": f"You are a helpful study assistant. Use the following text from a PDF to answer the user's questions: \n\n{pdf_text[:6000]}"
+                        "content": f"You are a study assistant. Answer questions ONLY based on this PDF text: {context_text[:7000]}"
                     },
                     {
                         "role": "user", 
@@ -100,7 +102,7 @@ with tab1:
                 
                 completion = client.chat.completions.create(
                     messages=messages_for_ai,
-                    model="llama-3.1-8b-instant", # Naya working model
+                    model="llama-3.1-8b-instant", # Working model
                 )
                 
                 response = completion.choices[0].message.content
