@@ -76,37 +76,41 @@ with tab1:
                 st.markdown(message["content"])
 
         # Chat Input
+        # Chat Input
         if prompt := st.chat_input("Ask a question from your notes..."):
-            # User ka message dikhana aur save karna
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
             
-            # AI Logic (Groq)
             try:
                 client = Groq(api_key=GROQ_API_KEY)
                 
-                # Sabse zaroori: PDF ka text aur User ka sawal ek saath bhejna
-                # Limit context to 5000 chars to stay safe with token limits
-                full_prompt = f"Context from PDF: {pdf_text[:5000]}\n\nUser Question: {prompt}"
+                # Zaroori: AI ko strict instruction dena ki PDF ka data use kare
+                # Humne context window ko thoda chota rakha hai safety ke liye
+                messages_for_ai = [
+                    {
+                        "role": "system", 
+                        "content": f"You are a helpful study assistant. Use the following text from a PDF to answer the user's questions: \n\n{pdf_text[:6000]}"
+                    },
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ]
                 
                 completion = client.chat.completions.create(
-                    messages=[{"role": "user", "content": full_prompt}],
-                    model="llama-3.1-8b-instant", # Fix for decommissioned error
+                    messages=messages_for_ai,
+                    model="llama-3.1-8b-instant", # Naya working model
                 )
                 
                 response = completion.choices[0].message.content
-                
-                # Assistant ka jawab save aur display karna
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 with st.chat_message("assistant"):
                     st.markdown(response)
-                
-                # Page refresh taaki chat history update ho jaye
                 st.rerun()
                 
             except Exception as e:
-                st.error(f"AI Error: {e}") #
+                st.error(f"AI Error: {e}")
         
 
 # --- TAB 2: YOUTUBE ANALYZER ---
