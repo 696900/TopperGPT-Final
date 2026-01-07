@@ -6,3 +6,4 @@ firebase-admin
 pypdf
 fpdf
 gTTS
+google-generativeai
