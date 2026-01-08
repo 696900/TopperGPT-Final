@@ -48,11 +48,11 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 ])
 
 with tab1:
-    with tab1:
-    st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
+    st.subheader("📚 Analyze your Notes (PDF & Handwritten)") # Yahan gap hona zaroori hai!
     
-    # PDF Upload Section
-    uploaded_file = st.file_uploader("Upload PDF or Image of Notes", type=["pdf", "jpg", "png"], key="pdf_chat_main")
+    # Baaki saara code bhi isi line ki seedh mein hona chahiye
+    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png"], key="pdf_chat_main")
+    
 
     # 1. PROCESSING LOGIC (Memory Lock)
     if uploaded_file:
