@@ -49,12 +49,13 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v8")
+    # Unique key taaki cache refresh ho
+    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_force_v8")
 
-    # 1. Extraction with Memory Fix
     if uploaded_file:
+        # Check if new file or existing one
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-            with st.spinner("🧠 Scanning..."):
+            with st.spinner("🧠 FORCE SCANNING: Reading every word..."):
                 try:
                     text_data = ""
                     if uploaded_file.type == "application/pdf":
@@ -67,53 +68,64 @@ with tab1:
                         v_res = v_model.generate_content(["Extract text strictly.", uploaded_file])
                         text_data = v_res.text
                     
-                    st.session_state.pdf_content = text_data
+                    # Store in multiple session variables for safety
+                    st.session_state.pdf_content = text_data.strip()
                     st.session_state.last_uploaded = uploaded_file.name
-                    st.success(f"✅ Document '{uploaded_file.name}' Loaded!")
+                    st.success(f"✅ DATA LOCKED: {len(text_data)} characters found.")
                 except Exception as e:
-                    st.error("Extraction slow hai, please wait.")
+                    st.error(f"Sync failed: {e}")
 
     st.divider()
 
     # 2. History display
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    # 3. Precise Hybrid Chat Logic
+    # 3. Aggressive Hybrid Chat logic
     if u_input := st.chat_input("Ask from your notes..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
         with st.chat_message("user"):
             st.markdown(u_input)
 
         with st.chat_message("assistant"):
+            # Getting content from memory
             ctx = st.session_state.get("pdf_content", "")
             
-            # SAKHT INSTRUCTIONS for AI
-            system_rules = """
-            1. If user says 'Hi' or greetings, just reply with a short friendly greeting. Do NOT give general exam info.
-            2. If a PDF is uploaded (Context available), answer ONLY from the PDF.
-            3. If no PDF is uploaded, answer the question directly using your knowledge.
-            4. Be concise. Do NOT give extra information unless asked.
-            """
-            
-            final_p = f"{system_rules}\n\nContext: {ctx[:12000]}\n\nUser Question: {u_input}"
+            # FORCE INSTRUCTION: AI cannot say "I don't see the PDF"
+            if ctx:
+                final_prompt = f"""SYSTEM: You are TopperGPT. YOU MUST USE THE CONTEXT BELOW. 
+                DO NOT SAY YOU CANNOT SEE THE FILE. THE FILE CONTENT IS PROVIDED HERE.
+                
+                CONTEXT DATA:
+                ---
+                {ctx[:15000]}
+                ---
+                
+                USER QUESTION: {u_input}"""
+            else:
+                final_prompt = f"Answer this general question: {u_input}"
 
             try:
+                # Primary AI (Gemini Flash)
                 g_model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                g_res = g_model.generate_content(final_p)
+                g_res = g_model.generate_content(final_prompt)
                 ans = g_res.text
             except:
+                # Silent Backup AI (Groq)
                 try:
                     from groq import Groq
-                    gr_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-                    gr_res = gr_client.chat.completions.create(
+                    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                    res = client.chat.completions.create(
                         model="llama-3.1-8b-instant",
-                        messages=[{"role": "user", "content": final_p}]
+                        messages=[{"role": "user", "content": final_prompt}]
                     )
-                    ans = gr_res.choices[0].message.content
+                    ans = res.choices[0].message.content
                 except:
-                    ans = "Bhai, server thoda busy hai, 10 second ruko."
+                    ans = "Bhai, API busy hai. Ek baar refresh karke try karo."
 
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
