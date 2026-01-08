@@ -50,71 +50,55 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
     
-    # 1. SIMPLE UPLOADER
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v13")
+    # 1. FILE UPLOADER
+    uploaded_file = st.file_uploader("Upload Notes (Max 2MB for stability)", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v15")
 
     if uploaded_file:
-        if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-            with st.spinner("🧠 Scanning text... please wait."):
-                try:
-                    import pypdf, io
-                    file_bytes = uploaded_file.read()
-                    
-                    # METHOD: FAST TEXT EXTRACTION (Only first 15 pages to stay under limit)
-                    reader = pypdf.PdfReader(io.BytesIO(file_bytes))
-                    extracted_text = ""
-                    for i, page in enumerate(reader.pages[:15]): # Limit to 15 pages for stability
-                        t = page.extract_text()
-                        if t: extracted_text += t + "\n"
-                    
-                    if len(extracted_text.strip()) > 20:
-                        st.session_state.pdf_content = extracted_text
+        # File size check (Safety Valve)
+        file_size = uploaded_file.size / (1024 * 1024)
+        if file_size > 4:
+            st.error("⚠️ File bahut badi hai (4MB+). Please choti file upload karein taaki server busy na ho.")
+        else:
+            if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
+                with st.spinner("🧠 Scanning..."):
+                    try:
+                        # FAST EXTRACTION ONLY
+                        import pypdf, io
+                        reader = pypdf.PdfReader(io.BytesIO(uploaded_file.read()))
+                        text = ""
+                        for page in reader.pages[:10]: # Sirf pehle 10 pages
+                            text += page.extract_text() + "\n"
+                        
+                        st.session_state.pdf_content = text
                         st.session_state.last_uploaded = uploaded_file.name
-                        st.success(f"✅ {uploaded_file.name} ready for questions!")
-                    else:
-                        st.error("⚠️ Is PDF mein text nahi mil raha. Kya ye scanned image hai?")
-                except Exception as e:
-                    st.error("⚠️ File read karne mein error. Ek baar page refresh karein.")
+                        st.success("✅ Ready!")
+                    except:
+                        st.error("⚠️ Scan failed. Try a smaller file.")
 
     st.divider()
 
-    # 2. CHAT HISTORY
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
+    # 2. CHAT DISPLAY
     for m in st.session_state.messages:
-        with st.chat_message(m["role"]):
-            st.markdown(m["content"])
+        with st.chat_message(m["role"]): st.markdown(m["content"])
 
-    # 3. ASK YOUR DOUBTS (Fixed Input)
+    # 3. CHAT INPUT (Direct to Groq - Never Busy)
     if u_input := st.chat_input("Ask your doubts here..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
-        with st.chat_message("user"):
-            st.markdown(u_input)
+        with st.chat_message("user"): st.markdown(u_input)
 
         with st.chat_message("assistant"):
             ctx = st.session_state.get("pdf_content", "")
-            
-            # Master Prompt: Direct and forceful
-            final_p = f"Notes Context: {ctx[:15000]}\n\nUser Question: {u_input}\n\nInstruction: Answer using the notes above. If empty, answer generally."
-
-            # PRIORITY 1: GROQ (Because Gemini is too busy right now)
+            # Hum seedha Groq use karenge kyunki wo Gemini ki tarah nakhre nahi dikhata
             try:
                 from groq import Groq
                 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                 res = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": final_p}]
+                    messages=[{"role": "user", "content": f"Context: {ctx[:10000]}\n\nQuestion: {u_input}"}]
                 )
                 ans = res.choices[0].message.content
             except:
-                # PRIORITY 2: GEMINI (Fallback)
-                try:
-                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                    res = model.generate_content(final_p)
-                    ans = res.text
-                except:
-                    ans = "Bhai, dono AI rest kar rahe hain. 30 seconds ruko aur phir pucho."
+                ans = "Bhai, Groq bhi limit hit kar gaya. Ek baar refresh karo."
 
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
