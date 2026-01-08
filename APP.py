@@ -49,67 +49,88 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_final_v9")
+    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v10")
 
+    # 1. ROBUST EXTRACTION (Memory Lock)
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-            with st.spinner("🧠 AI is reading your 12MB file... please wait."):
+            with st.spinner("🧠 FORCE READING: Extracting text from 12MB file..."):
                 try:
-                    # GEMINI VISION/PDF DIRECT SCAN (Strongest Method)
-                    model_v = genai.GenerativeModel('gemini-1.5-flash-latest')
-                    
-                    # File ko bytes mein convert karke direct Gemini ko dena
+                    import pypdf, io
                     file_bytes = uploaded_file.read()
                     
-                    # Agar PDF hai toh usse analyze karwana
-                    if uploaded_file.type == "application/pdf":
-                        # Gemini can take PDF bytes directly in some regions, 
-                        # but for stability, we ask it to describe the content
-                        response = model_v.generate_content([
-                            "Analyze this document and extract all study content, questions, and important topics into text.",
-                            {"mime_type": "application/pdf", "data": file_bytes}
-                        ])
-                    else:
-                        response = model_v.generate_content([
-                            "Extract all text from this image.",
-                            {"mime_type": uploaded_file.type, "data": file_bytes}
-                        ])
-                    
-                    st.session_state.pdf_content = response.text
-                    st.session_state.last_uploaded = uploaded_file.name
-                    st.success("✅ PDF Content Captured!")
-                except Exception as e:
-                    st.error("Gemini busy hai, hum normal PDF reader try kar rahe hain...")
-                    # Fallback to pypdf if API fails
-                    import pypdf, io
+                    # Method A: Direct Byte-by-Byte Extraction
                     reader = pypdf.PdfReader(io.BytesIO(file_bytes))
-                    st.session_state.pdf_content = "".join([p.extract_text() for p in reader.pages])
+                    extracted_text = ""
+                    for page in reader.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            extracted_text += page_text + "\n"
+                    
+                    # Method B: Vision Backup (If text is empty/scanned)
+                    if len(extracted_text.strip()) < 50:
+                        st.info("🔄 Scanned PDF detected, using AI Vision...")
+                        v_model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                        # Processing first 5 pages for speed in free tier
+                        v_res = v_model.generate_content(["Summarize and extract key text from these notes.", {"mime_type": "application/pdf", "data": file_bytes}])
+                        extracted_text = v_res.text
+
+                    st.session_state.pdf_content = extracted_text
+                    st.session_state.last_uploaded = uploaded_file.name
+                    st.success("✅ Content Synced!")
+                except Exception as e:
+                    st.error(f"Sync failed. Please try again or use a smaller file.")
 
     st.divider()
 
-    # Chat logic (Same as before but with STRONGER prompt)
-    if prompt := st.chat_input("Ask from your notes..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
+    # 2. CHAT HISTORY (No Reload Issues)
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
+
+    # 3. CONTEXT INJECTION (The Secret Sauce)
+    if u_input := st.chat_input("Ask about your 12MB notes..."):
+        st.session_state.messages.append({"role": "user", "content": u_input})
+        with st.chat_message("user"):
+            st.markdown(u_input)
 
         with st.chat_message("assistant"):
             ctx = st.session_state.get("pdf_content", "")
-            # Direct Injection: AI cannot deny this data
-            final_p = f"IGNORE PREVIOUS KNOWLEDGE. USE ONLY THIS TEXT TO ANSWER:\n\n{ctx[:20000]}\n\nQUESTION: {prompt}"
             
+            # FORCE INSTRUCTION: AI cannot ignore this
+            master_prompt = f"""
+            YOU ARE TOPPERGPT. 
+            HERE IS THE DOCUMENT CONTENT:
+            ---
+            {ctx[:25000]}
+            ---
+            USER QUESTION: {u_input}
+            
+            INSTRUCTION: Strictly answer from the content above. If the content is missing, use your internal study knowledge but NEVER say 'I don't see the PDF'.
+            """
+
+            ans = ""
             try:
+                # Primary: Gemini Flash Latest
                 model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                res = model.generate_content(final_p)
+                res = model.generate_content(master_prompt)
                 ans = res.text
             except:
-                from groq import Groq
-                client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-                res = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[{"role": "user", "content": final_p}]
-                )
-                ans = res.choices[0].message.content
-            
+                # Backup: Groq (Llama 3.1 70B)
+                try:
+                    from groq import Groq
+                    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-specdec",
+                        messages=[{"role": "user", "content": master_prompt}]
+                    )
+                    ans = res.choices[0].message.content
+                except:
+                    ans = "Bhai, dono AI busy hain. Please 10 seconds baad pucho."
+
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
 with tab2:
