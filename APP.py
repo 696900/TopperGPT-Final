@@ -49,76 +49,71 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_final_v7")
+    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v8")
 
+    # 1. Extraction with Memory Fix
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-            with st.spinner("🧠 Deep Scanning..."):
+            with st.spinner("🧠 Scanning..."):
                 try:
                     text_data = ""
                     if uploaded_file.type == "application/pdf":
-                        # Method 1: PyPDF
                         import pypdf
                         reader = pypdf.PdfReader(uploaded_file)
                         for page in reader.pages:
                             text_data += page.extract_text() + "\n"
-                        
-                        # Method 2: If PyPDF fails to get text
-                        if len(text_data.strip()) < 10:
-                            text_data = "Error: PDF text readable nahi hai, please image upload karein."
-                            
                     else:
-                        # Image/Handwritten logic
                         v_model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                        v_res = v_model.generate_content(["Extract all text strictly.", uploaded_file])
+                        v_res = v_model.generate_content(["Extract text strictly.", uploaded_file])
                         text_data = v_res.text
                     
                     st.session_state.pdf_content = text_data
                     st.session_state.last_uploaded = uploaded_file.name
-                    st.success("✅ Content Synchronized!")
+                    st.success(f"✅ Document '{uploaded_file.name}' Loaded!")
                 except Exception as e:
-                    st.error(f"Sync failed: {e}")
+                    st.error("Extraction slow hai, please wait.")
 
     st.divider()
 
-    # Chat Display logic
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
+    # 2. History display
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    # Input logic with direct prompt passing
+    # 3. Precise Hybrid Chat Logic
     if u_input := st.chat_input("Ask from your notes..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
         with st.chat_message("user"):
             st.markdown(u_input)
 
         with st.chat_message("assistant"):
-            # Getting content from memory
-            ctx = st.session_state.get("pdf_content", "No context available.")
+            ctx = st.session_state.get("pdf_content", "")
             
-            # Creating a super-clear prompt
-            final_prompt = f"Note Context: {ctx[:10000]}\n\nQuestion: {u_input}\n\nInstruction: Answer strictly based on notes if available. If not, use general knowledge."
+            # SAKHT INSTRUCTIONS for AI
+            system_rules = """
+            1. If user says 'Hi' or greetings, just reply with a short friendly greeting. Do NOT give general exam info.
+            2. If a PDF is uploaded (Context available), answer ONLY from the PDF.
+            3. If no PDF is uploaded, answer the question directly using your knowledge.
+            4. Be concise. Do NOT give extra information unless asked.
+            """
+            
+            final_p = f"{system_rules}\n\nContext: {ctx[:12000]}\n\nUser Question: {u_input}"
 
             try:
-                # Primary AI
                 g_model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                g_res = g_model.generate_content(final_prompt)
+                g_res = g_model.generate_content(final_p)
                 ans = g_res.text
             except:
-                # Backup AI (Groq) without the "Backup" message
                 try:
                     from groq import Groq
-                    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-                    res = client.chat.completions.create(
+                    gr_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                    gr_res = gr_client.chat.completions.create(
                         model="llama-3.1-8b-instant",
-                        messages=[{"role": "user", "content": final_prompt}]
+                        messages=[{"role": "user", "content": final_p}]
                     )
-                    ans = res.choices[0].message.content
+                    ans = gr_res.choices[0].message.content
                 except:
-                    ans = "Bhai, dono servers busy hain. Ek baar refresh karke 10 second ruko."
+                    ans = "Bhai, server thoda busy hai, 10 second ruko."
 
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
