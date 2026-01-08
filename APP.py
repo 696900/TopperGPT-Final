@@ -62,7 +62,7 @@ with tab1:
                         st.session_state.pdf_content = text
                     else:
                         # Fixed Model Name
-                        model_vision = genai.GenerativeModel('gemini-1.5-flash')
+                        model_vision = genai.GenerativeModel('models/gemini-1.5-flash')
                         img_res = model_vision.generate_content(["Extract all text strictly.", uploaded_file])
                         st.session_state.pdf_content = img_res.text
                     
@@ -87,7 +87,7 @@ with tab1:
         with st.chat_message("assistant"):
             try:
                 # Fixed Model Name for Chat
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                model = genai.GenerativeModel('models/gemini-1.5-flash')
                 context = st.session_state.get("pdf_content", "")
                 
                 if context:
