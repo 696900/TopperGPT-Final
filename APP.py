@@ -48,72 +48,65 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 ])
 
 with tab1:
-    st.subheader("📚 Analyze your Notes (PDF & Handwritten)") # Yahan gap hona zaroori hai!
+    st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
     
-    # Baaki saara code bhi isi line ki seedh mein hona chahiye
-    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png"], key="pdf_chat_main")
-    
+    # 1. File Uploader & Extraction (Same as before)
+    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_main")
 
-    # 1. PROCESSING LOGIC (Memory Lock)
     if uploaded_file:
-        # Nayi file detect karne ka logic
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
             with st.spinner("🧠 AI is deep-scanning your notes..."):
                 try:
                     if uploaded_file.type == "application/pdf":
-                        # Standard PDF Text Extraction
                         import pypdf
                         reader = pypdf.PdfReader(uploaded_file)
-                        text = ""
-                        for page in reader.pages:
-                            text += page.extract_text() or ""
+                        text = "".join([page.extract_text() or "" for page in reader.pages])
                         st.session_state.pdf_content = text
                     else:
-                        # Image/Handwritten logic (Gemini Vision use karenge)
-                        model = genai.GenerativeModel('gemini-1.5-pro')
-                        response = model.generate_content(["Extract all text and formulas from this handwritten note image strictly.", uploaded_file])
-                        st.session_state.pdf_content = response.text
+                        model_vision = genai.GenerativeModel('gemini-1.5-pro')
+                        img_response = model_vision.generate_content(["Extract text and formulas strictly.", uploaded_file])
+                        st.session_state.pdf_content = img_response.text
                     
                     st.session_state.last_uploaded = uploaded_file.name
-                    st.success(f"✅ '{uploaded_file.name}' is now in Memory!")
+                    st.success(f"✅ '{uploaded_file.name}' loaded!")
                 except Exception as e:
-                    st.error(f"Extraction Error: {e}")
+                    st.error(f"Error: {e}")
 
     st.divider()
 
-    # 2. CHAT HISTORY DISPLAY
+    # 2. Display Chat History (Always First)
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # 3. HYBRID CHAT LOGIC (NotebookLM style + Open AI)
+    # 3. Handle New Input
     if prompt := st.chat_input("Ask anything..."):
+        # Display User Message
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Prompt Engineering: AI ko batana ki context hai ya nahi
-        context = st.session_state.get("pdf_content", "")
-        
-        # System Instruction
-        if context:
-            system_prompt = f"You are TopperGPT. Use this user's notes to answer. If the answer isn't in notes, use your own knowledge but mention 'Based on my knowledge'. \n\nNOTES: {context[:10000]}"
-        else:
-            system_prompt = "You are TopperGPT. No notes uploaded yet. Answer the user's question using your general study knowledge."
-
+        # Generate AI Response
         with st.chat_message("assistant"):
             try:
-                # Gemini 1.5 Pro for High Accuracy
+                context = st.session_state.get("pdf_content", "")
                 model = genai.GenerativeModel('gemini-1.5-pro')
-                chat = model.start_chat()
-                full_prompt = f"{system_prompt} \n\nUSER QUESTION: {prompt}"
-                response = chat.send_message(full_prompt)
                 
-                st.markdown(response.text)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                # Instruction logic
+                if context:
+                    full_query = f"Using these notes: {context[:15000]}\n\nUser Question: {prompt}"
+                else:
+                    full_query = f"Answer this general study question: {prompt}"
+
+                response = model.generate_content(full_query)
+                ai_text = response.text
+                
+                # Display and Save
+                st.markdown(ai_text)
+                st.session_state.messages.append({"role": "assistant", "content": ai_text})
+                
             except Exception as e:
                 st.error(f"AI Error: {e}")
-        st.rerun()
 with tab2:
     st.subheader("🎥 YouTube Video Analyzer")
     st.text_input("YouTube URL")
