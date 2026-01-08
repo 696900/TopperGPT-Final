@@ -66,7 +66,7 @@ with tab1:
                         import pypdf, io
                         reader = pypdf.PdfReader(io.BytesIO(uploaded_file.read()))
                         text = ""
-                        for page in reader.pages[:10]: # Sirf pehle 10 pages
+                        for page in reader.pages[:24]: # Sirf pehle 24 pages
                             text += page.extract_text() + "\n"
                         
                         st.session_state.pdf_content = text
