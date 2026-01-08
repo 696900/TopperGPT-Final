@@ -49,66 +49,76 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v5")
+    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_final_v7")
 
-    # 1. STRONGER EXTRACTION
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-            with st.spinner("🧠 Scanning documents..."):
+            with st.spinner("🧠 Deep Scanning..."):
                 try:
                     text_data = ""
                     if uploaded_file.type == "application/pdf":
+                        # Method 1: PyPDF
                         import pypdf
-                        pdf_reader = pypdf.PdfReader(uploaded_file)
-                        text_data = " ".join([p.extract_text() or "" for p in pdf_reader.pages])
+                        reader = pypdf.PdfReader(uploaded_file)
+                        for page in reader.pages:
+                            text_data += page.extract_text() + "\n"
+                        
+                        # Method 2: If PyPDF fails to get text
+                        if len(text_data.strip()) < 10:
+                            text_data = "Error: PDF text readable nahi hai, please image upload karein."
+                            
                     else:
-                        # Direct Flash model call for speed
+                        # Image/Handwritten logic
                         v_model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                        v_res = v_model.generate_content(["Extract text strictly.", uploaded_file])
+                        v_res = v_model.generate_content(["Extract all text strictly.", uploaded_file])
                         text_data = v_res.text
                     
                     st.session_state.pdf_content = text_data
                     st.session_state.last_uploaded = uploaded_file.name
-                    st.success("✅ Sync Successful!")
+                    st.success("✅ Content Synchronized!")
                 except Exception as e:
                     st.error(f"Sync failed: {e}")
 
     st.divider()
 
-    # 2. CHAT HISTORY
+    # Chat Display logic
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    # 3. ROBUST HYBRID CHAT
-    if u_input := st.chat_input("Ask about your syllabus..."):
+    # Input logic with direct prompt passing
+    if u_input := st.chat_input("Ask from your notes..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
         with st.chat_message("user"):
             st.markdown(u_input)
 
         with st.chat_message("assistant"):
-            ctx = st.session_state.get("pdf_content", "")
+            # Getting content from memory
+            ctx = st.session_state.get("pdf_content", "No context available.")
             
-            # Simple & Direct Prompt to avoid AI confusion
-            final_p = f"Context: {ctx[:12000]}\n\nUser Question: {u_input}\n\nAnswer like a helpful study tutor."
+            # Creating a super-clear prompt
+            final_prompt = f"Note Context: {ctx[:10000]}\n\nQuestion: {u_input}\n\nInstruction: Answer strictly based on notes if available. If not, use general knowledge."
 
-            # ENGINE 1: GEMINI
             try:
+                # Primary AI
                 g_model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                g_res = g_model.generate_content(final_p)
+                g_res = g_model.generate_content(final_prompt)
                 ans = g_res.text
             except:
-                # ENGINE 2: GROQ (SILENT BACKUP)
+                # Backup AI (Groq) without the "Backup" message
                 try:
                     from groq import Groq
-                    gr_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-                    gr_res = gr_client.chat.completions.create(
-                        model="llama-3.3-70b-specdec", # Ultra-stable model
-                        messages=[{"role": "user", "content": final_p}]
+                    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                    res = client.chat.completions.create(
+                        model="llama-3.1-8b-instant",
+                        messages=[{"role": "user", "content": final_prompt}]
                     )
-                    ans = gr_res.choices[0].message.content
+                    ans = res.choices[0].message.content
                 except:
-                    ans = "Bhai, API limit reach ho gayi hai. 1 minute ruko ya page refresh karo."
+                    ans = "Bhai, dono servers busy hain. Ek baar refresh karke 10 second ruko."
 
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
