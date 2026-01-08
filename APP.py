@@ -49,9 +49,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    
-    # 1. File Uploader & Extraction (Same as before)
-    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_main")
+    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v3")
 
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
@@ -63,48 +61,43 @@ with tab1:
                         text = "".join([page.extract_text() or "" for page in reader.pages])
                         st.session_state.pdf_content = text
                     else:
-                        model_vision = genai.GenerativeModel('gemini-1.5-pro')
-                        img_response = model_vision.generate_content(["Extract text and formulas strictly.", uploaded_file])
-                        st.session_state.pdf_content = img_response.text
+                        # Fixed Model Name
+                        model_vision = genai.GenerativeModel('gemini-1.5-flash')
+                        img_res = model_vision.generate_content(["Extract all text strictly.", uploaded_file])
+                        st.session_state.pdf_content = img_res.text
                     
                     st.session_state.last_uploaded = uploaded_file.name
-                    st.success(f"✅ '{uploaded_file.name}' loaded!")
+                    st.success(f"✅ '{uploaded_file.name}' Loaded!")
                 except Exception as e:
                     st.error(f"Error: {e}")
 
     st.divider()
 
-    # 2. Display Chat History (Always First)
+    # Display Chat History
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # 3. Handle New Input
+    # Chat Input with Hybrid Logic
     if prompt := st.chat_input("Ask anything..."):
-        # Display User Message
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Generate AI Response
         with st.chat_message("assistant"):
             try:
+                # Fixed Model Name for Chat
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 context = st.session_state.get("pdf_content", "")
-                model = genai.GenerativeModel('gemini-1.5-pro')
                 
-                # Instruction logic
                 if context:
-                    full_query = f"Using these notes: {context[:15000]}\n\nUser Question: {prompt}"
+                    full_query = f"Notes: {context[:15000]}\n\nQuestion: {prompt}"
                 else:
                     full_query = f"Answer this general study question: {prompt}"
 
                 response = model.generate_content(full_query)
-                ai_text = response.text
-                
-                # Display and Save
-                st.markdown(ai_text)
-                st.session_state.messages.append({"role": "assistant", "content": ai_text})
-                
+                st.markdown(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
                 st.error(f"AI Error: {e}")
 with tab2:
