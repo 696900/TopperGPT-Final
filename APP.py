@@ -49,56 +49,87 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    
+
     # 1. FILE UPLOADER
-    uploaded_file = st.file_uploader("Upload Notes (Max 2MB for stability)", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v15")
+    uploaded_file = st.file_uploader(
+        "Upload Notes or Screenshot",
+        type=["pdf", "jpg", "png", "jpeg"],
+        key="pdf_chat_v16"
+    )
 
     if uploaded_file:
-        # File size check (Safety Valve)
         file_size = uploaded_file.size / (1024 * 1024)
-        if file_size > 4:
-            st.error("⚠️ File bahut badi hai (4MB+). Please choti file upload karein taaki server busy na ho.")
+        if file_size > 10:
+            st.error("⚠️ File bahut badi hai. Please choti file ya screenshot upload karein.")
         else:
             if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-                with st.spinner("🧠 Scanning..."):
+                with st.spinner("🧠 AI is scanning..."):
                     try:
-                        # FAST EXTRACTION ONLY
                         import pypdf, io
-                        reader = pypdf.PdfReader(io.BytesIO(uploaded_file.read()))
+                        file_bytes = uploaded_file.getvalue()
                         text = ""
-                        for page in reader.pages[:10]: # Sirf pehle 10 pages
-                            text += page.extract_text() + "\n"
+
+                        # Agar PDF hai toh text extraction
+                        if uploaded_file.type == "application/pdf":
+                            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+                            for page in reader.pages[:20]: 
+                                extracted = page.extract_text()
+                                if extracted: text += extracted + "\n"
                         
-                        st.session_state.pdf_content = text
-                        st.session_state.last_uploaded = uploaded_file.name
-                        st.success("✅ Ready!")
-                    except:
-                        st.error("⚠️ Scan failed. Try a smaller file.")
+                        # Agar TEXT EMPTY hai ya IMAGE hai, toh Gemini Vision use karo
+                        if not text.strip():
+                            model_v = genai.GenerativeModel('gemini-1.5-flash-latest')
+                            # Direct byte processing for images/scanned PDFs
+                            v_res = model_v.generate_content([
+                                "Extract all text and study notes from this file strictly.",
+                                {"mime_type": uploaded_file.type, "data": file_bytes}
+                            ])
+                            text = v_res.text
+
+                        if text.strip():
+                            st.session_state.pdf_content = text
+                            st.session_state.last_uploaded = uploaded_file.name
+                            st.success("✅ Ready! Poocho kya puchna hai.")
+                        else:
+                            st.error("⚠️ AI ko text nahi mila. Please saaf image upload karein.")
+
+                    except Exception as e:
+                        st.error(f"⚠️ Scan failed: {e}")
 
     st.divider()
 
     # 2. CHAT DISPLAY
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]): st.markdown(m["content"])
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-    # 3. CHAT INPUT (Direct to Groq - Never Busy)
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
+
+    # 3. CHAT INPUT (Hybrid Groq/Gemini)
     if u_input := st.chat_input("Ask your doubts here..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
-        with st.chat_message("user"): st.markdown(u_input)
+        with st.chat_message("user"):
+            st.markdown(u_input)
 
         with st.chat_message("assistant"):
             ctx = st.session_state.get("pdf_content", "")
-            # Hum seedha Groq use karenge kyunki wo Gemini ki tarah nakhre nahi dikhata
+            final_prompt = f"Context: {ctx[:12000]}\n\nQuestion: {u_input}"
+
             try:
+                # Direct to Groq for speed
                 from groq import Groq
                 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                 res = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": f"Context: {ctx[:10000]}\n\nQuestion: {u_input}"}]
+                    messages=[{"role": "user", "content": final_prompt}]
                 )
                 ans = res.choices[0].message.content
             except:
-                ans = "Bhai, Groq bhi limit hit kar gaya. Ek baar refresh karo."
+                # Backup to Gemini
+                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                res = model.generate_content(final_prompt)
+                ans = res.text
 
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
