@@ -48,10 +48,72 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 ])
 
 with tab1:
-    st.subheader("📚 Chat with your PDF")
-    pdf = st.file_uploader("Upload PDF", type=["pdf"])
-    st.info("PDF extraction logic will be fixed tomorrow.")
+    with tab1:
+    st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
+    
+    # PDF Upload Section
+    uploaded_file = st.file_uploader("Upload PDF or Image of Notes", type=["pdf", "jpg", "png"], key="pdf_chat_main")
 
+    # 1. PROCESSING LOGIC (Memory Lock)
+    if uploaded_file:
+        # Nayi file detect karne ka logic
+        if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
+            with st.spinner("🧠 AI is deep-scanning your notes..."):
+                try:
+                    if uploaded_file.type == "application/pdf":
+                        # Standard PDF Text Extraction
+                        import pypdf
+                        reader = pypdf.PdfReader(uploaded_file)
+                        text = ""
+                        for page in reader.pages:
+                            text += page.extract_text() or ""
+                        st.session_state.pdf_content = text
+                    else:
+                        # Image/Handwritten logic (Gemini Vision use karenge)
+                        model = genai.GenerativeModel('gemini-1.5-pro')
+                        response = model.generate_content(["Extract all text and formulas from this handwritten note image strictly.", uploaded_file])
+                        st.session_state.pdf_content = response.text
+                    
+                    st.session_state.last_uploaded = uploaded_file.name
+                    st.success(f"✅ '{uploaded_file.name}' is now in Memory!")
+                except Exception as e:
+                    st.error(f"Extraction Error: {e}")
+
+    st.divider()
+
+    # 2. CHAT HISTORY DISPLAY
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # 3. HYBRID CHAT LOGIC (NotebookLM style + Open AI)
+    if prompt := st.chat_input("Ask anything..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Prompt Engineering: AI ko batana ki context hai ya nahi
+        context = st.session_state.get("pdf_content", "")
+        
+        # System Instruction
+        if context:
+            system_prompt = f"You are TopperGPT. Use this user's notes to answer. If the answer isn't in notes, use your own knowledge but mention 'Based on my knowledge'. \n\nNOTES: {context[:10000]}"
+        else:
+            system_prompt = "You are TopperGPT. No notes uploaded yet. Answer the user's question using your general study knowledge."
+
+        with st.chat_message("assistant"):
+            try:
+                # Gemini 1.5 Pro for High Accuracy
+                model = genai.GenerativeModel('gemini-1.5-pro')
+                chat = model.start_chat()
+                full_prompt = f"{system_prompt} \n\nUSER QUESTION: {prompt}"
+                response = chat.send_message(full_prompt)
+                
+                st.markdown(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+            except Exception as e:
+                st.error(f"AI Error: {e}")
+        st.rerun()
 with tab2:
     st.subheader("🎥 YouTube Video Analyzer")
     st.text_input("YouTube URL")
