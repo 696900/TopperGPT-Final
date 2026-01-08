@@ -50,36 +50,35 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
     
-    # 1. File Uploader
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v12")
+    # 1. SIMPLE UPLOADER
+    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v13")
 
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-            with st.spinner("🧠 AI is scanning every page... please wait."):
+            with st.spinner("🧠 Scanning text... please wait."):
                 try:
-                    # GEMINI VISION DIRECT SCAN (Sabse powerful method)
-                    model_v = genai.GenerativeModel('gemini-1.5-flash-latest')
+                    import pypdf, io
                     file_bytes = uploaded_file.read()
                     
-                    # Force Gemini to read the file as a document
-                    mime_type = "application/pdf" if uploaded_file.type == "application/pdf" else uploaded_file.type
-                    response = model_v.generate_content([
-                        "Extract all text, formulas, and topics from this document. Give a detailed text output.",
-                        {"mime_type": mime_type, "data": file_bytes}
-                    ])
+                    # METHOD: FAST TEXT EXTRACTION (Only first 15 pages to stay under limit)
+                    reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+                    extracted_text = ""
+                    for i, page in enumerate(reader.pages[:15]): # Limit to 15 pages for stability
+                        t = page.extract_text()
+                        if t: extracted_text += t + "\n"
                     
-                    if response.text:
-                        st.session_state.pdf_content = response.text
+                    if len(extracted_text.strip()) > 20:
+                        st.session_state.pdf_content = extracted_text
                         st.session_state.last_uploaded = uploaded_file.name
-                        st.success(f"✅ {uploaded_file.name} is now in AI Memory!")
+                        st.success(f"✅ {uploaded_file.name} ready for questions!")
                     else:
-                        st.error("AI couldn't extract text. Try a clearer scan.")
+                        st.error("⚠️ Is PDF mein text nahi mil raha. Kya ye scanned image hai?")
                 except Exception as e:
-                    st.error("Gemini is busy. Try clearing cache or wait 10 seconds.")
+                    st.error("⚠️ File read karne mein error. Ek baar page refresh karein.")
 
     st.divider()
 
-    # 2. Chat History Display
+    # 2. CHAT HISTORY
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -87,7 +86,7 @@ with tab1:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    # 3. FIXED INPUT BOX & AGGRESSIVE PROMPT
+    # 3. ASK YOUR DOUBTS (Fixed Input)
     if u_input := st.chat_input("Ask your doubts here..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
         with st.chat_message("user"):
@@ -96,35 +95,26 @@ with tab1:
         with st.chat_message("assistant"):
             ctx = st.session_state.get("pdf_content", "")
             
-            # AI ko dhamkana zaroori hai ki context use kare
-            master_prompt = f"""
-            STRICT INSTRUCTION: USE THE PROVIDED TEXT BELOW TO ANSWER THE USER. 
-            IF THE TEXT IS EMPTY, ANSWER GENERALLY BUT DO NOT SAY YOU CAN'T SEE THE PDF.
-            
-            TEXT FROM PDF:
-            ---
-            {ctx[:20000]}
-            ---
-            
-            USER QUESTION: {u_input}
-            """
+            # Master Prompt: Direct and forceful
+            final_p = f"Notes Context: {ctx[:15000]}\n\nUser Question: {u_input}\n\nInstruction: Answer using the notes above. If empty, answer generally."
 
+            # PRIORITY 1: GROQ (Because Gemini is too busy right now)
             try:
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                res = model.generate_content(master_prompt)
-                ans = res.text
+                from groq import Groq
+                client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                res = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": final_p}]
+                )
+                ans = res.choices[0].message.content
             except:
-                # Silent Groq Backup (Always works)
+                # PRIORITY 2: GEMINI (Fallback)
                 try:
-                    from groq import Groq
-                    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-                    res = client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
-                        messages=[{"role": "user", "content": master_prompt}]
-                    )
-                    ans = res.choices[0].message.content
+                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                    res = model.generate_content(final_p)
+                    ans = res.text
                 except:
-                    ans = "Bhai, servers jam hain. Ek baar page refresh kar lo."
+                    ans = "Bhai, dono AI rest kar rahe hain. 30 seconds ruko aur phir pucho."
 
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
