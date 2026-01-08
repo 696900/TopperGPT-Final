@@ -49,41 +49,37 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v10")
+    
+    # Simple File Uploader
+    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v11")
 
-    # 1. ROBUST EXTRACTION (Memory Lock)
     if uploaded_file:
+        # Check if new file is uploaded
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-            with st.spinner("🧠 FORCE READING: Extracting text from 12MB file..."):
+            with st.spinner("🧠 Reading document... please wait."):
                 try:
                     import pypdf, io
                     file_bytes = uploaded_file.read()
                     
-                    # Method A: Direct Byte-by-Byte Extraction
+                    # Method: Simple PyPDF Extraction
                     reader = pypdf.PdfReader(io.BytesIO(file_bytes))
                     extracted_text = ""
-                    for page in reader.pages:
-                        page_text = page.extract_text()
-                        if page_text:
-                            extracted_text += page_text + "\n"
+                    # Sirf pehle 50 pages read karenge memory bachane ke liye
+                    for i, page in enumerate(reader.pages[:50]):
+                        extracted_text += page.extract_text() + "\n"
                     
-                    # Method B: Vision Backup (If text is empty/scanned)
-                    if len(extracted_text.strip()) < 50:
-                        st.info("🔄 Scanned PDF detected, using AI Vision...")
-                        v_model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                        # Processing first 5 pages for speed in free tier
-                        v_res = v_model.generate_content(["Summarize and extract key text from these notes.", {"mime_type": "application/pdf", "data": file_bytes}])
-                        extracted_text = v_res.text
-
-                    st.session_state.pdf_content = extracted_text
-                    st.session_state.last_uploaded = uploaded_file.name
-                    st.success("✅ Content Synced!")
+                    if len(extracted_text.strip()) > 10:
+                        st.session_state.pdf_content = extracted_text
+                        st.session_state.last_uploaded = uploaded_file.name
+                        st.success(f"✅ {uploaded_file.name} ready!")
+                    else:
+                        st.warning("⚠️ Text nahi mil raha, please dusri file try karein.")
                 except Exception as e:
-                    st.error(f"Sync failed. Please try again or use a smaller file.")
+                    st.error("⚠️ File badi hai, AI scan fail hua. Choti file try karein.")
 
     st.divider()
 
-    # 2. CHAT HISTORY (No Reload Issues)
+    # Chat History
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -91,8 +87,8 @@ with tab1:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    # 3. CONTEXT INJECTION (The Secret Sauce)
-    if u_input := st.chat_input("Ask about your 12MB notes..."):
+    # 3. FIXED INPUT BOX (Asking your doubts)
+    if u_input := st.chat_input("Ask your doubts here..."): # "12MB" wala text hata diya
         st.session_state.messages.append({"role": "user", "content": u_input})
         with st.chat_message("user"):
             st.markdown(u_input)
@@ -100,36 +96,26 @@ with tab1:
         with st.chat_message("assistant"):
             ctx = st.session_state.get("pdf_content", "")
             
-            # FORCE INSTRUCTION: AI cannot ignore this
-            master_prompt = f"""
-            YOU ARE TOPPERGPT. 
-            HERE IS THE DOCUMENT CONTENT:
-            ---
-            {ctx[:25000]}
-            ---
-            USER QUESTION: {u_input}
-            
-            INSTRUCTION: Strictly answer from the content above. If the content is missing, use your internal study knowledge but NEVER say 'I don't see the PDF'.
-            """
+            # Simple & Clean Prompt
+            master_prompt = f"Use these notes to answer: {ctx[:10000]}\n\nUser Question: {u_input}"
 
-            ans = ""
             try:
-                # Primary: Gemini Flash Latest
+                # Primary: Gemini Flash
                 model = genai.GenerativeModel('gemini-1.5-flash-latest')
                 res = model.generate_content(master_prompt)
                 ans = res.text
             except:
-                # Backup: Groq (Llama 3.1 70B)
+                # Silent Backup: Groq
                 try:
                     from groq import Groq
                     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                     res = client.chat.completions.create(
-                        model="llama-3.3-70b-specdec",
+                        model="llama-3.1-8b-instant",
                         messages=[{"role": "user", "content": master_prompt}]
                     )
                     ans = res.choices[0].message.content
                 except:
-                    ans = "Bhai, dono AI busy hain. Please 10 seconds baad pucho."
+                    ans = "Bhai, server busy hai. Please thodi der baad try karo."
 
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
