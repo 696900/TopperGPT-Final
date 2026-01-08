@@ -49,7 +49,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v3")
+    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_final")
 
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
@@ -61,15 +61,15 @@ with tab1:
                         text = "".join([page.extract_text() or "" for page in reader.pages])
                         st.session_state.pdf_content = text
                     else:
-                        # Fixed Model Name
-                        model_vision = genai.GenerativeModel('models/gemini-1.5-flash')
+                        # Direct model string for stability
+                        model_vision = genai.GenerativeModel('gemini-1.5-flash-latest')
                         img_res = model_vision.generate_content(["Extract all text strictly.", uploaded_file])
                         st.session_state.pdf_content = img_res.text
                     
                     st.session_state.last_uploaded = uploaded_file.name
                     st.success(f"✅ '{uploaded_file.name}' Loaded!")
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Extraction Error: {e}")
 
     st.divider()
 
@@ -78,7 +78,7 @@ with tab1:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Chat Input with Hybrid Logic
+    # Hybrid Chat Logic
     if prompt := st.chat_input("Ask anything..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -86,20 +86,35 @@ with tab1:
 
         with st.chat_message("assistant"):
             try:
-                # Fixed Model Name for Chat
-                model = genai.GenerativeModel('models/gemini-1.5-flash')
                 context = st.session_state.get("pdf_content", "")
                 
+                # Using Gemini Flash Latest for speed & fix
+                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                
                 if context:
-                    full_query = f"Notes: {context[:15000]}\n\nQuestion: {prompt}"
+                    full_query = f"Using these notes: {context[:15000]}\n\nUser Question: {prompt}"
                 else:
                     full_query = f"Answer this general study question: {prompt}"
 
                 response = model.generate_content(full_query)
-                st.markdown(response.text)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-            except Exception as e:
-                st.error(f"AI Error: {e}")
+                ai_text = response.text
+                
+                st.markdown(ai_text)
+                st.session_state.messages.append({"role": "assistant", "content": ai_text})
+                
+            except Exception:
+                # BACKUP: Agar Gemini fir fail ho, toh Groq use karega
+                try:
+                    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                    completion = client.chat.completions.create(
+                        model="llama-3.1-8b-instant",
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    ai_text = completion.choices[0].message.content
+                    st.markdown(ai_text + "\n\n*(Using Backup AI engine)*")
+                    st.session_state.messages.append({"role": "assistant", "content": ai_text})
+                except Exception as e:
+                    st.error(f"Both AI engines failed: {e}")
 with tab2:
     st.subheader("🎥 YouTube Video Analyzer")
     st.text_input("YouTube URL")
