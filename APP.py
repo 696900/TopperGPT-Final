@@ -49,72 +49,73 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_final")
+    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v4")
 
+    # 1. Extraction Logic (Memory Lock)
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-            with st.spinner("🧠 AI is deep-scanning your notes..."):
+            with st.spinner("🧠 Analyzing your documents..."):
                 try:
+                    extracted_text = ""
                     if uploaded_file.type == "application/pdf":
                         import pypdf
                         reader = pypdf.PdfReader(uploaded_file)
-                        text = "".join([page.extract_text() or "" for page in reader.pages])
-                        st.session_state.pdf_content = text
+                        extracted_text = "".join([page.extract_text() or "" for page in reader.pages])
                     else:
-                        # Direct model string for stability
-                        model_vision = genai.GenerativeModel('gemini-1.5-flash-latest')
-                        img_res = model_vision.generate_content(["Extract all text strictly.", uploaded_file])
-                        st.session_state.pdf_content = img_res.text
+                        model_v = genai.GenerativeModel('gemini-1.5-flash-latest')
+                        res_v = model_v.generate_content(["Extract all text strictly.", uploaded_file])
+                        extracted_text = res_v.text
                     
+                    # Store in Session State for both Gemini & Groq
+                    st.session_state.pdf_content = extracted_text
                     st.session_state.last_uploaded = uploaded_file.name
-                    st.success(f"✅ '{uploaded_file.name}' Loaded!")
+                    st.success(f"✅ Document '{uploaded_file.name}' sync ho gaya!")
                 except Exception as e:
-                    st.error(f"Extraction Error: {e}")
+                    st.error(f"Sync Error: {e}")
 
     st.divider()
 
-    # Display Chat History
+    # 2. Chat Display
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Hybrid Chat Logic
-    if prompt := st.chat_input("Ask anything..."):
+    # 3. Hybrid Chat Logic (No "I don't see PDF" messages)
+    if prompt := st.chat_input("Ask about your notes..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            try:
-                context = st.session_state.get("pdf_content", "")
-                
-                # Using Gemini Flash Latest for speed & fix
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                
-                if context:
-                    full_query = f"Using these notes: {context[:15000]}\n\nUser Question: {prompt}"
-                else:
-                    full_query = f"Answer this general study question: {prompt}"
+            context = st.session_state.get("pdf_content", "")
+            
+            # Master Instruction
+            system_instruction = f"You are TopperGPT. Use the provided context to answer. If no context, answer generally. Do NOT mention you can't see files. \n\nCONTEXT: {context[:15000]}"
+            full_prompt = f"{system_instruction}\n\nUSER: {prompt}"
 
-                response = model.generate_content(full_query)
-                ai_text = response.text
-                
-                st.markdown(ai_text)
-                st.session_state.messages.append({"role": "assistant", "content": ai_text})
-                
-            except Exception:
-                # BACKUP: Agar Gemini fir fail ho, toh Groq use karega
+            ai_response = ""
+            
+            # Try Primary AI (Gemini)
+            try:
+                primary_model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                res = primary_model.generate_content(full_prompt)
+                ai_response = res.text
+            except:
+                # Silent Failover to Backup (Groq)
                 try:
+                    from groq import Groq
                     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                     completion = client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
-                        messages=[{"role": "user", "content": prompt}]
+                        model="llama-3.1-70b-versatile", # Stronger model for better analysis
+                        messages=[{"role": "user", "content": full_prompt}]
                     )
-                    ai_text = completion.choices[0].message.content
-                    st.markdown(ai_text + "\n\n*(Using Backup AI engine)*")
-                    st.session_state.messages.append({"role": "assistant", "content": ai_text})
+                    ai_response = completion.choices[0].message.content
                 except Exception as e:
-                    st.error(f"Both AI engines failed: {e}")
+                    ai_response = "Bhai, AI server thoda busy hai. Ek baar refresh karke try karo."
+
+            # Final Display
+            st.markdown(ai_response)
+            st.session_state.messages.append({"role": "assistant", "content": ai_response})
 with tab2:
     st.subheader("🎥 YouTube Video Analyzer")
     st.text_input("YouTube URL")
