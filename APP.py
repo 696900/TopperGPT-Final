@@ -1,6 +1,5 @@
 import streamlit as st
 import google.generativeai as genai
-import os
 import firebase_admin
 from firebase_admin import credentials, auth
 import razorpay
@@ -14,15 +13,18 @@ from groq import Groq
 # --- 1. CONFIGURATION & SECRETS ---
 st.set_page_config(page_title="TopperGPT", layout="wide", page_icon="🎓")
 
-# Firebase Initialization
+# Firebase Initialization Fix
 if not firebase_admin._apps:
     try:
-        # Dashboard secrets se firebase credentials lena
-        cred_dict = dict(st.secrets["firebase"])
-        cred = credentials.Certificate(cred_dict)
-        firebase_admin.initialize_app(cred)
+        # Check if "firebase" key exists in secrets to avoid crash
+        if "firebase" in st.secrets:
+            cred_dict = dict(st.secrets["firebase"])
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+        else:
+            st.error("Firebase Secrets missing in Streamlit Dashboard!")
     except Exception as e:
-        st.error(f"Firebase Secrets missing or invalid: {e}")
+        st.error(f"Firebase Init Error: {e}")
 
 # API Clients Setup
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -33,19 +35,19 @@ if "user" not in st.session_state: st.session_state.user = None
 if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# --- 3. LOGIN PAGE ---
+# --- 3. LOGIN PAGE SYSTEM ---
 def login_page():
     st.title("🔐 TopperGPT Login")
     st.write("Apne AI Study Partner ke sath padhai shuru karein.")
     
-    email = st.text_input("Email", placeholder="example@gmail.com")
+    email = st.text_input("Email", placeholder="Enter your email")
     password = st.text_input("Password", type="password")
     
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Login / Sign Up"):
             try:
-                # Basic Auth Flow
+                # Basic Firebase Auth
                 try:
                     user = auth.get_user_by_email(email)
                 except:
@@ -53,7 +55,7 @@ def login_page():
                 st.session_state.user = user.email
                 st.rerun()
             except Exception as e:
-                st.error(f"Auth Error: {e}")
+                st.error(f"Auth Error: {e}. Make sure Firebase is initialized.")
     with col2:
         st.write("Google One-Tap: Coming Soon 🚀")
 
@@ -61,20 +63,22 @@ def login_page():
 if st.session_state.user is None:
     login_page()
 else:
-    # --- SIDEBAR ---
+    # --- SIDEBAR (Razorpay & Profile) ---
     with st.sidebar:
         st.title("🎓 TopperGPT")
         st.success(f"Hi, {st.session_state.user}!")
         st.divider()
         st.subheader("💎 PRO Version")
-        if st.button("🚀 Upgrade to PRO (₹99)"):
+        st.write("Unlock Unlimited Features for ₹99")
+        if st.button("🚀 Upgrade to PRO"):
+            # Replace with your real Razorpay link
             st.markdown(f"[Proceed to Payment](https://rzp.io/l/your_link)") 
         st.divider()
         if st.button("Logout"):
             st.session_state.user = None
             st.rerun()
 
-    # --- TABS (LINE WISE 1-5) ---
+    # --- TABS (LINE WISE 1 TO 5) ---
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "💬 Chat with PDF/Image", 
         "🎥 YouTube Notes", 
@@ -85,31 +89,33 @@ else:
 
     # --- TAB 1: PDF/IMAGE CHAT ---
     with tab1:
-        st.subheader("📚 Analyze your Notes")
-        uploaded_file = st.file_uploader("Upload Notes (PDF/JPG/PNG)", type=["pdf", "png", "jpg", "jpeg"])
+        st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
+        uploaded_file = st.file_uploader("Upload PDF, JPG, or PNG", type=["pdf", "png", "jpg", "jpeg"])
         
         if uploaded_file:
             if st.session_state.pdf_content == "" or st.session_state.get("last_file") != uploaded_file.name:
                 with st.spinner("🧠 AI scanning your notes..."):
                     file_bytes = uploaded_file.read()
                     text = ""
-                    # PDF Extraction
+                    # Try PDF Text Extraction
                     if uploaded_file.type == "application/pdf":
                         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                             for page in pdf.pages[:25]:
                                 t = page.extract_text()
                                 if t: text += t + "\n"
-                    # Vision OCR Backup
+                    
+                    # Vision OCR Backup for Images or Scanned PDFs
                     if not text.strip():
-                        # Stable version fix for 404
+                        # Fixed stable model call to avoid 404
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content(["Extract all text strictly.", {"mime_type": uploaded_file.type, "data": file_bytes}])
+                        res = model.generate_content(["Extract all academic text strictly.", {"mime_type": uploaded_file.type, "data": file_bytes}])
                         text = res.text
                     
                     st.session_state.pdf_content = text
                     st.session_state.last_file = uploaded_file.name
                     st.success("✅ Content Synced!")
 
+        # Chat interface
         for m in st.session_state.messages:
             with st.chat_message(m["role"]): st.markdown(m["content"])
 
@@ -118,10 +124,11 @@ else:
             with st.chat_message("user"): st.markdown(u_input)
             
             with st.chat_message("assistant"):
-                # Using Groq for fast response
+                ctx = st.session_state.pdf_content
+                # Use Groq for lightning-fast chat
                 res = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": f"Context: {st.session_state.pdf_content[:12000]}\n\nQ: {u_input}"}]
+                    messages=[{"role": "user", "content": f"Context: {ctx[:12000]}\n\nQuestion: {u_input}"}]
                 )
                 ans = res.choices[0].message.content
                 st.markdown(ans)
@@ -130,79 +137,95 @@ else:
     # --- TAB 2: YOUTUBE NOTES ---
     with tab2:
         st.subheader("🎥 Video to Detailed Notes")
-        yt_url = st.text_input("Paste YouTube Link:")
+        yt_url = st.text_input("Paste YouTube Link for Summary:")
         if yt_url and st.button("Generate Summary"):
-            with st.spinner("Watching video..."):
+            with st.spinner("Analyzing Video..."):
                 try:
                     v_id = yt_url.split("v=")[-1].split("&")[0] if "v=" in yt_url else yt_url.split("/")[-1]
+                    # Transcript fetch logic
                     transcript = YouTubeTranscriptApi.get_transcript(v_id, languages=['en', 'hi'])
                     full_text = " ".join([t['text'] for t in transcript])
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": f"Create detailed bullet-point notes: {full_text[:12000]}"}]
+                        messages=[{"role": "user", "content": f"Create detailed study notes: {full_text[:12000]}"}]
                     )
                     st.markdown(res.choices[0].message.content)
                 except:
-                    st.warning("Transcript band hai! Please try another video or use Mind Map.")
+                    st.warning("Transcript band hai! Is video ka mindmap Tab 4 mein try karein.")
 
     # --- TAB 3: PODCAST ---
     with tab3:
-        st.subheader("🎙️ AI Podcast")
-        p_input = st.text_area("Notes to Audio:", value=st.session_state.pdf_content[:1500])
-        if st.button("Create Podcast"):
-            if p_input:
-                tts = gTTS(text=p_input[:1000], lang='en')
-                tts.save("p.mp3")
-                st.audio("p.mp3")
+        st.subheader("🎙️ AI Study Podcast")
+        p_text = st.text_area("Notes to Audio:", value=st.session_state.pdf_content[:2000])
+        if st.button("Generate Audio Podcast"):
+            if p_text:
+                with st.spinner("Converting to Voice..."):
+                    tts = gTTS(text=p_text[:1500], lang='en')
+                    tts.save("p.mp3")
+                    st.audio("p.mp3")
+            else:
+                st.error("Pehle text dalo ya PDF upload karo!")
 
     # --- TAB 4: DEEP MIND MAP LOGIC ---
     with tab4:
-        st.subheader("🧠 Professional AI Mind Map")
-        src = st.radio("Source:", ["YouTube", "PDF/Image", "Topic"], horizontal=True)
-        m_text = ""
+        st.subheader("🧠 Professional AI Mind Map (Flowchart)")
+        source_opt = st.radio("Choose Source:", ["YouTube", "PDF/Image", "Topic"], horizontal=True)
         
-        if src == "YouTube":
-            yt_l = st.text_input("Video URL for Map:")
-            if yt_l:
+        m_source_text = ""
+        if source_opt == "YouTube":
+            yt_link = st.text_input("YouTube Link for Map:")
+            if yt_link:
                 try:
-                    v_id = yt_l.split("v=")[-1].split("&")[0] if "v=" in yt_l else yt_l.split("/")[-1]
+                    v_id = yt_link.split("v=")[-1].split("&")[0] if "v=" in yt_link else yt_link.split("/")[-1]
                     try:
+                        # Try transcript first
                         t_data = YouTubeTranscriptApi.get_transcript(v_id, languages=['en', 'hi'])
-                        m_text = " ".join([t['text'] for t in t_data])
+                        m_source_text = " ".join([t['text'] for t in t_data])
                     except:
-                        m_text = f"Topic from video link: {yt_l}"
-                except: st.error("Link issue!")
+                        # Backup: AI uses link/topic knowledge
+                        m_source_text = f"Analyze topic of this video: {yt_link}"
+                        st.info("ℹ️ Using AI Knowledge for this video topic.")
+                except: st.error("Video link sahi se kaam nahi kar raha.")
 
-        elif src == "PDF/Image":
-            m_text = st.session_state.pdf_content
-            if not m_text: st.warning("Pehle Tab 1 mein file upload karein.")
+        elif source_opt == "PDF/Image":
+            m_source_text = st.session_state.pdf_content
+            if not m_source_text: st.warning("⚠️ Pehle Tab 1 mein file upload karein.")
 
-        elif src == "Topic":
-            m_text = st.text_input("Enter Topic (e.g. 'Photosynthesis'):")
+        elif source_opt == "Topic":
+            m_source_text = st.text_input("Topic Name (e.g. 'Working of Lazer'):") #
 
-        if st.button("Generate Mind Map"):
-            if m_text:
+        if st.button("Generate Summary & Flowchart", key="final_map_btn"):
+            if m_source_text:
                 with st.spinner("Designing Flowchart..."):
-                    prompt = f"1. 4-line Summary. 2. Mermaid.js flowchart (graph TD) for: {m_text[:10000]}. Format: ---SUMMARY--- [text] ---MERMAID--- [code]"
+                    # Prompt for professional dual output
+                    prompt = f"""
+                    Tasks: 1. 4-line Summary. 2. Mermaid.js flowchart (graph TD).
+                    Content: {m_source_text[:12000]}
+                    Format: ---SUMMARY--- [text] ---MERMAID--- [code]
+                    """
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     out = res.choices[0].message.content
                     if "---MERMAID---" in out:
                         st.info(out.split("---SUMMARY---")[1].split("---MERMAID---")[0].strip())
+                        # Visual Flowchart Rendering
                         clean_m = out.split("---MERMAID---")[1].replace("```mermaid", "").replace("```", "").strip()
                         st_mermaid(clean_m)
+                    else: st.markdown(out)
 
     # --- TAB 5: AI QUIZ ---
     with tab5:
         st.subheader("📝 Practice Quiz")
-        if st.button("Generate 5 MCQs"):
+        if st.button("Generate 5 MCQs from Notes"):
             if st.session_state.pdf_content:
-                res = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": f"Generate 5 MCQs from: {st.session_state.pdf_content[:6000]}"}]
-                )
-                st.markdown(res.choices[0].message.content)
-            else: st.warning("Tab 1 mein notes upload karein.")
-            
+                with st.spinner("Creating Quiz..."):
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": f"Generate 5 MCQs from: {st.session_state.pdf_content[:6000]}"}]
+                    )
+                    st.markdown(res.choices[0].message.content)
+            else:
+                st.warning("Pehle Tab 1 mein notes upload karein!")
+                
     # --- 6. LEGAL & POLICIES (Razorpay Fix) --- #
     with tab6:
        st.header("⚖️ Privacy Policy & Terms")
