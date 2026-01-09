@@ -163,50 +163,62 @@ with tab3:
 
 with tab4:
     st.subheader("🧠 Professional AI Mind Map (Flowchart)")
-    st.write("Apna source select karein aur AI uska flowchart mind map banayega.")
+    st.write("Source select karein aur TopperGPT aapko uska detailed flowchart bana kar dega.")
 
-    # 1. Source Selection Options
-    source_option = st.radio(
-        "Mind Map kahan se banana hai?",
-        ["YouTube Video", "Uploaded PDF/Image", "Topic Name"],
-        horizontal=True
-    )
+    # 1. Selection of source
+    source_opt = st.radio("Mind Map ka source kya hai?", ["YouTube", "PDF/Image", "Topic"], horizontal=True)
+    
+    source_text = ""
 
-    content_to_map = ""
-
-    # 2. Source Logic
-    if source_option == "YouTube Video":
-        yt_link = st.text_input("YouTube Link:")
+    # 2. Source Logic (Transcript/PDF/Topic fetching)
+    if source_opt == "YouTube":
+        yt_link = st.text_input("Paste YouTube Link:", placeholder="https://www.youtube.com/watch?v=...")
         if yt_link:
-            # Transcript logic (same as Tab 2)
-            content_to_map = "YouTube video context..." # Isme transcript fetch karne ka logic dalo
+            with st.spinner("📺 Video ke lecture notes nikal raha hoon..."):
+                try:
+                    from youtube_transcript_api import YouTubeTranscriptApi
+                    # Video ID extract karna
+                    video_id = yt_link.split("v=")[-1].split("&")[0]
+                    # Full Lecture Transcript nikalna
+                    transcript_data = YouTubeTranscriptApi.get_transcript(video_id)
+                    source_text = " ".join([t['text'] for t in transcript_data])
+                    st.success("✅ Lecture content captured!")
+                except Exception as e:
+                    st.error("⚠️ Is video ka transcript available nahi hai. Please captions wali video try karein.")
 
-    elif source_option == "Uploaded PDF/Image":
-        if "pdf_content" in st.session_state:
-            content_to_map = st.session_state.pdf_content
-            st.success("✅ Shared PDF/Image content detected!")
-        else:
-            st.warning("⚠️ Pehle Tab 1 mein file upload karein.")
+    elif source_opt == "PDF/Image":
+        source_text = st.session_state.get("pdf_content", "")
+        if not source_text:
+            st.warning("⚠️ Pehle Tab 1 mein PDF ya Image upload karo taaki AI use padh sake.")
 
-    elif source_option == "Topic Name":
-        topic = st.text_input("Topic ka naam:")
-        content_to_map = topic
+    elif source_opt == "Topic":
+        source_text = st.text_input("Enter Topic Name (e.g. Photosynthesis):")
 
-    # 3. Generate Mind Map Button
-    if st.button("Generate Flowchart Mind Map"):
-        if content_to_map:
-            with st.spinner("🎨 Flowchart design kar raha hoon..."):
+    # 3. Generation Logic
+    if st.button("Generate Summary & Flowchart"):
+        if source_text:
+            with st.spinner("🎨 Padhayi ka Mind Map design kar raha hoon..."):
                 try:
                     from groq import Groq
                     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                     
-                    # AI ko Mermaid syntax likhne ke liye force karna
+                    # AI ko teach kar rahe hain ki sirf educational content pe dhyan de
                     prompt = f"""
-                    Create a flowchart mind map using Mermaid.js syntax. 
-                    Structure: Summary first, then detailed flowchart nodes.
-                    Format: graph TD (Top Down).
-                    Source Material: {content_to_map[:5000]}
-                    Only output the Mermaid code block starting with 'graph TD'.
+                    You are an Expert Teacher.
+                    Perform two tasks based ONLY on the academic content provided:
+                    1. Provide a 4-line summary of the core CONCEPTS taught.
+                    2. Create a detailed Mermaid.js flowchart (graph TD) showing the relationship between topics.
+                    
+                    STRICT INSTRUCTION: Focus only on the subject matter. Ignore video descriptions or scripts.
+                    
+                    CONTENT: {source_text[:12000]}
+                    
+                    FORMAT YOUR OUTPUT EXACTLY LIKE THIS:
+                    ---SUMMARY---
+                    (your summary here)
+                    ---MERMAID---
+                    graph TD
+                    (your mermaid code here)
                     """
                     
                     res = client.chat.completions.create(
@@ -214,19 +226,27 @@ with tab4:
                         messages=[{"role": "user", "content": prompt}]
                     )
                     
-                    mermaid_code = res.choices[0].message.content
+                    full_output = res.choices[0].message.content
                     
-                    # Display Summary and then Flowchart
-                    st.success("📝 Mind Map Summary & Flowchart Ready!")
-                    
-                    # Clean the code block from AI response
-                    clean_code = mermaid_code.replace("```mermaid", "").replace("```", "").strip()
-                    
-                    # Display the Visual Flowchart
-                    st_mermaid(clean_code)
-                    
+                    # Split and Display
+                    if "---SUMMARY---" in full_output and "---MERMAID---" in full_output:
+                        summary_part = full_output.split("---SUMMARY---")[1].split("---MERMAID---")[0].strip()
+                        mermaid_part = full_output.split("---MERMAID---")[1].strip()
+                        
+                        st.markdown("### 📝 Quick Summary")
+                        st.info(summary_part)
+                        
+                        st.markdown("### 📊 Visual Flowchart")
+                        from streamlit_mermaid import st_mermaid
+                        clean_mermaid = mermaid_part.replace("```mermaid", "").replace("```", "").strip()
+                        st_mermaid(clean_mermaid)
+                    else:
+                        st.markdown(full_output) # Backup if AI misses tags
+                        
                 except Exception as e:
                     st.error(f"Error: {e}")
+        else:
+            st.warning("⚠️ Content missing! Pehle link dalo ya file upload karo.")
 
 with tab5:
     st.subheader("📝 Practice Quizzes & Flashcards")
