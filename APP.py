@@ -4,6 +4,7 @@ import google.generativeai as genai
 import pypdf
 from gtts import gTTS
 import os
+from streamlit_mermaid import st_mermaid
 
 # --- 1. PAGE CONFIG ---
 st.set_page_config(page_title="TopperGPT Pro", page_icon="🎓", layout="wide")
@@ -161,17 +162,71 @@ with tab3:
     st.button("Generate Audio")
 
 with tab4:
-    st.subheader("🧠 Quick Mind Map")
-    topic = st.text_input("Enter topic for Mind Map:")
-    if topic and st.button("Create Map"):
-        with st.spinner("🎨 Designing Map..."):
-            from groq import Groq
-            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-            res = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": f"Create a text-based hierarchical mind map for the topic: {topic}. Use bullet points and symbols like └── to show connections."}]
-            )
-            st.code(res.choices[0].message.content)
+    st.subheader("🧠 Professional AI Mind Map (Flowchart)")
+    st.write("Apna source select karein aur AI uska flowchart mind map banayega.")
+
+    # 1. Source Selection Options
+    source_option = st.radio(
+        "Mind Map kahan se banana hai?",
+        ["YouTube Video", "Uploaded PDF/Image", "Topic Name"],
+        horizontal=True
+    )
+
+    content_to_map = ""
+
+    # 2. Source Logic
+    if source_option == "YouTube Video":
+        yt_link = st.text_input("YouTube Link:")
+        if yt_link:
+            # Transcript logic (same as Tab 2)
+            content_to_map = "YouTube video context..." # Isme transcript fetch karne ka logic dalo
+
+    elif source_option == "Uploaded PDF/Image":
+        if "pdf_content" in st.session_state:
+            content_to_map = st.session_state.pdf_content
+            st.success("✅ Shared PDF/Image content detected!")
+        else:
+            st.warning("⚠️ Pehle Tab 1 mein file upload karein.")
+
+    elif source_option == "Topic Name":
+        topic = st.text_input("Topic ka naam:")
+        content_to_map = topic
+
+    # 3. Generate Mind Map Button
+    if st.button("Generate Flowchart Mind Map"):
+        if content_to_map:
+            with st.spinner("🎨 Flowchart design kar raha hoon..."):
+                try:
+                    from groq import Groq
+                    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                    
+                    # AI ko Mermaid syntax likhne ke liye force karna
+                    prompt = f"""
+                    Create a flowchart mind map using Mermaid.js syntax. 
+                    Structure: Summary first, then detailed flowchart nodes.
+                    Format: graph TD (Top Down).
+                    Source Material: {content_to_map[:5000]}
+                    Only output the Mermaid code block starting with 'graph TD'.
+                    """
+                    
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    
+                    mermaid_code = res.choices[0].message.content
+                    
+                    # Display Summary and then Flowchart
+                    st.success("📝 Mind Map Summary & Flowchart Ready!")
+                    
+                    # Clean the code block from AI response
+                    clean_code = mermaid_code.replace("```mermaid", "").replace("```", "").strip()
+                    
+                    # Display the Visual Flowchart
+                    st_mermaid(clean_code)
+                    
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
 with tab5:
     st.subheader("📝 Practice Quizzes & Flashcards")
