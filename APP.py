@@ -60,9 +60,9 @@ else:
             st.session_state.user = None
             st.rerun()
 
-    # TABS (Sequence 1-5)
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "💬 Chat PDF/Image", "🎥 YouTube Notes", "🎙️ AI Podcast", "🧠 Mind Map", "📝 AI Quiz"
+    # TABS (Sequence 1-6)
+    tab1, tab2, tab3, tab4, tab5 ,tab6 = st.tabs([
+        "💬 Chat PDF/Image", "🎥 YouTube Notes", "🎙️ AI Podcast", "🧠 Mind Map", "📝 AI Quiz","Policies"
     ])
     # TAB 1: PDF CHAT (Fixed for 404 Error)
     with tab1:
