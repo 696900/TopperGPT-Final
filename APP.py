@@ -49,68 +49,62 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v21")
+    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v22")
 
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
             with st.spinner("🧠 Scanning..."):
                 try:
-                    import pdfplumber
-                    import io
-                    
-                    # File bytes ek hi baar read karenge
+                    import pdfplumber, io
                     file_bytes = uploaded_file.read()
-                    all_text = ""
+                    text = ""
                     
-                    # Try direct text extraction first
                     if uploaded_file.type == "application/pdf":
                         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-                            for page in pdf.pages[:20]:
+                            for page in pdf.pages[:30]:
                                 t = page.extract_text()
-                                if t: all_text += t + "\n"
+                                if t: text += t + "\n"
                     
-                    # Agar text nahi mila toh Vision AI (OCR) use karenge
-                    if len(all_text.strip()) < 50:
-                        # FIXED MODEL NAME: models/gemini-1.5-flash
-                        model_v = genai.GenerativeModel('models/gemini-1.5-flash')
-                        v_res = model_v.generate_content([
-                            "Extract all text from this document.",
+                    if not text.strip():
+                        # ✅ FORCE STABLE MODEL NAME
+                        model = genai.GenerativeModel('gemini-1.5-flash') 
+                        res = model.generate_content([
+                            "Extract text from this file.",
                             {"mime_type": uploaded_file.type, "data": file_bytes}
                         ])
-                        all_text = v_res.text
+                        text = res.text
 
-                    st.session_state.pdf_content = all_text
+                    st.session_state.pdf_content = text
                     st.session_state.last_uploaded = uploaded_file.name
-                    st.success("✅ Content Synced!")
+                    st.success("✅ Ready!")
                 except Exception as e:
-                    st.error(f"Error: Model configuration mismatch. Use stable v1.")
+                    # Agar ab bhi error aaye toh humein batayega ki problem kahan hai
+                    st.error(f"Gemini API Error: {str(e)}") 
 
     st.divider()
-
-    # Chat logic remains the same but with stable model names
+    
+    # 💬 Chat Logic (Using Groq as Primary for Zero Latency)
     if u_input := st.chat_input("Ask your doubts here..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
         with st.chat_message("user"): st.markdown(u_input)
 
         with st.chat_message("assistant"):
             ctx = st.session_state.get("pdf_content", "")
-            final_p = f"Notes: {ctx[:10000]}\n\nQuestion: {u_input}"
+            prompt = f"Context: {ctx[:12000]}\n\nUser: {u_input}"
             
             try:
-                # Primary Engine: Llama 3.3 (Groq) for speed
                 from groq import Groq
                 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                 res = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": final_p}]
+                    messages=[{"role": "user", "content": prompt}]
                 )
                 ans = res.choices[0].message.content
             except:
-                # Stable Fallback
-                model = genai.GenerativeModel('models/gemini-1.5-flash')
-                res = model.generate_content(final_p)
-                ans = res.text
-
+                ans = "Bhai, Groq busy hai, Gemini try kar raha hoon..."
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                ans = model.generate_content(prompt).text
+            
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
 with tab2:
