@@ -49,70 +49,76 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v25")
+    
+    # 1. FILE UPLOADER (Accepts both PDF and Images)
+    uploaded_file = st.file_uploader(
+        "Upload PDF or Image Notes", 
+        type=["pdf", "jpg", "png", "jpeg"], 
+        key="hybrid_uploader_v1"
+    )
 
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-            with st.spinner("🧠 Scanning..."):
+            with st.spinner("🧠 Scanning your document/image..."):
                 try:
                     import pdfplumber, io
                     file_bytes = uploaded_file.read()
                     text = ""
                     
-                    # 1. Sabse pehle PDF se text nikalne ki koshish
+                    # A. AGAR PDF HAI
                     if uploaded_file.type == "application/pdf":
-                        with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-                            for page in pdf.pages[:25]:
-                                t = page.extract_text()
-                                if t: text += t + "\n"
+                        try:
+                            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                                for page in pdf.pages[:20]: # Memory safety
+                                    t = page.extract_text()
+                                    if t: text += t + "\n"
+                        except:
+                            text = "" # Failed to read as text PDF
                     
-                    # 2. Agar text nahi mila (Scanned PDF/Image), toh Gemini ko request bhejenge
-                    if len(text.strip()) < 50:
-                        # Hum yahan generativemodel use karenge bina 'models/' prefix ke
+                    # B. AGAR IMAGE HAI YA SCANNED PDF HAI (Gemini Vision OCR)
+                    if not text.strip():
+                        # Using the stable model name to avoid 404
                         model_v = genai.GenerativeModel('gemini-1.5-flash')
-                        # Naya bytes pointer
+                        
+                        # PDF ko image ki tarah treat karna agar text nahi mil raha
                         v_res = model_v.generate_content([
-                            "Extract all study text from this file strictly.",
+                            "Extract all study content, formulas, and text word-for-word from this document.",
                             {"mime_type": uploaded_file.type, "data": file_bytes}
                         ])
                         text = v_res.text
 
                     st.session_state.pdf_content = text
                     st.session_state.last_uploaded = uploaded_file.name
-                    st.success("✅ Content Synced!")
+                    st.success("✅ Document/Image Synced!")
                 except Exception as e:
-                    st.error("⚠️ Scanning slow hai, par hum backup use kar rahe hain. Question pucho!")
-                    # Backup: At least set an empty string so it doesn't crash
-                    st.session_state.pdf_content = "Context loading failed, but I will try to answer generally."
+                    st.error("⚠️ AI busy hai, par backup ready hai. Question pucho!")
+                    st.session_state.pdf_content = "Context loading failed."
 
     st.divider()
     
-    # 💬 Chat Logic (GROQ IS THE BOSS HERE)
+    # 💬 CHAT LOGIC (Using Groq for zero lag)
     if u_input := st.chat_input("Ask your doubts here..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
         with st.chat_message("user"): st.markdown(u_input)
 
         with st.chat_message("assistant"):
-            ctx = st.session_state.get("pdf_content", "No context available.")
+            ctx = st.session_state.get("pdf_content", "No content available.")
             
-            # Groq Call (Stable & Free)
+            # Master Prompt: Direct injection of extracted text
+            final_p = f"Context: {ctx[:15000]}\n\nUser Question: {u_input}\n\nInstruction: Answer using the context above."
+
             try:
                 from groq import Groq
                 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-                
-                # Forceful prompt so it uses the PDF data
-                sys_prompt = f"System: You are TopperGPT. Use this context to answer: {ctx[:15000]}"
-                
                 res = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[
-                        {"role": "system", "content": sys_prompt},
-                        {"role": "user", "content": u_input}
-                    ]
+                    messages=[{"role": "user", "content": final_p}]
                 )
                 ans = res.choices[0].message.content
-            except Exception as e:
-                ans = "Bhai, Groq limit reach ho gayi hai. 30 seconds baad pucho."
+            except:
+                # Gemini Fallback if Groq fails
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                ans = model.generate_content(final_p).text
 
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
