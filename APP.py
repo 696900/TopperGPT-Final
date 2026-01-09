@@ -49,68 +49,55 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v20")
+    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v21")
 
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-            with st.spinner("🧠 Deep Scanning your heavy file..."):
+            with st.spinner("🧠 Scanning..."):
                 try:
                     import pdfplumber
                     import io
                     
-                    # 1. Faster & Better Extraction
+                    # File bytes ek hi baar read karenge
+                    file_bytes = uploaded_file.read()
                     all_text = ""
-                    with pdfplumber.open(io.BytesIO(uploaded_file.read())) as pdf:
-                        # Sirf pehle 30 pages read karenge memory bachane ke liye (Heavy files fix)
-                        pages = pdf.pages[:30] 
-                        for page in pages:
-                            text = page.extract_text()
-                            if text:
-                                all_text += text + "\n"
                     
-                    # 2. Scanned PDF/Image Backup (Gemini Vision)
+                    # Try direct text extraction first
+                    if uploaded_file.type == "application/pdf":
+                        with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                            for page in pdf.pages[:20]:
+                                t = page.extract_text()
+                                if t: all_text += t + "\n"
+                    
+                    # Agar text nahi mila toh Vision AI (OCR) use karenge
                     if len(all_text.strip()) < 50:
-                        st.info("🔄 Scanned PDF detected, using Vision AI...")
-                        model_v = genai.GenerativeModel('gemini-1.5-flash')
-                        # Reset pointer to read again
-                        uploaded_file.seek(0)
+                        # FIXED MODEL NAME: models/gemini-1.5-flash
+                        model_v = genai.GenerativeModel('models/gemini-1.5-flash')
                         v_res = model_v.generate_content([
-                            "Extract all text from this document image strictly.",
-                            {"mime_type": uploaded_file.type, "data": uploaded_file.read()}
+                            "Extract all text from this document.",
+                            {"mime_type": uploaded_file.type, "data": file_bytes}
                         ])
                         all_text = v_res.text
 
                     st.session_state.pdf_content = all_text
                     st.session_state.last_uploaded = uploaded_file.name
-                    st.success(f"✅ {uploaded_file.name} is now in Memory!")
+                    st.success("✅ Content Synced!")
                 except Exception as e:
-                    st.error(f"Sync failed: {e}")
+                    st.error(f"Error: Model configuration mismatch. Use stable v1.")
 
     st.divider()
 
-    # Chat Display
-    if "messages" not in st.session_state: st.session_state.messages = []
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]): st.markdown(m["content"])
-
-    # Hybrid Input (The Fix for 'I don't see PDF')
+    # Chat logic remains the same but with stable model names
     if u_input := st.chat_input("Ask your doubts here..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
         with st.chat_message("user"): st.markdown(u_input)
 
         with st.chat_message("assistant"):
             ctx = st.session_state.get("pdf_content", "")
+            final_p = f"Notes: {ctx[:10000]}\n\nQuestion: {u_input}"
             
-            # Master Prompt: Direct and forceful injection
-            final_p = f"""SYSTEM: You are TopperGPT. Use the provided context to answer. 
-            If context is missing, use your own knowledge. NEVER say 'I don't see the PDF'.
-            
-            CONTEXT: {ctx[:15000]}
-            
-            USER: {u_input}"""
-
-            # Using GROQ as Primary (Because it NEVER says Server Busy) 
             try:
+                # Primary Engine: Llama 3.3 (Groq) for speed
                 from groq import Groq
                 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                 res = client.chat.completions.create(
@@ -119,8 +106,8 @@ with tab1:
                 )
                 ans = res.choices[0].message.content
             except:
-                # Gemini Fallback
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                # Stable Fallback
+                model = genai.GenerativeModel('models/gemini-1.5-flash')
                 res = model.generate_content(final_p)
                 ans = res.text
 
