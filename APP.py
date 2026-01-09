@@ -159,7 +159,7 @@ else:
                 st.error("Content empty hai!")
 
     # --- TAB 4: DEEP MIND MAP (FLOWCHART) ---
-   with tab4:
+    with tab4:
         st.subheader("🧠 Visual Flowchart Mind Map")
         src = st.radio("Mind Map Source:", ["YouTube", "PDF/Image Upload", "Use Tab 1 Content", "Topic"], horizontal=True)
         
