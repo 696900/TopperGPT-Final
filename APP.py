@@ -2,7 +2,6 @@ import streamlit as st
 import google.generativeai as genai
 import firebase_admin
 from firebase_admin import credentials, auth
-import razorpay
 from youtube_transcript_api import YouTubeTranscriptApi
 import pdfplumber
 import io
@@ -10,24 +9,25 @@ from gtts import gTTS
 from streamlit_mermaid import st_mermaid
 from groq import Groq
 
-# --- 1. CONFIGURATION & FIREBASE INIT ---
+# --- 1. CONFIGURATION & FIREBASE FIX ---
 st.set_page_config(page_title="TopperGPT", layout="wide", page_icon="🎓")
 
-# Firebase Initialization
 if not firebase_admin._apps:
     try:
         if "firebase" in st.secrets:
             fb_dict = dict(st.secrets["firebase"])
-            # Fixing the private key format for Firebase SDK
-            fb_dict["private_key"] = fb_dict["private_key"].replace("\\n", "\n")
+            # 🔥 PEM FIX: Triple quotes se aane waale extra spaces ko saaf karna
+            raw_key = fb_dict["private_key"]
+            fb_dict["private_key"] = raw_key.replace("\\n", "\n").strip()
+            
             cred = credentials.Certificate(fb_dict)
             firebase_admin.initialize_app(cred)
         else:
-            st.error("❌ Firebase block missing in Secrets!")
+            st.error("Secrets mein [firebase] block nahi mila!")
     except Exception as e:
-        st.error(f"⚠️ Firebase Setup Error: {e}")
+        st.error(f"Firebase Setup Error: {e}")
 
-# API Clients
+# API Setup
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
@@ -39,38 +39,23 @@ if "messages" not in st.session_state: st.session_state.messages = []
 # --- 3. LOGIN PAGE ---
 def login_page():
     st.title("🔐 TopperGPT Login")
-    st.write("Apne AI Study Partner ke sath padhai shuru karein.")
     email = st.text_input("Email", placeholder="example@gmail.com")
     password = st.text_input("Password", type="password")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Login / Sign Up"):
-            try:
-                try:
-                    user = auth.get_user_by_email(email)
-                except:
-                    user = auth.create_user(email=email, password=password)
-                st.session_state.user = user.email
-                st.rerun()
-            except Exception as e:
-                st.error(f"Auth Error: {e}")
-    with col2:
-        st.write("Google One-Tap: Coming Soon 🚀")
+    if st.button("Login / Sign Up"):
+        try:
+            try: user = auth.get_user_by_email(email)
+            except: user = auth.create_user(email=email, password=password)
+            st.session_state.user = user.email
+            st.rerun()
+        except Exception as e: st.error(f"Auth Error: {e}")
 
 # --- 4. MAIN APP ---
 if st.session_state.user is None:
     login_page()
 else:
-    # SIDEBAR
     with st.sidebar:
         st.title("🎓 TopperGPT")
-        st.success(f"User: {st.session_state.user}")
-        st.divider()
-        st.subheader("💎 PRO Version")
-        if st.button("🚀 Upgrade to PRO"):
-            st.markdown(f"[Payment Link](https://rzp.io/l/your_link)")
-        st.divider()
+        st.success(f"Hi, {st.session_state.user}!")
         if st.button("Logout"):
             st.session_state.user = None
             st.rerun()
