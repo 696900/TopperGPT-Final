@@ -120,7 +120,7 @@ else:
 
     # --- TAB 4: FIXED MIND MAP (Direct Upload + Session Support) ---
     with tab4:
-    st.subheader("🧠 Visual Flowchart Mind Map")
+     st.subheader("🧠 Visual Flowchart Mind Map")
     
     # 1. Source Selection with Direct Upload Option
     m_src = st.radio("Choose Source:", ["PDF/Image Upload", "Use Tab 1 Content", "YouTube", "Topic"], horizontal=True)
