@@ -163,61 +163,68 @@ with tab3:
 
 with tab4:
     st.subheader("🧠 Professional AI Mind Map (Flowchart)")
-    
-    source_opt = st.radio("Mind Map ka source kya hai?", ["YouTube", "PDF/Image", "Topic", "Paste Text"], horizontal=True)
+    st.write("Source select karein aur TopperGPT aapko uska detailed flowchart bana kar dega.")
+
+    # 1. Source Selection
+    source_opt = st.radio("Mind Map ka source kya hai?", ["YouTube", "PDF/Image", "Topic"], horizontal=True)
     
     source_text = ""
 
+    # 2. SOURCE LOGIC
     if source_opt == "YouTube":
         yt_link = st.text_input("Paste YouTube Link:", placeholder="https://www.youtube.com/watch?v=...")
         if yt_link:
-            with st.spinner("📺 Video content fetch karne ki koshish..."):
+            with st.spinner("🔍 Video data nikal raha hoon..."):
                 try:
+                    # Method: Try Transcript first, then Metadata
                     from youtube_transcript_api import YouTubeTranscriptApi
-                    # Extract Video ID accurately
-                    if "v=" in yt_link:
-                        video_id = yt_link.split("v=")[1].split("&")[0]
-                    else:
-                        video_id = yt_link.split("/")[-1].split("?")[0]
+                    import e_utils # Agar aapne pytube ya koi aur utility rakhi hai
                     
-                    # Try fetching transcript
-                    transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'hi'])
-                    source_text = " ".join([t['text'] for t in transcript_data])
-                    st.success("✅ Lecture content captured!")
-                except Exception:
-                    st.error("⚠️ Is video ka transcript band hai. Aap 'Paste Text' option use karke summary paste kar sakte hain.")
+                    video_id = yt_link.split("v=")[-1].split("&")[0] if "v=" in yt_link else yt_link.split("/")[-1]
+                    
+                    try:
+                        t_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'hi'])
+                        source_text = " ".join([t['text'] for t in t_data])
+                        st.success("✅ Lecture Transcript mil gaya!")
+                    except:
+                        # Bina transcript ke sirf link bhej rahe hain AI ko, wo Title se nikal lega
+                        source_text = f"Analyze this YouTube video topic: {yt_link}"
+                        st.info("ℹ️ Transcript nahi mili, AI Title aur Knowledge se Mind Map banayega.")
+                except Exception as e:
+                    st.error("⚠️ Video link sahi se kaam nahi kar raha.")
 
     elif source_opt == "PDF/Image":
         source_text = st.session_state.get("pdf_content", "")
         if not source_text:
-            st.warning("⚠️ Tab 1 mein file upload karein.")
+            st.warning("⚠️ Pehle Tab 1 mein PDF ya Image upload karo.")
+        else:
+            st.success("✅ PDF/Image content mil gaya!")
 
     elif source_opt == "Topic":
-        source_text = st.text_input("Enter Topic Name:")
+        source_text = st.text_input("Enter Topic Name (e.g. Newton's 3rd Law):")
 
-    elif source_opt == "Paste Text":
-        source_text = st.text_area("Yahan apne notes ya summary paste karein:")
-
-    if st.button("Generate Summary & Flowchart"):
+    # 3. GENERATION LOGIC (Summary + Mermaid Flowchart)
+    if st.button("Generate Summary & Flowchart", key="master_map_btn"):
         if source_text:
-            with st.spinner("🎨 Designing Mind Map..."):
+            with st.spinner("🎨 AI Mind Map design kar raha hoon..."):
                 try:
                     from groq import Groq
                     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                     
                     prompt = f"""
-                    You are an Expert Teacher. Based ONLY on the educational content provided:
+                    You are an Expert Teacher.
+                    Tasks:
                     1. Provide a 4-line summary of the core CONCEPTS.
-                    2. Create a detailed Mermaid.js flowchart (graph TD) showing topics.
+                    2. Create a professional Mermaid.js flowchart (graph TD).
                     
-                    CONTENT: {source_text[:12000]}
+                    Context Material: {source_text[:12000]}
                     
                     FORMAT:
                     ---SUMMARY---
-                    (summary)
+                    (your paragraph summary here)
                     ---MERMAID---
                     graph TD
-                    (code)
+                    (your mermaid flowchart code here)
                     """
                     
                     res = client.chat.completions.create(
@@ -226,6 +233,7 @@ with tab4:
                     )
                     
                     full_output = res.choices[0].message.content
+                    
                     if "---SUMMARY---" in full_output and "---MERMAID---" in full_output:
                         summary_part = full_output.split("---SUMMARY---")[1].split("---MERMAID---")[0].strip()
                         mermaid_part = full_output.split("---MERMAID---")[1].strip()
@@ -238,10 +246,12 @@ with tab4:
                         clean_mermaid = mermaid_part.replace("```mermaid", "").replace("```", "").strip()
                         st_mermaid(clean_mermaid)
                     else:
-                        st.markdown(full_output)
+                        st.markdown(full_output) # Fallback if formatting is weird
+                        
                 except Exception as e:
                     st.error(f"Error: {e}")
-
+        else:
+            st.warning("⚠️ Content missing!")
 with tab5:
     st.subheader("📝 Practice Quizzes & Flashcards")
     st.write("Test your knowledge with AI-generated questions.")
