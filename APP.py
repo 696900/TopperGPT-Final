@@ -159,37 +159,56 @@ else:
                 st.error("Content empty hai!")
 
     # --- TAB 4: DEEP MIND MAP (FLOWCHART) ---
-    with tab4:
+   with tab4:
         st.subheader("🧠 Visual Flowchart Mind Map")
-        src = st.radio("Choose Source:", ["YouTube", "PDF/Image", "Topic"], horizontal=True)
+        src = st.radio("Mind Map Source:", ["YouTube", "PDF/Image Upload", "Use Tab 1 Content", "Topic"], horizontal=True)
+        
         m_data = ""
         
         if src == "YouTube":
-            yt_l = st.text_input("Link for MindMap:")
+            yt_l = st.text_input("Video Link:")
             if yt_l:
                 try:
-                    v_id = yt_l.split("v=")[-1].split("&")[0] if "v=" in yt_l else yt_l.split("/")[-1]
-                    try:
-                        t_data = YouTubeTranscriptApi.get_transcript(v_id, languages=['en', 'hi'])
-                        m_data = " ".join([t['text'] for t in t_data])
-                    except: m_data = f"Topic reference: {yt_l}"
-                except: st.error("Link issue!")
-        elif src == "PDF/Image":
-            m_data = st.session_state.pdf_content
-        else:
-            m_data = st.text_input("Enter Topic Name:")
+                    v_id = yt_url.split("v=")[-1].split("&")[0] if "v=" in yt_l else yt_l.split("/")[-1]
+                    t_data = YouTubeTranscriptApi.get_transcript(v_id, languages=['en', 'hi'])
+                    m_data = " ".join([t['text'] for t in t_data])
+                except: m_data = f"Topic from video: {yt_l}"
 
-        if st.button("Generate Mind Map"):
+        elif src == "PDF/Image Upload":
+            up_map = st.file_uploader("Mind Map ke liye file dalein:", type=["pdf", "png", "jpg", "jpeg"], key="map_up")
+            if up_map:
+                with st.spinner("Processing file for Mind Map..."):
+                    if up_map.type == "application/pdf":
+                        with pdfplumber.open(io.BytesIO(up_map.read())) as pdf:
+                            m_data = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                    else:
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        res = model.generate_content(["Extract text", {"mime_type": up_map.type, "data": up_map.read()}])
+                        m_data = res.text
+
+        elif src == "Use Tab 1 Content":
+            m_data = st.session_state.pdf_content
+            if not m_data: st.warning("Tab 1 khali hai!")
+
+        elif src == "Topic":
+            m_data = st.text_input("Topic ka naam (e.g. Newton's Laws):")
+
+        if st.button("Generate Flowchart"):
             if m_data:
                 with st.spinner("Designing Flowchart..."):
-                    # Strict prompt to prevent Mermaid syntax error
-                    prompt = f"1. 4-line summary. 2. Mermaid.js flowchart (graph TD) strictly code only. Context: {m_data[:10000]}. Format: ---SUMMARY--- [text] ---MERMAID--- [code]"
+                    # Strict prompt to fix Syntax Error
+                    prompt = f"Tasks: 1. Summary. 2. Mermaid code ONLY (graph TD). Context: {m_data[:10000]}. Format: ---SUMMARY--- [text] ---MERMAID--- [code]"
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     out = res.choices[0].message.content
+                    
                     if "---MERMAID---" in out:
-                        st.info(out.split("---SUMMARY---")[1].split("---MERMAID---")[0].strip())
-                        clean_m = out.split("---MERMAID---")[1].replace("```mermaid", "").replace("```", "").strip()
-                        st_mermaid(clean_m)
+                        sum_text = out.split("---SUMMARY---")[1].split("---MERMAID---")[0].strip()
+                        mer_code = out.split("---MERMAID---")[1].replace("```mermaid", "").replace("```", "").strip()
+                        st.info(sum_text)
+                        # Display Mermaid
+                        st_mermaid(mer_code)
+            else:
+                st.error("Kuch content dalo bhai!")
 
     # --- TAB 5: AI QUIZ ---
     with tab5:
