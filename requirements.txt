@@ -7,3 +7,4 @@ pypdf
 fpdf
 gTTS
 google-generativeai
+pdfplumber

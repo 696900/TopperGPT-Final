@@ -49,86 +49,79 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-
-    # 1. FILE UPLOADER
-    uploaded_file = st.file_uploader(
-        "Upload Notes or Screenshot",
-        type=["pdf", "jpg", "png", "jpeg"],
-        key="pdf_chat_v16"
-    )
+    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v20")
 
     if uploaded_file:
-        file_size = uploaded_file.size / (1024 * 1024)
-        if file_size > 10:
-            st.error("⚠️ File bahut badi hai. Please choti file ya screenshot upload karein.")
-        else:
-            if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
-                with st.spinner("🧠 AI is scanning..."):
-                    try:
-                        import pypdf, io
-                        file_bytes = uploaded_file.getvalue()
-                        text = ""
+        if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
+            with st.spinner("🧠 Deep Scanning your heavy file..."):
+                try:
+                    import pdfplumber
+                    import io
+                    
+                    # 1. Faster & Better Extraction
+                    all_text = ""
+                    with pdfplumber.open(io.BytesIO(uploaded_file.read())) as pdf:
+                        # Sirf pehle 30 pages read karenge memory bachane ke liye (Heavy files fix)
+                        pages = pdf.pages[:30] 
+                        for page in pages:
+                            text = page.extract_text()
+                            if text:
+                                all_text += text + "\n"
+                    
+                    # 2. Scanned PDF/Image Backup (Gemini Vision)
+                    if len(all_text.strip()) < 50:
+                        st.info("🔄 Scanned PDF detected, using Vision AI...")
+                        model_v = genai.GenerativeModel('gemini-1.5-flash')
+                        # Reset pointer to read again
+                        uploaded_file.seek(0)
+                        v_res = model_v.generate_content([
+                            "Extract all text from this document image strictly.",
+                            {"mime_type": uploaded_file.type, "data": uploaded_file.read()}
+                        ])
+                        all_text = v_res.text
 
-                        # Agar PDF hai toh text extraction
-                        if uploaded_file.type == "application/pdf":
-                            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
-                            for page in reader.pages[:20]: 
-                                extracted = page.extract_text()
-                                if extracted: text += extracted + "\n"
-                        
-                        # Agar TEXT EMPTY hai ya IMAGE hai, toh Gemini Vision use karo
-                        if not text.strip():
-                            model_v = genai.GenerativeModel('gemini-1.5-flash-latest')
-                            # Direct byte processing for images/scanned PDFs
-                            v_res = model_v.generate_content([
-                                "Extract all text and study notes from this file strictly.",
-                                {"mime_type": uploaded_file.type, "data": file_bytes}
-                            ])
-                            text = v_res.text
-
-                        if text.strip():
-                            st.session_state.pdf_content = text
-                            st.session_state.last_uploaded = uploaded_file.name
-                            st.success("✅ Ready! Poocho kya puchna hai.")
-                        else:
-                            st.error("⚠️ AI ko text nahi mila. Please saaf image upload karein.")
-
-                    except Exception as e:
-                        st.error(f"⚠️ Scan failed: {e}")
+                    st.session_state.pdf_content = all_text
+                    st.session_state.last_uploaded = uploaded_file.name
+                    st.success(f"✅ {uploaded_file.name} is now in Memory!")
+                except Exception as e:
+                    st.error(f"Sync failed: {e}")
 
     st.divider()
 
-    # 2. CHAT DISPLAY
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
+    # Chat Display
+    if "messages" not in st.session_state: st.session_state.messages = []
     for m in st.session_state.messages:
-        with st.chat_message(m["role"]):
-            st.markdown(m["content"])
+        with st.chat_message(m["role"]): st.markdown(m["content"])
 
-    # 3. CHAT INPUT (Hybrid Groq/Gemini)
+    # Hybrid Input (The Fix for 'I don't see PDF')
     if u_input := st.chat_input("Ask your doubts here..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
-        with st.chat_message("user"):
-            st.markdown(u_input)
+        with st.chat_message("user"): st.markdown(u_input)
 
         with st.chat_message("assistant"):
             ctx = st.session_state.get("pdf_content", "")
-            final_prompt = f"Context: {ctx[:12000]}\n\nQuestion: {u_input}"
+            
+            # Master Prompt: Direct and forceful injection
+            final_p = f"""SYSTEM: You are TopperGPT. Use the provided context to answer. 
+            If context is missing, use your own knowledge. NEVER say 'I don't see the PDF'.
+            
+            CONTEXT: {ctx[:15000]}
+            
+            USER: {u_input}"""
 
+            # Using GROQ as Primary (Because it NEVER says Server Busy) 
             try:
-                # Direct to Groq for speed
                 from groq import Groq
                 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                 res = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": final_prompt}]
+                    messages=[{"role": "user", "content": final_p}]
                 )
                 ans = res.choices[0].message.content
             except:
-                # Backup to Gemini
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                res = model.generate_content(final_prompt)
+                # Gemini Fallback
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                res = model.generate_content(final_p)
                 ans = res.text
 
             st.markdown(ans)
