@@ -93,16 +93,46 @@ else:
 
     # --- TAB 2: YT NOTES ---
     with tab2:
-        st.subheader("🎥 Video Summary")
-        y_url = st.text_input("YouTube URL:")
-        if y_url and st.button("Generate Summary"):
+    st.subheader("🎥 Video to Smart Study Notes")
+    yt_url = st.text_input("YouTube Video Link dalo:", placeholder="https://www.youtube.com/watch?v=...")
+    
+    if yt_url and st.button("Generate Smart Notes", key="yt_btn"):
+        with st.spinner("📺 Video analyze ho rahi hai..."):
             try:
-                v_id = y_url.split("v=")[-1].split("&")[0] if "v=" in y_url else y_url.split("/")[-1]
-                t_data = YouTubeTranscriptApi.get_transcript(v_id, languages=['en', 'hi'])
-                full_t = " ".join([t['text'] for t in t_data])
-                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Summarize: {full_t[:12000]}"}])
-                st.markdown(res.choices[0].message.content)
-            except: st.warning("Transcript restricted.")
+                # 1. Video ID Extract karna
+                if "v=" in yt_url:
+                    v_id = yt_url.split("v=")[1].split("&")[0]
+                else:
+                    v_id = yt_url.split("/")[-1].split("?")[0]
+                
+                # 2. Transcript fetch karne ki koshish (English + Hindi)
+                transcript_text = ""
+                try:
+                    transcript_data = YouTubeTranscriptApi.get_transcript(v_id, languages=['en', 'hi'])
+                    transcript_text = " ".join([t['text'] for t in transcript_data])
+                except:
+                    transcript_text = "" # Transcript nahi mili
+
+                # 3. AI ko bhej rahe hain (Summary ke liye)
+                if transcript_text:
+                    prompt = f"Summarize this YouTube lecture in detail with bullet points and key takeaways: {transcript_text[:15000]}"
+                else:
+                    # Agar transcript nahi hai, toh AI ko link aur topic fetch karne ko bolenge
+                    prompt = f"Is YouTube video ke topic par detailed study notes banaiye: {yt_url}. Agar video access nahi ho rahi, toh link se topic identify karke us par notes dein."
+
+                res = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                
+                st.markdown("### 📝 Detailed Lecture Notes")
+                st.write(res.choices[0].message.content)
+                
+                # Download Option
+                st.download_button("📥 Download Notes", res.choices[0].message.content, file_name="yt_notes.txt")
+
+            except Exception as e:
+                st.error(f"⚠️ Error: Video link sahi nahi hai ya private hai. {e}")
 
     # --- TAB 3: PODCAST ---
     with tab3:
