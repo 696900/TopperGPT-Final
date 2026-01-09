@@ -8,3 +8,4 @@ fpdf
 gTTS
 google-generativeai
 pdfplumber
+youtube-transcript-api

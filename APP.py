@@ -2,6 +2,7 @@ import streamlit as st
 from groq import Groq
 import google.generativeai as genai
 import pypdf
+from gtts import gTTS
 import os
 
 # --- 1. PAGE CONFIG ---
@@ -123,19 +124,54 @@ with tab1:
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
 with tab2:
-    st.subheader("🎥 YouTube Video Analyzer")
-    st.text_input("YouTube URL")
-    st.button("Get Detailed Notes")
-
+    st.subheader("🎥 YouTube Video to Notes")
+    yt_url = st.text_input("Paste YouTube Video Link here:", placeholder="https://www.youtube.com/watch?v=...")
+    
+    if yt_url:
+        if st.button("Generate Summary", key="yt_btn"):
+            with st.spinner("📺 Video ka content nikal raha hoon..."):
+                try:
+                    from youtube_transcript_api import YouTubeTranscriptApi
+                    # Extract Video ID
+                    video_id = yt_url.split("v=")[-1].split("&")[0]
+                    
+                    # Fetch Transcript
+                    transcript = YouTubeTranscriptApi.get_transcript(video_id)
+                    full_text = " ".join([t['text'] for t in transcript])
+                    
+                    # Process with Groq (Fast & Free)
+                    from groq import Groq
+                    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                    
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{
+                            "role": "user", 
+                            "content": f"Summarize this video transcript into detailed study notes with bullet points and headings:\n\n{full_text[:15000]}"
+                        }]
+                    )
+                    
+                    st.success("📝 Notes tayyar hain!")
+                    st.markdown(res.choices[0].message.content)
+                except Exception as e:
+                    st.error("⚠️ Is video ka transcript band hai. Please doosri video try karein.")
 with tab3:
     st.subheader("🎧 AI Study Podcast")
     st.write("Convert your material into a professional audio guide.")
     st.button("Generate Audio")
 
 with tab4:
-    st.subheader("🧠 Visual Mind Maps")
-    st.write("Generate interactive diagrams for better memory.")
-    st.button("Create Map")
+    st.subheader("🧠 Quick Mind Map")
+    topic = st.text_input("Enter topic for Mind Map:")
+    if topic and st.button("Create Map"):
+        with st.spinner("🎨 Designing Map..."):
+            from groq import Groq
+            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+            res = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": f"Create a text-based hierarchical mind map for the topic: {topic}. Use bullet points and symbols like └── to show connections."}]
+            )
+            st.code(res.choices[0].message.content)
 
 with tab5:
     st.subheader("📝 Practice Quizzes & Flashcards")
