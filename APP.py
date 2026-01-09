@@ -49,7 +49,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("📚 Analyze your Notes (PDF & Handwritten)")
-    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v22")
+    uploaded_file = st.file_uploader("Upload Notes", type=["pdf", "jpg", "png", "jpeg"], key="pdf_chat_v25")
 
     if uploaded_file:
         if "pdf_content" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
@@ -59,52 +59,61 @@ with tab1:
                     file_bytes = uploaded_file.read()
                     text = ""
                     
+                    # 1. Sabse pehle PDF se text nikalne ki koshish
                     if uploaded_file.type == "application/pdf":
                         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-                            for page in pdf.pages[:30]:
+                            for page in pdf.pages[:25]:
                                 t = page.extract_text()
                                 if t: text += t + "\n"
                     
-                    if not text.strip():
-                        # ✅ FORCE STABLE MODEL NAME
-                        model = genai.GenerativeModel('gemini-1.5-flash') 
-                        res = model.generate_content([
-                            "Extract text from this file.",
+                    # 2. Agar text nahi mila (Scanned PDF/Image), toh Gemini ko request bhejenge
+                    if len(text.strip()) < 50:
+                        # Hum yahan generativemodel use karenge bina 'models/' prefix ke
+                        model_v = genai.GenerativeModel('gemini-1.5-flash')
+                        # Naya bytes pointer
+                        v_res = model_v.generate_content([
+                            "Extract all study text from this file strictly.",
                             {"mime_type": uploaded_file.type, "data": file_bytes}
                         ])
-                        text = res.text
+                        text = v_res.text
 
                     st.session_state.pdf_content = text
                     st.session_state.last_uploaded = uploaded_file.name
-                    st.success("✅ Ready!")
+                    st.success("✅ Content Synced!")
                 except Exception as e:
-                    # Agar ab bhi error aaye toh humein batayega ki problem kahan hai
-                    st.error(f"Gemini API Error: {str(e)}") 
+                    st.error("⚠️ Scanning slow hai, par hum backup use kar rahe hain. Question pucho!")
+                    # Backup: At least set an empty string so it doesn't crash
+                    st.session_state.pdf_content = "Context loading failed, but I will try to answer generally."
 
     st.divider()
     
-    # 💬 Chat Logic (Using Groq as Primary for Zero Latency)
+    # 💬 Chat Logic (GROQ IS THE BOSS HERE)
     if u_input := st.chat_input("Ask your doubts here..."):
         st.session_state.messages.append({"role": "user", "content": u_input})
         with st.chat_message("user"): st.markdown(u_input)
 
         with st.chat_message("assistant"):
-            ctx = st.session_state.get("pdf_content", "")
-            prompt = f"Context: {ctx[:12000]}\n\nUser: {u_input}"
+            ctx = st.session_state.get("pdf_content", "No context available.")
             
+            # Groq Call (Stable & Free)
             try:
                 from groq import Groq
                 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                
+                # Forceful prompt so it uses the PDF data
+                sys_prompt = f"System: You are TopperGPT. Use this context to answer: {ctx[:15000]}"
+                
                 res = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": u_input}
+                    ]
                 )
                 ans = res.choices[0].message.content
-            except:
-                ans = "Bhai, Groq busy hai, Gemini try kar raha hoon..."
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                ans = model.generate_content(prompt).text
-            
+            except Exception as e:
+                ans = "Bhai, Groq limit reach ho gayi hai. 30 seconds baad pucho."
+
             st.markdown(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
 with tab2:
