@@ -219,7 +219,7 @@ else:
 
     # --- TAB 6: LEGAL (Separate Tab) ---
     with tab6:
-    st.header("⚖️ Legal, Policies & Contact")
+     st.header("⚖️ Legal, Policies & Contact")
     st.write("Last Updated: January 9, 2026")
     st.divider()
 
