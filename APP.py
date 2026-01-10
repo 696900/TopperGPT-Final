@@ -8,7 +8,7 @@ import re
 from streamlit_mermaid import st_mermaid
 from groq import Groq
 
-# --- 1. CONFIGURATION & FIREBASE ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_icon="🎓")
 
 if not firebase_admin._apps:
@@ -23,26 +23,20 @@ if not firebase_admin._apps:
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- 2. SESSION STATE INITIALIZATION (All Keys) ---
-def init_state():
-    state_keys = {
-        "user": None,
-        "pdf_content": "",
-        "messages": [],
-        "roadmap": [],
-        "flashcards": [],
-        "last_file": None
-    }
-    for key, value in state_keys.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+# --- 2. SESSION STATE (Fixing AttributeError) ---
+# - Ensuring all keys exist before usage
+state_keys = {
+    "user": None, "pdf_content": "", "messages": [], 
+    "roadmap": [], "flashcards": [], "topic_search_res": None
+}
+for key, val in state_keys.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 
-init_state()
-
-# --- 3. AUTH LOGIC ---
+# --- 3. LOGIN PAGE ---
 if st.session_state.user is None:
     st.title("🔐 Engineering TopperGPT Login")
-    email = st.text_input("Email", placeholder="student@university.edu")
+    email = st.text_input("Email")
     password = st.text_input("Password", type="password")
     if st.button("Access Portal"):
         try:
@@ -55,20 +49,26 @@ else:
     # --- SIDEBAR ---
     with st.sidebar:
         st.title("🎓 TopperGPT")
-        st.success(f"Hi, {st.session_state.user}")
-        if st.button("🚀 Upgrade to PRO"):
-            st.markdown("[Razorpay Link](https://rzp.io/l/your_link)")
-        st.divider()
+        st.success(f"User: {st.session_state.user}")
         if st.button("Logout"):
             st.session_state.user = None
             st.rerun()
 
-    # --- TABS 1 TO 8 (STRICT SEQUENCE) ---
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "💬 Chat PDF", "📋 Syllabus Magic", "📝 Answer Eval", 
-        "🧠 MindMap", "🃏 Flashcards", "❓ Engg PYQs", "🔍 Topic Search","⚖️ Legal"
+        "🧠 MindMap", "🃏 Flashcards", "❓ Engg PYQs", "⚖️ Legal", "🔍 Topic Search"
     ])
 
+    # --- HELPER: SAFE MERMAID PARSER (Fixes) ---
+    def extract_mermaid(text):
+        try:
+            # Finding code starting with graph TD or graph LR
+            match = re.search(r"(graph (?:TD|LR|BT|RL).*?)(?=\n\n|---|$)", text, re.DOTALL | re.IGNORECASE)
+            if match:
+                clean_code = match.group(1).replace("```mermaid", "").replace("```", "").strip()
+                return clean_code
+            return None
+        except: return None
     # --- TAB 1: CHAT PDF ---
     with tab1:
         st.subheader("📚 Smart Document Analysis")
@@ -120,18 +120,21 @@ else:
     # --- TAB 4: MIND MAP (SYNTAX ERROR FIXED) ---
     with tab4:
         st.subheader("🧠 Concept MindMap & Summary")
-        m_mode = st.radio("Source:", ["Enter Topic", "Use File"], horizontal=True)
-        m_txt = st.text_input("Engineering Topic:") if m_mode == "Enter Topic" else st.session_state.pdf_content[:4000]
+        m_mode = st.radio("Input:", ["Topic", "File"], horizontal=True)
+        m_in = st.text_input("Enter Engineering Concept:") if m_mode == "Topic" else st.session_state.pdf_content[:3000]
         
-        if st.button("Generate Visual Map") and m_txt:
-            with st.spinner("Creating..."):
-                prompt = f"1. Technical Summary (5 lines). 2. Mermaid graph TD code ONLY. Topic: {m_txt}. FORMAT: ---SUMMARY--- [text] ---MERMAID--- [code]"
+        if st.button("Generate Map") and m_in:
+            with st.spinner("Processing..."):
+                prompt = f"Explain {m_in} in 5 lines, then provide ONLY Mermaid graph TD code. Use markers: [TEXT] [CODE]"
                 res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                out = res.choices[0].message.content
-                if "---MERMAID---" in out:
-                    st.info(out.split("---SUMMARY---")[1].split("---MERMAID---")[0].strip())
-                    code = re.search(r"graph TD.*", out, re.DOTALL).group(0).replace("```", "").strip()
-                    st_mermaid(code)
+                raw_m = res.choices[0].message.content
+                
+                txt_match = re.search(r"\[TEXT\](.*?)(?=\[CODE\]|$)", raw_m, re.DOTALL)
+                if txt_match: st.write(txt_match.group(1).strip())
+                
+                m_code = extract_mermaid(raw_m)
+                if m_code: st_mermaid(m_code)
+                else: st.error("Syntax Error in AI generated code. Try again.")
 
     # --- TAB 5: FLASHCARDS ---
     with tab5:
@@ -159,22 +162,23 @@ else:
 
     # --- TAB 7: TOPIC SEARCH ---
     with tab7:
-        st.subheader("🔍 Instant Topic Research")
-        s_query = st.text_input("Search Engineering Topic (e.g., Fourier Transform):")
-        if st.button("Deep Dive Search") and s_query:
-            with st.spinner("Analyzing Topic..."):
-                prompt = f"Detailed technical summary, Mermaid flowchart code, and 2 PYQs for topic: {s_query}. Format: ---SUMMARY--- [text] ---MERMAID--- [code] ---PYQ--- [questions]"
+        st.subheader("🔍 Engineering Topic Search")
+        s_query = st.text_input("Enter Topic Name (e.g. Transformer Architecture):")
+        if st.button("Deep Research") and s_query:
+            with st.spinner("Analyzing..."):
+                prompt = f"Technical summary, Mermaid graph TD code, and 2 PYQs for: {s_query}. Use markers: [SUM] [MER] [PYQ]"
                 res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                out = res.choices[0].message.content
-                if "---SUMMARY---" in out:
-                    st.markdown("### 📝 Technical Concept")
-                    st.info(out.split("---SUMMARY---")[1].split("---MERMAID---")[0].strip())
-                    st.markdown("### 📊 Architecture")
-                    code = re.search(r"graph TD.*", out.split("---MERMAID---")[1], re.DOTALL).group(0).split("---PYQ---")[0].replace("```", "").strip()
-                    st_mermaid(code)
-                    st.markdown("### ❓ Expected Questions")
-                    st.warning(out.split("---PYQ---")[1].strip())
-
+                raw_out = res.choices[0].message.content
+                
+                # Safe Extraction to prevent AttributeErrors
+                st.markdown("### 📝 Technical Note")
+                sum_match = re.search(r"\[SUM\](.*?)(?=\[MER\]|$)", raw_out, re.DOTALL)
+                if sum_match: st.info(sum_match.group(1).strip())
+                
+                st.markdown("### 📊 Architecture Flowchart")
+                m_code = extract_mermaid(raw_out)
+                if m_code: st_mermaid(m_code)
+                else: st.warning("Diagram syntax too complex. Try a specific sub-topic.")
      # --- TAB 8: LEGAL ---
     with tab8:
         st.header("⚖️ Engineering Policies")
