@@ -215,21 +215,71 @@ else:
             st.write(res.choices[0].message.content)
 
     # --- TAB 7: TOPIC SEARCH ---
+    # --- TAB 7: ENGINEERING TOPIC SEARCH (ULTRA-STABLE) ---
     with tab7:
         st.subheader("🔍 Instant Topic Research")
-        s_query = st.text_input("Enter Engineering Topic:")
-        if st.button("Deep Search") and s_query:
-            with st.spinner("Analyzing..."):
-                prompt = f"Technical summary and Mermaid graph TD code for: {s_query}. Use markers: [SUM] [MER]"
-                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                raw = res.choices[0].message.content
+        st.write("Koi bhi Engineering topic search karein (Explanation + Architecture + PYQs)")
+        
+        # User input for the specific topic
+        s_query = st.text_input("Enter Topic Name (e.g. Virtual Memory):", key="search_query_final")
+        
+        if st.button("Deep Research", key="search_btn_final") and s_query:
+            with st.spinner(f"Searching deep-dive data for {s_query}..."):
+                # Strict prompt to force structured output with markers
+                # This prevents text from leaking into the Mermaid code
+                prompt = f"""
+                As an Engineering Professor, provide a 3-part report for: '{s_query}'.
                 
-                sum_part = re.search(r"\[SUM\](.*?)(?=\[MER\]|$)", raw, re.DOTALL)
-                if sum_part: st.markdown(f"**Concept:** {sum_part.group(1).strip()}")
+                FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+                [CONCEPT]
+                (Give a 5-8 line technical explanation here)
                 
-                m_code_search = safe_mermaid_parser(raw)
-                if m_code_search: st_mermaid(m_code_search)
+                [MERMAID]
+                graph TD
+                (Provide ONLY the Mermaid.js graph TD code here)
+                
+                [PYQS]
+                (Give 2 likely Exam Questions from this topic here)
+                """
+                
+                try:
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    full_out = res.choices[0].message.content
+                    
+                    # 1. Parsing Concept Technical Note
+                    if "[CONCEPT]" in full_out:
+                        concept_part = full_out.split("[CONCEPT]")[1].split("[MERMAID]")[0].strip()
+                        st.markdown("### 📝 Technical Note")
+                        st.info(concept_part)
+                    
+                    # 2. Parsing Architecture Flowchart (Fixes Syntax Error)
+                    if "[MERMAID]" in full_out:
+                        mermaid_raw = full_out.split("[MERMAID]")[1].split("[PYQS]")[0].strip()
+                        
+                        # Extracting pure Mermaid code using regex to avoid extra text
+                        match = re.search(r"graph\s+(?:TD|LR|BT|RL)[\s\S]*", mermaid_raw)
+                        if match:
+                            clean_mermaid = match.group(0).replace("```mermaid", "").replace("```", "").strip()
+                            # Cutting off any text AI might add after the code
+                            clean_mermaid = clean_mermaid.split("\n\n")[0]
+                            
+                            st.markdown("---")
+                            st.markdown("### 📊 Architecture Flowchart")
+                            st_mermaid(clean_mermaid)
+                        else:
+                            st.warning("Diagram could not be rendered. Detailed summary is provided above.")
 
+                    # 3. Parsing Likely Exam Questions
+                    if "[PYQS]" in full_out:
+                        pyq_part = full_out.split("[PYQS]")[1].strip()
+                        st.markdown("### ❓ Expected Exam Questions")
+                        st.success(pyq_part)
+                        
+                except Exception as e:
+                    st.error(f"Search failed: {e}. Please try a more specific engineering term.")
     # --- TAB 8: LEGAL ---
     with tab8:
         st.header("⚖️ Legal & Policies")
