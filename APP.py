@@ -214,32 +214,39 @@ else:
             res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"5 Real PYQs for {u_sel}, {s_sel}, Subject: {subj}. Tag [VERIFIED] if year is sure."}])
             st.write(res.choices[0].message.content)
 
-    # --- TAB 7: TOPIC SEARCH ---
-    # --- TAB 7: ENGINEERING TOPIC SEARCH (ULTRA-STABLE) ---
+    # --- TAB 7: ADVANCED TOPIC SEARCH (FIXED) ---
     with tab7:
-        st.subheader("🔍 Instant Topic Research")
-        st.write("Koi bhi Engineering topic search karein (Explanation + Architecture + PYQs)")
+        st.subheader("🔍 Engineering Topic Research")
+        st.write("Enter any topic to get a complete 360° Engineering Breakdown.")
         
-        # User input for the specific topic
-        s_query = st.text_input("Enter Topic Name (e.g. Virtual Memory):", key="search_query_final")
+        # User Input Topic
+        s_query = st.text_input("Enter Engineering Topic (e.g. Transformer, Bipolar Junction Transistor):", key="final_search_input")
         
-        if st.button("Deep Research", key="search_btn_final") and s_query:
-            with st.spinner(f"Searching deep-dive data for {s_query}..."):
-                # Strict prompt to force structured output with markers
-                # This prevents text from leaking into the Mermaid code
+        if st.button("Deep Research", key="final_search_btn") and s_query:
+            with st.spinner(f"Processing '{s_query}'..."):
+                # Engineering-specific prompt covering all 6 of your requirements
                 prompt = f"""
-                As an Engineering Professor, provide a 3-part report for: '{s_query}'.
-                
-                FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
-                [CONCEPT]
-                (Give a 5-8 line technical explanation here)
-                
-                [MERMAID]
+                As an Engineering Professor, provide an exhaustive report for: '{s_query}'.
+                Follow this exact structure and use the markers strictly:
+
+                [DEFINITION]
+                (Standard Engineering definition of the topic)
+
+                [KEYWORDS]
+                (List important technical keywords related to this)
+
+                [COMPLEX_EXPLAIN]
+                (Identify any difficult keywords from above and explain their technical meaning)
+
+                [SIMPLE_EXPLAIN]
+                (Explain the whole concept in very simple, easy-to-understand words for a beginner)
+
+                [MERMAID_CODE]
                 graph TD
-                (Provide ONLY the Mermaid.js graph TD code here)
-                
+                (Provide ONLY the Mermaid.js graph TD code for a technical diagram of this topic)
+
                 [PYQS]
-                (Give 2 likely Exam Questions from this topic here)
+                (Provide 2-3 expected exam questions from this specific topic)
                 """
                 
                 try:
@@ -247,39 +254,47 @@ else:
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
-                    full_out = res.choices[0].message.content
-                    
-                    # 1. Parsing Concept Technical Note
-                    if "[CONCEPT]" in full_out:
-                        concept_part = full_out.split("[CONCEPT]")[1].split("[MERMAID]")[0].strip()
-                        st.markdown("### 📝 Technical Note")
-                        st.info(concept_part)
-                    
-                    # 2. Parsing Architecture Flowchart (Fixes Syntax Error)
-                    if "[MERMAID]" in full_out:
-                        mermaid_raw = full_out.split("[MERMAID]")[1].split("[PYQS]")[0].strip()
-                        
-                        # Extracting pure Mermaid code using regex to avoid extra text
-                        match = re.search(r"graph\s+(?:TD|LR|BT|RL)[\s\S]*", mermaid_raw)
-                        if match:
-                            clean_mermaid = match.group(0).replace("```mermaid", "").replace("```", "").strip()
-                            # Cutting off any text AI might add after the code
-                            clean_mermaid = clean_mermaid.split("\n\n")[0]
-                            
-                            st.markdown("---")
-                            st.markdown("### 📊 Architecture Flowchart")
-                            st_mermaid(clean_mermaid)
-                        else:
-                            st.warning("Diagram could not be rendered. Detailed summary is provided above.")
+                    out = res.choices[0].message.content
 
-                    # 3. Parsing Likely Exam Questions
-                    if "[PYQS]" in full_out:
-                        pyq_part = full_out.split("[PYQS]")[1].strip()
-                        st.markdown("### ❓ Expected Exam Questions")
-                        st.success(pyq_part)
+                    # --- 1. Definition ---
+                    if "[DEFINITION]" in out:
+                        st.markdown("### 📖 1. Standard Definition")
+                        st.info(out.split("[DEFINITION]")[1].split("[KEYWORDS]")[0].strip())
+
+                    # --- 2. Keywords ---
+                    if "[KEYWORDS]" in out:
+                        st.markdown("### 🔑 2. Key Technical Terms")
+                        st.write(out.split("[KEYWORDS]")[1].split("[COMPLEX_EXPLAIN]")[0].strip())
+
+                    # --- 3. Complex Keyword Explanation ---
+                    if "[COMPLEX_EXPLAIN]" in out:
+                        st.markdown("### 🔬 3. Technical Breakdown")
+                        st.warning(out.split("[COMPLEX_EXPLAIN]")[1].split("[SIMPLE_EXPLAIN]")[0].strip())
+
+                    # --- 4. Simple Explanation ---
+                    if "[SIMPLE_EXPLAIN]" in out:
+                        st.markdown("### 💡 4. Concept in Simple Words")
+                        st.success(out.split("[SIMPLE_EXPLAIN]")[1].split("[MERMAID_CODE]")[0].strip())
+
+                    # --- 5. Diagram (Fixed Syntax Error) ---
+                    if "[MERMAID_CODE]" in out:
+                        st.markdown("### 📊 5. Architecture Flowchart")
+                        mermaid_raw = out.split("[MERMAID_CODE]")[1].split("[PYQS]")[0].strip()
+                        
+                        # Cleaning the code block to prevent bomb icon
+                        clean_code = re.search(r"graph\s+(?:TD|LR|BT|RL)[\s\S]*", mermaid_raw)
+                        if clean_code:
+                            st_mermaid(clean_code.group(0).replace("```mermaid", "").replace("```", "").strip())
+                        else:
+                            st.error("Diagram structure too complex for auto-rendering.")
+
+                    # --- 6. Expected Questions ---
+                    if "[PYQS]" in out:
+                        st.markdown("### ❓ 6. Expected Exam Questions")
+                        st.write(out.split("[PYQS]")[1].strip())
                         
                 except Exception as e:
-                    st.error(f"Search failed: {e}. Please try a more specific engineering term.")
+                    st.error(f"Search failed: {e}")
     # --- TAB 8: LEGAL ---
     with tab8:
         st.header("⚖️ Legal & Policies")
