@@ -4,12 +4,11 @@ import firebase_admin
 from firebase_admin import credentials, auth
 import pdfplumber
 import io
-import pandas as pd
 from streamlit_mermaid import st_mermaid
 from groq import Groq
 
-# --- 1. CONFIGURATION & FIREBASE ---
-st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🎓")
+# --- 1. CONFIG & FIREBASE ---
+st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_icon="🎓")
 
 if not firebase_admin._apps:
     try:
@@ -18,9 +17,8 @@ if not firebase_admin._apps:
         cred = credentials.Certificate(fb_dict)
         firebase_admin.initialize_app(cred)
     except Exception as e:
-        st.error(f"Firebase Init Error: {e}")
+        st.error(f"Firebase Error: {e}")
 
-# API Clients Setup
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
@@ -28,16 +26,14 @@ groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 if "user" not in st.session_state: st.session_state.user = None
 if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
 if "messages" not in st.session_state: st.session_state.messages = []
-if "syllabus_roadmap" not in st.session_state: st.session_state.syllabus_roadmap = []
-if "flashcards" not in st.session_state: st.session_state.flashcards = []
+if "roadmap" not in st.session_state: st.session_state.roadmap = []
 
 # --- 3. LOGIN PAGE ---
 def login_page():
-    st.title("🔐 Welcome to TopperGPT")
-    st.write("Apna AI Study Partner use karne ke liye login karein.")
-    email = st.text_input("Email", placeholder="example@gmail.com")
+    st.title("🔐 Engineering TopperGPT Login")
+    email = st.text_input("Email")
     password = st.text_input("Password", type="password")
-    if st.button("Login / Sign Up"):
+    if st.button("Access Portal"):
         try:
             try: user = auth.get_user_by_email(email)
             except: user = auth.create_user(email=email, password=password)
@@ -45,143 +41,115 @@ def login_page():
             st.rerun()
         except Exception as e: st.error(f"Auth Error: {e}")
 
-# --- 4. MAIN APP ---
 if st.session_state.user is None:
     login_page()
 else:
     with st.sidebar:
         st.title("🎓 TopperGPT")
         st.success(f"Hi, {st.session_state.user}")
-        st.divider()
-        st.subheader("💎 PRO Version")
-        if st.button("🚀 Upgrade to PRO (₹99)"):
+        if st.button("🚀 Upgrade to PRO"):
             st.markdown("[Razorpay Link](https://rzp.io/l/your_link)")
         st.divider()
         if st.button("Logout"):
             st.session_state.user = None
             st.rerun()
 
-    # Tabs Sequence (1 to 7)
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "💬 Chat PDF", "📋 Syllabus Magic", "📝 Answer Eval", 
-        "🧠 Mind Map", "🃏 Flashcards", "❓ Real PYQs", "⚖️ Legal & Policies"
+        "🧠 Engineering MindMap", "🃏 Flashcards", "❓ Engg PYQs", "⚖️ Legal"
     ])
 
-    # --- TAB 1: CHAT PDF/IMAGE ---
+    # --- TAB 1: CHAT PDF ---
     with tab1:
-        st.subheader("📚 Smart Document Scan")
-        up_1 = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="chat_up")
-        if up_1:
-            if st.session_state.pdf_content == "" or st.session_state.get("last_file") != up_1.name:
-                with st.spinner("🧠 Scanning..."):
-                    try:
-                        text = ""
-                        if up_1.type == "application/pdf":
-                            with pdfplumber.open(io.BytesIO(up_1.read())) as pdf:
-                                text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                        if not text.strip():
-                            model = genai.GenerativeModel('gemini-1.5-flash')
-                            res = model.generate_content([{"mime_type": up_1.type, "data": up_1.getvalue()}, "Extract all text."])
-                            text = res.text
-                        st.session_state.pdf_content = text
-                        st.session_state.last_file = up_1.name
-                        st.success("✅ Notes Synced!")
-                    except Exception as e: st.error(f"Sync failed: {e}")
+        st.subheader("📚 Smart Note Analysis")
+        up_chat = st.file_uploader("Upload Notes", type=["pdf", "png", "jpg", "jpeg"], key="chat_up")
+        if up_chat:
+            with st.spinner("Scanning..."):
+                if up_chat.type == "application/pdf":
+                    with pdfplumber.open(io.BytesIO(up_chat.read())) as pdf:
+                        st.session_state.pdf_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                else:
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    res = model.generate_content([{"mime_type": up_chat.type, "data": up_chat.getvalue()}, "Extract text."])
+                    st.session_state.pdf_content = res.text
+                st.success("✅ Notes Synced!")
         
         for m in st.session_state.messages:
             with st.chat_message(m["role"]): st.markdown(m["content"])
-        if u_input := st.chat_input("Puchiye apne doubts..."):
-            st.session_state.messages.append({"role": "user", "content": u_input})
-            res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Context: {st.session_state.pdf_content[:15000]}\n\nQ: {u_input}"}])
+        if u_in := st.chat_input("Ask doubts..."):
+            st.session_state.messages.append({"role": "user", "content": u_in})
+            res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Context: {st.session_state.pdf_content[:15000]}\n\nQ: {u_in}"}])
             st.session_state.messages.append({"role": "assistant", "content": res.choices[0].message.content})
             st.rerun()
 
-    # --- TAB 2: SYLLABUS MAGIC (FIXED MODEL ERROR) ---
+    # --- TAB 2: SYLLABUS MAGIC (FIXED ERROR) ---
     with tab2:
-        st.subheader("📋 Instant Syllabus Roadmap")
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_mag")
-        if syll_up and st.button("Generate Checklist"):
+        st.subheader("📋 Engineering Syllabus Roadmap")
+        syll_f = st.file_uploader("Upload University Syllabus PDF", type=["pdf"])
+        if syll_f and st.button("Generate Checklist"):
             with st.spinner("AI Reading Syllabus..."):
-                try:
-                    with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        s_raw = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    res = model.generate_content(f"Extract a clean list of chapters and topics from this syllabus strictly: {s_raw[:12000]}")
-                    st.session_state.syllabus_roadmap = [line.strip() for line in res.text.split("\n") if line.strip()]
-                    st.success("✅ Checklist Ready!")
-                except Exception as e: st.error(f"Error: {e}")
+                with pdfplumber.open(io.BytesIO(syll_f.read())) as pdf:
+                    raw_s = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                res = model.generate_content(f"Extract a clean list of engineering chapters and topics: {raw_s[:10000]}")
+                st.session_state.roadmap = [line.strip() for line in res.text.split("\n") if line.strip()]
         
-        for i, topic in enumerate(st.session_state.syllabus_roadmap):
-            st.checkbox(topic, key=f"topic_chk_{i}")
+        for i, topic in enumerate(st.session_state.roadmap):
+            st.checkbox(topic, key=f"syll_{i}")
 
-    # --- TAB 3: ANSWER EVALUATOR (CONTEXT FIX) ---
+    # --- TAB 3: ANSWER EVALUATOR ---
     with tab3:
-        st.subheader("📝 Contextual Answer Evaluator")
-        q_val = st.text_area("Question dalo (Taaki AI accuracy check kare):", height=100)
-        ans_val = st.file_uploader("Apne Answer ki Photo/PDF dalo:", type=["png", "jpg", "jpeg", "pdf"], key="ans_eval")
-        if st.button("Check My Answer") and q_val and ans_val:
-            with st.spinner("AI Evaluating..."):
-                try:
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    res = model.generate_content([
-                        {"mime_type": ans_val.type, "data": ans_val.getvalue()},
-                        f"Target Question: {q_val}. Task: Evaluate this answer out of 10. Mention missing keywords and suggest improvements."
-                    ])
-                    st.info(res.text)
-                except Exception as e: st.error(f"Eval Error: {e}")
+        st.subheader("📝 Engineering Answer Evaluator")
+        q_eval = st.text_area("Question:")
+        ans_eval = st.file_uploader("Upload Answer Image", type=["png", "jpg", "jpeg"], key="eval_up")
+        if st.button("Check Accuracy") and q_eval and ans_eval:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            res = model.generate_content([{"mime_type": ans_eval.type, "data": ans_eval.getvalue()}, f"Check this answer for: {q_eval}. Give marks and missing engineering points."])
+            st.info(res.text)
 
-    # --- TAB 4: MIND MAP (STABLE SYNTAX) ---
+    # --- TAB 4: MIND MAP (DUAL MODE + SUMMARY) ---
     with tab4:
-        st.subheader("🧠 Visual Flowchart")
-        m_topic = st.text_input("Enter Topic Name:")
-        if st.button("Generate Flowchart"):
-            with st.spinner("Designing..."):
-                try:
-                    # Strict prompt for clean Mermaid code
-                    prompt = f"Provide ONLY the Mermaid.js graph TD code for the topic: {m_topic}. No text before or after the code."
-                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    clean_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
-                    st_mermaid(clean_code)
-                except: st.error("Syntax Error. Please try again.")
-
-    # --- TAB 5: FLASHCARDS (ANKI EXPORT) ---
-    with tab5:
-        st.subheader("🃏 Quick Revision Flashcards")
-        if st.button("Create Cards from Notes"):
-            if st.session_state.pdf_content:
-                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Create 5 Q&A Flashcards (Question|Answer format) from: {st.session_state.pdf_content[:5000]}"}])
-                st.session_state.flashcards = res.choices[0].message.content.split("\n")
-            else: st.warning("Pehle Tab 1 mein notes upload karein.")
+        st.subheader("🧠 Mind Map & Concept Summary")
+        m_mode = st.radio("Choose Input:", ["Enter Topic", "Upload PDF/Image"], horizontal=True)
+        m_input_text = ""
         
-        for card in st.session_state.flashcards:
-            if "|" in card:
-                q, a = card.split("|")
-                with st.expander(f"Q: {q}"): st.write(f"A: {a}")
-        
-        if st.session_state.flashcards:
-            csv_data = "Question,Answer\n" + "\n".join([c.replace("|", ",") for c in st.session_state.flashcards if "|" in c])
-            st.download_button("📤 Export to Anki (.csv)", csv_data, "anki_cards.csv")
+        if m_mode == "Enter Topic":
+            m_input_text = st.text_input("Engineering Topic (e.g. 8051 Architecture):")
+        else:
+            m_up = st.file_uploader("Upload reference for Map", type=["pdf", "png", "jpg"])
+            if m_up:
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                res = model.generate_content([{"mime_type": m_up.type, "data": m_up.getvalue()}, "Extract text."])
+                m_input_text = res.text
 
-    # --- TAB 6: VERIFIED PYQS (TRUST FIX) ---
-    with tab6:
-        st.subheader("❓ Verified PYQ Bank")
-        e_choice = st.selectbox("Exam:", ["JEE", "NEET", "Boards", "UPSC"])
-        t_choice = st.text_input("Topic Name for PYQs:")
-        if st.button("Fetch Questions"):
-            with st.spinner("Searching database..."):
-                prompt = f"List 5 Real PYQs for {e_choice} on {t_choice}. Rule: Tag as [VERIFIED - YEAR] if 100% sure, otherwise [PRACTICE]."
+        if st.button("Generate Visual Map") and m_input_text:
+            with st.spinner("Processing..."):
+                prompt = f"1. Provide a 5-line technical summary. 2. Provide Mermaid graph TD code. Topic: {m_input_text[:5000]}. Format: ---SUMMARY--- [text] ---MERMAID--- [code]"
                 res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                st.write(res.choices[0].message.content)
+                out = res.choices[0].message.content
+                if "---MERMAID---" in out:
+                    st.info(out.split("---SUMMARY---")[1].split("---MERMAID---")[0].strip())
+                    st_mermaid(out.split("---MERMAID---")[1].replace("```mermaid", "").replace("```", "").strip())
 
-    # --- TAB 7: LEGAL & POLICIES (DETAILED) ---
+    # --- TAB 6: ENGINEERING PYQS (UNIV + SEM) ---
+    with tab6:
+        st.subheader("❓ Verified Engineering PYQs")
+        col1, col2 = st.columns(2)
+        univ = col1.selectbox("University:", ["Mumbai University (MU)", "DBATU", "Pune University (SPPU)", "VTU", "GTU", "Anna University", "Other"])
+        sem = col2.selectbox("Semester:", [f"Semester {i}" for i in range(1, 9)])
+        branch = st.text_input("Branch (e.g. COMP, IT, EXTC, MECH):")
+        subject = st.text_input("Subject Name:")
+        
+        if st.button("Fetch Verified PYQs"):
+            prompt = f"List 5 REAL PYQs for {univ}, {sem}, {branch}, Subject: {subject}. Tag as [VERIFIED - YEAR] if sure, else [PRACTICE]."
+            res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+            st.write(res.choices[0].message.content)
+
+    # --- TAB 7: LEGAL (MEDIUM DETAILED) ---
     with tab7:
-        st.header("⚖️ Legal Policies")
-        col_p, col_t = st.columns(2)
-        with col_p:
-            st.markdown("#### 🛡️ Privacy Policy")
-            st.write("Hum aapka data secure rakhte hain. Uploaded documents scan ke baad discard ho jate hain. Firebase auth se login encrypted hai.")
-        with col_t:
-            st.markdown("#### 📜 Terms of Service")
-            st.write("TopperGPT educational use ke liye hai. AI answers ko textbook se verify zaroor karein. Galat istemal par account band ho sakta hai.")
-        st.divider()
-        st.write("📧 support@toppergpt.com | 📍 Neral, Maharashtra, India.")
+        st.header("⚖️ Terms & Policies")
+        with st.expander("🛡️ Privacy Policy", expanded=True):
+            st.write("TopperGPT respects engineering student data privacy. We use Firebase for Auth. Files are processed real-time and not stored permanently.")
+        with st.expander("📜 Terms of Service"):
+            st.write("This AI is an assistant. Always cross-verify complex derivations and circuit diagrams with your university's prescribed textbooks.")
+        st.write("📍 Support: support@toppergpt.com | Neral, Maharashtra.")
