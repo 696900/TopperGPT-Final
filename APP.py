@@ -130,25 +130,64 @@ else:
                 st.info(res.text)
 
     # --- TAB 4: MIND MAP ---
+    # --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
     with tab4:
         st.subheader("🧠 Concept MindMap & Summary")
-        m_mode = st.radio("Source:", ["Enter Topic", "Use File Data"], horizontal=True)
-        m_input = st.text_input("Topic Name:") if m_mode == "Enter Topic" else st.session_state.pdf_content[:3000]
         
-        if st.button("Build Map") and m_input:
-            with st.spinner("Creating..."):
-                prompt = f"Explain {m_input} in 5 lines, then provide ONLY Mermaid graph TD code. Use markers: [TXT] [MER]"
-                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                out = res.choices[0].message.content
+        # Choice of source
+        m_mode = st.radio("Source Selection:", ["Enter Topic", "Use File Data"], horizontal=True, key="m_src_final")
+        
+        # Getting input text
+        if m_mode == "Enter Topic":
+            m_input = st.text_input("Engineering Concept (e.g. Back EMF):", key="m_topic_final")
+        else:
+            m_input = st.session_state.get("pdf_content", "")[:3000]
+            if not m_input:
+                st.warning("⚠️ Pehle Tab 1 mein notes upload karein!")
+
+        if st.button("Build Map", key="m_btn_final") and m_input:
+            with st.spinner("Creating Visual Roadmap..."):
+                # Strict prompt to force correct Mermaid structure
+                prompt = f"""
+                Explain the engineering concept '{m_input}' in 5 clear lines.
+                Then, provide ONLY a Mermaid.js flowchart using 'graph TD'.
+                Ensure every node is connected and use simple words.
+                Format your response exactly like this:
+                SUMMARY: [Your 5 lines here]
+                MERMAID:
+                graph TD
+                A[Start] --> B[Process]
+                """
                 
-                # Parsing Summary
-                txt_part = re.search(r"\[TXT\](.*?)(?=\[MER\]|$)", out, re.DOTALL)
-                if txt_part: st.info(txt_part.group(1).strip())
-                
-                # Parsing Mermaid [Fixes Syntax Error]
-                m_code = safe_mermaid_parser(out)
-                if m_code: st_mermaid(m_code)
-                else: st.warning("Complex diagram. Try a simpler sub-topic.")
+                try:
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    full_out = res.choices[0].message.content
+
+                    # 1. Extract Summary
+                    if "SUMMARY:" in full_out:
+                        sum_text = full_out.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
+                        st.info(f"**Technical Summary:**\n\n{sum_text}")
+
+                    # 2. Extract & Fix Mermaid Code (Fixes Syntax Errors)
+                    #
+                    if "graph TD" in full_out:
+                        # Regex to find code starting from graph TD until the end or next marker
+                        match = re.search(r"graph\s+TD[\s\S]*", full_out)
+                        if match:
+                            clean_code = match.group(0).replace("```mermaid", "").replace("```", "").strip()
+                            # Extra safety: removing conversational filler
+                            clean_code = clean_code.split("\n\n")[0]
+                            
+                            st.markdown("---")
+                            st.markdown("### 📊 Architecture Flowchart")
+                            st_mermaid(clean_code)
+                        else:
+                            st.error("AI generated invalid diagram syntax. Please try a simpler topic.")
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
     # --- TAB 5: FLASHCARDS ---
     with tab5:
