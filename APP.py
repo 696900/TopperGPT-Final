@@ -215,38 +215,39 @@ else:
             st.write(res.choices[0].message.content)
 
     # --- TAB 7: ADVANCED TOPIC SEARCH (FIXED) ---
+    # --- TAB 7: ADVANCED ENGINEERING TOPIC SEARCH (FIXED) ---
     with tab7:
         st.subheader("🔍 Engineering Topic Research")
-        st.write("Enter any topic to get a complete 360° Engineering Breakdown.")
+        st.write("Complete 360° Breakdown: Definition, Keywords, Diagram, & More.")
         
-        # User Input Topic
-        s_query = st.text_input("Enter Engineering Topic (e.g. Transformer, Bipolar Junction Transistor):", key="final_search_input")
+        # User input for engineering topic
+        search_topic = st.text_input("Enter Engineering Topic:", key="engg_search_final")
         
-        if st.button("Deep Research", key="final_search_btn") and s_query:
-            with st.spinner(f"Processing '{s_query}'..."):
-                # Engineering-specific prompt covering all 6 of your requirements
+        if st.button("Deep Research", key="engg_search_btn") and search_topic:
+            with st.spinner(f"Analyzing '{search_topic}'..."):
+                # Engineering-specific prompt with strict markers
                 prompt = f"""
-                As an Engineering Professor, provide an exhaustive report for: '{s_query}'.
-                Follow this exact structure and use the markers strictly:
+                As an Engineering Professor, provide an exhaustive report for: '{search_topic}'.
+                Follow this exact structure strictly:
 
-                [DEFINITION]
-                (Standard Engineering definition of the topic)
+                [1_DEFINITION]
+                (Standard Engineering definition)
 
-                [KEYWORDS]
-                (List important technical keywords related to this)
+                [2_KEYWORDS]
+                (Key technical terms)
 
-                [COMPLEX_EXPLAIN]
-                (Identify any difficult keywords from above and explain their technical meaning)
+                [3_COMPLEX_EXPLAIN]
+                (Explain technical/difficult keywords)
 
-                [SIMPLE_EXPLAIN]
-                (Explain the whole concept in very simple, easy-to-understand words for a beginner)
+                [4_SIMPLE_EXPLAIN]
+                (Explain the whole concept in very simple beginner words)
 
-                [MERMAID_CODE]
+                [5_MERMAID_CODE]
                 graph TD
-                (Provide ONLY the Mermaid.js graph TD code for a technical diagram of this topic)
+                (Provide ONLY pure Mermaid.js graph TD code here. No intro text, no code blocks)
 
-                [PYQS]
-                (Provide 2-3 expected exam questions from this specific topic)
+                [6_PYQS]
+                (2-3 expected exam questions)
                 """
                 
                 try:
@@ -256,42 +257,46 @@ else:
                     )
                     out = res.choices[0].message.content
 
+                    # Helper to display sections safely
+                    def get_section(marker_start, marker_end):
+                        try:
+                            return out.split(marker_start)[1].split(marker_end)[0].strip()
+                        except: return ""
+
                     # --- 1. Definition ---
-                    if "[DEFINITION]" in out:
-                        st.markdown("### 📖 1. Standard Definition")
-                        st.info(out.split("[DEFINITION]")[1].split("[KEYWORDS]")[0].strip())
+                    st.markdown("### 📖 1. Standard Definition")
+                    st.info(get_section("[1_DEFINITION]", "[2_KEYWORDS]"))
 
                     # --- 2. Keywords ---
-                    if "[KEYWORDS]" in out:
-                        st.markdown("### 🔑 2. Key Technical Terms")
-                        st.write(out.split("[KEYWORDS]")[1].split("[COMPLEX_EXPLAIN]")[0].strip())
+                    st.markdown("### 🔑 2. Key Technical Terms")
+                    st.write(get_section("[2_KEYWORDS]", "[3_COMPLEX_EXPLAIN]"))
 
                     # --- 3. Complex Keyword Explanation ---
-                    if "[COMPLEX_EXPLAIN]" in out:
-                        st.markdown("### 🔬 3. Technical Breakdown")
-                        st.warning(out.split("[COMPLEX_EXPLAIN]")[1].split("[SIMPLE_EXPLAIN]")[0].strip())
+                    st.markdown("### 🔬 3. Technical Breakdown")
+                    st.warning(get_section("[3_COMPLEX_EXPLAIN]", "[4_SIMPLE_EXPLAIN]"))
 
                     # --- 4. Simple Explanation ---
-                    if "[SIMPLE_EXPLAIN]" in out:
-                        st.markdown("### 💡 4. Concept in Simple Words")
-                        st.success(out.split("[SIMPLE_EXPLAIN]")[1].split("[MERMAID_CODE]")[0].strip())
+                    st.markdown("### 💡 4. Concept in Simple Words")
+                    st.success(get_section("[4_SIMPLE_EXPLAIN]", "[5_MERMAID_CODE]"))
 
                     # --- 5. Diagram (Fixed Syntax Error) ---
-                    if "[MERMAID_CODE]" in out:
-                        st.markdown("### 📊 5. Architecture Flowchart")
-                        mermaid_raw = out.split("[MERMAID_CODE]")[1].split("[PYQS]")[0].strip()
-                        
-                        # Cleaning the code block to prevent bomb icon
-                        clean_code = re.search(r"graph\s+(?:TD|LR|BT|RL)[\s\S]*", mermaid_raw)
-                        if clean_code:
-                            st_mermaid(clean_code.group(0).replace("```mermaid", "").replace("```", "").strip())
-                        else:
-                            st.error("Diagram structure too complex for auto-rendering.")
+                    st.markdown("### 📊 5. Architecture Flowchart")
+                    # Strict Regex to isolate ONLY the graph code
+                    mermaid_raw = get_section("[5_MERMAID_CODE]", "[6_PYQS]")
+                    # Finding 'graph TD' and everything after it that looks like mermaid code
+                    match = re.search(r"(graph (?:TD|LR|BT|RL)[\s\S]*)", mermaid_raw)
+                    
+                    if match:
+                        clean_mermaid = match.group(1).replace("```mermaid", "").replace("```", "").strip()
+                        # Removing any trailing text AI might have added
+                        clean_mermaid = clean_mermaid.split("\n\n")[0]
+                        st_mermaid(clean_mermaid)
+                    else:
+                        st.error("Syntax error in generated diagram. Detailed summary is above.")
 
                     # --- 6. Expected Questions ---
-                    if "[PYQS]" in out:
-                        st.markdown("### ❓ 6. Expected Exam Questions")
-                        st.write(out.split("[PYQS]")[1].strip())
+                    st.markdown("### ❓ 6. Expected Exam Questions")
+                    st.write(out.split("[6_PYQS]")[1].strip())
                         
                 except Exception as e:
                     st.error(f"Search failed: {e}")
