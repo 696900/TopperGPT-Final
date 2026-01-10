@@ -110,27 +110,63 @@ else:
     # --- TAB 4: MIND MAP (DUAL MODE + SUMMARY) ---
     with tab4:
         st.subheader("🧠 Mind Map & Concept Summary")
-        m_mode = st.radio("Choose Input:", ["Enter Topic", "Upload PDF/Image"], horizontal=True)
+        m_mode = st.radio("Choose Input:", ["Enter Topic", "Upload PDF/Image"], horizontal=True, key="m_mode_fix")
         m_input_text = ""
         
         if m_mode == "Enter Topic":
-            m_input_text = st.text_input("Engineering Topic (e.g. 8051 Architecture):")
+            m_input_text = st.text_input("Engineering Topic (e.g. 8051 Architecture):", key="m_topic_fix")
         else:
-            m_up = st.file_uploader("Upload reference for Map", type=["pdf", "png", "jpg"])
+            m_up = st.file_uploader("Upload reference for Map", type=["pdf", "png", "jpg"], key="m_up_fix")
             if m_up:
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                res = model.generate_content([{"mime_type": m_up.type, "data": m_up.getvalue()}, "Extract text."])
+                res = model.generate_content([{"mime_type": m_up.type, "data": m_up.getvalue()}, "Extract text strictly for mindmap."])
                 m_input_text = res.text
 
-        if st.button("Generate Visual Map") and m_input_text:
-            with st.spinner("Processing..."):
-                prompt = f"1. Provide a 5-line technical summary. 2. Provide Mermaid graph TD code. Topic: {m_input_text[:5000]}. Format: ---SUMMARY--- [text] ---MERMAID--- [code]"
+        if st.button("Generate Visual Map", key="m_btn_fix") and m_input_text:
+            with st.spinner("Designing Flowchart..."):
+                # Strict prompt to prevent Syntax Error
+                prompt = f"Tasks: 1. 5-line technical summary. 2. Mermaid graph TD code ONLY. Topic: {m_input_text[:5000]}. Format: ---SUMMARY--- [text] ---MERMAID--- [code]"
                 res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                 out = res.choices[0].message.content
+                
                 if "---MERMAID---" in out:
-                    st.info(out.split("---SUMMARY---")[1].split("---MERMAID---")[0].strip())
-                    st_mermaid(out.split("---MERMAID---")[1].replace("```mermaid", "").replace("```", "").strip())
+                    # Clear separation for Mermaid Version 10.2.4 compatibility
+                    sum_section = out.split("---SUMMARY---")[1].split("---MERMAID---")[0].strip()
+                    mer_section = out.split("---MERMAID---")[1].replace("```mermaid", "").replace("```", "").strip()
+                    
+                    st.info(sum_section)
+                    try:
+                        st_mermaid(mer_section)
+                    except:
+                        st.error("Syntax issues detected. Please try a more specific topic.")
+    with tab5:
+        st.subheader("🃏 Engineering Flashcards")
+        # Added generation button because option was missing
+        source_flash = st.radio("Card Source:", ["Use Current Notes", "Enter Custom Topic"], horizontal=True)
+        
+        if st.button("Generate AI Flashcards"):
+            with st.spinner("Creating Cards..."):
+                if source_flash == "Use Current Notes" and st.session_state.pdf_content:
+                    f_context = st.session_state.pdf_content[:6000]
+                else:
+                    f_context = st.text_input("Topic Name for Flashcards:")
 
+                if f_context:
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": f"Create 5 engineering flashcards (Question|Answer format) from: {f_context}"}]
+                    )
+                    st.session_state.flashcards = res.choices[0].message.content.split("\n")
+                    st.success("✅ Cards Ready!")
+                else:
+                    st.warning("Pehle notes upload karein ya topic likhein!")
+
+        # Display Logic
+        for card in st.session_state.flashcards:
+            if "|" in card:
+                q, a = card.split("|")
+                with st.expander(f"Question: {q.strip()}"):
+                    st.write(f"**Answer:** {a.strip()}")                    
     # --- TAB 6: ENGINEERING PYQS (UNIV + SEM) ---
     with tab6:
         st.subheader("❓ Verified Engineering PYQs")
