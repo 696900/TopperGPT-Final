@@ -250,14 +250,16 @@ else:
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-    # --- TAB 5: FLASHCARDS ---
-    # --- TAB 5: SMART FLASHCARDS (PDF UPLOAD + DOWNLOAD) ---
-    # --- TAB 5: SMART FLASHCARDS (STRICT PDF FOCUS) ---
+    # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
     with tab5:
         st.subheader("🃏 Engineering Flashcard Generator")
         
-        # 1. Dedicated Flashcard Uploader
-        f_up = st.file_uploader("Upload PCE or other Engineering Notes", type=["pdf", "png", "jpg"], key="f_card_sync")
+        # 1. File Uploader with a unique key
+        pce_file = st.file_uploader(
+            "Upload PCE or Engineering Notes", 
+            type=["pdf", "png", "jpg"], 
+            key="pce_flash_uploader"
+        )
         
         # State maintenance for PDF content in this tab
         if f_up:
@@ -268,53 +270,51 @@ else:
                             st.session_state.flash_pdf_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
                     else:
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content([{"mime_type": f_up.type, "data": f_up.getvalue()}, "Extract tech text."])
-                        st.session_state.flash_pdf_text = res.text
-                    st.session_state.flash_filename = f_up.name
-                    st.toast(f"✅ {f_up.name} loaded for flashcards!")
+                        res = model.generate_content([{"mime_type": pce_file.type, "data": pce_file.getvalue()}, "Extract tech text."])
+                        st.session_state.pce_context = res.text
+                    
+                    st.session_state.last_pce_name = pce_file.name
+                    st.session_state.pce_cards = [] # Purane cards delete karo
+                    st.toast(f"✅ Context Locked: {pce_file.name}")
 
-        # 2. Generation Logic
-        if st.button("🚀 Generate 10 Pro Cards from PDF"):
-            # Checking if text actually exists
-            pdf_data = st.session_state.get("flash_pdf_text", "")
+        # 3. Generation Button
+        if st.button("🚀 Generate PCE Cards"):
+            current_data = st.session_state.get("pce_context", "")
             
-            if pdf_data:
-                with st.spinner("AI is reading your specific notes..."):
-                    # Strict prompt to stop out-of-topic generation
+            if current_data:
+                with st.spinner("Professor AI is reading specific PCE topics..."):
+                    # Strict Professor Prompt to stop 'Newton/General' cards
                     prompt = f"""
-                    System: Act as a PCE Professor. 
-                    STRICT RULE: Use ONLY the provided context to create flashcards. 
-                    If the context is about Communication Engineering, do NOT ask about Newton's laws or Thermodynamics.
+                    Context: {current_data[:12000]}
                     
-                    Context: {pdf_data[:10000]}
-                    
-                    Task: Create 10 'Question | Answer' pairs strictly from this text.
+                    Instruction: You are a PCE (Principles of Communication Engineering) Professor. 
+                    Create 10 'Question | Answer' pairs strictly from the context above. 
+                    Do NOT use general physics or mechanics. Focus on Modulation, Noise, Bandwidth, etc.
+                    Format: Question | Answer
                     """
                     
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
-                    st.session_state.flashcards = res.choices[0].message.content.split("\n")
+                    st.session_state.pce_cards = res.choices[0].message.content.split("\n")
             else:
-                st.error("⚠️ Pehle PDF upload karein, varna out-of-topic cards ban jayenge!")
+                st.error("⚠️ Error: No context found. Please upload the PDF first!")
 
-        # 3. Display & Download
-        if st.session_state.get("flashcards"):
+        # 4. Display Logic
+        if st.session_state.get("pce_cards"):
             st.markdown("---")
-            # Creating Download File
-            card_data = "\n".join(st.session_state.flashcards)
+            # Clear Download Button
             st.download_button(
-                label="📥 Download These Cards",
-                data=card_data,
-                file_name="PCE_Study_Cards.txt",
-                mime="text/plain"
+                "📥 Download PCE Question Bank",
+                data="\n".join(st.session_state.pce_cards),
+                file_name="PCE_Flashcards.txt"
             )
 
-            for i, card in enumerate(st.session_state.flashcards):
-                if "|" in card:
-                    q, a = card.split("|")
-                    with st.expander(f"🔹 Card {i+1}: {q.strip()}"):
+            for i, line in enumerate(st.session_state.pce_cards):
+                if "|" in line:
+                    q, a = line.split("|")
+                    with st.expander(f"🔹 {q.strip()}"):
                         st.success(f"**Ans:** {a.strip()}")
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
     with tab6:
