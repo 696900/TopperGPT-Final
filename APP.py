@@ -87,56 +87,63 @@ else:
     # --- TAB 1: CHAT PDF ---
     with tab1:
         st.subheader("📚 Smart Note Analysis")
-        up_chat = st.file_uploader("Upload Engineering Notes", type=["pdf", "png", "jpg"], key="pdf_main")
+        up_chat = st.file_uploader("Upload Engineering Notes", type=["pdf", "png", "jpg", "jpeg"], key="pdf_sync_fix")
         
         if up_chat:
             with st.spinner("Extracting Technical Data..."):
                 if up_chat.type == "application/pdf":
                     try:
                         with pdfplumber.open(io.BytesIO(up_chat.read())) as pdf:
-                            # Har page se text nikalna
-                            st.session_state.pdf_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                        st.success("✅ PDF Synced Successfully!")
+                            # Har page se text nikal kar session state mein save karna
+                            full_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                            st.session_state.pdf_content = full_text
+                        st.success("✅ PDF Synced Successfully!") #
                     except Exception as e:
                         st.error(f"PDF Error: {e}")
                 else:
-                    # For Images (Handwritten notes)
+                    # For Images
                     model = genai.GenerativeModel('gemini-1.5-flash')
-                    res = model.generate_content([{"mime_type": up_chat.type, "data": up_chat.getvalue()}, "Extract all technical text accurately."])
+                    res = model.generate_content([{"mime_type": up_chat.type, "data": up_chat.getvalue()}, "Extract all technical text."])
                     st.session_state.pdf_content = res.text
-                    st.success("✅ Image Text Extracted!")
+                    st.success("✅ Image Synced!")
 
-        if ui := st.chat_input("Ask a question from your notes..."):
-            if st.session_state.pdf_content:
-                # Context length manage karne ke liye [:10000] limit lagayi hai
-                prompt = f"Context: {st.session_state.pdf_content[:10000]}\n\nQuestion: {ui}\nAnswer as an expert engineering professor."
-                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                st.write("**Professor GPT:**", res.choices[0].message.content)
+        # Chat Input logic
+        ui = st.chat_input("Ask a question from your notes...")
+        if ui:
+            if st.session_state.get("pdf_content"):
+                with st.spinner("Professor GPT is thinking..."):
+                    # Groq use kar rahe hain taaki 404 error na aaye
+                    prompt = f"Context from student notes: {st.session_state.pdf_content[:12000]}\n\nQuestion: {ui}\nAnswer as an expert engineering professor."
+                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                    st.markdown(f"**Professor:** {res.choices[0].message.content}")
             else:
                 st.warning("⚠️ Pehle PDF upload karein.")
     # --- TAB 2: SYLLABUS MAGIC ---
     with tab2:
         st.subheader("📋 University Syllabus Roadmap")
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_tracker")
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_sync_fix")
         
         if syll_up and st.button("Generate Study Checklist"):
-            with st.spinner("Reading University Syllabus..."):
-                with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                    syll_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                
-                # Using Gemini-1.5-flash with proper configuration to avoid 404
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                res = model.generate_content(f"Extract all chapter names and main topics from this syllabus as a clean bulleted list: {syll_text[:8000]}")
-                
-                # Clean list making
-                st.session_state.roadmap = [line.strip("- ").strip() for line in res.text.split("\n") if line.strip()]
-                st.success("✅ Roadmap Ready!")
+            with st.spinner("Analyzing University Syllabus..."):
+                try:
+                    with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
+                        syll_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                    
+                    # Gemini 404 ko bypass karne ke liye Groq use kar rahe hain
+                    prompt = f"Extract all engineering chapter names and main topics from this syllabus as a clean list: {syll_text[:10000]}"
+                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                    
+                    # List cleaning
+                    st.session_state.roadmap = [line.strip("- ").strip() for line in res.choices[0].message.content.split("\n") if line.strip()]
+                    st.success("✅ Roadmap Generated!")
+                except Exception as e:
+                    st.error(f"Syllabus Error: {e}")
 
-        # Display Checklist
-        if st.session_state.roadmap:
+        # Checklist Display
+        if st.session_state.get("roadmap"):
             st.write("### 🎯 Your Completion Tracker")
             for i, topic in enumerate(st.session_state.roadmap):
-                st.checkbox(topic, key=f"roadmap_item_{i}")
+                st.checkbox(topic, key=f"rd_map_{i}")
 
     # --- TAB 3: ANSWER EVALUATOR ---
     with tab3:
