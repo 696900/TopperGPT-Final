@@ -251,30 +251,109 @@ else:
                     st.error(f"Error: {e}")
 
     # --- TAB 5: FLASHCARDS ---
+    # --- TAB 5: SMART FLASHCARDS (PDF UPLOAD + DOWNLOAD) ---
     with tab5:
-        st.subheader("🃏 Engineering Flashcards")
-        if st.button("Generate AI Cards"):
-            if st.session_state.pdf_content:
-                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Create 5 Q&A pairs (Q|A) from: {st.session_state.pdf_content[:5000]}"}])
-                st.session_state.flashcards = res.choices[0].message.content.split("\n")
-            else: st.warning("Please upload notes in Tab 1 first.")
+        st.subheader("🃏 Engineering Flashcard Generator")
+        st.write("Upload notes to create specific cards or let AI generate them from general knowledge.")
+
+        # 1. Dedicated Flashcard Uploader
+        f_up = st.file_uploader("Upload Notes for Flashcards", type=["pdf", "png", "jpg"], key="f_card_up")
         
-        for c in st.session_state.flashcards:
-            if "|" in c:
-                q, a = c.split("|")
-                with st.expander(f"Q: {q}"): st.write(f"A: {a}")
+        f_content = ""
+        if f_up:
+            with st.spinner("Reading notes for cards..."):
+                if f_up.type == "application/pdf":
+                    with pdfplumber.open(io.BytesIO(f_up.read())) as pdf:
+                        f_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                else:
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    res = model.generate_content([{"mime_type": f_up.type, "data": f_up.getvalue()}, "Extract tech text."])
+                    f_content = res.text
+                st.toast("✅ Notes Loaded for Flashcards!")
 
-    # --- TAB 6: ENGG PYQS ---
+        # 2. Card Generation Logic
+        if st.button("🚀 Generate 10 Pro Cards"):
+            with st.spinner("AI is crafting study cards..."):
+                # Hybrid context
+                source = f_content if f_content else st.session_state.get("pdf_content", "General Engineering Concepts")
+                prompt = f"Create 10 high-quality Engineering Flashcards from: {source[:8000]}. Format: Question | Answer. One per line."
+                
+                res = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile", 
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                st.session_state.flashcards = res.choices[0].message.content.split("\n")
+
+        # 3. Display & Download
+        if st.session_state.flashcards:
+            st.markdown("---")
+            # Creating Download File
+            card_data = "\n".join(st.session_state.flashcards)
+            st.download_button(
+                label="📥 Download Cards (for Anki/Quizlet)",
+                data=card_data,
+                file_name="TopperGPT_Cards.txt",
+                mime="text/plain"
+            )
+
+            # Interactive Display
+            for i, card in enumerate(st.session_state.flashcards):
+                if "|" in card:
+                    q, a = card.split("|")
+                    with st.expander(f"🔹 Card {i+1}: {q.strip()}"):
+                        st.success(f"**Ans:** {a.strip()}")# --- TAB 5: SMART FLASHCARDS (PDF UPLOAD + DOWNLOAD) ---
+    # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
     with tab6:
-        st.subheader("❓ University Verified PYQs")
-        c1, c2 = st.columns(2)
-        u_sel = c1.selectbox("Univ:", ["Mumbai University", "DBATU", "Pune University", "VTU", "GTU"])
-        s_sel = c2.selectbox("Sem:", [f"Semester {i}" for i in range(1, 9)])
-        subj = st.text_input("Subject/Branch:")
-        if st.button("Fetch Questions"):
-            res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"5 Real PYQs for {u_sel}, {s_sel}, Subject: {subj}. Tag [VERIFIED] if year is sure."}])
-            st.write(res.choices[0].message.content)
+        st.subheader("❓ University Previous Year Questions")
+        st.write("Get high-probability questions based on your University and Branch.")
 
+        # 1. Selection Filters
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            univ = st.selectbox("Select University:", 
+                ["Mumbai University (MU)", "Pune University (SPPU)", "GTU", "VTU", "AKTU", "Other"])
+        with col2:
+            branch = st.selectbox("Select Branch:", 
+                ["Computer/IT", "Mechanical", "Civil", "Electrical", "Electronics", "Chemical"])
+        with col3:
+            semester = st.selectbox("Semester:", [f"Sem {i}" for i in range(1, 9)])
+
+        subj_name = st.text_input("Enter Subject Name (e.g., Engineering Mathematics, Thermodynamics):")
+
+        # 2. Fetch Logic
+        if st.button("🔍 Fetch Important PYQs"):
+            if subj_name:
+                with st.spinner(f"Searching {univ} database for {subj_name}..."):
+                    # Prompt designed to act like a paper setter
+                    prompt = f"""
+                    Act as a University Paper Setter for {univ}. 
+                    For the subject '{subj_name}' ({branch}, {semester}), provide:
+                    1. 5 Most Repeated PYQs (Previous Year Questions).
+                    2. 2 High-Probability 'Expected' questions for the upcoming exam.
+                    3. Brief tips on how to score full marks in these specific questions.
+                    Format: Clearly numbered with 'Year' if possible.
+                    """
+                    
+                    try:
+                        res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile", 
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                        st.markdown("---")
+                        st.markdown(f"### 📑 {subj_name} Question Bank")
+                        st.write(res.choices[0].message.content)
+                        
+                        # Option to download these questions
+                        st.download_button(
+                            label="📥 Download Question Bank",
+                            data=res.choices[0].message.content,
+                            file_name=f"{subj_name}_PYQs.txt",
+                            mime="text/plain"
+                        )
+                    except Exception as e:
+                        st.error("Error fetching questions. Please check your connection.")
+            else:
+                st.warning("⚠️ Please enter a subject name first.")
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
     with tab7:
