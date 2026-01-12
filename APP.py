@@ -215,56 +215,65 @@ else:
             st.write(res.choices[0].message.content)
 
     # --- TAB 7: TOPIC SEARCH (NO-TIMEOUT VERSION) ---
+    # --- TAB 7: TOPIC SEARCH (COLLEGE-READY & NO ERROR) ---
     with tab7:
         st.subheader("🔍 Engineering Topic Deep-Research")
-        s_topic = st.text_input("Enter Topic (e.g. Transformer, BJT):", key="search_final_v4")
+        st.write("Instant 6-Point Analysis: Concepts + Visual Architecture.")
         
-        if st.button("Deep Research", key="btn_v4") and s_topic:
-            with st.spinner("Professor AI is generating your report..."):
-                # Engineering prompt with strict formatting
+        # Input topic
+        s_topic = st.text_input("Enter Topic (e.g. BJT, Transformer):", key="search_final_college")
+        
+        if st.button("Deep Research", key="btn_final_search") and s_topic:
+            with st.spinner("AI is analyzing technical data..."):
+                # Strict prompt to force structured output
                 prompt = f"""
-                Provide a technical report for engineering topic: '{s_topic}'.
-                Use these markers exactly: [DEF], [KEY], [CXP], [SMP], [MER], [PYQ].
-                In [MER], provide ONLY pure Mermaid graph TD code. No brackets () in nodes.
+                As an Engineering Professor, analyze: '{s_topic}'.
+                Use these markers exactly: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
+                In [5_MER], provide ONLY pure Mermaid graph TD code. 
+                Use square brackets [] for all labels. No special characters like () or &.
                 """
                 
                 try:
-                    # Using Gemini for faster response to avoid timeout
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    res = model.generate_content(prompt)
-                    out = res.text
+                    # Using Groq to avoid Gemini 404/API version issues
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    out = res.choices[0].message.content
 
-                    # Safe Parsing Logic (Preventing Index Errors)
-                    def parse(marker, next_marker=None):
+                    # Display logic with safe parsing
+                    def get_content(m1, m2=None):
                         try:
-                            content = out.split(marker)[1]
-                            if next_marker: content = content.split(next_marker)[0]
-                            return content.strip()
-                        except: return "Data not available for this section."
+                            val = out.split(m1)[1]
+                            if m2: val = val.split(m2)[0]
+                            return val.strip()
+                        except: return "Information currently processing..."
 
-                    # Displaying Sections
-                    st.info(f"**1. Definition:**\n{parse('[DEF]', '[KEY]')}")
-                    st.write(f"**2. Keywords:**\n{parse('[KEY]', '[CXP]')}")
-                    st.warning(f"**3. Technical Breakdown:**\n{parse('[CXP]', '[SMP]')}")
-                    st.success(f"**4. Simple Words:**\n{parse('[SMP]', '[MER]')}")
+                    st.info(f"**1. Standard Definition:**\n{get_content('[1_DEF]', '[2_KEY]')}")
+                    st.write(f"**2. Key Technical Terms:**\n{get_content('[2_KEY]', '[3_CXP]')}")
+                    st.warning(f"**3. Technical Breakdown:**\n{get_content('[3_CXP]', '[4_SMP]')}")
+                    st.success(f"**4. Concept in Simple Words:**\n{get_content('[4_SMP]', '[5_MER]')}")
 
-                    # --- Mermaid Render Fix ---
+                    # --- Mermaid Architecture Fix ---
+                    #
                     st.markdown("### 📊 5. Architecture Flowchart")
-                    mermaid_raw = parse('[MER]', '[PYQ]')
-                    # Extracting code using regex to avoid syntax errors
-                    m_match = re.search(r"(graph (?:TD|LR)[\s\S]*)", mermaid_raw)
-                    if m_match:
-                        # Character cleaning for Mermaid stability
-                        clean_code = m_match.group(1).replace("(", "[").replace(")", "]").replace("```", "").strip()
+                    mermaid_block = get_content('[5_MER]', '[6_PYQ]')
+                    
+                    # Finding only the valid graph code
+                    mermaid_match = re.search(r"(graph (?:TD|LR)[\s\S]*)", mermaid_block)
+                    if mermaid_match:
+                        clean_code = mermaid_match.group(1).replace("```mermaid", "").replace("```", "").strip()
+                        # Removing intro/outro sentences that AI adds
+                        clean_code = clean_code.split("\n\n")[0]
                         st_mermaid(clean_code)
                     else:
-                        st.code(mermaid_raw, language="mermaid") # Fallback to text code if visual fails
+                        st.code(mermaid_block, language="mermaid")
 
-                    st.markdown("### ❓ 6. Expected Questions")
-                    st.write(parse('[PYQ]'))
+                    st.markdown("### ❓ 6. Expected Exam Questions")
+                    st.write(get_content('[6_PYQ]'))
                         
                 except Exception as e:
-                    st.error(f"Error: {e}. Please try again.")
+                    st.error("Connection lag. Please try again in 5 seconds.")
     # --- TAB 8: LEGAL ---
     with tab8:
         st.header("⚖️ Legal & Policies")
