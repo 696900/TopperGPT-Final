@@ -215,47 +215,80 @@ else:
             st.write(res.choices[0].message.content)
 
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
+    # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
     with tab7:
         st.subheader("🔍 Engineering Topic Research")
-        query = st.text_input("Enter Topic (e.g. Transformer, BJT):", key="search_final")
+        st.write("Instant 360° Analysis: Definition, Diagram, & 5 Research-based PYQs.")
         
-        if st.button("Deep Research") and query:
-            with st.spinner("Analyzing..."):
+        # User input
+        query = st.text_input("Enter Engineering Topic (e.g. Virtual Memory, BJT, Transformer):", key="search_final_final_v10")
+        
+        if st.button("Deep Research", key="btn_v10") and query:
+            with st.spinner(f"Analyzing '{query}' for University Exams..."):
+                # Strict prompt for Mermaid Version 10 stability
                 prompt = f"""
-                Act as an Engineering Professor. Research: '{query}'.
-                Markers: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
-                In [5_MER], give ONLY pure Mermaid graph TD code. No text, no quotes. Use [] for labels.
-                In [6_PYQ], give exactly 5 real exam questions.
+                Act as an Engineering Professor. Provide a report for: '{query}'.
+                Markers strictly: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
+                
+                Rules for [5_MER]:
+                - Provide ONLY pure Mermaid graph TD code.
+                - Use square brackets [] for ALL node labels (e.g., A[Input] --> B[Process]).
+                - NO round brackets (), NO quotes "", NO special characters like &.
+                
+                Rules for [6_PYQ]:
+                - Provide exactly 5 REAL exam-oriented questions based on current university trends.
                 """
+                
                 try:
-                    # Using Groq to avoid Gemini 404 versioning errors
-                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                    # Using Groq to avoid Gemini 404 version errors
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
                     out = res.choices[0].message.content
 
-                    def clean_sec(m1, m2=None):
+                    # Robust Section Parser
+                    def get_sec(m1, m2=None):
                         try:
                             s = out.split(m1)[1]
                             return s.split(m2)[0].strip() if m2 else s.strip()
-                        except: return "Data missing"
+                        except: return "Information being processed..."
 
-                    st.info(f"**1. Definition:** {clean_sec('[1_DEF]', '[2_KEY]')}")
-                    st.write(f"**2. Keywords:** {clean_sec('[2_KEY]', '[3_CXP]')}")
-                    st.warning(f"**3. Technical Breakdown:** {clean_sec('[3_CXP]', '[4_SMP]')}")
-                    st.success(f"**4. Simple Words:** {clean_sec('[4_SMP]', '[5_MER]')}")
+                    # Displaying technical sections
+                    st.markdown(f"## 📘 Technical Report: {query}")
+                    st.info(f"**1. Standard Definition:**\n{get_sec('[1_DEF]', '[2_KEY]')}")
+                    st.write(f"**2. Key Technical Keywords:**\n{get_sec('[2_KEY]', '[3_CXP]')}")
+                    st.warning(f"**3. Technical Breakdown:**\n{get_sec('[3_CXP]', '[4_SMP]')}")
+                    st.success(f"**4. Concept in Simple Words:**\n{get_sec('[4_SMP]', '[5_MER]')}")
 
-                    # --- MERMAID FIX ---
+                    # --- THE ULTIMATE FLOWCHART RENDERER ---
                     st.markdown("### 📊 5. Architecture Flowchart")
-                    mer_raw = clean_sec('[5_MER]', '[6_PYQ]')
-                    match = re.search(r"(graph (?:TD|LR)[\s\S]*)", mer_raw)
+                    mer_raw = get_sec('[5_MER]', '[6_PYQ]')
+                    
+                    # Regex to isolate only the 'graph TD' part and remove AI talk
+                    match = re.search(r"(graph (?:TD|LR|BT|RL)[\s\S]*?)(?=\[6_PYQ\]|---|```|$)", mer_raw)
+                    
                     if match:
-                        code = match.group(1).replace("```mermaid", "").replace("```", "").strip().split("\n\n")[0]
-                        try: st_mermaid(code)
-                        except: st.code(code, language="mermaid")
-                    else: st.code(mer_raw, language="mermaid")
+                        # Character cleaning to ensure Mermaid doesn't crash
+                        clean_code = match.group(1).replace("```mermaid", "").replace("```", "").strip()
+                        # Auto-fix: Convert rounded nodes () to square [] because AI often messes up ()
+                        clean_code = clean_code.replace("(", "[").replace(")", "]")
+                        
+                        try:
+                            st_mermaid(clean_code)
+                        except Exception:
+                            # If rendering still fails, show raw code so student doesn't lose data
+                            st.code(clean_code, language="mermaid")
+                            st.error("Visual render failed due to complex syntax, logic shown above.")
+                    else:
+                        st.code(mer_raw, language="mermaid")
 
-                    st.markdown("### ❓ 6. Expected Questions (5 based on trends)")
-                    st.write(clean_sec('[6_PYQ]'))
-                except: st.error("Timeout. Try again.")
+                    # 5 Deep-researched Questions
+                    st.markdown("### ❓ 6. Expected Exam Questions (PYQ Trends)")
+                    st.write(get_sec('[6_PYQ]'))
+                        
+                except Exception as e:
+                    st.error(f"System busy. Error: {e}")
     # --- TAB 8: LEGAL ---
     with tab8:
         st.header("⚖️ Legal & Policies")
