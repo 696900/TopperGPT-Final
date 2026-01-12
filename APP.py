@@ -261,13 +261,15 @@ else:
             key="pce_flash_uploader"
         )
         
-        # State maintenance for PDF content in this tab
-        if f_up:
-            if "flash_pdf_text" not in st.session_state or st.session_state.get("flash_filename") != f_up.name:
-                with st.spinner("PCE Notes scan ho rahe hain..."):
-                    if f_up.type == "application/pdf":
-                        with pdfplumber.open(io.BytesIO(f_up.read())) as pdf:
-                            st.session_state.flash_pdf_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+        # 2. Force Sync Logic
+        if pce_file:
+            # Agar purani file se alag hai, toh pura state reset kar do
+            if st.session_state.get("last_pce_name") != pce_file.name:
+                with st.spinner("Analyzing PCE specific content..."):
+                    if pce_file.type == "application/pdf":
+                        with pdfplumber.open(io.BytesIO(pce_file.read())) as pdf:
+                            raw_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                            st.session_state.pce_context = raw_text
                     else:
                         model = genai.GenerativeModel('gemini-1.5-flash')
                         res = model.generate_content([{"mime_type": pce_file.type, "data": pce_file.getvalue()}, "Extract tech text."])
