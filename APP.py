@@ -85,39 +85,58 @@ else:
     ])
 
     # --- TAB 1: CHAT PDF ---
+    # --- TAB 1: SMART NOTE ANALYSIS (STATE-SYNC FIXED) ---
     with tab1:
         st.subheader("📚 Smart Note Analysis")
-        up_chat = st.file_uploader("Upload Engineering Notes", type=["pdf", "png", "jpg", "jpeg"], key="pdf_sync_fix")
         
-        if up_chat:
-            with st.spinner("Extracting Technical Data..."):
-                if up_chat.type == "application/pdf":
-                    try:
-                        with pdfplumber.open(io.BytesIO(up_chat.read())) as pdf:
-                            # Har page se text nikal kar session state mein save karna
-                            full_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                            st.session_state.pdf_content = full_text
-                        st.success("✅ PDF Synced Successfully!") #
-                    except Exception as e:
-                        st.error(f"PDF Error: {e}")
-                else:
-                    # For Images
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    res = model.generate_content([{"mime_type": up_chat.type, "data": up_chat.getvalue()}, "Extract all technical text."])
-                    st.session_state.pdf_content = res.text
-                    st.success("✅ Image Synced!")
+        # Callback function jo file upload hote hi turant text extract karega
+        def process_pdf():
+            if st.session_state.pdf_uploader is not None:
+                up_file = st.session_state.pdf_uploader
+                with st.spinner("Extracting Technical Data..."):
+                    if up_file.type == "application/pdf":
+                        try:
+                            with pdfplumber.open(io.BytesIO(up_file.read())) as pdf:
+                                # Har page se text nikal kar save karna
+                                full_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                                st.session_state.pdf_content = full_text
+                            st.toast("✅ PDF Synced Successfully!", icon="🚀")
+                        except Exception as e:
+                            st.error(f"PDF Error: {e}")
+                    else:
+                        # Image Processing (Handwritten notes)
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        res = model.generate_content([{"mime_type": up_file.type, "data": up_file.getvalue()}, "Extract technical text."])
+                        st.session_state.pdf_content = res.text
+                        st.toast("✅ Image Synced!", icon="📸")
 
-        # Chat Input logic
-        ui = st.chat_input("Ask a question from your notes...")
-        if ui:
-            if st.session_state.get("pdf_content"):
-                with st.spinner("Professor GPT is thinking..."):
-                    # Groq use kar rahe hain taaki 404 error na aaye
-                    prompt = f"Context from student notes: {st.session_state.pdf_content[:12000]}\n\nQuestion: {ui}\nAnswer as an expert engineering professor."
-                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+        # File uploader with callback
+        st.file_uploader(
+            "Upload Engineering Notes (PDF/Image)", 
+            type=["pdf", "png", "jpg", "jpeg"], 
+            key="pdf_uploader", 
+            on_change=process_pdf
+        )
+
+        # Logic to show Success Message or Warning
+        if st.session_state.get("pdf_content"):
+            st.success("📝 Notes are ready for analysis!")
+            
+            # Chat Interface
+            ui = st.chat_input("Ask a question from your notes...")
+            if ui:
+                with st.spinner("Professor GPT is analyzing..."):
+                    prompt = f"Context from notes: {st.session_state.pdf_content[:12000]}\n\nQuestion: {ui}\nAnswer like an expert prof."
+                    # Using Groq to avoid any potential Gemini timeouts
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
                     st.markdown(f"**Professor:** {res.choices[0].message.content}")
-            else:
-                st.warning("⚠️ Pehle PDF upload karein.")
+        else:
+            # Ye warning ab sirf tabhi dikhegi jab sach mein data na ho
+            st.warning("⚠️ Pehle PDF upload karein.")
+            
     # --- TAB 2: SYLLABUS MAGIC ---
     with tab2:
         st.subheader("📋 University Syllabus Roadmap")
