@@ -251,69 +251,77 @@ else:
                     st.error(f"Error: {e}")
 
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
+    # --- TAB 5: FLASHCARDS (UNIVERSAL SYNC FIX) ---
     with tab5:
         st.subheader("🃏 Engineering Flashcard Generator")
         
-        # 1. File Uploader with a unique key
-        pce_file = st.file_uploader(
-            "Upload PCE or Engineering Notes", 
+        # 1. Direct File Uploader
+        card_file = st.file_uploader(
+            "Upload Notes (PDF/Image)", 
             type=["pdf", "png", "jpg"], 
-            key="pce_flash_uploader"
+            key="universal_card_sync"
         )
         
-        # 2. Force Sync Logic
-        if pce_file:
-            # Agar purani file se alag hai, toh pura state reset kar do
-            if st.session_state.get("last_pce_name") != pce_file.name:
-                with st.spinner("Analyzing PCE specific content..."):
-                    if pce_file.type == "application/pdf":
-                        with pdfplumber.open(io.BytesIO(pce_file.read())) as pdf:
-                            raw_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                            st.session_state.pce_context = raw_text
-                    else:
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content([{"mime_type": pce_file.type, "data": pce_file.getvalue()}, "Extract tech text."])
-                        st.session_state.pce_context = res.text
-                    
-                    st.session_state.last_pce_name = pce_file.name
-                    st.session_state.pce_cards = [] # Purane cards delete karo
-                    st.toast(f"✅ Context Locked: {pce_file.name}")
+        # 2. Robust Extraction Logic
+        if card_file:
+            # File name check to prevent repeated processing
+            if st.session_state.get("last_uploaded_card_file") != card_file.name:
+                with st.spinner("Extracting text from your notes..."):
+                    try:
+                        if card_file.type == "application/pdf":
+                            with pdfplumber.open(io.BytesIO(card_file.read())) as pdf:
+                                # PDF ka poora text nikal kar state mein permanent save karna
+                                st.session_state.flash_text_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                        else:
+                            # Image/Handwritten notes extraction
+                            model = genai.GenerativeModel('gemini-1.5-flash')
+                            res = model.generate_content([{"mime_type": card_file.type, "data": card_file.getvalue()}, "Extract all technical text."])
+                            st.session_state.flash_text_content = res.text
+                        
+                        st.session_state.last_uploaded_card_file = card_file.name
+                        st.toast(f"✅ Context Synced: {card_file.name}")
+                    except Exception as e:
+                        st.error(f"Error reading file: {e}")
 
-        # 3. Generation Button
-        if st.button("🚀 Generate PCE Cards"):
-            current_data = st.session_state.get("pce_context", "")
+        # 3. Generation Button (Name changed as requested)
+        if st.button("🚀 Generate Cards"):
+            # Checking if content exists in state
+            raw_data = st.session_state.get("flash_text_content", "")
             
-            if current_data:
-                with st.spinner("Professor AI is reading specific PCE topics..."):
-                    # Strict Professor Prompt to stop 'Newton/General' cards
+            if raw_data:
+                with st.spinner("AI is analyzing your specific topics..."):
+                    # Strict context-based prompt
                     prompt = f"""
-                    Context: {current_data[:12000]}
+                    Context: {raw_data[:12000]}
                     
-                    Instruction: You are a PCE (Principles of Communication Engineering) Professor. 
-                    Create 10 'Question | Answer' pairs strictly from the context above. 
-                    Do NOT use general physics or mechanics. Focus on Modulation, Noise, Bandwidth, etc.
+                    Instruction: Act as an Engineering Professor. 
+                    Create exactly 10 'Question | Answer' flashcards based ONLY on the provided context.
+                    If the context is about PCE, focus on Modulation/Signals. 
+                    If it is about other subjects, focus on those specific core concepts.
                     Format: Question | Answer
                     """
                     
+                    # High-speed processing via Groq
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
-                    st.session_state.pce_cards = res.choices[0].message.content.split("\n")
+                    st.session_state.current_flashcards = res.choices[0].message.content.split("\n")
             else:
-                st.error("⚠️ Error: No context found. Please upload the PDF first!")
+                #
+                st.error("⚠️ Error: Pehle PDF upload karein taaki AI context read kar sake!")
 
-        # 4. Display Logic
-        if st.session_state.get("pce_cards"):
+        # 4. Display & Offline Save
+        if st.session_state.get("current_flashcards"):
             st.markdown("---")
-            # Clear Download Button
+            # Creating a neat text file for download
             st.download_button(
-                "📥 Download PCE Question Bank",
-                data="\n".join(st.session_state.pce_cards),
-                file_name="PCE_Flashcards.txt"
+                "📥 Download Flashcards (Text File)",
+                data="\n".join(st.session_state.current_flashcards),
+                file_name="TopperGPT_StudyCards.txt"
             )
 
-            for i, line in enumerate(st.session_state.pce_cards):
+            for i, line in enumerate(st.session_state.current_flashcards):
                 if "|" in line:
                     q, a = line.split("|")
                     with st.expander(f"🔹 {q.strip()}"):
