@@ -252,56 +252,70 @@ else:
 
     # --- TAB 5: FLASHCARDS ---
     # --- TAB 5: SMART FLASHCARDS (PDF UPLOAD + DOWNLOAD) ---
+    # --- TAB 5: SMART FLASHCARDS (STRICT PDF FOCUS) ---
     with tab5:
         st.subheader("🃏 Engineering Flashcard Generator")
-        st.write("Upload notes to create specific cards or let AI generate them from general knowledge.")
-
-        # 1. Dedicated Flashcard Uploader
-        f_up = st.file_uploader("Upload Notes for Flashcards", type=["pdf", "png", "jpg"], key="f_card_up")
         
-        f_content = ""
+        # 1. Dedicated Flashcard Uploader
+        f_up = st.file_uploader("Upload PCE or other Engineering Notes", type=["pdf", "png", "jpg"], key="f_card_sync")
+        
+        # State maintenance for PDF content in this tab
         if f_up:
-            with st.spinner("Reading notes for cards..."):
-                if f_up.type == "application/pdf":
-                    with pdfplumber.open(io.BytesIO(f_up.read())) as pdf:
-                        f_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                else:
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    res = model.generate_content([{"mime_type": f_up.type, "data": f_up.getvalue()}, "Extract tech text."])
-                    f_content = res.text
-                st.toast("✅ Notes Loaded for Flashcards!")
+            if "flash_pdf_text" not in st.session_state or st.session_state.get("flash_filename") != f_up.name:
+                with st.spinner("PCE Notes scan ho rahe hain..."):
+                    if f_up.type == "application/pdf":
+                        with pdfplumber.open(io.BytesIO(f_up.read())) as pdf:
+                            st.session_state.flash_pdf_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                    else:
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        res = model.generate_content([{"mime_type": f_up.type, "data": f_up.getvalue()}, "Extract tech text."])
+                        st.session_state.flash_pdf_text = res.text
+                    st.session_state.flash_filename = f_up.name
+                    st.toast(f"✅ {f_up.name} loaded for flashcards!")
 
-        # 2. Card Generation Logic
-        if st.button("🚀 Generate 10 Pro Cards"):
-            with st.spinner("AI is crafting study cards..."):
-                # Hybrid context
-                source = f_content if f_content else st.session_state.get("pdf_content", "General Engineering Concepts")
-                prompt = f"Create 10 high-quality Engineering Flashcards from: {source[:8000]}. Format: Question | Answer. One per line."
-                
-                res = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile", 
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                st.session_state.flashcards = res.choices[0].message.content.split("\n")
+        # 2. Generation Logic
+        if st.button("🚀 Generate 10 Pro Cards from PDF"):
+            # Checking if text actually exists
+            pdf_data = st.session_state.get("flash_pdf_text", "")
+            
+            if pdf_data:
+                with st.spinner("AI is reading your specific notes..."):
+                    # Strict prompt to stop out-of-topic generation
+                    prompt = f"""
+                    System: Act as a PCE Professor. 
+                    STRICT RULE: Use ONLY the provided context to create flashcards. 
+                    If the context is about Communication Engineering, do NOT ask about Newton's laws or Thermodynamics.
+                    
+                    Context: {pdf_data[:10000]}
+                    
+                    Task: Create 10 'Question | Answer' pairs strictly from this text.
+                    """
+                    
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    st.session_state.flashcards = res.choices[0].message.content.split("\n")
+            else:
+                st.error("⚠️ Pehle PDF upload karein, varna out-of-topic cards ban jayenge!")
 
         # 3. Display & Download
-        if st.session_state.flashcards:
+        if st.session_state.get("flashcards"):
             st.markdown("---")
             # Creating Download File
             card_data = "\n".join(st.session_state.flashcards)
             st.download_button(
-                label="📥 Download Cards (for Anki/Quizlet)",
+                label="📥 Download These Cards",
                 data=card_data,
-                file_name="TopperGPT_Cards.txt",
+                file_name="PCE_Study_Cards.txt",
                 mime="text/plain"
             )
 
-            # Interactive Display
             for i, card in enumerate(st.session_state.flashcards):
                 if "|" in card:
                     q, a = card.split("|")
                     with st.expander(f"🔹 Card {i+1}: {q.strip()}"):
-                        st.success(f"**Ans:** {a.strip()}")# --- TAB 5: SMART FLASHCARDS (PDF UPLOAD + DOWNLOAD) ---
+                        st.success(f"**Ans:** {a.strip()}")
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
     with tab6:
         st.subheader("❓ University Previous Year Questions")
