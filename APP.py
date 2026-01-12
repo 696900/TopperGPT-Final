@@ -83,60 +83,63 @@ else:
         "🔍 Topic Search", 
         "⚖️ Legal"
     ])
-
-    # --- TAB 1: CHAT PDF ---
-    # --- TAB 1: SMART NOTE ANALYSIS (STATE-SYNC FIXED) ---
+   
+    # --- TAB 1: SMART NOTE ANALYSIS (FINAL UI FIX) ---
     with tab1:
         st.subheader("📚 Smart Note Analysis")
         
-        # 1. Improved File Uploader Logic
+        # 1. File Uploader
         up_notes = st.file_uploader(
             "Upload Engineering Notes (PDF/Image)", 
             type=["pdf", "png", "jpg", "jpeg"], 
-            key="pdf_main_uploader"
+            key="pdf_main_fixed"
         )
         
-        # 2. State-Based Processing (Immediate Update)
+        # 2. Silent Processing Logic
         if up_notes:
-            # Check if this is a new file to avoid re-processing
-            if "last_processed_file" not in st.session_state or st.session_state.last_processed_file != up_notes.name:
-                with st.spinner("Extracting Technical Data..."):
+            # Sirf tab process karega jab nayi file aayegi
+            if "current_file" not in st.session_state or st.session_state.current_file != up_notes.name:
+                with st.spinner("Syncing your notes..."):
                     if up_notes.type == "application/pdf":
                         try:
                             with pdfplumber.open(io.BytesIO(up_notes.read())) as pdf:
-                                # Extracting text from all pages
                                 st.session_state.pdf_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                            st.session_state.last_processed_file = up_notes.name
-                            st.success("✅ PDF Synced Successfully!") #
+                            st.session_state.current_file = up_notes.name
+                            st.toast("✅ Notes Synced Successfully!")
                         except Exception as e:
-                            st.error(f"PDF Error: {e}")
+                            st.error(f"Error: {e}")
                     else:
-                        # Image Processing
+                        # Image Handling
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract all technical text."])
+                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract technical text."])
                         st.session_state.pdf_content = res.text
-                        st.session_state.last_processed_file = up_notes.name
-                        st.success("✅ Image Synced!")
+                        st.session_state.current_file = up_notes.name
+                        st.toast("✅ Image Synced!")
 
-        # 3. Chat Interface Logic (Removing persistent warnings)
+        # 3. Permanent Chat Interface (No Warning)
+        st.markdown("---")
+        
+        # Status indicator (Subtle)
         if st.session_state.get("pdf_content"):
-            st.markdown("---")
-            st.info("💡 Your notes are ready. Ask anything about them below.")
-            
-            chat_input = st.chat_input("Ask a question from your notes...")
-            if chat_input:
-                with st.spinner("Professor GPT is analyzing..."):
-                    # Using Groq to prevent Gemini timeouts and 404 errors
-                    prompt = f"Context: {st.session_state.pdf_content[:15000]}\n\nQuestion: {chat_input}\nAnswer like a senior engineering professor."
+            st.caption("🟢 System: Engineering notes are loaded. Ask away!")
+        else:
+            st.caption("⚪ System: Awaiting notes upload...")
+
+        # Chat Input hamesha visible rahega
+        ui_chat = st.chat_input("Ask Professor GPT about your topics...")
+        
+        if ui_chat:
+            if st.session_state.get("pdf_content"):
+                with st.spinner("Analyzing notes..."):
+                    prompt = f"Context: {st.session_state.pdf_content[:15000]}\n\nQuestion: {ui_chat}\nExpert Engineering Response:"
+                    # Groq for fast, non-timeout responses
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
-                    st.markdown(f"**Professor:** {res.choices[0].message.content}")
-        else:
-            # Only show warning if no content exists
-            st.warning("⚠️ Pehle PDF upload karein.")
-            
+                    st.markdown(f"**Professor GPT:** {res.choices[0].message.content}")
+            else:
+                st.error("⚠️ Please upload your notes first so I can analyze them!")        
     # --- TAB 2: SYLLABUS MAGIC ---
     with tab2:
         st.subheader("📋 University Syllabus Roadmap")
