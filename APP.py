@@ -87,36 +87,56 @@ else:
     # --- TAB 1: CHAT PDF ---
     with tab1:
         st.subheader("📚 Smart Note Analysis")
-        up_chat = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="chat_up")
-        if up_chat:
-            with st.spinner("Processing..."):
-                if up_chat.type == "application/pdf":
-                    with pdfplumber.open(io.BytesIO(up_chat.read())) as pdf:
-                        st.session_state.pdf_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                else:
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    res = model.generate_content([{"mime_type": up_chat.type, "data": up_chat.getvalue()}, "Extract all technical text."])
-                    st.session_state.pdf_content = res.text
-                st.success("✅ Notes Synced!")
+        up_chat = st.file_uploader("Upload Engineering Notes", type=["pdf", "png", "jpg"], key="pdf_main")
         
-        if u_chat := st.chat_input("Ask anything from your notes..."):
-            res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Context: {st.session_state.pdf_content[:10000]}\n\nQ: {u_chat}"}])
-            st.write(res.choices[0].message.content)
+        if up_chat:
+            with st.spinner("Extracting Technical Data..."):
+                if up_chat.type == "application/pdf":
+                    try:
+                        with pdfplumber.open(io.BytesIO(up_chat.read())) as pdf:
+                            # Har page se text nikalna
+                            st.session_state.pdf_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                        st.success("✅ PDF Synced Successfully!")
+                    except Exception as e:
+                        st.error(f"PDF Error: {e}")
+                else:
+                    # For Images (Handwritten notes)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    res = model.generate_content([{"mime_type": up_chat.type, "data": up_chat.getvalue()}, "Extract all technical text accurately."])
+                    st.session_state.pdf_content = res.text
+                    st.success("✅ Image Text Extracted!")
 
+        if ui := st.chat_input("Ask a question from your notes..."):
+            if st.session_state.pdf_content:
+                # Context length manage karne ke liye [:10000] limit lagayi hai
+                prompt = f"Context: {st.session_state.pdf_content[:10000]}\n\nQuestion: {ui}\nAnswer as an expert engineering professor."
+                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                st.write("**Professor GPT:**", res.choices[0].message.content)
+            else:
+                st.warning("⚠️ Pehle PDF upload karein.")
     # --- TAB 2: SYLLABUS MAGIC ---
     with tab2:
-        st.subheader("📋 Instant Syllabus Roadmap")
-        syll_f = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_up")
-        if syll_f and st.button("Generate Roadmap"):
-            with st.spinner("AI Reading Syllabus..."):
-                with pdfplumber.open(io.BytesIO(syll_f.read())) as pdf:
-                    raw_s = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                res = model.generate_content(f"Extract all engineering chapters and sub-topics from this syllabus as a clean list: {raw_s[:10000]}")
-                st.session_state.roadmap = [line.strip() for line in res.text.split("\n") if line.strip()]
+        st.subheader("📋 University Syllabus Roadmap")
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_tracker")
         
-        for i, t in enumerate(st.session_state.roadmap):
-            st.checkbox(t, key=f"s_chk_{i}")
+        if syll_up and st.button("Generate Study Checklist"):
+            with st.spinner("Reading University Syllabus..."):
+                with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
+                    syll_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                
+                # Using Gemini-1.5-flash with proper configuration to avoid 404
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                res = model.generate_content(f"Extract all chapter names and main topics from this syllabus as a clean bulleted list: {syll_text[:8000]}")
+                
+                # Clean list making
+                st.session_state.roadmap = [line.strip("- ").strip() for line in res.text.split("\n") if line.strip()]
+                st.success("✅ Roadmap Ready!")
+
+        # Display Checklist
+        if st.session_state.roadmap:
+            st.write("### 🎯 Your Completion Tracker")
+            for i, topic in enumerate(st.session_state.roadmap):
+                st.checkbox(topic, key=f"roadmap_item_{i}")
 
     # --- TAB 3: ANSWER EVALUATOR ---
     with tab3:
