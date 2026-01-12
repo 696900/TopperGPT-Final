@@ -216,38 +216,39 @@ else:
 
     # --- TAB 7: ADVANCED TOPIC SEARCH (FIXED) ---
     # --- TAB 7: ADVANCED ENGINEERING TOPIC SEARCH (FIXED) ---
+    # --- TAB 7: ADVANCED TOPIC SEARCH (COLLEGE-READY VERSION) ---
     with tab7:
-        st.subheader("🔍 Engineering Topic Research")
-        st.write("Complete 360° Breakdown: Definition, Keywords, Diagram, & More.")
+        st.subheader("🔍 Engineering Topic Deep-Research")
+        st.write("Instant 6-Point Breakdown: Definition, Logic, Diagram, & Exams.")
         
         # User input for engineering topic
-        search_topic = st.text_input("Enter Engineering Topic:", key="engg_search_final")
+        search_topic = st.text_input("Enter Topic (e.g. BJT, Transformer, Back EMF):", key="search_final_fix")
         
-        if st.button("Deep Research", key="engg_search_btn") and search_topic:
-            with st.spinner(f"Analyzing '{search_topic}'..."):
-                # Engineering-specific prompt with strict markers
+        if st.button("Deep Research", key="search_btn_final_fix") and search_topic:
+            with st.spinner(f"Professor AI is analyzing '{search_topic}'..."):
+                # Strict prompt to force structured output
                 prompt = f"""
                 As an Engineering Professor, provide an exhaustive report for: '{search_topic}'.
-                Follow this exact structure strictly:
+                Follow this structure strictly with the provided markers:
 
                 [1_DEFINITION]
-                (Standard Engineering definition)
+                Standard technical definition.
 
                 [2_KEYWORDS]
-                (Key technical terms)
+                Key technical terms.
 
                 [3_COMPLEX_EXPLAIN]
-                (Explain technical/difficult keywords)
+                Technical breakdown of difficult terms.
 
                 [4_SIMPLE_EXPLAIN]
-                (Explain the whole concept in very simple beginner words)
+                Explanation in very simple beginner words.
 
                 [5_MERMAID_CODE]
                 graph TD
-                (Provide ONLY pure Mermaid.js graph TD code here. No intro text, no code blocks)
+                (Provide ONLY pure Mermaid.js code. No intro, no ```, no extra text)
 
                 [6_PYQS]
-                (2-3 expected exam questions)
+                2-3 likely exam questions.
                 """
                 
                 try:
@@ -257,42 +258,45 @@ else:
                     )
                     out = res.choices[0].message.content
 
-                    # Helper to display sections safely
-                    def get_section(marker_start, marker_end):
-                        try:
-                            return out.split(marker_start)[1].split(marker_end)[0].strip()
-                        except: return ""
+                    # Display Logic
+                    st.markdown(f"## 📘 {search_topic}")
 
-                    # --- 1. Definition ---
-                    st.markdown("### 📖 1. Standard Definition")
-                    st.info(get_section("[1_DEFINITION]", "[2_KEYWORDS]"))
+                    # 1. Definition
+                    st.info(f"**1. Standard Definition:**\n{out.split('[1_DEFINITION]')[1].split('[2_KEYWORDS]')[0].strip()}")
 
-                    # --- 2. Keywords ---
-                    st.markdown("### 🔑 2. Key Technical Terms")
-                    st.write(get_section("[2_KEYWORDS]", "[3_COMPLEX_EXPLAIN]"))
+                    # 2. Keywords
+                    st.write(f"**2. Key Technical Terms:**\n{out.split('[2_KEYWORDS]')[1].split('[3_COMPLEX_EXPLAIN]')[0].strip()}")
 
-                    # --- 3. Complex Keyword Explanation ---
-                    st.markdown("### 🔬 3. Technical Breakdown")
-                    st.warning(get_section("[3_COMPLEX_EXPLAIN]", "[4_SIMPLE_EXPLAIN]"))
+                    # 3. Technical Breakdown
+                    st.warning(f"**3. Technical Breakdown:**\n{out.split('[3_COMPLEX_EXPLAIN]')[1].split('[4_SIMPLE_EXPLAIN]')[0].strip()}")
 
-                    # --- 4. Simple Explanation ---
-                    st.markdown("### 💡 4. Concept in Simple Words")
-                    st.success(get_section("[4_SIMPLE_EXPLAIN]", "[5_MERMAID_CODE]"))
+                    # 4. Simple Explanation
+                    st.success(f"**4. Concept in Simple Words:**\n{out.split('[4_SIMPLE_EXPLAIN]')[1].split('[5_MERMAID_CODE]')[0].strip()}")
 
-                    # --- 5. Diagram (Fixed Syntax Error) ---
+                    # 5. Diagram (The Final Bomb-Proof Fix)
+                    #
                     st.markdown("### 📊 5. Architecture Flowchart")
-                    # Strict Regex to isolate ONLY the graph code
-                    mermaid_raw = get_section("[5_MERMAID_CODE]", "[6_PYQS]")
-                    # Finding 'graph TD' and everything after it that looks like mermaid code
-                    match = re.search(r"(graph (?:TD|LR|BT|RL)[\s\S]*)", mermaid_raw)
+                    mermaid_block = out.split("[5_MERMAID_CODE]")[1].split("[6_PYQS]")[0].strip()
                     
-                    if match:
-                        clean_mermaid = match.group(1).replace("```mermaid", "").replace("```", "").strip()
-                        # Removing any trailing text AI might have added
-                        clean_mermaid = clean_mermaid.split("\n\n")[0]
-                        st_mermaid(clean_mermaid)
+                    # Regex that finds 'graph TD' and extracts ONLY the valid mermaid lines
+                    # This removes "Sure!", "Here is the code", etc.
+                    mermaid_match = re.search(r"(graph (?:TD|LR|BT|RL)[\s\S]*)", mermaid_block)
+                    
+                    if mermaid_match:
+                        # Extra cleaning to remove markdown backticks if AI added them
+                        clean_code = mermaid_match.group(1).replace("```mermaid", "").replace("```", "").strip()
+                        # Removing any sentences after the mermaid block
+                        clean_code = clean_code.split("\n\n")[0]
+                        st_mermaid(clean_code)
                     else:
-                        st.error("Syntax error in generated diagram. Detailed summary is above.")
+                        st.error("Diagram failed to load. Please try a simpler topic.")
+
+                    # 6. Expected Questions
+                    st.markdown("### ❓ 6. Expected Exam Questions")
+                    st.write(out.split("[6_PYQS]")[1].strip())
+                        
+                except Exception as e:
+                    st.error("Error processing topic. Please try again.")
 
                     # --- 6. Expected Questions ---
                     st.markdown("### ❓ 6. Expected Exam Questions")
