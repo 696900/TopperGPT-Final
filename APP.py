@@ -217,63 +217,45 @@ else:
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
     with tab7:
         st.subheader("🔍 Engineering Topic Research")
-        s_query = st.text_input("Enter Topic (e.g. Transformer, BJT):", key="search_final_master")
+        query = st.text_input("Enter Topic (e.g. Transformer, BJT):", key="search_final")
         
-        if st.button("Deep Research", key="btn_final_master") and s_query:
-            with st.spinner(f"Analyzing '{s_query}'..."):
+        if st.button("Deep Research") and query:
+            with st.spinner("Analyzing..."):
                 prompt = f"""
-                Act as an Engineering Professor. Research the topic: '{s_query}'.
-                Strictly use these markers for sections:
-                [1_DEF] (Technical definition)
-                [2_KEY] (Core keywords)
-                [3_CXP] (Technical breakdown)
-                [4_SMP] (Simple beginner explanation)
-                [5_MER] 
-                graph TD
-                (Pure Mermaid graph TD code ONLY. Use square brackets [] for labels. No brackets () in nodes.)
-                [6_PYQ]
-                (List exactly 5 REAL Exam Questions based on University trends)
+                Act as an Engineering Professor. Research: '{query}'.
+                Markers: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
+                In [5_MER], give ONLY pure Mermaid graph TD code. No text, no quotes. Use [] for labels.
+                In [6_PYQ], give exactly 5 real exam questions.
                 """
-                
                 try:
-                    # Using Groq to avoid Gemini 404 version issues
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", 
-                        messages=[{"role": "user", "content": prompt}]
-                    )
+                    # Using Groq to avoid Gemini 404 versioning errors
+                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     out = res.choices[0].message.content
 
-                    # Fast Content Extraction
-                    def get_sec(m1, m2=None):
+                    def clean_sec(m1, m2=None):
                         try:
-                            v = out.split(m1)[1]
-                            return v.split(m2)[0].strip() if m2 else v.strip()
-                        except: return "Pending..."
+                            s = out.split(m1)[1]
+                            return s.split(m2)[0].strip() if m2 else s.strip()
+                        except: return "Data missing"
 
-                    st.markdown(f"## 📘 Report: {s_query}")
-                    st.info(f"**1. Definition:**\n{get_sec('[1_DEF]', '[2_KEY]')}")
-                    st.write(f"**2. Keywords:**\n{get_sec('[2_KEY]', '[3_CXP]')}")
-                    st.warning(f"**3. Technical Breakdown:**\n{get_sec('[3_CXP]', '[4_SMP]')}")
-                    st.success(f"**4. Simple Words:**\n{get_sec('[4_SMP]', '[5_MER]')}")
+                    st.info(f"**1. Definition:** {clean_sec('[1_DEF]', '[2_KEY]')}")
+                    st.write(f"**2. Keywords:** {clean_sec('[2_KEY]', '[3_CXP]')}")
+                    st.warning(f"**3. Technical Breakdown:** {clean_sec('[3_CXP]', '[4_SMP]')}")
+                    st.success(f"**4. Simple Words:** {clean_sec('[4_SMP]', '[5_MER]')}")
 
-                    # 5. Diagram - The Final "Bomb-Proof" Filter
+                    # --- MERMAID FIX ---
                     st.markdown("### 📊 5. Architecture Flowchart")
-                    mer_raw = get_sec('[5_MER]', '[6_PYQ]')
-                    mer_match = re.search(r"(graph (?:TD|LR)[\s\S]*)", mer_raw)
-                    if mer_match:
-                        # Stripping extra text and markers to avoid syntax error
-                        clean_mer = mer_match.group(1).replace("```mermaid", "").replace("```", "").strip()
-                        clean_mer = clean_mer.split("\n\n")[0]
-                        st_mermaid(clean_mer)
-                    else:
-                        st.code(mer_raw, language="mermaid")
+                    mer_raw = clean_sec('[5_MER]', '[6_PYQ]')
+                    match = re.search(r"(graph (?:TD|LR)[\s\S]*)", mer_raw)
+                    if match:
+                        code = match.group(1).replace("```mermaid", "").replace("```", "").strip().split("\n\n")[0]
+                        try: st_mermaid(code)
+                        except: st.code(code, language="mermaid")
+                    else: st.code(mer_raw, language="mermaid")
 
-                    # 6. Expected Questions (Fixed to 5 Questions)
-                    st.markdown("### ❓ 6. Expected Exam Questions (PYQ Based)")
-                    st.write(get_sec('[6_PYQ]'))
-                        
-                except Exception as e:
-                    st.error("Connection Lag. Try again in 5 seconds.")
+                    st.markdown("### ❓ 6. Expected Questions (5 based on trends)")
+                    st.write(clean_sec('[6_PYQ]'))
+                except: st.error("Timeout. Try again.")
     # --- TAB 8: LEGAL ---
     with tab8:
         st.header("⚖️ Legal & Policies")
