@@ -85,61 +85,73 @@ else:
     ])
    
     # --- TAB 1: SMART NOTE ANALYSIS (FINAL UI FIX) ---
+    # --- TAB 1: SMART NOTE ANALYSIS (HYBRID MODE) ---
     with tab1:
         st.subheader("📚 Smart Note Analysis")
         
-        # 1. File Uploader
+        # 1. File Uploader (Optional)
         up_notes = st.file_uploader(
-            "Upload Engineering Notes (PDF/Image)", 
+            "Upload Notes (Optional - for context-based answers)", 
             type=["pdf", "png", "jpg", "jpeg"], 
-            key="pdf_main_fixed"
+            key="hybrid_uploader"
         )
         
-        # 2. Silent Processing Logic
+        # 2. Background Syncing (If file is uploaded)
         if up_notes:
-            # Sirf tab process karega jab nayi file aayegi
             if "current_file" not in st.session_state or st.session_state.current_file != up_notes.name:
-                with st.spinner("Syncing your notes..."):
+                with st.spinner("Syncing technical data..."):
                     if up_notes.type == "application/pdf":
                         try:
                             with pdfplumber.open(io.BytesIO(up_notes.read())) as pdf:
                                 st.session_state.pdf_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
                             st.session_state.current_file = up_notes.name
-                            st.toast("✅ Notes Synced Successfully!")
+                            st.toast("✅ Notes Synced! Using context mode.", icon="📚")
                         except Exception as e:
-                            st.error(f"Error: {e}")
+                            st.error(f"Sync Error: {e}")
                     else:
-                        # Image Handling
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract technical text."])
+                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract text."])
                         st.session_state.pdf_content = res.text
                         st.session_state.current_file = up_notes.name
-                        st.toast("✅ Image Synced!")
+                        st.toast("✅ Image Synced!", icon="📸")
 
         # 3. Permanent Chat Interface (No Warning)
         st.markdown("---")
         
-        # Status indicator (Subtle)
+        # Minimal status indicator
         if st.session_state.get("pdf_content"):
-            st.caption("🟢 System: Engineering notes are loaded. Ask away!")
+            st.caption("🔍 **Mode:** Contextual (Analyzing your uploaded notes)")
         else:
-            st.caption("⚪ System: Awaiting notes upload...")
+            st.caption("🌐 **Mode:** General Engineering Knowledge (Hybrid Mode Active)")
 
-        # Chat Input hamesha visible rahega
-        ui_chat = st.chat_input("Ask Professor GPT about your topics...")
+        # Chat Input - ALWAYS VISIBLE AND ACTIVE
+        ui_chat = st.chat_input("Ask any engineering question...")
         
         if ui_chat:
-            if st.session_state.get("pdf_content"):
-                with st.spinner("Analyzing notes..."):
-                    prompt = f"Context: {st.session_state.pdf_content[:15000]}\n\nQuestion: {ui_chat}\nExpert Engineering Response:"
-                    # Groq for fast, non-timeout responses
+            with st.spinner("Professor GPT is thinking..."):
+                # Hybrid Logic: Context + General Knowledge
+                context = st.session_state.get("pdf_content", "No specific notes uploaded.")
+                prompt = f"""
+                You are an expert Engineering Professor. 
+                Context from Student Notes (if any): {context[:12000]}
+                
+                Question: {ui_chat}
+                
+                Instructions:
+                1. If the answer is in the notes, use it.
+                2. If not in the notes, use your general engineering knowledge.
+                3. Be technically accurate and provide a detailed explanation.
+                """
+                
+                # Using Groq for instant results without timeout
+                try:
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
                     st.markdown(f"**Professor GPT:** {res.choices[0].message.content}")
-            else:
-                st.error("⚠️ Please upload your notes first so I can analyze them!")        
+                except Exception as e:
+                    st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
     with tab2:
         st.subheader("📋 University Syllabus Roadmap")
