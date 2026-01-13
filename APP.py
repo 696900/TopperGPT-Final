@@ -153,44 +153,42 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (STRICT TABLE PARSER) ---
+    # --- TAB 2: SYLLABUS MAGIC (STRICT COLUMN PARSER) ---
     with tab2:
         st.subheader("📋 University Syllabus Progress Tracker")
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_table_fix")
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_column_fix")
         
         if syll_up and st.button("🚀 Generate Visual Roadmap"):
-            with st.spinner("Breaking down syllabus tables..."):
+            with st.spinner("Filtering real modules from tables..."):
                 try:
-                    all_modules = []
+                    real_modules = []
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
+                        # Hum sirf un pages ko scan karenge jahan tables hain
                         for page in pdf.pages:
                             tables = page.extract_tables()
                             for table in tables:
                                 for row in table:
-                                    # Logic: Agar row mein '01', '02' ya 'Module' hai
-                                    text = " ".join([str(cell) for cell in row if cell])
-                                    if any(x in text for x in ["Module", "01", "02", "03", "04", "05", "06"]):
-                                        # Clean the text to get only title
-                                        clean_title = text.replace("\n", " ").strip()
-                                        if len(clean_title) > 15: # Avoiding small junk cells
-                                            all_modules.append(clean_title)
+                                    # Logic: Column 0 mein Module number hona chahiye (01, 02...)
+                                    if row and len(row) > 1:
+                                        col0 = str(row[0]).strip()
+                                        # Check if col0 is a number like 01, 02 or 1, 2
+                                        if col0.isdigit() or (len(col0) == 2 and col0[0] == '0' and col0[1].isdigit()):
+                                            title = str(row[1]).split('\n')[0] # Sirf pehli line (Main Heading)
+                                            module_str = f"Module {col0}: {title.strip()}"
+                                            if module_str not in real_modules:
+                                                real_modules.append(module_str)
 
-                    # Removing duplicates and sorting
-                    unique_modules = sorted(list(set(all_modules)))
-                    
-                    if unique_modules:
-                        st.session_state.roadmap = unique_modules
+                    if real_modules:
+                        st.session_state.roadmap = real_modules
                         st.session_state.done_topics = []
-                        st.success(f"✅ {len(unique_modules)} Modules extracted from tables!")
+                        st.success(f"✅ {len(real_modules)} Main Modules identified!")
                     else:
-                        st.error("⚠️ Tables detect nahi huye. Text-based scan try kar rahe hain...")
-                        # Fallback to AI if table extraction fails
-                        # [Add AI fallback prompt here if needed]
+                        st.warning("⚠️ Table format detect nahi hua. Ek baar manually try karein.")
 
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # Visual Dashboard (No Changes here)
+        # Visual Dashboard
         if st.session_state.get("roadmap"):
             total = len(st.session_state.roadmap)
             done = len(st.session_state.get("done_topics", []))
@@ -198,25 +196,22 @@ else:
 
             col1, col2 = st.columns([1, 1])
             with col1:
-                st.metric("Mastery Level", f"{progress}%")
+                st.metric("Syllabus Mastery", f"{progress}%")
                 st.progress(progress / 100)
             with col2:
-                tracker_text = f"Syllabus Status: {progress}%\n\n" + "\n".join(st.session_state.roadmap)
-                st.download_button("📥 Download Offline Tracker", data=tracker_text, file_name="Syllabus_Roadmap.txt")
+                st.download_button("📥 Download Tracker", "\n".join(st.session_state.roadmap), file_name="Roadmap.txt")
 
             st.divider()
 
-            st.write("### 📍 Module-wise Completion")
+            # Displaying each module as a separate checkbox
             for i, topic in enumerate(st.session_state.roadmap):
-                # Fixing the 'Single Box' issue: Each module gets its own checkbox
-                is_checked = st.checkbox(topic, key=f"table_mod_{i}", value=(topic in st.session_state.done_topics))
+                is_checked = st.checkbox(topic, key=f"fixed_mod_{i}", value=(topic in st.session_state.done_topics))
                 if is_checked and topic not in st.session_state.done_topics:
                     st.session_state.done_topics.append(topic)
                     st.rerun()
                 elif not is_checked and topic in st.session_state.done_topics:
                     st.session_state.done_topics.remove(topic)
                     st.rerun()
-
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
