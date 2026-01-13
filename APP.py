@@ -153,51 +153,64 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (STRICT CHAPTERS & DOWNLOAD) ---
+    # --- TAB 2: SYLLABUS MAGIC (FIXED FOR REAL MODULES) ---
     with tab2:
         st.subheader("📋 University Syllabus Progress Tracker")
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_pro_v3")
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_pro_vfinal")
         
         if syll_up and st.button("🚀 Generate Visual Roadmap"):
-            with st.spinner("Extracting Modules..."):
+            with st.spinner("Scanning for Technical Modules..."):
                 try:
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Sirf pehle 2-3 pages se index nikalna accurate rehta hai
-                        syll_text = "\n".join([p.extract_text() for p in pdf.pages[:3] if p.extract_text()])
+                        # Hum saare pages scan karenge taaki asli table mil sake
+                        full_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
                     
-                    # Strict Prompt: Sirf Module names nikalne ke liye
-                    prompt = f"Identify only the Chapter/Module numbers and titles from this engineering syllabus. Ignore legal text and instructions: {syll_text[:8000]}"
+                    # STRICT PROMPT: AI ko sirf 'Module' dhundne ke liye force karna
+                    prompt = f"""
+                    Act as a Syllabus Parser. Look for the 'Detailed Contents' tables.
+                    Extract only the Module Numbers (01, 02, etc.) and their primary Technical Titles.
+                    Ignore Preamble, Program Structure, and Credits.
+                    
+                    Syllabus Text: {full_content[:15000]}
+                    
+                    Format: Module [Number]: [Title]
+                    """
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     
-                    # Cleaning: Removing any AI conversational text
-                    st.session_state.roadmap = [line.strip("- ").strip() for line in res.choices[0].message.content.split("\n") if len(line) > 10 and not line.startswith("Here")]
-                    st.session_state.done_topics = []
-                    st.success("✅ Real Modules Synced!")
+                    # Filtering only lines that contain "Module" or "Unit"
+                    raw_lines = res.choices[0].message.content.split("\n")
+                    st.session_state.roadmap = [line.strip("- ") for line in raw_lines if "Module" in line or "Unit" in line]
+                    
+                    if not st.session_state.roadmap:
+                        st.error("⚠️ Modules detect nahi ho paye. Make sure PDF has a 'Detailed Content' table.")
+                    else:
+                        st.session_state.done_topics = []
+                        st.success(f"✅ {len(st.session_state.roadmap)} Modules identified!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
+        # Visual Dashboard
         if st.session_state.get("roadmap"):
-            # Progress Logic
             total = len(st.session_state.roadmap)
             done = len(st.session_state.get("done_topics", []))
             progress = int((done / total) * 100) if total > 0 else 0
 
-            col1, col2 = st.columns([1, 1])
-            with col1:
-                st.metric("Syllabus Mastery", f"{progress}%")
+            # Progress Metrics
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                st.metric("Mastery Level", f"{progress}%")
                 st.progress(progress / 100)
-            
-            with col2:
-                # 📥 DOWNLOAD TRACKER [Founder Feature]
-                tracker_data = f"TOpperGPT - SYLLABUS TRACKER\nStatus: {progress}% Complete\n\n"
-                tracker_data += "\n".join([f"[{'X' if t in st.session_state.done_topics else ' '}] {t}" for t in st.session_state.roadmap])
-                st.download_button("📥 Download Tracker (Offline)", data=tracker_data, file_name="My_Syllabus_Tracker.txt")
+            with c2:
+                tracker_text = f"Syllabus Status: {progress}%\n\n" + "\n".join(st.session_state.roadmap)
+                st.download_button("📥 Download Offline Tracker", data=tracker_text, file_name="Syllabus_Roadmap.txt")
 
             st.divider()
 
-            # The Actual Checklist
+            # Interactive Modules
+            st.write("### 📍 Module-wise Completion")
             for i, topic in enumerate(st.session_state.roadmap):
-                is_checked = st.checkbox(topic, key=f"strict_ch_{i}", value=(topic in st.session_state.done_topics))
+                # Only real modules will show up here now
+                is_checked = st.checkbox(topic, key=f"final_mod_{i}", value=(topic in st.session_state.done_topics))
                 if is_checked and topic not in st.session_state.done_topics:
                     st.session_state.done_topics.append(topic)
                     st.rerun()
