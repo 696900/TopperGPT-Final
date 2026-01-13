@@ -153,75 +153,99 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (STRICT 2024-25 SCHEME LOCK) ---
+    # --- TAB 2: SYLLABUS MAGIC (DYNAMIC PARSING) ---
     with tab2:
-        st.markdown('<h3 style="text-align: center; margin-bottom: 0px;">📋 TopperGPT Verified Roadmap (2024-25)</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center;">📋 Universal Syllabus Roadmap</h3>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload Syllabus PDF (Trigger Only)", type=["pdf"], key="syll_mu_2025_final")
+        syll_up = st.file_uploader("Upload Any Engineering Syllabus PDF", type=["pdf"], key="syll_dynamic_universal")
         
-        if syll_up and st.button("🚀 Generate Latest Roadmap", use_container_width=True):
-            # LATEST 2024-25 SCHEME: Fiber/Laser in Sem 1, Python in Sem 2
-            sem_data = {
-                "Semester I": {
-                    "Applied Mathematics - I": ["Complex Numbers", "Hyperbolic Functions & Logarithms", "Partial Differentiation", "Applications of Partial Differentiation", "Matrices", "Numerical Solutions"],
-                    "Applied Physics - I": ["Lasers", "Fiber Optics", "Quantum Physics", "Crystallography", "Semiconductor Physics", "Interference in Thin Films"],
-                    "Applied Chemistry - I": ["Water Technology", "Polymers", "Lubricants", "Phase Rule", "Corrosion", "Energy Resources"],
-                    "Engineering Mechanics": ["Forces & Equilibrium", "Trusses & Friction", "Centroid & MI", "Kinematics", "Kinetics", "Work-Energy"],
-                    "Basic Electrical Engg": ["DC Circuits", "AC Fundamentals", "Transformers", "Single Phase AC", "Three Phase AC", "Electrical Machines"],
-                    "Professional Ethics": ["Communication Process", "Grammar", "Oral Skills", "Business Writing", "Report Writing", "Ethics in Tech"]
-                },
-                "Semester II": {
-                    "Applied Mathematics - II": ["Differential Equations", "Vector Calculus", "Probability", "Numerical Methods", "Linear Algebra", "Complex Integration"],
-                    "Applied Physics - II": ["Diffraction", "Electrodynamics", "Relativity", "Physics of Sensors", "Nano-Materials", "Superconductivity"],
-                    "Applied Chemistry - II": ["Corrosion Control", "Alloys", "Fuels & Combustion", "Composite Materials", "Green Chemistry", "Instrumental Methods"],
-                    "Engineering Graphics": ["Projections of Points & Lines", "Projections of Planes", "Projections of Solids", "Isometric Projection", "Section of Solids", "Orthographic Projection"],
-                    "Python Programming": ["Basic Syntax", "Control Structures", "Functions & Modules", "Data Structures (List/Dict)", "File Handling", "NumPy & Data Analysis"],
-                    "Environmental Studies": ["Ecosystem", "Natural Resources", "Energy Resources", "Pollution", "Social Issues", "Human Population"]
-                }
-            }
-            st.session_state.sem_data = sem_data
-            st.session_state.done_topics = [] 
-            st.success("✅ Latest 2024-25 Scheme Synced! Ab padhai shuru kar.")
+        if syll_up and st.button("🚀 Analyze & Generate Roadmap", use_container_width=True):
+            with st.spinner("Decoding PDF structure and mapping semesters..."):
+                try:
+                    with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
+                        # Scan first 25 pages for detail extraction
+                        full_text = "\n".join([p.extract_text() for p in pdf.pages[:25] if p.extract_text()])
+                    
+                    # AI ko instructions: Text se subjects aur semester pattern pehchan-ne ke liye
+                    prompt = f"""
+                    System Task: Extract Engineering Syllabus.
+                    1. Identify all unique subjects from the text.
+                    2. For each subject, extract exactly 6 modules with their titles.
+                    3. Determine the Semester (SEM 1/2) based on the keywords or page order.
+                    
+                    FORMAT (Strict):
+                    SEM_X | Subject Name | M1, M2, M3, M4, M5, M6
+                    
+                    PDF Content: {full_text[:15000]}
+                    """
+                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                    
+                    dynamic_roadmap = {"Semester I": {}, "Semester II": {}}
+                    lines = res.choices[0].message.content.split("\n")
+                    
+                    for line in lines:
+                        if "|" in line:
+                            parts = line.split("|")
+                            if len(parts) >= 3:
+                                sem_id = parts[0].strip()
+                                subj_name = parts[1].strip()
+                                # Cleaning module list
+                                mods = [m.strip() for m in parts[2].split(",") if len(m) > 3][:6]
+                                
+                                # Logic: Semester decide karna
+                                target_sem = "Semester I" if "1" in sem_id or "I" in sem_id else "Semester II"
+                                if len(mods) >= 3:
+                                    dynamic_roadmap[target_sem][subj_name] = mods
 
-        # --- DYNAMIC PROGRESS DASHBOARD (WORKING BAR) ---
+                    st.session_state.sem_data = dynamic_roadmap
+                    st.session_state.done_topics = [] 
+                    st.success(f"✅ Found {len(dynamic_roadmap['Semester I']) + len(dynamic_roadmap['Semester II'])} Subjects!")
+                except Exception as e:
+                    st.error(f"Syllabus Error: {e}")
+
+        # --- PROGRESS DASHBOARD (THE WORKING BAR) ---
         if st.session_state.get("sem_data"):
+            # Master list calculation
             all_keys = []
-            for sem, subjects in st.session_state.sem_data.items():
-                for s_name, m_list in subjects.items():
-                    for m_name in m_list:
-                        all_keys.append(f"{sem}_{s_name}_{m_name}".replace(" ","_"))
+            for sem, subs in st.session_state.sem_data.items():
+                for s, ms in subs.items():
+                    for m in ms:
+                        all_keys.append(f"{sem}_{s}_{m}".replace(" ", "_"))
             
-            t_count = len(all_keys)
-            # Validating checked items
-            valid_done = len([d for d in st.session_state.get("done_topics", []) if d in all_keys])
-            prog = int((valid_done / t_count) * 100) if t_count > 0 else 0
+            total_m = len(all_keys)
+            # Count only checked items that match current roadmap
+            current_done = len([d for d in st.session_state.get("done_topics", []) if d in all_keys])
+            prog = int((current_done / total_m) * 100) if total_m > 0 else 0
 
-            # --- SLEEK IPHONE STYLE BAR (6px HEIGHT) ---
+            # UI Styling (Sleek Bar)
             st.markdown(f"""
                 <style>
-                    .stProgress > div > div > div > div {{ height: 6px !important; background-color: #4CAF50; border-radius: 10px; }}
+                    .stProgress > div > div > div > div {{ height: 8px !important; background-color: #4CAF50; border-radius: 10px; }}
                 </style>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding: 0 5px;">
-                    <span style="font-weight: bold; font-size: 14px; color: #4CAF50;">YEARLY MASTERY</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <span style="font-weight: bold; font-size: 14px; color: #4CAF50;">TOTAL PROGRESS</span>
                     <span style="font-weight: bold; color: #4CAF50; font-size: 20px;">{prog}%</span>
                 </div>
             """, unsafe_allow_html=True)
             st.progress(prog / 100)
-            st.caption(f"Done: {valid_done} | Total: {t_count} Chapters")
+            st.caption(f"{current_done} of {total_m} Modules Completed")
 
             st.divider()
             t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
 
             def render_modules(data, sem_tag):
+                if not data:
+                    st.info(f"No {sem_tag} subjects found in this PDF.")
+                    return
                 for subject, modules in data.items():
                     with st.expander(f"📚 {subject}"):
                         for m in modules:
                             u_key = f"{sem_tag}_{subject}_{m}".replace(" ", "_")
-                            # Real-time tick sync
+                            # Real-time tick logic
                             if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                                 if u_key not in st.session_state.done_topics:
                                     st.session_state.done_topics.append(u_key)
-                                    st.rerun() 
+                                    st.rerun()
                             else:
                                 if u_key in st.session_state.done_topics:
                                     st.session_state.done_topics.remove(u_key)
@@ -230,10 +254,10 @@ else:
             with t1: render_modules(st.session_state.sem_data["Semester I"], "S1")
             with t2: render_modules(st.session_state.sem_data["Semester II"], "S2")
 
-            # --- WHATSAPP SHARE ---
+            # WhatsApp Share
             st.divider()
-            share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20Syllabus%20done!"
-            st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share My Progress 🚀</button></a>', unsafe_allow_html=True)
+            share_msg = f"Bhai TopperGPT pe mera {prog}% syllabus khatam! Tu bhi try kar."
+            st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share My Mastery 🚀</button></a>', unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
