@@ -153,41 +153,56 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (FINAL RECOVERY & SLEEK UI) ---
+    # --- TAB 2: SYLLABUS MAGIC (FIXED DATA EXTRACTION) ---
     with tab2:
-        st.markdown('<h3 style="text-align: center; margin-bottom: 0px;">📋 University Syllabus Roadmap</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center; margin-bottom: 10px;">📋 University Syllabus Roadmap</h3>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_final_sleek_v3")
+        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_pro_final_v5")
         
         if syll_up and st.button("🚀 Generate Sem-Wise Roadmap", use_container_width=True):
-            with st.spinner("Partitioning Semesters..."):
+            with st.spinner("Breaking down syllabus tables..."):
                 try:
+                    # Resetting data to avoid old ghost data
+                    st.session_state.sem_data = {"Semester I": {}, "Semester II": {}}
+                    st.session_state.done_topics = []
+                    
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Sirf zaroori pages scan kar rahe hain fast aur accurate result ke liye
-                        full_text = "\n".join([p.extract_text() for p in pdf.pages[:15] if p.extract_text()])
-                    
-                    # Strict prompt to prevent "No subjects found"
-                    prompt = f"Extract all engineering subjects and their 6 modules for Sem 1 and Sem 2:\n{full_text[:12000]}"
-                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    
-                    sem_roadmap = {"Semester I": {}, "Semester II": {}}
-                    lines = res.choices[0].message.content.split("\n")
-                    for line in lines:
-                        if "|" in line and ":" in line:
-                            parts = line.split(":", 1)
-                            sem_key = "Semester I" if "1" in parts[0] or "I" in parts[0] else "Semester II"
-                            subj_part, mods_part = parts[1].split("|")
-                            sem_roadmap[sem_key][subj_part.strip()] = [m.strip() for m in mods_part.split(",")][:6]
-                    
-                    st.session_state.sem_data = sem_roadmap
-                    st.session_state.done_topics = [] 
-                    st.success("✅ Roadmap Synced!")
+                        # Scan all pages to capture every table
+                        for page in pdf.pages:
+                            tables = page.extract_tables()
+                            current_subj = "General Engineering"
+                            
+                            for table in tables:
+                                for row in table:
+                                    if not row or len(row) < 2: continue
+                                    
+                                    # Logic to detect Subject Name (Usually in bold or header rows)
+                                    row_text = " ".join([str(c) for c in row if c])
+                                    if "Subject" in row_text or "Course" in row_text:
+                                        current_subj = row_text.split(":")[-1].strip()
+                                    
+                                    # Strictly identifying Module Rows
+                                    col0 = str(row[0]).strip()
+                                    if col0.isdigit() or (len(col0) == 2 and col0.startswith('0')):
+                                        # Mapping to Semesters based on common engineering patterns
+                                        # (Can be adjusted based on PDF page number if needed)
+                                        sem_key = "Semester I" if page.page_number < 15 else "Semester II"
+                                        
+                                        if current_subj not in st.session_state.sem_data[sem_key]:
+                                            st.session_state.sem_data[sem_key][current_subj] = []
+                                        
+                                        module_title = str(row[1]).split('\n')[0].strip()
+                                        mod_entry = f"Module {col0}: {module_title}"
+                                        
+                                        if mod_entry not in st.session_state.sem_data[sem_key][current_subj]:
+                                            st.session_state.sem_data[sem_key][current_subj].append(mod_entry)
+
+                    st.success("✅ Syllabus Tables Synced Successfully!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- PROGRESS DASHBOARD (COMPACT DESIGN) ---
-        if st.session_state.get("sem_data"):
-            # Collecting keys for ALL modules from ALL semesters
+        # --- PROGRESS DASHBOARD (SLEEK & ACCURATE) ---
+        if st.session_state.get("sem_data") and (st.session_state.sem_data["Semester I"] or st.session_state.sem_data["Semester II"]):
             all_module_keys = []
             for sem, subs in st.session_state.sem_data.items():
                 for s_name, m_list in subs.items():
@@ -198,31 +213,30 @@ else:
             current_done = [d for d in st.session_state.get("done_topics", []) if d in all_module_keys]
             prog = int((len(current_done) / t_count) * 100) if t_count > 0 else 0
 
-            # Sleek CSS to reduce bar height
-            st.markdown("""
+            # UI Styling
+            st.markdown(f"""
                 <style>
-                    .stProgress > div > div > div > div { height: 8px !important; } /* Ekdum patla aur sleek bar */
-                    .mastery-text { font-size: 24px; font-weight: bold; color: #4CAF50; margin-bottom: -10px; }
+                    .stProgress > div > div > div > div {{ height: 10px !important; }}
+                    .mastery-pct {{ font-size: 28px; font-weight: bold; color: #4CAF50; }}
                 </style>
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; border: 1px solid #eee;">
+                    <p class="mastery-pct">{prog}% Mastery</p>
+                </div>
             """, unsafe_allow_html=True)
-
-            # Dashboard Header
-            st.markdown(f'<p class="mastery-text">{prog}% Mastery</p>', unsafe_allow_html=True)
             st.progress(prog / 100)
-            st.caption(f"Status: {len(current_done)} modules completed out of {t_count}")
 
             st.divider()
             t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
 
-            def render_ui(data, sem_tag):
+            def render_modules(data, sem_tag):
                 if not data:
-                    st.info(f"Searching for {sem_tag} subjects... Try re-generating.")
+                    st.info("No subjects found in this section. Try scrolling or re-uploading.")
                     return
                 for subject, modules in data.items():
                     with st.expander(f"📚 {subject}"):
                         for m in modules:
                             u_key = f"{sem_tag}_{subject}_{m}".replace(" ", "_")
-                            # Tick karne par real-time progress update
+                            # Real-time sync for progress bar
                             if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                                 if u_key not in st.session_state.done_topics:
                                     st.session_state.done_topics.append(u_key)
@@ -232,18 +246,16 @@ else:
                                     st.session_state.done_topics.remove(u_key)
                                     st.rerun()
 
-            # Calling render for both semesters explicitly
-            with t1: render_ui(st.session_state.sem_data.get("Semester I"), "S1")
-            with t2: render_ui(st.session_state.sem_data.get("Semester II"), "S2")
+            with t1: render_modules(st.session_state.sem_data["Semester I"], "S1")
+            with t2: render_modules(st.session_state.sem_data["Semester II"], "S2")
 
-            # Branded Footer & Viral Loop
+            # Branded Viral Loop
             st.divider()
-            c_d1, c_d2 = st.columns(2)
-            with c_d1:
-                st.download_button("📥 Get Roadmap Report", f"TopperGPT Report: {prog}% Done", use_container_width=True)
-            with c_d2:
-                share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20syllabus%20done!"
-                st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share on WhatsApp 🚀</button></a>', unsafe_allow_html=True)
+            share_msg = f"Bhai, TopperGPT pe mera {prog}% syllabus khatam! Tu bhi kar: [Link]"
+            st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share Progress on WhatsApp 🚀</button></a>', unsafe_allow_html=True)
+        else:
+            if syll_up:
+                st.warning("⚠️ No Module tables detected. Please ensure the PDF contains 'Detailed Contents' tables.")
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
