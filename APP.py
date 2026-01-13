@@ -235,16 +235,7 @@ else:
                                 st.rerun()
                             elif not is_checked and m in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(m)
-                                st.rerun()
-            # Syllabus Tab ke andar download button replace karo:
-        tracker_out = f"🚀 TOpperGPT Roadmap Status: {progress}% Complete\n"
-        tracker_out += "-------------------------------------------\n"
-        for sub, ms in st.session_state.sem_data.get("Semester I", {}).items():
-         tracker_out += f"\n[Sem I] {sub}\n" + "\n".join([f"- {m}" for m in ms])
-        tracker_out += "\n\n-------------------------------------------\n"
-        tracker_out += "🔥 Master your exams with TopperGPT. Download the app now!" # Watermark
-
-    st.download_button("📥 Download & Share Status", tracker_out, file_name="TopperGPT_Roadmap.txt")                     
+                                st.rerun()         
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
