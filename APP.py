@@ -153,79 +153,94 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (STABLE PATTERN PARSER) ---
+    # --- TAB 2: SYLLABUS MAGIC (STABLE SUBJECT & MODULE LOCK) ---
     with tab2:
-        st.markdown('<h3 style="text-align: center;">📋 University Syllabus Roadmap</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center; margin-bottom: 5px;">📋 Engineering Syllabus Roadmap</h3>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload Full Syllabus PDF", type=["pdf"], key="syll_final_stable_v100")
+        syll_up = st.file_uploader("Upload Full Syllabus PDF", type=["pdf"], key="syll_final_pro_fix")
         
         if syll_up and st.button("🚀 Generate Organized Roadmap", use_container_width=True):
-            with st.spinner("Extracting Subjects & Modules..."):
+            with st.spinner("Extracting Semester I & II Subjects..."):
                 try:
                     sem_data = {"Semester I": {}, "Semester II": {}}
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
                         total_pages = len(pdf.pages)
-                        mid_pt = total_pages // 2 
+                        mid_page = total_pages // 2 
                         
-                        current_subject = "Unknown Subject"
+                        # Known Engineering Subjects List for Filter
+                        eng_subjects = ["Applied Mathematics", "Applied Physics", "Applied Chemistry", 
+                                        "Engineering Mechanics", "Basic Electrical", "Engineering Graphics",
+                                        "Programming", "Communication Skills"]
+
                         for i, page in enumerate(pdf.pages):
-                            current_sem = "Semester I" if i < mid_pt else "Semester II"
+                            current_sem = "Semester I" if i < mid_page else "Semester II"
                             text = page.extract_text()
                             if not text: continue
                             
+                            # Finding the Subject Name on the page
+                            current_subj = "General Engineering"
+                            for sub in eng_subjects:
+                                if sub.lower() in text.lower():
+                                    current_subj = sub
+                                    break
+                            
+                            # Extracting 6 Modules strictly
+                            modules = []
                             for line in text.split('\n'):
-                                # 1. Subject Detection (Keywords like Course Code or Subject Name)
-                                if any(x in line for x in ["Subject :", "Course Name", "Detailed Contents"]):
-                                    potential_name = line.split(":")[-1].strip()
-                                    if len(potential_name) > 5:
-                                        current_subject = potential_name
-                                        if current_subject not in sem_data[current_sem]:
-                                            sem_data[current_sem][current_subject] = []
-
-                                # 2. Module Detection (Keywords like Module 01 or just 01 at start)
-                                if "Module" in line or line.strip()[:2].isdigit():
-                                    clean_line = line.strip()
-                                    if len(clean_line) > 10: # To avoid random numbers
-                                        if current_subject not in sem_data[current_sem]:
-                                            sem_data[current_sem][current_subject] = []
-                                        if clean_line not in sem_data[current_sem][current_subject]:
-                                            sem_data[current_sem][current_subject].append(clean_line)
-
-                    # Cleanup: Remove subjects with 0 modules
-                    for s in ["Semester I", "Semester II"]:
-                        sem_data[s] = {k: v for k, v in sem_data[s].items() if len(v) > 0}
+                                if any(line.strip().startswith(f"{n}") for n in ["01", "02", "03", "04", "05", "06"]):
+                                    clean_m = line.strip()
+                                    if len(clean_m) > 15 and clean_m not in modules:
+                                        modules.append(clean_m)
+                            
+                            if len(modules) >= 4: # Validating it's a real syllabus page
+                                if current_subj not in sem_data[current_sem]:
+                                    sem_data[current_sem][current_subj] = modules[:6]
 
                     st.session_state.sem_data = sem_data
                     st.session_state.done_topics = []
-                    st.success("✅ Syllabus Loaded. Ab padhai shuru kar!")
+                    st.success("✅ Syllabus Organized. Ab padhai par dhyan de!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- PROGRESS DASHBOARD ---
+        # --- PROGRESS DASHBOARD (SLEEK & WORKING) ---
         if st.session_state.get("sem_data"):
-            all_m_keys = [f"{sem}_{s}_{m}".replace(" ","_") for sem, subs in st.session_state.sem_data.items() for s, ms in subs.items() for m in ms]
-            done_m_keys = [d for d in st.session_state.get("done_topics", []) if d in all_m_keys]
-            prog = int((len(done_m_keys) / len(all_m_keys)) * 100) if all_m_keys else 0
+            # Collecting ALL module IDs for calculation
+            all_m_keys = []
+            for sem, subs in st.session_state.sem_data.items():
+                for s_name, m_list in subs.items():
+                    for m_name in m_list:
+                        all_m_keys.append(f"{sem}_{s_name}_{m_name}".replace(" ","_"))
+            
+            t_count = len(all_m_keys)
+            # Logic to ensure tick updates the bar
+            current_done = [d for d in st.session_state.get("done_topics", []) if d in all_m_keys]
+            prog = int((len(current_done) / t_count) * 100) if t_count > 0 else 0
 
+            # --- IPHONE SLEEK BAR UI ---
             st.markdown(f"""
-                <div style="background-color: #f0f2f6; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
-                    <h4 style="color: #4CAF50; margin: 0;">📚 Yearly Mastery: {prog}%</h4>
-                    <div style="background-color: #ddd; border-radius: 5px; height: 10px; margin-top: 5px;">
-                        <div style="background-color: #4CAF50; width: {prog}%; height: 10px; border-radius: 5px;"></div>
-                    </div>
+                <style>
+                    .stProgress > div > div > div > div {{ height: 8px !important; background-color: #4CAF50; border-radius: 10px; }}
+                </style>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding: 0 5px;">
+                    <span style="font-weight: bold; font-size: 14px;">MASTERY STATUS</span>
+                    <span style="font-weight: bold; color: #4CAF50; font-size: 20px;">{prog}%</span>
                 </div>
             """, unsafe_allow_html=True)
+            st.progress(prog / 100)
+            st.caption(f"Done: {len(current_done)} / Total: {t_count} Modules")
 
+            st.divider()
             t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
 
-            def render_ui(data, sem_tag):
+            def render_modules(data, sem_tag):
                 if not data:
-                    st.info(f"No modules extracted for {sem_tag} yet.")
+                    st.info(f"No modules found for {sem_tag}. Regenerate please.")
                     return
                 for subject, modules in data.items():
-                    with st.expander(f"📌 {subject}"):
+                    with st.expander(f"📚 {subject}"):
                         for m in modules:
                             u_key = f"{sem_tag}_{subject}_{m}".replace(" ", "_")
+                            # Proper sequencing and tick handling
                             if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                                 if u_key not in st.session_state.done_topics:
                                     st.session_state.done_topics.append(u_key)
@@ -235,13 +250,17 @@ else:
                                     st.session_state.done_topics.remove(u_key)
                                     st.rerun()
 
-            with t1: render_ui(st.session_state.sem_data["Semester I"], "S1")
-            with t2: render_ui(st.session_state.sem_data["Semester II"], "S2")
+            with t1: render_modules(st.session_state.sem_data["Semester I"], "S1")
+            with t2: render_modules(st.session_state.sem_data["Semester II"], "S2")
 
-            # Final Branding & Share
+            # --- BRANDED DOWNLOAD & SHARE ---
             st.divider()
-            share_url = f"https://wa.me/?text=TopperGPT%20Mastery:%20{prog}%25"
-            st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share My Progress 🚀</button></a>', unsafe_allow_html=True)
+            c_d1, c_d2 = st.columns(2)
+            with c_d1:
+                st.download_button("📥 Download Tracker", f"TopperGPT Report: {prog}% Done", use_container_width=True)
+            with c_d2:
+                share_url = f"https://wa.me/?text=TopperGPT%20Mastery:%20{prog}%25"
+                st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share Progress 🚀</button></a>', unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
