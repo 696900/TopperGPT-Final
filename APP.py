@@ -153,50 +153,53 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (STRICT TAB FILTER & COMPACT SHARE) ---
+    # --- TAB 2: SYLLABUS MAGIC (STRICT TABLE EXTRACTION & TARGETED SEM) ---
     with tab2:
         st.markdown('<h3 style="text-align: center; margin-bottom: 5px;">📋 TopperGPT Targeted Roadmap</h3>', unsafe_allow_html=True)
         
-        # User Choice: Only the selected Semester will be visible
+        # User selection to lock target
         t_sem = st.selectbox(
             "Kaunse Semester ka maal chahiye?", 
             ["Select Semester", "Semester I", "Semester II"],
-            key="sem_lock_v20"
+            key="sem_lock_final_v25"
         )
         
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_pro_v20")
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_pro_final_v25")
         
-        if syll_up and t_sem != "Select Semester" and st.button("🚀 Build Targeted Roadmap", use_container_width=True):
-            with st.spinner(f"Processing {t_sem} Only..."):
+        if syll_up and t_sem != "Select Semester" and st.button("🚀 Build My Roadmap", use_container_width=True):
+            with st.spinner(f"Scanning tables for {t_sem}..."):
                 try:
-                    with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Full deep scan to find specific semester content
-                        full_text = "\n".join([p.extract_text() for p in pdf.pages[:60] if p.extract_text()])
-                    
-                    # Strict AI Instruction: No mixing of semesters
-                    prompt = f"""
-                    EXTRACT SUBJECTS ONLY FOR {t_sem}. 
-                    Applied Mathematics II, Python, Graphics belong STRICTLY to Semester II.
-                    Applied Mathematics I, Physics I, Chemistry I belong STRICTLY to Semester I.
-                    
-                    Format: {t_sem} | Subject Name | Mod1, Mod2, Mod3, Mod4, Mod5, Mod6
-                    Text: {full_text[:25000]}
-                    """
-                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    
-                    # Hard Filtering Data
                     clean_roadmap = {}
-                    for line in res.choices[0].message.content.split("\n"):
-                        if "|" in line and t_sem in line:
-                            parts = line.split("|")
-                            subj = parts[1].strip()
-                            mods = [m.strip() for m in parts[2].split(",") if len(m) > 5][:6]
-                            clean_roadmap[subj] = mods
+                    with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
+                        # Scan only relevant pages to avoid mixing (Sem1: Start, Sem2: Middle)
+                        pages_to_scan = pdf.pages[:30] if t_sem == "Semester I" else pdf.pages[30:70]
+                        
+                        for page in pages_to_scan:
+                            tables = page.extract_tables()
+                            for table in tables:
+                                current_subject = None
+                                for row in table:
+                                    if not row or len(row) < 2: continue
+                                    row_text = " ".join([str(cell) for cell in row if cell])
+                                    
+                                    # Subject Header Detection
+                                    if "Subject" in row_text or "Course Name" in row_text:
+                                        current_subject = row_text.split(":")[-1].replace("Course Name", "").strip()
+                                        if len(current_subject) > 5 and current_subject not in clean_roadmap:
+                                            clean_roadmap[current_subject] = []
+                                    
+                                    # Module Detection (Checking for 01, 02 etc. in first column)
+                                    col0 = str(row[0]).strip()
+                                    if current_subject and (col0.isdigit() or col0.startswith('0')):
+                                        module_title = str(row[1]).split('\n')[0].strip()
+                                        if len(module_title) > 5:
+                                            clean_roadmap[current_subject].append(f"Module {col0}: {module_title}")
 
-                    st.session_state.target_data = clean_roadmap
+                    # Final Cleanup: Remove empty subjects
+                    st.session_state.target_data = {k: v[:6] for k, v in clean_roadmap.items() if len(v) >= 3}
                     st.session_state.current_sem = t_sem
                     st.session_state.done_topics = [] 
-                    st.success(f"✅ {t_sem} Locked & Loaded!")
+                    st.success(f"✅ {t_sem} Roadmap Ready!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
@@ -204,11 +207,10 @@ else:
         if st.session_state.get("target_data"):
             t_data = st.session_state.target_data
             all_keys = [f"{st.session_state.current_sem}_{s}_{m}".replace(" ","_") for s, ms in t_data.items() for m in ms]
-            
             valid_done = len([d for d in st.session_state.get("done_topics", []) if d in all_keys])
             prog = int((valid_done / len(all_keys)) * 100) if all_keys else 0
 
-            # Sleek Compact Card
+            # Sleek Mastery Card
             st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 12px; border-radius: 10px; color: white; text-align: center; border: 1px solid #4CAF50; margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -218,14 +220,14 @@ else:
                     <div style="background: rgba(255,255,255,0.2); height: 5px; border-radius: 10px; margin: 8px 0;">
                         <div style="background: #4CAF50; height: 5px; border-radius: 10px; width: {prog}%;"></div>
                     </div>
-                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.current_sem} Mastery</p>
+                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.current_sem} Verified Roadmap</p>
                 </div>
             """, unsafe_allow_html=True)
 
-            # Keep the Share Button
-            share_t = f"*TopperGPT {st.session_state.current_sem} Report*%0A🔥 Mera *{prog}%* syllabus khatam ho gaya!%0A🚀 Tu bhi track kar apna status!"
+            # Share Button with TopperGPT Watermark
+            share_text = f"*TopperGPT {st.session_state.current_sem} Report*%0A🔥 Mera *{prog}%* syllabus khatam ho gaya!%0A🚀 Tu bhi track kar apna status!"
             st.markdown(f"""
-                <a href="https://wa.me/?text={share_t}" target="_blank" style="text-decoration: none;">
+                <a href="https://wa.me/?text={share_text}" target="_blank" style="text-decoration: none;">
                     <button style="background-color: #25D366; color: white; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">
                         📲 Share with TopperGPT Watermark
                     </button>
@@ -234,7 +236,7 @@ else:
 
             st.divider()
             
-            # --- NO TABS: Only Show the Selected Semester ---
+            # --- DYNAMIC LIST: Only the selected Semester ---
             st.subheader(f"📘 {st.session_state.current_sem} Detailed Roadmap")
             for subject, modules in t_data.items():
                 with st.expander(f"📚 {subject}"):
