@@ -153,82 +153,79 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (STABLE PAGE-LOGIC) ---
+    # --- TAB 2: SYLLABUS MAGIC (STABLE PATTERN PARSER) ---
     with tab2:
         st.markdown('<h3 style="text-align: center;">📋 University Syllabus Roadmap</h3>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload Full Syllabus PDF", type=["pdf"], key="syll_final_stable")
+        syll_up = st.file_uploader("Upload Full Syllabus PDF", type=["pdf"], key="syll_final_stable_v100")
         
         if syll_up and st.button("🚀 Generate Organized Roadmap", use_container_width=True):
-            with st.spinner("Extracting Chapters & Sorting Semesters..."):
+            with st.spinner("Extracting Subjects & Modules..."):
                 try:
-                    sem_roadmap = {"Semester I": {}, "Semester II": {}}
+                    sem_data = {"Semester I": {}, "Semester II": {}}
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
                         total_pages = len(pdf.pages)
-                        # Page 1 to Middle = Sem I | Middle to End = Sem II
                         mid_pt = total_pages // 2 
-
+                        
+                        current_subject = "Unknown Subject"
                         for i, page in enumerate(pdf.pages):
                             current_sem = "Semester I" if i < mid_pt else "Semester II"
-                            tables = page.extract_tables()
+                            text = page.extract_text()
+                            if not text: continue
                             
-                            for table in tables:
-                                current_subject = "General Course"
-                                for row in table:
-                                    if not row or len(row) < 2: continue
-                                    text_line = " ".join([str(cell) for cell in row if cell])
-                                    
-                                    # Subject Detection (Headers)
-                                    if "Subject" in text_line or "Course" in text_line:
-                                        current_subject = text_line.split(":")[-1].strip()
-                                    
-                                    # Strict Module Detection (Look for 01, 02... in first column)
-                                    col0 = str(row[0]).strip()
-                                    if col0.isdigit() or (len(col0) == 2 and col0.startswith('0')):
-                                        if current_subject not in sem_roadmap[current_sem]:
-                                            sem_roadmap[current_sem][current_subject] = []
-                                        
-                                        title = str(row[1]).split('\n')[0].strip()
-                                        mod_label = f"Module {col0}: {title}"
-                                        if mod_label not in sem_roadmap[current_sem][current_subject]:
-                                            sem_roadmap[current_sem][current_subject].append(mod_label)
+                            for line in text.split('\n'):
+                                # 1. Subject Detection (Keywords like Course Code or Subject Name)
+                                if any(x in line for x in ["Subject :", "Course Name", "Detailed Contents"]):
+                                    potential_name = line.split(":")[-1].strip()
+                                    if len(potential_name) > 5:
+                                        current_subject = potential_name
+                                        if current_subject not in sem_data[current_sem]:
+                                            sem_data[current_sem][current_subject] = []
 
-                    st.session_state.sem_data = sem_roadmap
+                                # 2. Module Detection (Keywords like Module 01 or just 01 at start)
+                                if "Module" in line or line.strip()[:2].isdigit():
+                                    clean_line = line.strip()
+                                    if len(clean_line) > 10: # To avoid random numbers
+                                        if current_subject not in sem_data[current_sem]:
+                                            sem_data[current_sem][current_subject] = []
+                                        if clean_line not in sem_data[current_sem][current_subject]:
+                                            sem_data[current_sem][current_subject].append(clean_line)
+
+                    # Cleanup: Remove subjects with 0 modules
+                    for s in ["Semester I", "Semester II"]:
+                        sem_data[s] = {k: v for k, v in sem_data[s].items() if len(v) > 0}
+
+                    st.session_state.sem_data = sem_data
                     st.session_state.done_topics = []
-                    st.success("✅ Roadmap Synced (No API Limits Used!)")
+                    st.success("✅ Syllabus Loaded. Ab padhai shuru kar!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- PROGRESS DASHBOARD (SLEEK) ---
+        # --- PROGRESS DASHBOARD ---
         if st.session_state.get("sem_data"):
             all_m_keys = [f"{sem}_{s}_{m}".replace(" ","_") for sem, subs in st.session_state.sem_data.items() for s, ms in subs.items() for m in ms]
             done_m_keys = [d for d in st.session_state.get("done_topics", []) if d in all_m_keys]
             prog = int((len(done_m_keys) / len(all_m_keys)) * 100) if all_m_keys else 0
 
-            # UI Styling for Sleek Bar
             st.markdown(f"""
-                <style>
-                    .stProgress > div > div > div > div {{ height: 8px !important; background-color: #4CAF50; }}
-                </style>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <span style="font-size: 14px; font-weight: bold; color: #4CAF50;">YEARLY MASTERY</span>
-                    <span style="color: #4CAF50; font-weight: bold;">{prog}%</span>
+                <div style="background-color: #f0f2f6; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
+                    <h4 style="color: #4CAF50; margin: 0;">📚 Yearly Mastery: {prog}%</h4>
+                    <div style="background-color: #ddd; border-radius: 5px; height: 10px; margin-top: 5px;">
+                        <div style="background-color: #4CAF50; width: {prog}%; height: 10px; border-radius: 5px;"></div>
+                    </div>
                 </div>
             """, unsafe_allow_html=True)
-            st.progress(prog / 100)
 
-            st.divider()
             t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
 
             def render_ui(data, sem_tag):
                 if not data:
-                    st.info("No module tables detected here. Ensure the PDF has content tables.")
+                    st.info(f"No modules extracted for {sem_tag} yet.")
                     return
                 for subject, modules in data.items():
-                    with st.expander(f"📚 {subject}"):
+                    with st.expander(f"📌 {subject}"):
                         for m in modules:
                             u_key = f"{sem_tag}_{subject}_{m}".replace(" ", "_")
-                            # Real-time Tick Sync
                             if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                                 if u_key not in st.session_state.done_topics:
                                     st.session_state.done_topics.append(u_key)
@@ -241,14 +238,10 @@ else:
             with t1: render_ui(st.session_state.sem_data["Semester I"], "S1")
             with t2: render_ui(st.session_state.sem_data["Semester II"], "S2")
 
-            # --- VIRAL DOWNLOAD & SHARE ---
+            # Final Branding & Share
             st.divider()
-            c_d1, c_d2 = st.columns(2)
-            with c_d1:
-                st.download_button("📥 Download Branded Tracker", f"TopperGPT Report: {prog}% Done", use_container_width=True)
-            with c_d2:
-                share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20Syllabus%20done!"
-                st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share on WhatsApp 🚀</button></a>', unsafe_allow_html=True)
+            share_url = f"https://wa.me/?text=TopperGPT%20Mastery:%20{prog}%25"
+            st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share My Progress 🚀</button></a>', unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
