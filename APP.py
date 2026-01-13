@@ -153,90 +153,78 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (FIXED CHAPTERS & BAR) ---
+    # --- TAB 2: SYLLABUS MAGIC (STRICT PAGE-WISE SEMESTER SORTING) ---
     with tab2:
         st.markdown('<h3 style="text-align: center;">📋 University Syllabus Roadmap</h3>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload Full Syllabus PDF", type=["pdf"], key="syll_ultimate_fix")
+        syll_up = st.file_uploader("Upload Full Syllabus PDF", type=["pdf"], key="syll_sem_logic_fix")
         
-        if syll_up and st.button("🚀 Generate Full Roadmap", use_container_width=True):
-            with st.spinner("Extracting all subjects & chapters..."):
+        if syll_up and st.button("🚀 Generate Organized Roadmap", use_container_width=True):
+            with st.spinner("Sorting Semester I & Semester II subjects..."):
                 try:
-                    with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Full PDF Scan
-                        full_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                    
-                    # Ultra-Strict Prompt for AI
-                    prompt = f"""
-                    STRICT INSTRUCTION: Extract ALL subjects from the text. 
-                    For EACH subject, find and list exactly 6 Modules/Chapters.
-                    
-                    Format your response EXACTLY like this:
-                    SEM_1: [Subject Name] | M1: Title, M2: Title, M3: Title, M4: Title, M5: Title, M6: Title
-                    SEM_2: [Subject Name] | M1: Title, M2: Title, M3: Title, M4: Title, M5: Title, M6: Title
-                    
-                    Text: {full_text[:25000]}
-                    """
-                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    
                     sem_roadmap = {"Semester I": {}, "Semester II": {}}
-                    lines = res.choices[0].message.content.split("\n")
-                    
-                    for line in lines:
-                        if "|" in line and ":" in line:
-                            parts = line.split(":", 1)
-                            sem_key = "Semester I" if "SEM_1" in parts[0] else "Semester II"
-                            content = parts[1].split("|")
-                            s_name = content[0].strip()
-                            # Cleanly split 6 modules
-                            m_list = [m.strip() for m in content[1].split(",") if len(m) > 2]
-                            if m_list:
-                                sem_roadmap[sem_key][s_name] = m_list
-                    
+                    with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
+                        total_pages = len(pdf.pages)
+                        mid_page = total_pages // 2 # Logic: Shuruat ke pages Sem 1, baaki Sem 2
+                        
+                        for i, page in enumerate(pdf.pages):
+                            text = page.extract_text()
+                            if not text: continue
+                            
+                            # Determine Semester based on Page Number
+                            current_sem = "Semester I" if i < mid_page else "Semester II"
+                            
+                            # Prompt AI for each page to ensure no mixing
+                            prompt = f"Identify the Main Subject and its 6 Modules on this page only: {text[:5000]}"
+                            res = groq_client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": prompt}])
+                            
+                            # Simple parsing for AI response
+                            content = res.choices[0].message.content
+                            if "Module" in content:
+                                # Logic to extract Subject Name and Modules
+                                lines = content.split("\n")
+                                subj_name = lines[0].replace("Subject:", "").strip()
+                                modules = [l.strip("- ") for l in lines if "Module" in l][:6]
+                                if len(modules) == 6:
+                                    sem_roadmap[current_sem][subj_name] = modules
+
                     st.session_state.sem_data = sem_roadmap
-                    st.session_state.done_topics = [] # Reset progress
-                    st.success(f"✅ Found Subjects: {list(sem_roadmap['Semester I'].keys()) + list(sem_roadmap['Semester II'].keys())}")
+                    st.session_state.done_topics = []
+                    st.success("✅ Semester Partitioning Perfect!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- DYNAMIC PROGRESS CALCULATION ---
+        # --- PROGRESS BAR & DISPLAY (FIXED SYNC) ---
         if st.session_state.get("sem_data"):
-            # Sabhi modules ki ek unique master list banao
-            master_keys = []
-            for sem, subs in st.session_state.sem_data.items():
-                for s_name, m_list in subs.items():
-                    for m_name in m_list:
-                        master_keys.append(f"{sem}_{s_name}_{m_name}".replace(" ", "_"))
-            
-            total_m = len(master_keys)
-            done_m = len([d for d in st.session_state.get("done_topics", []) if d in master_keys])
-            prog = int((done_m / total_m) * 100) if total_m > 0 else 0
+            all_keys = [f"{sem}_{s}_{m}".replace(" ","_") for sem, subs in st.session_state.sem_data.items() for s, ms in subs.items() for m in ms]
+            done_keys = [d for d in st.session_state.get("done_topics", []) if d in all_keys]
+            prog = int((len(done_keys) / len(all_keys)) * 100) if all_keys else 0
 
-            # --- SLEEK UI BAR ---
+            # Super Sleek Bar
             st.markdown(f"""
                 <style>
-                    .stProgress > div > div > div > div {{ height: 5px !important; background-color: #4CAF50; }}
+                    .stProgress > div > div > div > div {{ height: 6px !important; background-color: #4CAF50; }}
+                    .mastery-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: -5px; }}
                 </style>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <b style="color: #4CAF50; font-size: 14px;">MASTERY STATUS</b>
-                    <b style="color: #4CAF50; font-size: 18px;">{prog}%</b>
+                <div class="mastery-header">
+                    <span style="font-size: 14px; font-weight: bold; color: #4CAF50;">SYLLABUS PROGRESS</span>
+                    <span style="color: #4CAF50; font-weight: bold;">{prog}%</span>
                 </div>
             """, unsafe_allow_html=True)
             st.progress(prog / 100)
-            st.caption(f"Done: {done_m} | Total: {total_m} Modules")
 
             st.divider()
             t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
 
-            def render_modules(data, sem_label):
+            def render_ui(data, sem_tag):
                 if not data:
-                    st.info("No data found. Please regenerate.")
+                    st.info("No subjects found. Ensure PDF contains detailed tables.")
                     return
                 for subject, modules in data.items():
                     with st.expander(f"📚 {subject}"):
                         for m in modules:
-                            u_key = f"{sem_label}_{subject}_{m}".replace(" ", "_")
-                            # Tick logic with immediate rerun
+                            u_key = f"{sem_tag}_{subject}_{m}".replace(" ", "_")
+                            # Checkbox logic with fixed sync
                             if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                                 if u_key not in st.session_state.done_topics:
                                     st.session_state.done_topics.append(u_key)
@@ -246,13 +234,13 @@ else:
                                     st.session_state.done_topics.remove(u_key)
                                     st.rerun()
 
-            with t1: render_modules(st.session_state.sem_data["Semester I"], "Semester_I")
-            with t2: render_modules(st.session_state.sem_data["Semester II"], "Semester_II")
+            with t1: render_ui(st.session_state.sem_data["Semester I"], "S1")
+            with t2: render_ui(st.session_state.sem_data["Semester II"], "S2")
 
-            # Share Loop
+            # WhatsApp Viral Loop
             st.divider()
-            share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20Syllabus%20ho%20gaya!"
-            st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share Progress on WhatsApp 🚀</button></a>', unsafe_allow_html=True)
+            share_msg = f"Bhai, TopperGPT pe mera {prog}% syllabus khatam! Tu bhi kar: [Link]"
+            st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share Progress 🚀</button></a>', unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
