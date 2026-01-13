@@ -153,66 +153,65 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (STABLE TABLE PARSER) ---
+    # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI ENHANCED) ---
     with tab2:
         st.markdown('<h3 style="text-align: center;">📋 Universal Syllabus Tracker</h3>', unsafe_allow_html=True)
         
-        # User selection to lock focus
+        # User selection to focus AI and save tokens
         t_sem = st.selectbox(
-            "Kaunse Semester ka tracker chahiye?", 
+            "Bhai, pehle Semester select karle:", 
             ["Select Semester", "Semester I", "Semester II"],
-            key="universal_stable_selector"
+            key="universal_ai_final_selector"
         )
         
-        syll_up = st.file_uploader("Upload University Syllabus PDF", type=["pdf"], key="syll_no_ai_v1")
+        syll_up = st.file_uploader("Upload University Syllabus PDF", type=["pdf"], key="syll_ai_universal")
         
-        if syll_up and t_sem != "Select Semester" and st.button("🚀 Analyze & Track My Syllabus", use_container_width=True):
-            with st.spinner(f"Scanning tables for {t_sem} (Bypassing AI Errors)..."):
+        if syll_up and t_sem != "Select Semester" and st.button("🚀 Analyze with AI", use_container_width=True):
+            with st.spinner(f"AI is decoding {t_sem} subjects and modules..."):
                 try:
-                    detected_data = {}
+                    # Reading PDF content
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Scan only relevant pages to avoid mixing semesters
-                        pages = pdf.pages[:35] if t_sem == "Semester I" else pdf.pages[30:70]
-                        
-                        for page in pages:
-                            tables = page.extract_tables()
-                            for table in tables:
-                                current_subject = None
-                                for row in table:
-                                    if not row or len(row) < 2: continue
-                                    text_line = " ".join([str(cell) for cell in row if cell])
-                                    
-                                    # Detect Subject Name from table headers
-                                    if any(keyword in text_line for keyword in ["Subject", "Course", "Detailed Contents"]):
-                                        potential_subj = text_line.split(":")[-1].replace("Detailed Contents", "").strip()
-                                        if len(potential_subj) > 5:
-                                            current_subject = potential_subj
-                                            if current_subject not in detected_data:
-                                                detected_data[current_subject] = []
-                                    
-                                    # Extract Modules (Looking for 01, 02 etc in first column)
-                                    col0 = str(row[0]).strip()
-                                    if current_subject and (col0.isdigit() or (len(col0) == 2 and col0.startswith('0'))):
-                                        module_name = str(row[1]).split('\n')[0].strip()
-                                        if len(module_name) > 5:
-                                            detected_data[current_subject].append(f"Module {col0}: {module_name}")
+                        # Taking first 60 pages to cover full year syllabus
+                        raw_text = "\n".join([p.extract_text() for p in pdf.pages[:60] if p.extract_text()])
+                    
+                    # Focused AI Prompt to avoid kachra
+                    prompt = f"""
+                    Instructions: 
+                    1. Identify ALL Engineering Subjects only for {t_sem}.
+                    2. For each subject, extract exactly 6 module/chapter titles.
+                    3. Do NOT use generic names like 'Module 1'; extract the actual topic name.
+                    4. Format: {t_sem} | Subject Name | Title 1, Title 2, Title 3, Title 4, Title 5, Title 6
+                    
+                    Text: {raw_text[:15000]}
+                    """
+                    
+                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                    
+                    dynamic_data = {}
+                    for line in res.choices[0].message.content.split("\n"):
+                        if "|" in line and t_sem.upper() in line.upper():
+                            parts = line.split("|")
+                            if len(parts) >= 3:
+                                s_name = parts[1].strip()
+                                m_list = [m.strip() for m in parts[2].split(",") if len(m) > 3][:6]
+                                if len(m_list) >= 3:
+                                    dynamic_data[s_name] = m_list
 
-                    # Final Cleanup
-                    st.session_state.tracker_data = {k: v[:6] for k, v in detected_data.items() if len(v) >= 3}
+                    st.session_state.tracker_data = dynamic_data
                     st.session_state.active_sem = t_sem
                     st.session_state.done_topics = [] 
-                    st.success(f"✅ {t_sem} Tracker Ready! (No AI tokens used)")
+                    st.success(f"✅ AI has mapped your {t_sem} Roadmap!")
                 except Exception as e:
-                    st.error(f"Analysis Error: {e}")
+                    st.error(f"Kal try karenge bhai, tokens shayad khatam hain: {e}")
 
-        # --- PREMIUM COMPACT DASHBOARD ---
+        # --- PROGRESS & BRANDED SHARE CARD ---
         if st.session_state.get("tracker_data"):
             t_data = st.session_state.tracker_data
             all_keys = [f"{st.session_state.active_sem}_{s}_{m}".replace(" ","_") for s, ms in t_data.items() for m in ms]
             done_items = [d for d in st.session_state.get("done_topics", []) if d in all_keys]
             prog = int((len(done_items) / len(all_keys)) * 100) if all_keys else 0
 
-            # Sleek TopperGPT Mastery Card
+            # Sleek Compact TopperGPT Card
             st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 12px; border-radius: 12px; color: white; border: 1px solid #4CAF50; margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -222,11 +221,11 @@ else:
                     <div style="background: rgba(255,255,255,0.2); height: 5px; border-radius: 10px; margin: 8px 0;">
                         <div style="background: #4CAF50; height: 5px; border-radius: 10px; width: {prog}%;"></div>
                     </div>
-                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.active_sem} Tracking Status</p>
+                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.active_sem} Tracking Dashboard</p>
                 </div>
             """, unsafe_allow_html=True)
 
-            # Branded Share Loop (Always visible)
+            # Branded Share Button
             share_msg = f"*TopperGPT Report*%0A🔥 Mera *{prog}%* {st.session_state.active_sem} syllabus khatam ho gaya!%0A🚀 Tu bhi track kar apna status!"
             st.markdown(f"""
                 <a href="https://wa.me/?text={share_msg}" target="_blank" style="text-decoration: none;">
@@ -238,20 +237,17 @@ else:
 
             st.divider()
             
-            # --- THE UNIVERSAL LIST ---
+            # --- THE DYNAMIC LIST ---
             for subject, modules in t_data.items():
                 with st.expander(f"📚 {subject}"):
                     for m in modules:
                         u_key = f"{st.session_state.active_sem}_{subject}_{m}".replace(" ", "_")
-                        # Real-time tick update
                         if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                             if u_key not in st.session_state.done_topics:
-                                st.session_state.done_topics.append(u_key)
-                                st.rerun()
+                                st.session_state.done_topics.append(u_key); st.rerun()
                         else:
                             if u_key in st.session_state.done_topics:
-                                st.session_state.done_topics.remove(u_key)
-                                st.rerun()
+                                st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
