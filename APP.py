@@ -153,64 +153,70 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (STRICT TABLE EXTRACTION & TARGETED SEM) ---
+    # --- TAB 2: UNIVERSAL SYLLABUS TRACKER ---
     with tab2:
-        st.markdown('<h3 style="text-align: center; margin-bottom: 5px;">📋 TopperGPT Targeted Roadmap</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center;">📋 Universal Syllabus Tracker</h3>', unsafe_allow_html=True)
         
-        # User selection to lock target
+        # User selection for Focus
         t_sem = st.selectbox(
-            "Kaunse Semester ka maal chahiye?", 
+            "Kaunse Semester ka tracker chahiye?", 
             ["Select Semester", "Semester I", "Semester II"],
-            key="sem_lock_final_v25"
+            key="universal_sem_selector"
         )
         
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_pro_final_v25")
+        syll_up = st.file_uploader("Upload Your University Syllabus PDF", type=["pdf"], key="syll_universal_v30")
         
-        if syll_up and t_sem != "Select Semester" and st.button("🚀 Build My Roadmap", use_container_width=True):
-            with st.spinner(f"Scanning tables for {t_sem}..."):
+        if syll_up and t_sem != "Select Semester" and st.button("🚀 Analyze My Syllabus", use_container_width=True):
+            with st.spinner(f"Decoding PDF for {t_sem}..."):
                 try:
-                    clean_roadmap = {}
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Scan only relevant pages to avoid mixing (Sem1: Start, Sem2: Middle)
-                        pages_to_scan = pdf.pages[:30] if t_sem == "Semester I" else pdf.pages[30:70]
-                        
-                        for page in pages_to_scan:
-                            tables = page.extract_tables()
-                            for table in tables:
-                                current_subject = None
-                                for row in table:
-                                    if not row or len(row) < 2: continue
-                                    row_text = " ".join([str(cell) for cell in row if cell])
-                                    
-                                    # Subject Header Detection
-                                    if "Subject" in row_text or "Course Name" in row_text:
-                                        current_subject = row_text.split(":")[-1].replace("Course Name", "").strip()
-                                        if len(current_subject) > 5 and current_subject not in clean_roadmap:
-                                            clean_roadmap[current_subject] = []
-                                    
-                                    # Module Detection (Checking for 01, 02 etc. in first column)
-                                    col0 = str(row[0]).strip()
-                                    if current_subject and (col0.isdigit() or col0.startswith('0')):
-                                        module_title = str(row[1]).split('\n')[0].strip()
-                                        if len(module_title) > 5:
-                                            clean_roadmap[current_subject].append(f"Module {col0}: {module_title}")
+                        # Scanning full text to detect all subjects
+                        full_text = "\n".join([p.extract_text() for p in pdf.pages[:60] if p.extract_text()])
+                    
+                    # AI Prompt: Strict extraction based on user's semester choice
+                    prompt = f"""
+                    Task: Extract ALL Engineering Subjects and their 6 Modules ONLY for {t_sem}.
+                    User Context: This is a {t_sem} student. Do NOT include subjects from other semesters.
+                    
+                    Instructions:
+                    1. Find subjects belonging specifically to {t_sem}.
+                    2. For each subject, extract the exact 6 Module names from the table/text.
+                    3. Do not use generic names like 'Module 1'; use the actual topic title.
+                    
+                    Format: {t_sem} | Subject Name | Title 1, Title 2, Title 3, Title 4, Title 5, Title 6
+                    Text Content: {full_text[:25000]}
+                    """
+                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                    
+                    # Hard Filtering Logic to prevent cross-semester mixing
+                    clean_roadmap = {}
+                    lines = res.choices[0].message.content.split("\n")
+                    for line in lines:
+                        if "|" in line and t_sem.upper() in line.upper():
+                            parts = line.split("|")
+                            if len(parts) >= 3:
+                                subj = parts[1].strip()
+                                # Cleaning module names to ensure quality
+                                mods = [m.strip() for m in parts[2].split(",") if len(m) > 3][:6]
+                                if len(mods) >= 3:
+                                    clean_roadmap[subj] = mods
 
-                    # Final Cleanup: Remove empty subjects
-                    st.session_state.target_data = {k: v[:6] for k, v in clean_roadmap.items() if len(v) >= 3}
+                    st.session_state.target_data = clean_roadmap
                     st.session_state.current_sem = t_sem
                     st.session_state.done_topics = [] 
-                    st.success(f"✅ {t_sem} Roadmap Ready!")
+                    st.success(f"✅ {t_sem} Tracker Generated Successfully!")
                 except Exception as e:
-                    st.error(f"Syllabus Error: {e}")
+                    st.error(f"Analysis Error: {e}")
 
-        # --- COMPACT PROGRESS & SHARE CARD ---
+        # --- DYNAMIC PROGRESS & SHARE CARD ---
         if st.session_state.get("target_data"):
             t_data = st.session_state.target_data
             all_keys = [f"{st.session_state.current_sem}_{s}_{m}".replace(" ","_") for s, ms in t_data.items() for m in ms]
+            
             valid_done = len([d for d in st.session_state.get("done_topics", []) if d in all_keys])
             prog = int((valid_done / len(all_keys)) * 100) if all_keys else 0
 
-            # Sleek Mastery Card
+            # Sleek Compact TopperGPT Card
             st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 12px; border-radius: 10px; color: white; text-align: center; border: 1px solid #4CAF50; margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -220,34 +226,37 @@ else:
                     <div style="background: rgba(255,255,255,0.2); height: 5px; border-radius: 10px; margin: 8px 0;">
                         <div style="background: #4CAF50; height: 5px; border-radius: 10px; width: {prog}%;"></div>
                     </div>
-                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.current_sem} Verified Roadmap</p>
+                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.current_sem} Tracker</p>
                 </div>
             """, unsafe_allow_html=True)
 
-            # Share Button with TopperGPT Watermark
-            share_text = f"*TopperGPT {st.session_state.current_sem} Report*%0A🔥 Mera *{prog}%* syllabus khatam ho gaya!%0A🚀 Tu bhi track kar apna status!"
+            # Branded WhatsApp Share
+            share_text = f"*TopperGPT {st.session_state.current_sem} Progress*%0A🔥 Mera *{prog}%* syllabus khatam ho gaya!%0A🚀 Tu bhi track kar apna status!"
             st.markdown(f"""
                 <a href="https://wa.me/?text={share_text}" target="_blank" style="text-decoration: none;">
                     <button style="background-color: #25D366; color: white; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">
-                        📲 Share with TopperGPT Watermark
+                        📲 Share Progress on WhatsApp
                     </button>
                 </a>
             """, unsafe_allow_html=True)
 
             st.divider()
             
-            # --- DYNAMIC LIST: Only the selected Semester ---
-            st.subheader(f"📘 {st.session_state.current_sem} Detailed Roadmap")
+            # --- THE TRACKER LIST ---
+            st.subheader(f"📘 {st.session_state.current_sem} Tracker")
             for subject, modules in t_data.items():
                 with st.expander(f"📚 {subject}"):
                     for m in modules:
                         u_key = f"{st.session_state.current_sem}_{subject}_{m}".replace(" ", "_")
+                        # Real-time tick update
                         if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                             if u_key not in st.session_state.done_topics:
-                                st.session_state.done_topics.append(u_key); st.rerun()
+                                st.session_state.done_topics.append(u_key)
+                                st.rerun()
                         else:
                             if u_key in st.session_state.done_topics:
-                                st.session_state.done_topics.remove(u_key); st.rerun()
+                                st.session_state.done_topics.remove(u_key)
+                                st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
