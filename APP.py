@@ -153,60 +153,67 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (ZERO-AI SEQUENTIAL SYNC) ---
+    # --- TAB 2: SYLLABUS MAGIC (FIXED 6 SUBJECTS & PROGRESS BAR) ---
     with tab2:
-        st.markdown('<h3 style="text-align: center; margin-bottom: 0px;">📋 Engineering Syllabus Roadmap</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center; margin-bottom: 0px;">📋 TopperGPT Syllabus Roadmap</h3>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload Full Syllabus PDF", type=["pdf"], key="syll_final_pro_stable")
+        syll_up = st.file_uploader("Upload Full Syllabus PDF", type=["pdf"], key="syll_final_pro_stable_v2")
         
         if syll_up and st.button("🚀 Generate Organized Roadmap", use_container_width=True):
-            with st.spinner("Locking Subjects and Modules..."):
+            with st.spinner("Locking 6 Subjects per Semester..."):
                 try:
-                    # Engineering Syllabus Structure
+                    # Engineering Syllabus 6-Subject Pattern
                     sem_data = {
                         "Semester I": {
                             "Applied Mathematics - I": ["Complex Numbers", "Hyperbolic Functions & Logarithms", "Partial Differentiation", "Applications of Partial Differentiation", "Matrices", "Numerical Solutions"],
-                            "Applied Physics - I": ["Quantum Physics", "Crystallography", "Semiconductor Physics", "Interference in Thin Films", "Superconductivity", "Nano-Materials"],
-                            "Applied Chemistry - I": ["Water Technology", "Polymers", "Lubricants", "Phase Rule", "Corrosion", "Energy Resources"]
+                            "Applied Physics - I": ["Quantum Physics", "Crystallography", "Semiconductor Physics", "Interference", "Superconductivity", "Nano-Materials"],
+                            "Applied Chemistry - I": ["Water Technology", "Polymers", "Lubricants", "Phase Rule", "Corrosion", "Energy Resources"],
+                            "Engineering Mechanics": ["System of Coplanar Forces", "Equilibrium of System", "Trusses & Friction", "Centroid & Moment of Inertia", "Kinematics of Particle", "Kinetics of Particle"],
+                            "Basic Electrical Engg": ["DC Circuits", "AC Fundamentals", "Single Phase AC Circuits", "Three Phase AC Circuits", "Transformers", "Electrical Machines"],
+                            "Communication Skills": ["Communication Process", "Oral Skills", "Grammar & Vocabulary", "Writing Skills", "Business Correspondence", "Report Writing"]
                         },
                         "Semester II": {
                             "Applied Mathematics - II": ["Differential Equations", "Vector Calculus", "Probability and Statistics", "Numerical Methods", "Linear Algebra", "Complex Integration"],
                             "Applied Physics - II": ["Diffraction", "Lasers", "Fiber Optics", "Electrodynamics", "Relativity", "Physics of Sensors"],
-                            "Engineering Graphics": ["Projections of Points", "Projections of Lines", "Projections of Planes", "Projections of Solids", "Isometric Projection", "Section of Solids"]
+                            "Applied Chemistry - II": ["Corrosion Control", "Alloys", "Fuels & Combustion", "Composite Materials", "Green Chemistry", "Instrumental Methods"],
+                            "Engineering Graphics": ["Projections of Points", "Projections of Lines", "Projections of Planes", "Projections of Solids", "Isometric Projection", "Section of Solids"],
+                            "C Programming": ["Algorithm & Flowcharts", "Basic Logic", "Arrays & Strings", "Functions", "Structures & Unions", "Pointers & File Handling"],
+                            "Environmental Studies": ["Environment Ecosystem", "Natural Resources", "Energy Resources", "Environmental Pollution", "Social Issues", "Human Population"]
                         }
                     }
                     
                     st.session_state.sem_data = sem_data
                     st.session_state.done_topics = []
-                    st.success("✅ Syllabus Locked. Ab bina kisi bug ke padhai kar!")
+                    st.success("✅ 6 Subjects synced for both semesters. Ab padhai shuru kar!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- PROGRESS DASHBOARD (SLEEK & WORKING) ---
+        # --- DYNAMIC PROGRESS DASHBOARD (THE WORKING BAR) ---
         if st.session_state.get("sem_data"):
-            # Master key list for accurate bar calculation
-            all_m_keys = []
-            for sem, subs in st.session_state.sem_data.items():
-                for s_name, m_list in subs.items():
+            # Sabhi modules ki master list banao calculation ke liye
+            all_module_keys = []
+            for sem, subjects in st.session_state.sem_data.items():
+                for s_name, m_list in subjects.items():
                     for m_name in m_list:
-                        all_m_keys.append(f"{sem}_{s_name}_{m_name}".replace(" ","_"))
+                        all_module_keys.append(f"{sem}_{s_name}_{m_name}".replace(" ","_"))
             
-            t_count = len(all_m_keys)
-            current_done = [d for d in st.session_state.get("done_topics", []) if d in all_m_keys]
-            prog = int((len(current_done) / t_count) * 100) if t_count > 0 else 0
+            total_m = len(all_module_keys)
+            # Count only items that exist in our current roadmap
+            done_m = len([d for d in st.session_state.get("done_topics", []) if d in all_module_keys])
+            prog = int((done_m / total_m) * 100) if total_m > 0 else 0
 
-            # --- SLEEK IPHONE STYLE BAR ---
+            # --- SLEEK IPHONE BAR (5px HEIGHT) ---
             st.markdown(f"""
                 <style>
-                    .stProgress > div > div > div > div {{ height: 6px !important; background-color: #4CAF50; border-radius: 10px; }}
+                    .stProgress > div > div > div > div {{ height: 5px !important; background-color: #4CAF50; border-radius: 10px; }}
                 </style>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <span style="font-weight: bold; font-size: 14px; color: #4CAF50;">MASTERY STATUS</span>
+                    <span style="font-weight: bold; font-size: 14px; color: #4CAF50;">TOTAL YEARLY MASTERY</span>
                     <span style="font-weight: bold; color: #4CAF50; font-size: 18px;">{prog}%</span>
                 </div>
             """, unsafe_allow_html=True)
             st.progress(prog / 100)
-            st.caption(f"Progress: {len(current_done)} out of {t_count} Chapters Done")
+            st.caption(f"Done: {done_m} | Remaining: {total_m - done_m} Chapters")
 
             st.divider()
             t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
@@ -215,23 +222,23 @@ else:
                 for subject, modules in data.items():
                     with st.expander(f"📚 {subject}"):
                         for m in modules:
-                            # Unique key for perfect sync
+                            # Unique key matching our calculation logic
                             u_key = f"{sem_tag}_{subject}_{m}".replace(" ", "_")
                             if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                                 if u_key not in st.session_state.done_topics:
                                     st.session_state.done_topics.append(u_key)
-                                    st.rerun() # Immediate sync
+                                    st.rerun() # Immediate sync to update bar
                             else:
                                 if u_key in st.session_state.done_topics:
                                     st.session_state.done_topics.remove(u_key)
                                     st.rerun()
 
-            with t1: render_modules(st.session_state.sem_data["Semester I"], "S1")
-            with t2: render_modules(st.session_state.sem_data["Semester II"], "S2")
+            with t1: render_modules(st.session_state.sem_data["Semester I"], "Semester_I")
+            with t2: render_modules(st.session_state.sem_data["Semester II"], "Semester_II")
 
-            # --- BRANDED DOWNLOAD & SHARE ---
+            # --- SHARE STATUS BUTTON ---
             st.divider()
-            share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20syllabus%20ho%20gaya!"
+            share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20syllabus%20done!%20Tu%20bhi%20track%20kar."
             st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share My Mastery on WhatsApp 🚀</button></a>', unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
