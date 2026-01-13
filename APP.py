@@ -153,27 +153,23 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (RECOVERED MODULES) ---
+    # --- TAB 2: SYLLABUS MAGIC (FIXED PROGRESS & MODULES) ---
     with tab2:
         st.markdown('<h2 style="text-align: center;">📋 University Syllabus Roadmap</h2>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_final_recovery")
+        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_final_v10")
         
         if syll_up and st.button("🚀 Generate Sem-Wise Roadmap", use_container_width=True):
-            with st.spinner("Recovering Modules and Subjects..."):
+            with st.spinner("Partitioning Semesters & Modules..."):
                 try:
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Poora PDF scan kar rahe hain modules ke liye
                         full_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
                     
-                    # Strict prompt to ensure Modules are not lost
+                    # Force AI to use a very strict separator
                     prompt = f"""
-                    Identify all engineering subjects and their exactly 6 core Modules.
-                    Group them strictly by Semester.
-                    Format:
-                    SEM_1: Subject Name | M1: Title, M2: Title, M3: Title, M4: Title, M5: Title, M6: Title
-                    SEM_2: Subject Name | M1: Title, M2: Title, M3: Title, M4: Title, M5: Title, M6: Title
-                    Text: {full_text[:18000]}
+                    Extract engineering subjects and their 6 Modules. 
+                    Structure: SEM_1: Subject | M1, M2, M3, M4, M5, M6
+                    Use ONLY the following text: {full_text[:15000]}
                     """
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     
@@ -184,75 +180,78 @@ else:
                             parts = line.split(":", 1)
                             sem_key = "Semester I" if "SEM_1" in parts[0] else "Semester II"
                             subj_part, mods_part = parts[1].split("|")
-                            # Saving modules as a list to fix the "gayab" issue
-                            sem_roadmap[sem_key][subj_part.strip()] = [m.strip() for m in mods_part.split(",")]
+                            # Safely split modules even if AI uses different commas
+                            m_list = [m.strip() for m in mods_part.replace(",", ",").split(",") if len(m) > 3]
+                            sem_roadmap[sem_key][subj_part.strip()] = m_list[:6]
                     
                     st.session_state.sem_data = sem_roadmap
-                    st.session_state.done_topics = [] # Reset progress for new syllabus
-                    st.success("✅ Roadmap & Modules Synced!")
+                    st.session_state.done_topics = [] 
+                    st.success("✅ Roadmap Synced!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- DYNAMIC PROGRESS DASHBOARD ---
+        # --- DYNAMIC PROGRESS CALCULATION (RE-SYNCED) ---
         if st.session_state.get("sem_data"):
-            # Calculating total modules globally
-            total_m_list = []
-            for sem, subs in st.session_state.sem_data.items():
-                for s, ms in subs.items():
-                    for m in ms:
-                        total_m_list.append(f"{sem}_{s}_{m}".replace(" ", "_"))
+            # Create a flat list of all unique module keys
+            all_module_keys = []
+            for sem_name, subjects in st.session_state.sem_data.items():
+                for s_name, m_list in subjects.items():
+                    for m_name in m_list:
+                        all_module_keys.append(f"{sem_name}_{s_name}_{m_name}".replace(" ", "_"))
             
-            t_count = len(total_m_list)
-            d_count = len([d for d in st.session_state.get("done_topics", []) if d in total_m_list])
-            prog = int((d_count / t_count) * 100) if t_count > 0 else 0
+            total_count = len(all_module_keys)
+            # Count how many of our 'done' topics are actually in this roadmap
+            current_done = [d for d in st.session_state.get("done_topics", []) if d in all_module_keys]
+            prog = int((len(current_done) / total_count) * 100) if total_count > 0 else 0
 
-            # UI Styling
+            # --- BIG UI DASHBOARD ---
             st.markdown(f"""
-                <style>
-                    .stProgress > div > div > div > div {{ background-color: #4CAF50; height: 30px !important; }}
-                    .big-card {{ background-color: #f8f9fb; padding: 25px; border-radius: 15px; border: 1px solid #ddd; text-align: center; }}
-                </style>
+                <div style="background-color: #f8f9fb; padding: 25px; border-radius: 15px; border: 1px solid #ddd; text-align: center;">
+                    <div style="display: flex; justify-content: space-around; align-items: center;">
+                        <div>
+                            <h1 style="color:#4CAF50; font-size:60px; margin:0;">{prog}%</h1>
+                            <p style="font-weight:bold;">TOTAL MASTERY</p>
+                        </div>
+                        <div style="width: 60%;">
+                            <p style="margin-bottom:5px;"><b>Preparation Status:</b> {len(current_done)} / {total_count} Modules Done</p>
+                            <div style="background-color: #ddd; border-radius: 13px; height: 30px;">
+                                <div style="background-color: #4CAF50; width: {prog}%; height: 30px; border-radius: 13px; transition: width 0.5s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             """, unsafe_allow_html=True)
-
-            st.markdown(f'<div class="big-card">', unsafe_allow_html=True)
-            c1, c2 = st.columns([1, 2])
-            with c1:
-                st.markdown(f"<h1 style='color:#4CAF50; font-size:60px;'>{prog}%</h1>", unsafe_allow_html=True)
-                st.write("**Total Mastery**")
-            with c2:
-                st.write(f"### {d_count} / {t_count} Modules Done")
-                st.progress(prog / 100)
-                st.download_button("📥 Download Branded Roadmap", f"TopperGPT Report: {prog}% Complete", use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
 
             st.divider()
             t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
 
-            def render_subjects_with_modules(data, sem_label):
+            # Render function with guaranteed unique keys
+            def render_ui(data, sem_tag):
                 for subject, modules in data.items():
-                    # Har subject ka expander
-                    with st.expander(f"📚 {subject}", expanded=False):
-                        if not modules:
-                            st.write("No modules found. Try regenerating.")
+                    with st.expander(f"📚 {subject}"):
                         for m in modules:
-                            # Unique key for each module to fix sync
-                            u_key = f"{sem_label}_{subject}_{m}".replace(" ", "_")
-                            is_checked = st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics))
-                            
-                            if is_checked and u_key not in st.session_state.done_topics:
-                                st.session_state.done_topics.append(u_key)
-                                st.rerun()
-                            elif not is_checked and u_key in st.session_state.done_topics:
-                                st.session_state.done_topics.remove(u_key)
-                                st.rerun()
+                            u_key = f"{sem_tag}_{subject}_{m}".replace(" ", "_")
+                            # Checkbox logic
+                            if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
+                                if u_key not in st.session_state.done_topics:
+                                    st.session_state.done_topics.append(u_key)
+                                    st.rerun()
+                            else:
+                                if u_key in st.session_state.done_topics:
+                                    st.session_state.done_topics.remove(u_key)
+                                    st.rerun()
 
-            with t1: render_subjects_with_modules(st.session_state.sem_data["Semester I"], "S1")
-            with t2: render_subjects_with_modules(st.session_state.sem_data["Semester II"], "S2")
+            with t1: render_ui(st.session_state.sem_data["Semester I"], "Semester_I")
+            with t2: render_ui(st.session_state.sem_data["Semester II"], "Semester_II")
 
-            # WhatsApp Viral Loop
+            # Branded Download & Share
             st.divider()
-            share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20syllabus%20ho%20gaya!%20Tu%20bhi%20kar."
-            st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer;">Share Progress on WhatsApp 🚀</button></a>', unsafe_allow_html=True)     
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                st.download_button("📥 Download Branded Report", f"TopperGPT Report: {prog}% Complete\nWatermark: Generated by TopperGPT", use_container_width=True)
+            with col_d2:
+                share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20syllabus%20done!%20Tu%20bhi%20kar."
+                st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; font-weight:bold; cursor:pointer;">Share on WhatsApp 🚀</button></a>', unsafe_allow_html=True)     
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
