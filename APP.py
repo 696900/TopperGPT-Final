@@ -180,15 +180,69 @@ else:
                 st.checkbox(topic, key=f"rd_map_{i}")
 
     # --- TAB 3: ANSWER EVALUATOR ---
+   # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
-        st.subheader("📝 Answer Grader")
-        q_eval = st.text_area("Step 1: Paste Question here:")
-        ans_eval = st.file_uploader("Step 2: Upload Handwritten Answer", type=["png", "jpg", "jpeg", "pdf"], key="ans_up")
-        if st.button("Grade My Answer") and q_eval and ans_eval:
-            with st.spinner("Evaluating..."):
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                res = model.generate_content([{"mime_type": ans_eval.type, "data": ans_eval.getvalue()}, f"Evaluate for question: {q_eval}. Give marks out of 10."])
-                st.info(res.text)
+        st.subheader("🖋️ Board Moderator: Answer Evaluation")
+        st.write("Upload your handwritten answer. I will grade you like a strict University Examiner.")
+
+        # 1. Context Setting (Morphine Strategy: Question is must)
+        q_text = st.text_area("Step 1: Paste the Question here (so I can grade accurately):", placeholder="e.g. Explain the working of a BJT as an amplifier.")
+        
+        # 2. Image Upload
+        ans_img = st.file_uploader("Step 2: Upload your handwritten answer (Image/PDF)", type=["png", "jpg", "jpeg", "pdf"])
+
+        if st.button("🔍 Evaluate My Answer") and ans_img and q_text:
+            with st.spinner("Moderator is checking your paper... Be ready for honest feedback."):
+                try:
+                    # Vision model call (Gemini for Image analysis)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    # Preparing the image data
+                    img_data = ans_img.getvalue()
+                    
+                    # THE "STRICT MODERATOR" PROMPT (Your Founder Strategy)
+                    moderator_prompt = f"""
+                    ROLE: Strict Indian University Board Examiner (20 years experience).
+                    QUESTION: {q_text}
+                    
+                    GRADING RULES:
+                    1. Scan for Technical Keywords. No keywords = Heavy penalty.
+                    2. Check for Diagram/Formula. If missing but required, deduct 50% marks.
+                    3. Presentation: Underlining, labeling, and step-wise logic matter.
+                    4. Illegible Handwriting = 0 marks.
+                    
+                    OUTPUT FORMAT (Strictly follow this):
+                    ## 📊 PROVISIONAL SCORE: [X/10]
+                    
+                    ### ✅ WHAT YOU DID WELL:
+                    (1 short sentence)
+                    
+                    ### ❌ WHY YOU LOST MARKS:
+                    (Bullet points with specific misses)
+                    
+                    ### 💡 THE TOPPER'S TIP (MODEL ANSWER):
+                    (Tell them exactly what keywords and diagram to add for 10/10)
+                    
+                    ---
+                    **MODERATOR'S FINAL WARNING:** (Only if handwriting is bad)
+                    """
+                    
+                    # Using Gemini Vision to 'read' the handwriting
+                    response = model.generate_content([
+                        {"mime_type": "image/jpeg", "data": img_data},
+                        moderator_prompt
+                    ])
+                    
+                    st.markdown(response.text)
+                    
+                    # 3. Viral Loop: Shareable Result [Your Viral Marketing Strategy]
+                    st.divider()
+                    st.caption("Proud of your score? Share it with your study group!")
+                    share_text = f"I just got a {response.text.split('/10')[0][-1]}/10 from TopperGPT's Board Moderator! Can you beat me?"
+                    st.download_button("📥 Download Evaluation Report", response.text, file_name="Evaluation_Report.txt")
+                    
+                except Exception as e:
+                    st.error(f"Moderator is busy. Error: {e}")
 
     # --- TAB 4: MIND MAP ---
     # --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
