@@ -153,87 +153,100 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (BRANDED & TARGETED) ---
+    # --- TAB 2: SYLLABUS MAGIC (FIXED SEMESTER LOCK & SLEEK UI) ---
     with tab2:
-        st.markdown('<h3 style="text-align: center;">📋 TopperGPT Syllabus Tracker</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center; margin-bottom: 5px;">📋 TopperGPT Roadmap Generator</h3>', unsafe_allow_html=True)
         
-        target_sem_choice = st.selectbox(
-            "Bhai, kaunse Semester ka tracker banau?", 
-            ["Select Semester", "Semester I", "Semester II", "Both (Full Year)"],
-            key="sem_choice_v12"
+        # Bhai ka user preference lock
+        t_sem = st.selectbox(
+            "Target Semester select kar bhai:", 
+            ["Select Semester", "Semester I", "Semester II", "Full Year"],
+            key="sem_lock_v15"
         )
         
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_branded_v12")
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_pro_v15")
         
-        if syll_up and target_sem_choice != "Select Semester" and st.button("🚀 Build Branded Roadmap", use_container_width=True):
-            with st.spinner(f"TopperGPT is analyzing {target_sem_choice}..."):
+        if syll_up and t_sem != "Select Semester" and st.button("🚀 Build Branded Roadmap", use_container_width=True):
+            with st.spinner(f"Targeting {t_sem} strictly..."):
                 try:
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
+                        # Full scan for deep subject detection
                         full_text = "\n".join([p.extract_text() for p in pdf.pages[:60] if p.extract_text()])
                     
+                    # Logic: AI ko strictly partition batana
                     prompt = f"""
-                    Extract subjects ONLY for {target_sem_choice}. 
-                    Use full subject names and full module titles (No M1, M2).
+                    Extract subjects ONLY for {t_sem}. 
+                    If user said 'Full Year', do both. 
+                    Constraint: Applied Mathematics II and Python belong ONLY to Semester II. 
+                    Fiber Optics and Lasers belong ONLY to Semester I.
+                    
                     Format: TARGET_SEM | Subject Name | Mod1, Mod2, Mod3, Mod4, Mod5, Mod6
                     Text: {full_text[:25000]}
                     """
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     
+                    # Hard Partitioning Logic
                     roadmap = {"Semester I": {}, "Semester II": {}}
                     for line in res.choices[0].message.content.split("\n"):
                         if "|" in line:
                             parts = line.split("|")
                             if len(parts) >= 3:
-                                sem_key = parts[0].strip().upper()
+                                s_tag = parts[0].strip().upper()
                                 subj = parts[1].strip()
                                 mods = [m.strip() for m in parts[2].split(",") if len(m) > 5][:6]
-                                if "1" in sem_key or "I" in sem_key: roadmap["Semester I"][subj] = mods
-                                elif "2" in sem_key or "II" in sem_key: roadmap["Semester II"][subj] = mods
+                                
+                                # Strict mapping to avoid image_725079.png error
+                                if "1" in s_tag or "I" in s_tag: roadmap["Semester I"][subj] = mods
+                                elif "2" in s_tag or "II" in s_tag: roadmap["Semester II"][subj] = mods
 
                     st.session_state.sem_data = roadmap
                     st.session_state.done_topics = [] 
-                    st.success(f"✅ {target_sem_choice} Roadmap Ready!")
+                    st.success(f"✅ {t_sem} Roadmap Ready!")
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Syllabus Error: {e}")
 
-        # --- PROGRESS & BRANDED SHARE ---
+        # --- PROGRESS DASHBOARD (SLEEK & COMPACT) ---
         if st.session_state.get("sem_data"):
             all_keys = [f"{sem}_{s}_{m}".replace(" ","_") for sem, subs in st.session_state.sem_data.items() for s, ms in subs.items() for m in ms]
             valid_done = len([d for d in st.session_state.get("done_topics", []) if d in all_keys])
             prog = int((valid_done / len(all_keys)) * 100) if all_keys else 0
 
-            # --- TOPPERGPT WATERMARKED CARD ---
+            # --- COMPACT TOPPERGPT CARD ---
             st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 15px; color: white; text-align: center; border: 2px solid #4CAF50;">
-                    <h2 style="margin: 0; color: #4CAF50;">🚀 TopperGPT</h2>
-                    <p style="margin: 5px 0; font-size: 14px; opacity: 0.8;">Syllabus Mastery Report</p>
-                    <h1 style="margin: 10px 0; font-size: 48px;">{prog}%</h1>
-                    <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 5px; width: 80%; margin: 0 auto;">
-                        <div style="background: #4CAF50; height: 8px; border-radius: 5px; width: {prog}%;"></div>
+                <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 15px; border-radius: 12px; color: white; text-align: center; border: 1px solid #4CAF50; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 18px; font-weight: bold; color: #4CAF50;">🚀 TopperGPT</span>
+                        <span style="font-size: 24px; font-weight: bold;">{prog}%</span>
                     </div>
-                    <p style="margin-top: 15px; font-weight: bold;">🔥 Bhai ka itna syllabus khatam! 🔥</p>
+                    <div style="background: rgba(255,255,255,0.2); height: 6px; border-radius: 10px; margin: 10px 0;">
+                        <div style="background: #4CAF50; height: 6px; border-radius: 10px; width: {prog}%;"></div>
+                    </div>
+                    <p style="margin: 0; font-size: 12px; opacity: 0.8;">Bhai ka itna syllabus khatam! 🔥</p>
                 </div>
             """, unsafe_allow_html=True)
 
-            # --- WHATSAPP SHARE BUTTON ---
-            st.divider()
-            share_text = f"*TopperGPT Mastery Report*%0A🔥 Mera *{prog}%* syllabus khatam ho gaya!%0A✅ Chapters Done: {valid_done}%0A🚀 Tu bhi check kar apna status!"
+            # --- SHARE BUTTON ---
+            share_t = f"*TopperGPT Mastery Report*%0A🔥 Mera *{prog}%* syllabus khatam ho gaya!%0A✅ Chapters Done: {valid_done}%0A🚀 Tu bhi track kar apna status!"
             st.markdown(f"""
-                <a href="https://wa.me/?text={share_text}" target="_blank" style="text-decoration: none;">
-                    <button style="background-color: #25D366; color: white; width: 100%; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px;">
+                <a href="https://wa.me/?text={share_t}" target="_blank" style="text-decoration: none;">
+                    <button style="background-color: #25D366; color: white; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 20px;">
                         📲 Share with TopperGPT Watermark
                     </button>
                 </a>
             """, unsafe_allow_html=True)
 
-            st.divider()
+            # --- FIXED TABS ---
             t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
+            
             def render_ui(data, sem_label):
-                if not data: st.info("No data in this Semester.")
+                if not data: 
+                    st.info("Is tab mein data nahi hai. Check your target semester selection.")
+                    return
                 for subject, modules in data.items():
                     with st.expander(f"📚 {subject}"):
                         for m in modules:
                             u_key = f"{sem_label}_{subject}_{m}".replace(" ", "_")
+                            # Tick and Rerun for live progress
                             if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                                 if u_key not in st.session_state.done_topics:
                                     st.session_state.done_topics.append(u_key); st.rerun()
