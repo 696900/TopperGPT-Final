@@ -153,55 +153,53 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (FIXED DATA EXTRACTION) ---
+    # --- TAB 2: SYLLABUS MAGIC (HYBRID PARSER) ---
     with tab2:
         st.markdown('<h3 style="text-align: center; margin-bottom: 10px;">📋 University Syllabus Roadmap</h3>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_pro_final_v5")
+        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_hybrid_v1")
         
         if syll_up and st.button("🚀 Generate Sem-Wise Roadmap", use_container_width=True):
-            with st.spinner("Breaking down syllabus tables..."):
+            with st.spinner("Analyzing Syllabus structure..."):
                 try:
-                    # Resetting data to avoid old ghost data
+                    # Reset data
                     st.session_state.sem_data = {"Semester I": {}, "Semester II": {}}
                     st.session_state.done_topics = []
                     
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Scan all pages to capture every table
-                        for page in pdf.pages:
-                            tables = page.extract_tables()
-                            current_subj = "General Engineering"
-                            
-                            for table in tables:
-                                for row in table:
-                                    if not row or len(row) < 2: continue
-                                    
-                                    # Logic to detect Subject Name (Usually in bold or header rows)
-                                    row_text = " ".join([str(c) for c in row if c])
-                                    if "Subject" in row_text or "Course" in row_text:
-                                        current_subj = row_text.split(":")[-1].strip()
-                                    
-                                    # Strictly identifying Module Rows
-                                    col0 = str(row[0]).strip()
-                                    if col0.isdigit() or (len(col0) == 2 and col0.startswith('0')):
-                                        # Mapping to Semesters based on common engineering patterns
-                                        # (Can be adjusted based on PDF page number if needed)
-                                        sem_key = "Semester I" if page.page_number < 15 else "Semester II"
-                                        
-                                        if current_subj not in st.session_state.sem_data[sem_key]:
-                                            st.session_state.sem_data[sem_key][current_subj] = []
-                                        
-                                        module_title = str(row[1]).split('\n')[0].strip()
-                                        mod_entry = f"Module {col0}: {module_title}"
-                                        
-                                        if mod_entry not in st.session_state.sem_data[sem_key][current_subj]:
-                                            st.session_state.sem_data[sem_key][current_subj].append(mod_entry)
+                        # Scan full text for AI fallback
+                        full_text = "\n".join([p.extract_text() for p in pdf.pages[:20] if p.extract_text()])
+                    
+                    # 🤖 HYBRID LOGIC: AI handles the extraction if tables are messy
+                    prompt = f"""
+                    Extract Engineering Subjects and their 6 Modules. 
+                    Structure strictly as:
+                    SEM_1: Subject Name | Module 1: Title, Module 2: Title, Module 3: Title, Module 4: Title, Module 5: Title, Module 6: Title
+                    SEM_2: Subject Name | Module 1: Title, Module 2: Title, Module 3: Title, Module 4: Title, Module 5: Title, Module 6: Title
+                    
+                    Syllabus Data: {full_text[:15000]}
+                    """
+                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                    
+                    lines = res.choices[0].message.content.split("\n")
+                    for line in lines:
+                        if "|" in line and ":" in line:
+                            parts = line.split(":", 1)
+                            sem_key = "Semester I" if "1" in parts[0] or "I" in parts[0] else "Semester II"
+                            subj_part, mods_part = parts[1].split("|")
+                            # Split modules and clean up
+                            m_list = [m.strip() for m in mods_part.split(",") if len(m) > 5][:6]
+                            if m_list:
+                                st.session_state.sem_data[sem_key][subj_part.strip()] = m_list
 
-                    st.success("✅ Syllabus Tables Synced Successfully!")
+                    if not st.session_state.sem_data["Semester I"] and not st.session_state.sem_data["Semester II"]:
+                        st.error("⚠️ AI couldn't parse modules. Please check if the PDF is readable.")
+                    else:
+                        st.success("✅ Syllabus Roadmap Synchronized!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- PROGRESS DASHBOARD (SLEEK & ACCURATE) ---
+        # --- PROGRESS DASHBOARD (SLEEK & CENTERED) ---
         if st.session_state.get("sem_data") and (st.session_state.sem_data["Semester I"] or st.session_state.sem_data["Semester II"]):
             all_module_keys = []
             for sem, subs in st.session_state.sem_data.items():
@@ -216,11 +214,12 @@ else:
             # UI Styling
             st.markdown(f"""
                 <style>
-                    .stProgress > div > div > div > div {{ height: 10px !important; }}
-                    .mastery-pct {{ font-size: 28px; font-weight: bold; color: #4CAF50; }}
+                    .stProgress > div > div > div > div {{ height: 12px !important; border-radius: 10px; }}
+                    .mastery-pct {{ font-size: 32px; font-weight: bold; color: #4CAF50; text-align: center; }}
                 </style>
-                <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; border: 1px solid #eee;">
+                <div style="background: #f9f9f9; padding: 20px; border-radius: 15px; border: 1px solid #eee; margin-bottom: 20px;">
                     <p class="mastery-pct">{prog}% Mastery</p>
+                    <p style="text-align: center; color: gray;">{len(current_done)} of {t_count} Chapters Completed</p>
                 </div>
             """, unsafe_allow_html=True)
             st.progress(prog / 100)
@@ -230,7 +229,7 @@ else:
 
             def render_modules(data, sem_tag):
                 if not data:
-                    st.info("No subjects found in this section. Try scrolling or re-uploading.")
+                    st.info(f"No {sem_tag} subjects detected in this PDF scan.")
                     return
                 for subject, modules in data.items():
                     with st.expander(f"📚 {subject}"):
@@ -249,13 +248,14 @@ else:
             with t1: render_modules(st.session_state.sem_data["Semester I"], "S1")
             with t2: render_modules(st.session_state.sem_data["Semester II"], "S2")
 
-            # Branded Viral Loop
+            # --- VIRAL LOOP & BRANDING ---
             st.divider()
-            share_msg = f"Bhai, TopperGPT pe mera {prog}% syllabus khatam! Tu bhi kar: [Link]"
-            st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share Progress on WhatsApp 🚀</button></a>', unsafe_allow_html=True)
-        else:
-            if syll_up:
-                st.warning("⚠️ No Module tables detected. Please ensure the PDF contains 'Detailed Contents' tables.")
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                st.download_button("📥 Download Branded Tracker", f"TopperGPT Report: {prog}% Done\nWatermark: Generated by TopperGPT", use_container_width=True)
+            with col_d2:
+                share_msg = f"Bhai, TopperGPT pe mera {prog}% syllabus khatam! Tu bhi kar: [App_Link]"
+                st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share on WhatsApp 🚀</button></a>', unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
