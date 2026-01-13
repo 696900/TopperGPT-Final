@@ -153,19 +153,21 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (FIXED SEM II & SLEEK BAR) ---
+    # --- TAB 2: SYLLABUS MAGIC (FINAL RECOVERY & SLEEK UI) ---
     with tab2:
-        st.markdown('<h3 style="text-align: center;">📋 University Syllabus Roadmap</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center; margin-bottom: 0px;">📋 University Syllabus Roadmap</h3>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_final_sleek")
+        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_final_sleek_v3")
         
         if syll_up and st.button("🚀 Generate Sem-Wise Roadmap", use_container_width=True):
-            with st.spinner("Processing Semesters..."):
+            with st.spinner("Partitioning Semesters..."):
                 try:
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        full_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                        # Sirf zaroori pages scan kar rahe hain fast aur accurate result ke liye
+                        full_text = "\n".join([p.extract_text() for p in pdf.pages[:15] if p.extract_text()])
                     
-                    prompt = f"Extract Subjects & 6 Modules for Sem 1 and Sem 2:\n{full_text[:15000]}"
+                    # Strict prompt to prevent "No subjects found"
+                    prompt = f"Extract all engineering subjects and their 6 modules for Sem 1 and Sem 2:\n{full_text[:12000]}"
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     
                     sem_roadmap = {"Semester I": {}, "Semester II": {}}
@@ -173,7 +175,7 @@ else:
                     for line in lines:
                         if "|" in line and ":" in line:
                             parts = line.split(":", 1)
-                            sem_key = "Semester I" if "SEM_1" in parts[0] else "Semester II"
+                            sem_key = "Semester I" if "1" in parts[0] or "I" in parts[0] else "Semester II"
                             subj_part, mods_part = parts[1].split("|")
                             sem_roadmap[sem_key][subj_part.strip()] = [m.strip() for m in mods_part.split(",")][:6]
                     
@@ -183,44 +185,44 @@ else:
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- PROGRESS DASHBOARD (SLEEK DESIGN) ---
+        # --- PROGRESS DASHBOARD (COMPACT DESIGN) ---
         if st.session_state.get("sem_data"):
+            # Collecting keys for ALL modules from ALL semesters
             all_module_keys = []
-            for sem_name, subjects in st.session_state.sem_data.items():
-                for s_name, m_list in subjects.items():
+            for sem, subs in st.session_state.sem_data.items():
+                for s_name, m_list in subs.items():
                     for m_name in m_list:
-                        all_module_keys.append(f"{sem_name}_{s_name}_{m_name}".replace(" ", "_"))
+                        all_module_keys.append(f"{sem}_{s_name}_{m_name}".replace(" ", "_"))
             
             t_count = len(all_module_keys)
             current_done = [d for d in st.session_state.get("done_topics", []) if d in all_module_keys]
             prog = int((len(current_done) / t_count) * 100) if t_count > 0 else 0
 
-            # UI Styling (Height reduced to 15px for a sleek look)
-            st.markdown(f"""
-                <div style="background-color: #f8f9fb; padding: 20px; border-radius: 12px; border: 1px solid #eee; text-align: center;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="color:#4CAF50; margin:0;">{prog}% Mastery</h2>
-                        <div style="width: 70%;">
-                            <div style="background-color: #e0e0e0; border-radius: 10px; height: 15px; width: 100%;">
-                                <div style="background-color: #4CAF50; width: {prog}%; height: 15px; border-radius: 10px;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            # Sleek CSS to reduce bar height
+            st.markdown("""
+                <style>
+                    .stProgress > div > div > div > div { height: 8px !important; } /* Ekdum patla aur sleek bar */
+                    .mastery-text { font-size: 24px; font-weight: bold; color: #4CAF50; margin-bottom: -10px; }
+                </style>
             """, unsafe_allow_html=True)
+
+            # Dashboard Header
+            st.markdown(f'<p class="mastery-text">{prog}% Mastery</p>', unsafe_allow_html=True)
+            st.progress(prog / 100)
+            st.caption(f"Status: {len(current_done)} modules completed out of {t_count}")
 
             st.divider()
             t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
 
-            # Render UI Function
             def render_ui(data, sem_tag):
                 if not data:
-                    st.info("No subjects found for this semester.")
+                    st.info(f"Searching for {sem_tag} subjects... Try re-generating.")
                     return
                 for subject, modules in data.items():
                     with st.expander(f"📚 {subject}"):
                         for m in modules:
                             u_key = f"{sem_tag}_{subject}_{m}".replace(" ", "_")
+                            # Tick karne par real-time progress update
                             if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                                 if u_key not in st.session_state.done_topics:
                                     st.session_state.done_topics.append(u_key)
@@ -230,18 +232,18 @@ else:
                                     st.session_state.done_topics.remove(u_key)
                                     st.rerun()
 
-            # Fix for Semester II not showing
-            with t1: render_ui(st.session_state.sem_data.get("Semester I", {}), "S1")
-            with t2: render_ui(st.session_state.sem_data.get("Semester II", {}), "S2")
+            # Calling render for both semesters explicitly
+            with t1: render_ui(st.session_state.sem_data.get("Semester I"), "S1")
+            with t2: render_ui(st.session_state.sem_data.get("Semester II"), "S2")
 
             # Branded Footer & Viral Loop
             st.divider()
             c_d1, c_d2 = st.columns(2)
             with c_d1:
-                st.download_button("📥 Download Roadmap", f"TopperGPT Status: {prog}% Done", use_container_width=True)
+                st.download_button("📥 Get Roadmap Report", f"TopperGPT Report: {prog}% Done", use_container_width=True)
             with c_d2:
-                share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20syllabus%20ho%20gaya!"
-                st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share on WhatsApp 🚀</button></a>', unsafe_allow_html=True)     
+                share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20syllabus%20done!"
+                st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share on WhatsApp 🚀</button></a>', unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
