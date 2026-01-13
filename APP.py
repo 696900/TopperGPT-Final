@@ -248,17 +248,11 @@ else:
 
             with t1: render_subjects_with_modules(st.session_state.sem_data["Semester I"], "S1")
             with t2: render_subjects_with_modules(st.session_state.sem_data["Semester II"], "S2")
-            # --- VIRAL SHARE ---
+
+            # WhatsApp Viral Loop
             st.divider()
-            share_text = f"Bhai, dekh TopperGPT pe mera {progress}% syllabus done! Tu bhi track kar: [Link]"
-            whatsapp_url = f"https://wa.me/?text={share_text.replace(' ', '%20')}"
-            st.markdown(f'''
-                <a href="{whatsapp_url}" target="_blank" style="text-decoration:none;">
-                    <div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:18px;">
-                        Share My Progress on WhatsApp 🚀
-                    </div>
-                </a>
-            ''', unsafe_allow_html=True)      
+            share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20syllabus%20ho%20gaya!%20Tu%20bhi%20kar."
+            st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer;">Share Progress on WhatsApp 🚀</button></a>', unsafe_allow_html=True)     
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
