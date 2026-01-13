@@ -153,58 +153,64 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (DYNAMIC INDEXING & COMPLETE SEMESTER FIX) ---
+    # --- TAB 2: SYLLABUS MAGIC (SEMESTER SELECTOR & FIXED PARSING) ---
     with tab2:
-        st.markdown('<h3 style="text-align: center;">📋 University Syllabus Roadmap</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center;">📋 University Syllabus Tracker</h3>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload Any Engineering Syllabus PDF", type=["pdf"], key="syll_dynamic_final_v5")
+        # Bhai pehle confirm karo kaunsa Sem hai
+        target_sem_choice = st.selectbox(
+            "Bhai, kaunse Semester ka tracker banau?", 
+            ["Select Semester", "Semester I", "Semester II", "Both (Full Year)"],
+            key="sem_choice_input"
+        )
         
-        if syll_up and st.button("🚀 Generate Full Roadmap", use_container_width=True):
-            with st.spinner("Decoding PDF and locking all subjects..."):
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_dynamic_v10")
+        
+        if syll_up and target_sem_choice != "Select Semester" and st.button("🚀 Generate Targeted Roadmap", use_container_width=True):
+            with st.spinner(f"Focusing only on {target_sem_choice}..."):
                 try:
-                    # Scan full PDF to ensure no subject like Maths-II is skipped
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Scan more pages (up to 40) to catch all semester subjects
-                        full_text = "\n".join([p.extract_text() for p in pdf.pages[:40] if p.extract_text()])
+                        # Purre 45-50 pages scan kar rahe hain taaki EVS/Maths kuch na chhute
+                        full_text = "\n".join([p.extract_text() for p in pdf.pages[:50] if p.extract_text()])
                     
-                    # AI Prompt focused on indexing and complete subject extraction
+                    # AI ko strictly target semester bata rahe hain
                     prompt = f"""
-                    Task: Extract ALL Engineering Subjects and their exact 6 modules.
-                    Constraint: Do NOT skip core subjects like Mathematics II, Physics, or Programming.
+                    Extract ALL engineering subjects for {target_sem_choice}.
+                    For each subject, find exactly 6 modules.
+                    If the user said 'Both', extract for Sem 1 and Sem 2.
                     
-                    Structure:
-                    SEM_1 | [Subject Name] | Module 1: Title, Module 2: Title, Module 3: Title, Module 4: Title, Module 5: Title, Module 6: Title
-                    SEM_2 | [Subject Name] | Module 1: Title, Module 2: Title, Module 3: Title, Module 4: Title, Module 5: Title, Module 6: Title
+                    Strict Format:
+                    SEM_TAG | Subject Name | M1, M2, M3, M4, M5, M6
                     
-                    Text: {full_text[:18000]}
+                    PDF Content: {full_text[:20000]}
                     """
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     
-                    dynamic_roadmap = {"Semester I": {}, "Semester II": {}}
+                    roadmap = {"Semester I": {}, "Semester II": {}}
                     lines = res.choices[0].message.content.split("\n")
                     
                     for line in lines:
                         if "|" in line:
                             parts = line.split("|")
                             if len(parts) >= 3:
-                                sem_id = parts[0].strip()
-                                subj_name = parts[1].strip()
-                                # Clean and split modules correctly
-                                mods = [m.strip() for m in parts[2].split(",") if len(m) > 5][:6]
+                                sem_tag = parts[0].strip()
+                                subj = parts[1].strip()
+                                mods = [m.strip() for m in parts[2].split(",")][:6]
                                 
-                                target_sem = "Semester I" if "1" in sem_id or "I" in sem_id else "Semester II"
-                                if len(mods) >= 3:
-                                    dynamic_roadmap[target_sem][subj_name] = mods
+                                # Tagging logic
+                                if "1" in sem_tag or "I" in sem_tag:
+                                    roadmap["Semester I"][subj] = mods
+                                else:
+                                    roadmap["Semester II"][subj] = mods
 
-                    st.session_state.sem_data = dynamic_roadmap
+                    st.session_state.sem_data = roadmap
                     st.session_state.done_topics = [] 
-                    st.success(f"✅ Synced {len(dynamic_roadmap['Semester I'])} subjects in Sem 1 & {len(dynamic_roadmap['Semester II'])} in Sem 2!")
+                    st.success(f"✅ {target_sem_choice} Roadmap Ready!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- PROGRESS DASHBOARD (ACCURATE SYNC) ---
+        # --- PROGRESS DASHBOARD (WORKING BAR) ---
         if st.session_state.get("sem_data"):
-            # Master list calculation to fix 0% bar issue
             all_keys = []
             for sem, subs in st.session_state.sem_data.items():
                 for s, ms in subs.items():
@@ -212,17 +218,17 @@ else:
                         all_keys.append(f"{sem}_{s}_{m}".replace(" ", "_"))
             
             t_count = len(all_keys)
-            # Match current done topics with the newly generated roadmap
-            current_done_list = [d for d in st.session_state.get("done_topics", []) if d in all_keys]
-            prog = int((len(current_done_list) / t_count) * 100) if t_count > 0 else 0
+            # Logic to ensure tick updates the bar
+            current_done = len([d for d in st.session_state.get("done_topics", []) if d in all_keys])
+            prog = int((current_done / t_count) * 100) if t_count > 0 else 0
 
-            # Super Sleek iPhone Bar (8px height)
+            # Super Sleek iPhone Style Bar
             st.markdown(f"""
                 <style>
                     .stProgress > div > div > div > div {{ height: 8px !important; background-color: #4CAF50; border-radius: 10px; }}
                 </style>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <span style="font-weight: bold; font-size: 14px; color: #4CAF50;">SYLLABUS PROGRESS</span>
+                    <span style="font-weight: bold; font-size: 14px; color: #4CAF50;">YEARLY MASTERY</span>
                     <span style="font-weight: bold; color: #4CAF50; font-size: 22px;">{prog}%</span>
                 </div>
             """, unsafe_allow_html=True)
@@ -233,20 +239,16 @@ else:
 
             def render_ui(data, sem_label):
                 if not data:
-                    st.info("No subjects found here. Try re-generating.")
+                    st.info("No subjects found. Is semester selection correct?")
                     return
-                # Sort subjects to keep Applied Maths at the top
-                sorted_subjects = sorted(data.keys())
-                for subject in sorted_subjects:
-                    modules = data[subject]
+                for subject, modules in data.items():
                     with st.expander(f"📚 {subject}"):
                         for m in modules:
                             u_key = f"{sem_label}_{subject}_{m}".replace(" ", "_")
-                            # Checkbox with immediate rerun for progress sync
                             if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                                 if u_key not in st.session_state.done_topics:
                                     st.session_state.done_topics.append(u_key)
-                                    st.rerun()
+                                    st.rerun() # Immediate bar update
                             else:
                                 if u_key in st.session_state.done_topics:
                                     st.session_state.done_topics.remove(u_key)
@@ -254,11 +256,6 @@ else:
 
             with t1: render_ui(st.session_state.sem_data["Semester I"], "S1")
             with t2: render_ui(st.session_state.sem_data["Semester II"], "S2")
-
-            # WhatsApp Viral Loop
-            st.divider()
-            share_msg = f"Bhai TopperGPT pe mera {prog}% syllabus khatam! Tu bhi try kar."
-            st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share My Mastery 🚀</button></a>', unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
