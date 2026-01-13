@@ -153,31 +153,69 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
+    # --- TAB 2: SYLLABUS MAGIC (PROGRESS TRACKER VERSION) ---
     with tab2:
-        st.subheader("📋 University Syllabus Roadmap")
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_sync_fix")
+        st.subheader("📋 University Syllabus Progress Tracker")
+        st.write("Upload your syllabus PDF. We'll track your journey to 100% preparation.")
+
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_pro_tracker")
         
-        if syll_up and st.button("Generate Study Checklist"):
-            with st.spinner("Analyzing University Syllabus..."):
+        if syll_up and st.button("🚀 Generate Visual Roadmap"):
+            with st.spinner("Decoding University Syllabus..."):
                 try:
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
                         syll_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
                     
-                    # Gemini 404 ko bypass karne ke liye Groq use kar rahe hain
-                    prompt = f"Extract all engineering chapter names and main topics from this syllabus as a clean list: {syll_text[:10000]}"
+                    # Using Groq for high-speed extraction
+                    prompt = f"Extract only the main chapter/module names from this syllabus as a clean list: {syll_text[:10000]}"
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     
-                    # List cleaning
+                    # List cleaning and saving to state
                     st.session_state.roadmap = [line.strip("- ").strip() for line in res.choices[0].message.content.split("\n") if line.strip()]
-                    st.success("✅ Roadmap Generated!")
+                    # Initialize progress tracking
+                    if "completed_topics" not in st.session_state:
+                        st.session_state.completed_topics = []
+                    st.success("✅ Roadmap Ready!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # Checklist Display
+        # 🎯 THE VISUAL MORPHINE: Progress Display
         if st.session_state.get("roadmap"):
-            st.write("### 🎯 Your Completion Tracker")
+            # Calculate Percentage
+            total = len(st.session_state.roadmap)
+            done = len(st.session_state.get("completed_topics", []))
+            progress_percent = int((done / total) * 100) if total > 0 else 0
+
+            # UI: Progress Circle & Metrics
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.metric("Total Mastery", f"{progress_percent}%")
+                # Custom CSS for a bigger Progress Bar (Circle effect substitute in Streamlit)
+                st.progress(progress_percent / 100)
+            
+            with col2:
+                if progress_percent < 30:
+                    st.warning("⚠️ High Risk: Start with Module 1 immediately!")
+                elif progress_percent < 70:
+                    st.info("📈 Good Pace: You are ahead of 50% students.")
+                else:
+                    st.success("🔥 Topper Zone: Focus on PYQs now!")
+
+            st.divider()
+
+            # Checklist with real-time sync
+            st.write("### 📍 Course Content Checklist")
             for i, topic in enumerate(st.session_state.roadmap):
-                st.checkbox(topic, key=f"rd_map_{i}")
+                is_checked = st.checkbox(topic, key=f"topic_chk_{i}", 
+                                         value=(topic in st.session_state.completed_topics))
+                
+                # Update state if checked
+                if is_checked and topic not in st.session_state.completed_topics:
+                    st.session_state.completed_topics.append(topic)
+                    st.rerun() # Refresh to update the % meter
+                elif not is_checked and topic in st.session_state.completed_topics:
+                    st.session_state.completed_topics.remove(topic)
+                    st.rerun()
 
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
