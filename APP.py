@@ -153,83 +153,89 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (SUBJECT-WISE GROUPING) ---
+    # --- TAB 2: SYLLABUS MAGIC (SEM 1 & SEM 2 SEPARATION) ---
     with tab2:
-        st.subheader("📋 University Syllabus Progress Tracker")
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_subject_group")
+        st.subheader("📋 University Syllabus Roadmap")
+        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_sem_split")
         
-        if syll_up and st.button("🚀 Generate Visual Roadmap"):
-            with st.spinner("Organizing Subjects and Modules..."):
+        if syll_up and st.button("🚀 Generate Sem-Wise Roadmap"):
+            with st.spinner("Partitioning Semester I and Semester II subjects..."):
                 try:
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Extracting first 10 pages to cover all subjects
-                        full_text = "\n".join([p.extract_text() for p in pdf.pages[:10] if p.extract_text()])
+                        # Scan all pages to capture full year content
+                        full_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
                     
-                    # AI logic to group by Subject and limit to 6 Modules
+                    # Strict Partitioning Prompt
                     prompt = f"""
-                    From this syllabus, extract each Subject Name and exactly its 6 Modules.
-                    Ignore preamble and general instructions.
-                    Format: 
-                    Subject: [Subject Name]
-                    - Module 1: [Title]
-                    - Module 2: [Title]
-                    ... up to Module 6.
+                    Identify all engineering subjects and group them strictly by Semester.
+                    For each subject, extract only its 6 main Modules.
                     
-                    Syllabus Text: {full_text[:15000]}
+                    Format your response exactly like this:
+                    SEM_1: [Subject Name] | Module 1, Module 2, Module 3, Module 4, Module 5, Module 6
+                    SEM_2: [Subject Name] | Module 1, Module 2, Module 3, Module 4, Module 5, Module 6
+                    
+                    Syllabus Text: {full_text[:20000]}
                     """
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     
-                    # Parsing into a Dictionary {Subject: [Modules]}
-                    raw_output = res.choices[0].message.content.split("\n")
-                    structured_roadmap = {}
-                    current_subject = None
+                    # Parsing Logic for Sem Separation
+                    sem_roadmap = {"Semester I": {}, "Semester II": {}}
+                    lines = res.choices[0].message.content.split("\n")
                     
-                    for line in raw_output:
-                        if "Subject:" in line:
-                            current_subject = line.replace("Subject:", "").strip()
-                            structured_roadmap[current_subject] = []
-                        elif "Module" in line and current_subject:
-                            if len(structured_roadmap[current_subject]) < 6: # Limit to 6 modules per subject
-                                structured_roadmap[current_subject].append(line.strip("- ").strip())
+                    for line in lines:
+                        if "|" in line:
+                            sem_tag, content = line.split(":", 1)
+                            subj, mods = content.split("|")
+                            sem_key = "Semester I" if "SEM_1" in sem_tag else "Semester II"
+                            sem_roadmap[sem_key][subj.strip()] = [m.strip() for m in mods.split(",")]
                     
-                    st.session_state.roadmap_dict = structured_roadmap
+                    st.session_state.sem_data = sem_roadmap
                     st.session_state.done_topics = []
-                    st.success(f"✅ Found {len(structured_roadmap)} Subjects with 6 Modules each!")
+                    st.success("✅ Semester-wise Roadmap Generated!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- DISPLAY LOGIC ---
-        if st.session_state.get("roadmap_dict"):
-            # Progress Calculation
-            all_mods = [m for mods in st.session_state.roadmap_dict.values() for m in mods]
-            total_m = len(all_mods)
+        # --- DISPLAY LOGIC WITH SEMESTER TABS ---
+        if st.session_state.get("sem_data"):
+            s1_data = st.session_state.sem_data.get("Semester I", {})
+            s2_data = st.session_state.sem_data.get("Semester II", {})
+
+            # Overall Progress Meter
+            all_m = [m for sem in st.session_state.sem_data.values() for sub in sem.values() for m in sub]
             done_m = len(st.session_state.get("done_topics", []))
-            progress = int((done_m / total_m) * 100) if total_m > 0 else 0
-
-            col1, col2 = st.columns([1, 1])
-            with col1:
-                st.metric("Overall Mastery", f"{progress}%")
-                st.progress(progress / 100)
-            with col2:
-                # Downloadable Tracker
-                tracker_out = f"TOpperGPT Roadmap\nTotal Progress: {progress}%\n\n"
-                for sub, ms in st.session_state.roadmap_dict.items():
-                    tracker_out += f"\n--- {sub} ---\n" + "\n".join(ms)
-                st.download_button("📥 Download Subject Tracker", tracker_out, file_name="Roadmap.txt")
-
+            total_progress = int((done_m / len(all_m)) * 100) if all_m else 0
+            
+            st.metric("Total First Year Mastery", f"{total_progress}%")
+            st.progress(total_progress / 100)
+            
             st.divider()
 
-            # Subject-wise Expanders (Bhai, ye dekh mast dikhega)
-            for subject, modules in st.session_state.roadmap_dict.items():
-                with st.expander(f"📚 {subject}"):
-                    for m in modules:
-                        is_checked = st.checkbox(m, key=f"chk_{subject}_{m}", value=(m in st.session_state.done_topics))
-                        if is_checked and m not in st.session_state.done_topics:
-                            st.session_state.done_topics.append(m)
-                            st.rerun()
-                        elif not is_checked and m in st.session_state.done_topics:
-                            st.session_state.done_topics.remove(m)
-                            st.rerun()
+            # Semester Tabs for clean UI
+            sem_tab_1, sem_tab_2 = st.tabs(["📘 Semester I", "📗 Semester II"])
+
+            with sem_tab_1:
+                for subject, modules in s1_data.items():
+                    with st.expander(f"📚 {subject}"):
+                        for m in modules:
+                            is_checked = st.checkbox(m, key=f"s1_{subject}_{m}", value=(m in st.session_state.done_topics))
+                            if is_checked and m not in st.session_state.done_topics:
+                                st.session_state.done_topics.append(m)
+                                st.rerun()
+                            elif not is_checked and m in st.session_state.done_topics:
+                                st.session_state.done_topics.remove(m)
+                                st.rerun()
+
+            with sem_tab_2:
+                for subject, modules in s2_data.items():
+                    with st.expander(f"📚 {subject}"):
+                        for m in modules:
+                            is_checked = st.checkbox(m, key=f"s2_{subject}_{m}", value=(m in st.session_state.done_topics))
+                            if is_checked and m not in st.session_state.done_topics:
+                                st.session_state.done_topics.append(m)
+                                st.rerun()
+                            elif not is_checked and m in st.session_state.done_topics:
+                                st.session_state.done_topics.remove(m)
+                                st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
