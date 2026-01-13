@@ -153,24 +153,19 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (FIXED PROGRESS & MODULES) ---
+    # --- TAB 2: SYLLABUS MAGIC (FIXED SEM II & SLEEK BAR) ---
     with tab2:
-        st.markdown('<h2 style="text-align: center;">📋 University Syllabus Roadmap</h2>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center;">📋 University Syllabus Roadmap</h3>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_final_v10")
+        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_final_sleek")
         
         if syll_up and st.button("🚀 Generate Sem-Wise Roadmap", use_container_width=True):
-            with st.spinner("Partitioning Semesters & Modules..."):
+            with st.spinner("Processing Semesters..."):
                 try:
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
                         full_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
                     
-                    # Force AI to use a very strict separator
-                    prompt = f"""
-                    Extract engineering subjects and their 6 Modules. 
-                    Structure: SEM_1: Subject | M1, M2, M3, M4, M5, M6
-                    Use ONLY the following text: {full_text[:15000]}
-                    """
+                    prompt = f"Extract Subjects & 6 Modules for Sem 1 and Sem 2:\n{full_text[:15000]}"
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     
                     sem_roadmap = {"Semester I": {}, "Semester II": {}}
@@ -180,9 +175,7 @@ else:
                             parts = line.split(":", 1)
                             sem_key = "Semester I" if "SEM_1" in parts[0] else "Semester II"
                             subj_part, mods_part = parts[1].split("|")
-                            # Safely split modules even if AI uses different commas
-                            m_list = [m.strip() for m in mods_part.replace(",", ",").split(",") if len(m) > 3]
-                            sem_roadmap[sem_key][subj_part.strip()] = m_list[:6]
+                            sem_roadmap[sem_key][subj_part.strip()] = [m.strip() for m in mods_part.split(",")][:6]
                     
                     st.session_state.sem_data = sem_roadmap
                     st.session_state.done_topics = [] 
@@ -190,32 +183,26 @@ else:
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- DYNAMIC PROGRESS CALCULATION (RE-SYNCED) ---
+        # --- PROGRESS DASHBOARD (SLEEK DESIGN) ---
         if st.session_state.get("sem_data"):
-            # Create a flat list of all unique module keys
             all_module_keys = []
             for sem_name, subjects in st.session_state.sem_data.items():
                 for s_name, m_list in subjects.items():
                     for m_name in m_list:
                         all_module_keys.append(f"{sem_name}_{s_name}_{m_name}".replace(" ", "_"))
             
-            total_count = len(all_module_keys)
-            # Count how many of our 'done' topics are actually in this roadmap
+            t_count = len(all_module_keys)
             current_done = [d for d in st.session_state.get("done_topics", []) if d in all_module_keys]
-            prog = int((len(current_done) / total_count) * 100) if total_count > 0 else 0
+            prog = int((len(current_done) / t_count) * 100) if t_count > 0 else 0
 
-            # --- BIG UI DASHBOARD ---
+            # UI Styling (Height reduced to 15px for a sleek look)
             st.markdown(f"""
-                <div style="background-color: #f8f9fb; padding: 25px; border-radius: 15px; border: 1px solid #ddd; text-align: center;">
-                    <div style="display: flex; justify-content: space-around; align-items: center;">
-                        <div>
-                            <h1 style="color:#4CAF50; font-size:60px; margin:0;">{prog}%</h1>
-                            <p style="font-weight:bold;">TOTAL MASTERY</p>
-                        </div>
-                        <div style="width: 60%;">
-                            <p style="margin-bottom:5px;"><b>Preparation Status:</b> {len(current_done)} / {total_count} Modules Done</p>
-                            <div style="background-color: #ddd; border-radius: 13px; height: 30px;">
-                                <div style="background-color: #4CAF50; width: {prog}%; height: 30px; border-radius: 13px; transition: width 0.5s;"></div>
+                <div style="background-color: #f8f9fb; padding: 20px; border-radius: 12px; border: 1px solid #eee; text-align: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="color:#4CAF50; margin:0;">{prog}% Mastery</h2>
+                        <div style="width: 70%;">
+                            <div style="background-color: #e0e0e0; border-radius: 10px; height: 15px; width: 100%;">
+                                <div style="background-color: #4CAF50; width: {prog}%; height: 15px; border-radius: 10px;"></div>
                             </div>
                         </div>
                     </div>
@@ -225,13 +212,15 @@ else:
             st.divider()
             t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
 
-            # Render function with guaranteed unique keys
+            # Render UI Function
             def render_ui(data, sem_tag):
+                if not data:
+                    st.info("No subjects found for this semester.")
+                    return
                 for subject, modules in data.items():
                     with st.expander(f"📚 {subject}"):
                         for m in modules:
                             u_key = f"{sem_tag}_{subject}_{m}".replace(" ", "_")
-                            # Checkbox logic
                             if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                                 if u_key not in st.session_state.done_topics:
                                     st.session_state.done_topics.append(u_key)
@@ -241,17 +230,18 @@ else:
                                     st.session_state.done_topics.remove(u_key)
                                     st.rerun()
 
-            with t1: render_ui(st.session_state.sem_data["Semester I"], "Semester_I")
-            with t2: render_ui(st.session_state.sem_data["Semester II"], "Semester_II")
+            # Fix for Semester II not showing
+            with t1: render_ui(st.session_state.sem_data.get("Semester I", {}), "S1")
+            with t2: render_ui(st.session_state.sem_data.get("Semester II", {}), "S2")
 
-            # Branded Download & Share
+            # Branded Footer & Viral Loop
             st.divider()
-            col_d1, col_d2 = st.columns(2)
-            with col_d1:
-                st.download_button("📥 Download Branded Report", f"TopperGPT Report: {prog}% Complete\nWatermark: Generated by TopperGPT", use_container_width=True)
-            with col_d2:
-                share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20syllabus%20done!%20Tu%20bhi%20kar."
-                st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; font-weight:bold; cursor:pointer;">Share on WhatsApp 🚀</button></a>', unsafe_allow_html=True)     
+            c_d1, c_d2 = st.columns(2)
+            with c_d1:
+                st.download_button("📥 Download Roadmap", f"TopperGPT Status: {prog}% Done", use_container_width=True)
+            with c_d2:
+                share_url = f"https://wa.me/?text=Bhai%20TopperGPT%20pe%20mera%20{prog}%25%20syllabus%20ho%20gaya!"
+                st.markdown(f'<a href="{share_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">Share on WhatsApp 🚀</button></a>', unsafe_allow_html=True)     
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
