@@ -153,24 +153,26 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (BIG & BOLD) ---
+    # --- TAB 2: SYLLABUS MAGIC (RECOVERED MODULES) ---
     with tab2:
         st.markdown('<h2 style="text-align: center;">📋 University Syllabus Roadmap</h2>', unsafe_allow_html=True)
         
-        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_final_pro")
+        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_final_recovery")
         
         if syll_up and st.button("🚀 Generate Sem-Wise Roadmap", use_container_width=True):
-            with st.spinner("Partitioning Semester I and Semester II..."):
+            with st.spinner("Recovering Modules and Subjects..."):
                 try:
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
+                        # Poora PDF scan kar rahe hain modules ke liye
                         full_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
                     
+                    # Strict prompt to ensure Modules are not lost
                     prompt = f"""
-                    Identify all engineering subjects and group them by Semester.
-                    Extract exactly 6 main Modules for each.
-                    Format: 
-                    SEM_1: [Subject Name] | Module 1, Module 2, Module 3, Module 4, Module 5, Module 6
-                    SEM_2: [Subject Name] | Module 1, Module 2, Module 3, Module 4, Module 5, Module 6
+                    Identify all engineering subjects and their exactly 6 core Modules.
+                    Group them strictly by Semester.
+                    Format:
+                    SEM_1: Subject Name | M1: Title, M2: Title, M3: Title, M4: Title, M5: Title, M6: Title
+                    SEM_2: Subject Name | M1: Title, M2: Title, M3: Title, M4: Title, M5: Title, M6: Title
                     Text: {full_text[:18000]}
                     """
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
@@ -181,71 +183,62 @@ else:
                         if "|" in line and ":" in line:
                             parts = line.split(":", 1)
                             sem_key = "Semester I" if "SEM_1" in parts[0] else "Semester II"
-                            subj, mods = parts[1].split("|")
-                            sem_roadmap[sem_key][subj.strip()] = [m.strip() for m in mods.split(",")]
+                            subj_part, mods_part = parts[1].split("|")
+                            # Saving modules as a list to fix the "gayab" issue
+                            sem_roadmap[sem_key][subj_part.strip()] = [m.strip() for m in mods_part.split(",")]
                     
                     st.session_state.sem_data = sem_roadmap
-                    st.session_state.done_topics = []
-                    st.success("✅ Roadmap Synced!")
+                    st.session_state.done_topics = [] # Reset progress for new syllabus
+                    st.success("✅ Roadmap & Modules Synced!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # --- DYNAMIC PROGRESS & BIG UI DASHBOARD ---
+        # --- DYNAMIC PROGRESS DASHBOARD ---
         if st.session_state.get("sem_data"):
-            total_modules = []
-            for sem, subjects in st.session_state.sem_data.items():
-                for subj, mods in subjects.items():
-                    for m in mods:
-                        total_modules.append(f"{sem}_{subj}_{m}".replace(" ", "_"))
+            # Calculating total modules globally
+            total_m_list = []
+            for sem, subs in st.session_state.sem_data.items():
+                for s, ms in subs.items():
+                    for m in ms:
+                        total_m_list.append(f"{sem}_{s}_{m}".replace(" ", "_"))
             
-            total_count = len(total_modules)
-            valid_done = len([d for d in st.session_state.get("done_topics", []) if d in total_modules])
-            progress = int((valid_done / total_count) * 100) if total_count > 0 else 0
+            t_count = len(total_m_list)
+            d_count = len([d for d in st.session_state.get("done_topics", []) if d in total_m_list])
+            prog = int((d_count / t_count) * 100) if t_count > 0 else 0
 
-            # --- CUSTOM CSS FOR BIG UI ---
+            # UI Styling
             st.markdown(f"""
                 <style>
                     .stProgress > div > div > div > div {{ background-color: #4CAF50; height: 30px !important; }}
-                    .mastery-card {{
-                        background-color: #f8f9fb;
-                        padding: 30px;
-                        border-radius: 20px;
-                        border: 2px solid #e6e9ef;
-                        text-align: center;
-                        margin-bottom: 25px;
-                    }}
-                    .big-pct {{ font-size: 50px !important; font-weight: 800; color: #4CAF50; margin: 0; }}
+                    .big-card {{ background-color: #f8f9fb; padding: 25px; border-radius: 15px; border: 1px solid #ddd; text-align: center; }}
                 </style>
             """, unsafe_allow_html=True)
 
-            # --- BIG DASHBOARD ---
-            st.markdown('<div class="mastery-card">', unsafe_allow_html=True)
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.markdown("#### 🎯 Overall Mastery")
-                st.markdown(f'<p class="big-pct">{progress}%</p>', unsafe_allow_html=True)
-            with col2:
-                st.write(f"**{valid_done} out of {total_count} Modules Completed**")
-                st.progress(progress / 100)
-                
-                # Branded Download
-                report = f"🚀 TOPPERGPT MASTERY: {progress}%\n" + "="*30 + "\n"
-                for s, subs in st.session_state.sem_data.items():
-                    report += f"\n📌 {s}\n" + "\n".join([f"- {sub}" for sub in subs.keys()])
-                report += "\n\n🔥 Generated by TopperGPT - The Engineering Painkiller 💊"
-                st.download_button("📥 Download Branded Roadmap", report, file_name="TopperGPT_Roadmap.txt", use_container_width=True)
+            st.markdown(f'<div class="big-card">', unsafe_allow_html=True)
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                st.markdown(f"<h1 style='color:#4CAF50; font-size:60px;'>{prog}%</h1>", unsafe_allow_html=True)
+                st.write("**Total Mastery**")
+            with c2:
+                st.write(f"### {d_count} / {t_count} Modules Done")
+                st.progress(prog / 100)
+                st.download_button("📥 Download Branded Roadmap", f"TopperGPT Report: {prog}% Complete", use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- SEMESTER TABS ---
             st.divider()
-            s1_tab, s2_tab = st.tabs(["📘 Semester I", "📗 Semester II"])
+            t1, t2 = st.tabs(["📘 Semester I", "📗 Semester II"])
 
-            def render_sem(data, sem_label):
+            def render_subjects_with_modules(data, sem_label):
                 for subject, modules in data.items():
-                    with st.expander(f"➕ {subject}", expanded=False):
+                    # Har subject ka expander
+                    with st.expander(f"📚 {subject}", expanded=False):
+                        if not modules:
+                            st.write("No modules found. Try regenerating.")
                         for m in modules:
+                            # Unique key for each module to fix sync
                             u_key = f"{sem_label}_{subject}_{m}".replace(" ", "_")
                             is_checked = st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics))
+                            
                             if is_checked and u_key not in st.session_state.done_topics:
                                 st.session_state.done_topics.append(u_key)
                                 st.rerun()
@@ -253,9 +246,8 @@ else:
                                 st.session_state.done_topics.remove(u_key)
                                 st.rerun()
 
-            with s1_tab: render_sem(st.session_state.sem_data["Semester I"], "Sem1")
-            with s2_tab: render_subjects = render_sem(st.session_state.sem_data["Semester II"], "Sem2")
-
+            with t1: render_subjects_with_modules(st.session_state.sem_data["Semester I"], "S1")
+            with t2: render_subjects_with_modules(st.session_state.sem_data["Semester II"], "S2")
             # --- VIRAL SHARE ---
             st.divider()
             share_text = f"Bhai, dekh TopperGPT pe mera {progress}% syllabus done! Tu bhi track kar: [Link]"
