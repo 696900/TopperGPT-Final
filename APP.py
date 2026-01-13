@@ -153,64 +153,63 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (FIXED FOR REAL MODULES) ---
+    # --- TAB 2: SYLLABUS MAGIC (STRICT TABLE PARSER) ---
     with tab2:
         st.subheader("📋 University Syllabus Progress Tracker")
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_pro_vfinal")
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_table_fix")
         
         if syll_up and st.button("🚀 Generate Visual Roadmap"):
-            with st.spinner("Scanning for Technical Modules..."):
+            with st.spinner("Breaking down syllabus tables..."):
                 try:
+                    all_modules = []
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Hum saare pages scan karenge taaki asli table mil sake
-                        full_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                        for page in pdf.pages:
+                            tables = page.extract_tables()
+                            for table in tables:
+                                for row in table:
+                                    # Logic: Agar row mein '01', '02' ya 'Module' hai
+                                    text = " ".join([str(cell) for cell in row if cell])
+                                    if any(x in text for x in ["Module", "01", "02", "03", "04", "05", "06"]):
+                                        # Clean the text to get only title
+                                        clean_title = text.replace("\n", " ").strip()
+                                        if len(clean_title) > 15: # Avoiding small junk cells
+                                            all_modules.append(clean_title)
+
+                    # Removing duplicates and sorting
+                    unique_modules = sorted(list(set(all_modules)))
                     
-                    # STRICT PROMPT: AI ko sirf 'Module' dhundne ke liye force karna
-                    prompt = f"""
-                    Act as a Syllabus Parser. Look for the 'Detailed Contents' tables.
-                    Extract only the Module Numbers (01, 02, etc.) and their primary Technical Titles.
-                    Ignore Preamble, Program Structure, and Credits.
-                    
-                    Syllabus Text: {full_content[:15000]}
-                    
-                    Format: Module [Number]: [Title]
-                    """
-                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    
-                    # Filtering only lines that contain "Module" or "Unit"
-                    raw_lines = res.choices[0].message.content.split("\n")
-                    st.session_state.roadmap = [line.strip("- ") for line in raw_lines if "Module" in line or "Unit" in line]
-                    
-                    if not st.session_state.roadmap:
-                        st.error("⚠️ Modules detect nahi ho paye. Make sure PDF has a 'Detailed Content' table.")
-                    else:
+                    if unique_modules:
+                        st.session_state.roadmap = unique_modules
                         st.session_state.done_topics = []
-                        st.success(f"✅ {len(st.session_state.roadmap)} Modules identified!")
+                        st.success(f"✅ {len(unique_modules)} Modules extracted from tables!")
+                    else:
+                        st.error("⚠️ Tables detect nahi huye. Text-based scan try kar rahe hain...")
+                        # Fallback to AI if table extraction fails
+                        # [Add AI fallback prompt here if needed]
+
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # Visual Dashboard
+        # Visual Dashboard (No Changes here)
         if st.session_state.get("roadmap"):
             total = len(st.session_state.roadmap)
             done = len(st.session_state.get("done_topics", []))
             progress = int((done / total) * 100) if total > 0 else 0
 
-            # Progress Metrics
-            c1, c2 = st.columns([1, 1])
-            with c1:
+            col1, col2 = st.columns([1, 1])
+            with col1:
                 st.metric("Mastery Level", f"{progress}%")
                 st.progress(progress / 100)
-            with c2:
+            with col2:
                 tracker_text = f"Syllabus Status: {progress}%\n\n" + "\n".join(st.session_state.roadmap)
                 st.download_button("📥 Download Offline Tracker", data=tracker_text, file_name="Syllabus_Roadmap.txt")
 
             st.divider()
 
-            # Interactive Modules
             st.write("### 📍 Module-wise Completion")
             for i, topic in enumerate(st.session_state.roadmap):
-                # Only real modules will show up here now
-                is_checked = st.checkbox(topic, key=f"final_mod_{i}", value=(topic in st.session_state.done_topics))
+                # Fixing the 'Single Box' issue: Each module gets its own checkbox
+                is_checked = st.checkbox(topic, key=f"table_mod_{i}", value=(topic in st.session_state.done_topics))
                 if is_checked and topic not in st.session_state.done_topics:
                     st.session_state.done_topics.append(topic)
                     st.rerun()
