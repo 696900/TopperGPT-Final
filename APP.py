@@ -153,78 +153,57 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (STRICT CHAPTER TRACKER) ---
+    # --- TAB 2: SYLLABUS MAGIC (STRICT CHAPTERS & DOWNLOAD) ---
     with tab2:
         st.subheader("📋 University Syllabus Progress Tracker")
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_pro_final")
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_pro_v3")
         
         if syll_up and st.button("🚀 Generate Visual Roadmap"):
-            with st.spinner("Decoding University Syllabus..."):
+            with st.spinner("Extracting Modules..."):
                 try:
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        syll_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                        # Sirf pehle 2-3 pages se index nikalna accurate rehta hai
+                        syll_text = "\n".join([p.extract_text() for p in pdf.pages[:3] if p.extract_text()])
                     
-                    # AI is now instructed to give a JSON-like structure for Chapters
-                    prompt = f"""
-                    Extract engineering subjects and their 3-4 main sub-topics from this syllabus:
-                    {syll_text[:10000]}
-                    Format: Subject Name | Topic 1, Topic 2, Topic 3
-                    """
+                    # Strict Prompt: Sirf Module names nikalne ke liye
+                    prompt = f"Identify only the Chapter/Module numbers and titles from this engineering syllabus. Ignore legal text and instructions: {syll_text[:8000]}"
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     
-                    # Parsing into a clean dictionary
-                    lines = res.choices[0].message.content.split("\n")
-                    new_roadmap = {}
-                    for line in lines:
-                        if "|" in line:
-                            sub, topics = line.split("|")
-                            new_roadmap[sub.strip()] = [t.strip() for t in topics.split(",")]
-                    
-                    st.session_state.master_roadmap = new_roadmap
-                    if "done_chapters" not in st.session_state:
-                        st.session_state.done_chapters = []
-                    st.success("✅ Roadmap Ready with Chapter Breakdown!")
+                    # Cleaning: Removing any AI conversational text
+                    st.session_state.roadmap = [line.strip("- ").strip() for line in res.choices[0].message.content.split("\n") if len(line) > 10 and not line.startswith("Here")]
+                    st.session_state.done_topics = []
+                    st.success("✅ Real Modules Synced!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # 🎯 THE REFINED PROGRESS BAR
-        if st.session_state.get("master_roadmap"):
-            # Logic: Total progress is based on CHAPTERS, not just subject headers
-            all_chapters = [ch for sublist in st.session_state.master_roadmap.values() for ch in sublist]
-            total_ch = len(all_chapters)
-            done_ch = len(st.session_state.get("done_chapters", []))
-            
-            progress = int((done_ch / total_ch) * 100) if total_ch > 0 else 0
+        if st.session_state.get("roadmap"):
+            # Progress Logic
+            total = len(st.session_state.roadmap)
+            done = len(st.session_state.get("done_topics", []))
+            progress = int((done / total) * 100) if total > 0 else 0
 
-            # UI Progress Header
-            col1, col2 = st.columns([1, 2])
+            col1, col2 = st.columns([1, 1])
             with col1:
                 st.metric("Syllabus Mastery", f"{progress}%")
                 st.progress(progress / 100)
+            
             with col2:
-                if progress < 100:
-                    st.info(f"Keep going! {total_ch - done_ch} more chapters to Topper status.")
-                else:
-                    st.balloons()
-                    st.success("🔥 100% SYLLABUS COVERED!")
+                # 📥 DOWNLOAD TRACKER [Founder Feature]
+                tracker_data = f"TOpperGPT - SYLLABUS TRACKER\nStatus: {progress}% Complete\n\n"
+                tracker_data += "\n".join([f"[{'X' if t in st.session_state.done_topics else ' '}] {t}" for t in st.session_state.roadmap])
+                st.download_button("📥 Download Tracker (Offline)", data=tracker_data, file_name="My_Syllabus_Tracker.txt")
 
             st.divider()
 
-            # 📍 CHAPTER-WISE CHECKLIST (The "Majja" Feature)
-            st.write("### 📍 Course Content Breakdown")
-            for subject, chapters in st.session_state.master_roadmap.items():
-                with st.expander(f"📚 {subject}"):
-                    for ch in chapters:
-                        # Strictly updating progress only on real chapter ticks
-                        is_done = st.checkbox(ch, key=f"ch_{ch}_{subject}", 
-                                             value=(ch in st.session_state.done_chapters))
-                        
-                        if is_done and ch not in st.session_state.done_chapters:
-                            st.session_state.done_chapters.append(ch)
-                            st.rerun()
-                        elif not is_done and ch in st.session_state.done_chapters:
-                            st.session_state.done_chapters.remove(ch)
-                            st.rerun()
+            # The Actual Checklist
+            for i, topic in enumerate(st.session_state.roadmap):
+                is_checked = st.checkbox(topic, key=f"strict_ch_{i}", value=(topic in st.session_state.done_topics))
+                if is_checked and topic not in st.session_state.done_topics:
+                    st.session_state.done_topics.append(topic)
+                    st.rerun()
+                elif not is_checked and topic in st.session_state.done_topics:
+                    st.session_state.done_topics.remove(topic)
+                    st.rerun()
 
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
