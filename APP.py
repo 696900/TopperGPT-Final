@@ -153,57 +153,57 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (THE FINAL FIX) ---
+    # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (STABLE TABLE PARSER) ---
     with tab2:
         st.markdown('<h3 style="text-align: center;">📋 Universal Syllabus Tracker</h3>', unsafe_allow_html=True)
         
-        # User selection to lock focus and save tokens
-        target_sem = st.selectbox(
+        # User selection to lock focus
+        t_sem = st.selectbox(
             "Kaunse Semester ka tracker chahiye?", 
             ["Select Semester", "Semester I", "Semester II"],
-            key="universal_final_selector"
+            key="universal_stable_selector"
         )
         
-        syll_up = st.file_uploader("Upload University Syllabus PDF", type=["pdf"], key="syll_final_pro")
+        syll_up = st.file_uploader("Upload University Syllabus PDF", type=["pdf"], key="syll_no_ai_v1")
         
-        if syll_up and target_sem != "Select Semester" and st.button("🚀 Analyze & Track My Syllabus", use_container_width=True):
-            with st.spinner(f"Decoding your {target_sem} from PDF..."):
+        if syll_up and t_sem != "Select Semester" and st.button("🚀 Analyze & Track My Syllabus", use_container_width=True):
+            with st.spinner(f"Scanning tables for {t_sem} (Bypassing AI Errors)..."):
                 try:
-                    # Universal extraction using optimized text chunks
+                    detected_data = {}
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Scan deep enough to find any university structure
-                        raw_text = "\n".join([p.extract_text() for p in pdf.pages[:60] if p.extract_text()])
-                    
-                    # Selective AI prompt to avoid rate limits and mixing
-                    prompt = f"""
-                    Instructions for Engineering Tracker:
-                    1. Focus ONLY on {target_sem}.
-                    2. Extract all subject names.
-                    3. For each subject, find exactly 6 module titles.
-                    4. Format: {target_sem} | Subject | Mod1, Mod2, Mod3, Mod4, Mod5, Mod6
-                    
-                    Data: {raw_text[:12000]} 
-                    """
-                    # Using Llama-3.3 for high accuracy on universal data
-                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    
-                    dynamic_data = {}
-                    lines = res.choices[0].message.content.split("\n")
-                    for line in lines:
-                        if "|" in line and target_sem.upper() in line.upper():
-                            parts = line.split("|")
-                            if len(parts) >= 3:
-                                s_name = parts[1].strip()
-                                m_list = [m.strip() for m in parts[2].split(",") if len(m) > 3][:6]
-                                if len(m_list) >= 3:
-                                    dynamic_data[s_name] = m_list
+                        # Scan only relevant pages to avoid mixing semesters
+                        pages = pdf.pages[:35] if t_sem == "Semester I" else pdf.pages[30:70]
+                        
+                        for page in pages:
+                            tables = page.extract_tables()
+                            for table in tables:
+                                current_subject = None
+                                for row in table:
+                                    if not row or len(row) < 2: continue
+                                    text_line = " ".join([str(cell) for cell in row if cell])
+                                    
+                                    # Detect Subject Name from table headers
+                                    if any(keyword in text_line for keyword in ["Subject", "Course", "Detailed Contents"]):
+                                        potential_subj = text_line.split(":")[-1].replace("Detailed Contents", "").strip()
+                                        if len(potential_subj) > 5:
+                                            current_subject = potential_subj
+                                            if current_subject not in detected_data:
+                                                detected_data[current_subject] = []
+                                    
+                                    # Extract Modules (Looking for 01, 02 etc in first column)
+                                    col0 = str(row[0]).strip()
+                                    if current_subject and (col0.isdigit() or (len(col0) == 2 and col0.startswith('0'))):
+                                        module_name = str(row[1]).split('\n')[0].strip()
+                                        if len(module_name) > 5:
+                                            detected_data[current_subject].append(f"Module {col0}: {module_name}")
 
-                    st.session_state.tracker_data = dynamic_data
-                    st.session_state.active_sem = target_sem
+                    # Final Cleanup
+                    st.session_state.tracker_data = {k: v[:6] for k, v in detected_data.items() if len(v) >= 3}
+                    st.session_state.active_sem = t_sem
                     st.session_state.done_topics = [] 
-                    st.success("✅ Tracker Synced! All subjects found.")
+                    st.success(f"✅ {t_sem} Tracker Ready! (No AI tokens used)")
                 except Exception as e:
-                    st.error(f"Syllabus Error: {e}")
+                    st.error(f"Analysis Error: {e}")
 
         # --- PREMIUM COMPACT DASHBOARD ---
         if st.session_state.get("tracker_data"):
@@ -214,23 +214,23 @@ else:
 
             # Sleek TopperGPT Mastery Card
             st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 15px; border-radius: 12px; color: white; border: 1px solid #4CAF50; margin-bottom: 15px;">
+                <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 12px; border-radius: 12px; color: white; border: 1px solid #4CAF50; margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <b style="font-size: 16px; color: #4CAF50;">🚀 TopperGPT</b>
-                        <b style="font-size: 24px;">{prog}%</b>
+                        <b style="font-size: 22px;">{prog}%</b>
                     </div>
-                    <div style="background: rgba(255,255,255,0.2); height: 6px; border-radius: 10px; margin: 10px 0;">
-                        <div style="background: #4CAF50; height: 6px; border-radius: 10px; width: {prog}%;"></div>
+                    <div style="background: rgba(255,255,255,0.2); height: 5px; border-radius: 10px; margin: 8px 0;">
+                        <div style="background: #4CAF50; height: 5px; border-radius: 10px; width: {prog}%;"></div>
                     </div>
-                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.active_sem} Tracker Dashboard</p>
+                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.active_sem} Tracking Status</p>
                 </div>
             """, unsafe_allow_html=True)
 
-            # Branded Share Loop (Remains untouched as requested)
-            share_msg = f"*TopperGPT Report*%0A🔥 Mera *{prog}%* {st.session_state.active_sem} syllabus khatam ho gaya!%0A✅ Modules Done: {len(done_items)}%0A🚀 Tu bhi track kar apna status!"
+            # Branded Share Loop (Always visible)
+            share_msg = f"*TopperGPT Report*%0A🔥 Mera *{prog}%* {st.session_state.active_sem} syllabus khatam ho gaya!%0A🚀 Tu bhi track kar apna status!"
             st.markdown(f"""
                 <a href="https://wa.me/?text={share_msg}" target="_blank" style="text-decoration: none;">
-                    <button style="background-color: #25D366; color: white; width: 100%; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-bottom: 20px;">
+                    <button style="background-color: #25D366; color: white; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">
                         📲 Share Mastery with TopperGPT Watermark
                     </button>
                 </a>
@@ -239,12 +239,11 @@ else:
             st.divider()
             
             # --- THE UNIVERSAL LIST ---
-            st.subheader(f"📘 {st.session_state.active_sem} Roadmap")
             for subject, modules in t_data.items():
                 with st.expander(f"📚 {subject}"):
                     for m in modules:
                         u_key = f"{st.session_state.active_sem}_{subject}_{m}".replace(" ", "_")
-                        # Immediate rerun for bar sync
+                        # Real-time tick update
                         if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                             if u_key not in st.session_state.done_topics:
                                 st.session_state.done_topics.append(u_key)
