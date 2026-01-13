@@ -153,108 +153,120 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (FIXED BRANDING & KEYS) ---
+    # --- TAB 2: SYLLABUS MAGIC (BIG & BOLD) ---
     with tab2:
-        st.subheader("📋 University Syllabus Roadmap")
-        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_sem_final")
+        st.markdown('<h2 style="text-align: center;">📋 University Syllabus Roadmap</h2>', unsafe_allow_html=True)
         
-        if syll_up and st.button("🚀 Generate Sem-Wise Roadmap"):
-            with st.spinner("Partitioning Semester I and Semester II subjects..."):
+        syll_up = st.file_uploader("Upload First Year Syllabus PDF", type=["pdf"], key="syll_final_pro")
+        
+        if syll_up and st.button("🚀 Generate Sem-Wise Roadmap", use_container_width=True):
+            with st.spinner("Partitioning Semester I and Semester II..."):
                 try:
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Scan all pages to capture full year content
                         full_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
                     
                     prompt = f"""
-                    Identify all engineering subjects and group them strictly by Semester.
-                    For each subject, extract only its 6 main Modules.
+                    Identify all engineering subjects and group them by Semester.
+                    Extract exactly 6 main Modules for each.
                     Format: 
                     SEM_1: [Subject Name] | Module 1, Module 2, Module 3, Module 4, Module 5, Module 6
                     SEM_2: [Subject Name] | Module 1, Module 2, Module 3, Module 4, Module 5, Module 6
-                    Syllabus Text: {full_text[:20000]}
+                    Text: {full_text[:18000]}
                     """
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     
                     sem_roadmap = {"Semester I": {}, "Semester II": {}}
                     lines = res.choices[0].message.content.split("\n")
-                    
                     for line in lines:
                         if "|" in line and ":" in line:
                             parts = line.split(":", 1)
-                            sem_tag = parts[0]
-                            content = parts[1]
-                            subj, mods = content.split("|")
-                            sem_key = "Semester I" if "SEM_1" in sem_tag else "Semester II"
+                            sem_key = "Semester I" if "SEM_1" in parts[0] else "Semester II"
+                            subj, mods = parts[1].split("|")
                             sem_roadmap[sem_key][subj.strip()] = [m.strip() for m in mods.split(",")]
                     
                     st.session_state.sem_data = sem_roadmap
                     st.session_state.done_topics = []
-                    st.success("✅ Semester-wise Roadmap Generated!")
+                    st.success("✅ Roadmap Synced!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
+        # --- DYNAMIC PROGRESS & BIG UI DASHBOARD ---
         if st.session_state.get("sem_data"):
-            # Progress Tracking Logic
-            all_m = [f"{sem}_{sub}_{m}" for sem, subs in st.session_state.sem_data.items() for sub, ms in subs.items() for m in ms]
-            done_m = [d for d in st.session_state.get("done_topics", []) if d in all_m]
-            total_progress = int((len(done_m) / len(all_m)) * 100) if all_m else 0
+            total_modules = []
+            for sem, subjects in st.session_state.sem_data.items():
+                for subj, mods in subjects.items():
+                    for m in mods:
+                        total_modules.append(f"{sem}_{subj}_{m}".replace(" ", "_"))
             
-            # --- 🛠️ TOPPERGPT BRANDED HEADER ---
-            c1, c2 = st.columns([1, 1])
-            with c1:
-                st.metric("Total Mastery", f"{total_progress}%")
-                st.progress(total_progress / 100)
-            
-            with c2:
-                # Watermark added to the download file
-                report_text = f"🚀 TOPPERGPT: OFFICIAL SYLLABUS ROADMAP\nMastery Level: {total_progress}%\n"
-                report_text += "===========================================\n"
-                for sem, subjects in st.session_state.sem_data.items():
-                    report_text += f"\n📌 {sem}\n"
-                    for s, ms in subjects.items():
-                        report_text += f"\n- {s}:\n" + "\n".join([f"  [{'X' if f'{sem}_{s}_{m}' in st.session_state.done_topics else ' '}] {m}" for m in ms])
-                report_text += "\n\n===========================================\n"
-                report_text += "🔥 Study Smarter with TopperGPT - The Engineering Painkiller 💊"
-                st.download_button("📥 Download Branded Tracker", report_text, file_name="TopperGPT_Mastery_Report.txt")
+            total_count = len(total_modules)
+            valid_done = len([d for d in st.session_state.get("done_topics", []) if d in total_modules])
+            progress = int((valid_done / total_count) * 100) if total_count > 0 else 0
 
+            # --- CUSTOM CSS FOR BIG UI ---
+            st.markdown(f"""
+                <style>
+                    .stProgress > div > div > div > div {{ background-color: #4CAF50; height: 30px !important; }}
+                    .mastery-card {{
+                        background-color: #f8f9fb;
+                        padding: 30px;
+                        border-radius: 20px;
+                        border: 2px solid #e6e9ef;
+                        text-align: center;
+                        margin-bottom: 25px;
+                    }}
+                    .big-pct {{ font-size: 50px !important; font-weight: 800; color: #4CAF50; margin: 0; }}
+                </style>
+            """, unsafe_allow_html=True)
+
+            # --- BIG DASHBOARD ---
+            st.markdown('<div class="mastery-card">', unsafe_allow_html=True)
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.markdown("#### 🎯 Overall Mastery")
+                st.markdown(f'<p class="big-pct">{progress}%</p>', unsafe_allow_html=True)
+            with col2:
+                st.write(f"**{valid_done} out of {total_count} Modules Completed**")
+                st.progress(progress / 100)
+                
+                # Branded Download
+                report = f"🚀 TOPPERGPT MASTERY: {progress}%\n" + "="*30 + "\n"
+                for s, subs in st.session_state.sem_data.items():
+                    report += f"\n📌 {s}\n" + "\n".join([f"- {sub}" for sub in subs.keys()])
+                report += "\n\n🔥 Generated by TopperGPT - The Engineering Painkiller 💊"
+                st.download_button("📥 Download Branded Roadmap", report, file_name="TopperGPT_Roadmap.txt", use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # --- SEMESTER TABS ---
             st.divider()
             s1_tab, s2_tab = st.tabs(["📘 Semester I", "📗 Semester II"])
 
-            # --- 🛡️ UNIQUE KEY LOGIC (Fixes DuplicateElementKey) ---
-            def render_subjects(data, sem_label):
+            def render_sem(data, sem_label):
                 for subject, modules in data.items():
-                    with st.expander(f"📚 {subject}"):
+                    with st.expander(f"➕ {subject}", expanded=False):
                         for m in modules:
-                            unique_key = f"{sem_label}_{subject}_{m}".replace(" ", "_")
-                            is_checked = st.checkbox(m, key=unique_key, value=(unique_key in st.session_state.done_topics))
-                            
-                            if is_checked and unique_key not in st.session_state.done_topics:
-                                st.session_state.done_topics.append(unique_key)
+                            u_key = f"{sem_label}_{subject}_{m}".replace(" ", "_")
+                            is_checked = st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics))
+                            if is_checked and u_key not in st.session_state.done_topics:
+                                st.session_state.done_topics.append(u_key)
                                 st.rerun()
-                            elif not is_checked and unique_key in st.session_state.done_topics:
-                                st.session_state.done_topics.remove(unique_key)
+                            elif not is_checked and u_key in st.session_state.done_topics:
+                                st.session_state.done_topics.remove(u_key)
                                 st.rerun()
 
-            with s1_tab: render_subjects(st.session_state.sem_data["Semester I"], "Sem1")
-            with s2_tab: render_subjects(st.session_state.sem_data["Semester II"], "Sem2")
+            with s1_tab: render_sem(st.session_state.sem_data["Semester I"], "Sem1")
+            with s2_tab: render_subjects = render_sem(st.session_state.sem_data["Semester II"], "Sem2")
 
-            # --- 📢 VIRAL WHATSAPP LOOP ---
+            # --- VIRAL SHARE ---
             st.divider()
-            msg = f"Bhai, dekh TopperGPT pe mera {total_progress}% syllabus khatam ho gaya! Tu bhi track kar: [Tera_App_Link]"
-            whatsapp_url = f"https://wa.me/?text={msg.replace(' ', '%20')}"
-            
-            st.markdown(f"""
-                <div style="background-color: #f0f2f6; padding: 20px; border-radius: 15px; text-align: center; border: 2px solid #25D366;">
-                    <h4 style="color: #25D366;">📢 Viral Flex!</h4>
-                    <p>Share your branded progress report to your WhatsApp Study Group.</p>
-                    <a href="{whatsapp_url}" target="_blank">
-                        <button style="background-color: #25D366; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-                            Share on WhatsApp 🚀
-                        </button>
-                    </a>
-                    <p style="font-size: 10px; margin-top: 10px; color: grey;">Watermark: Generated by TopperGPT</p>
-                </div>
-            """, unsafe_allow_html=True)       
+            share_text = f"Bhai, dekh TopperGPT pe mera {progress}% syllabus done! Tu bhi track kar: [Link]"
+            whatsapp_url = f"https://wa.me/?text={share_text.replace(' ', '%20')}"
+            st.markdown(f'''
+                <a href="{whatsapp_url}" target="_blank" style="text-decoration:none;">
+                    <div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:18px;">
+                        Share My Progress on WhatsApp 🚀
+                    </div>
+                </a>
+            ''', unsafe_allow_html=True)      
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
