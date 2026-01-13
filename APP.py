@@ -153,65 +153,83 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: SYLLABUS MAGIC (STRICT COLUMN PARSER) ---
+    # --- TAB 2: SYLLABUS MAGIC (SUBJECT-WISE GROUPING) ---
     with tab2:
         st.subheader("📋 University Syllabus Progress Tracker")
-        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_column_fix")
+        syll_up = st.file_uploader("Upload Syllabus PDF", type=["pdf"], key="syll_subject_group")
         
         if syll_up and st.button("🚀 Generate Visual Roadmap"):
-            with st.spinner("Filtering real modules from tables..."):
+            with st.spinner("Organizing Subjects and Modules..."):
                 try:
-                    real_modules = []
                     with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Hum sirf un pages ko scan karenge jahan tables hain
-                        for page in pdf.pages:
-                            tables = page.extract_tables()
-                            for table in tables:
-                                for row in table:
-                                    # Logic: Column 0 mein Module number hona chahiye (01, 02...)
-                                    if row and len(row) > 1:
-                                        col0 = str(row[0]).strip()
-                                        # Check if col0 is a number like 01, 02 or 1, 2
-                                        if col0.isdigit() or (len(col0) == 2 and col0[0] == '0' and col0[1].isdigit()):
-                                            title = str(row[1]).split('\n')[0] # Sirf pehli line (Main Heading)
-                                            module_str = f"Module {col0}: {title.strip()}"
-                                            if module_str not in real_modules:
-                                                real_modules.append(module_str)
-
-                    if real_modules:
-                        st.session_state.roadmap = real_modules
-                        st.session_state.done_topics = []
-                        st.success(f"✅ {len(real_modules)} Main Modules identified!")
-                    else:
-                        st.warning("⚠️ Table format detect nahi hua. Ek baar manually try karein.")
-
+                        # Extracting first 10 pages to cover all subjects
+                        full_text = "\n".join([p.extract_text() for p in pdf.pages[:10] if p.extract_text()])
+                    
+                    # AI logic to group by Subject and limit to 6 Modules
+                    prompt = f"""
+                    From this syllabus, extract each Subject Name and exactly its 6 Modules.
+                    Ignore preamble and general instructions.
+                    Format: 
+                    Subject: [Subject Name]
+                    - Module 1: [Title]
+                    - Module 2: [Title]
+                    ... up to Module 6.
+                    
+                    Syllabus Text: {full_text[:15000]}
+                    """
+                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                    
+                    # Parsing into a Dictionary {Subject: [Modules]}
+                    raw_output = res.choices[0].message.content.split("\n")
+                    structured_roadmap = {}
+                    current_subject = None
+                    
+                    for line in raw_output:
+                        if "Subject:" in line:
+                            current_subject = line.replace("Subject:", "").strip()
+                            structured_roadmap[current_subject] = []
+                        elif "Module" in line and current_subject:
+                            if len(structured_roadmap[current_subject]) < 6: # Limit to 6 modules per subject
+                                structured_roadmap[current_subject].append(line.strip("- ").strip())
+                    
+                    st.session_state.roadmap_dict = structured_roadmap
+                    st.session_state.done_topics = []
+                    st.success(f"✅ Found {len(structured_roadmap)} Subjects with 6 Modules each!")
                 except Exception as e:
                     st.error(f"Syllabus Error: {e}")
 
-        # Visual Dashboard
-        if st.session_state.get("roadmap"):
-            total = len(st.session_state.roadmap)
-            done = len(st.session_state.get("done_topics", []))
-            progress = int((done / total) * 100) if total > 0 else 0
+        # --- DISPLAY LOGIC ---
+        if st.session_state.get("roadmap_dict"):
+            # Progress Calculation
+            all_mods = [m for mods in st.session_state.roadmap_dict.values() for m in mods]
+            total_m = len(all_mods)
+            done_m = len(st.session_state.get("done_topics", []))
+            progress = int((done_m / total_m) * 100) if total_m > 0 else 0
 
             col1, col2 = st.columns([1, 1])
             with col1:
-                st.metric("Syllabus Mastery", f"{progress}%")
+                st.metric("Overall Mastery", f"{progress}%")
                 st.progress(progress / 100)
             with col2:
-                st.download_button("📥 Download Tracker", "\n".join(st.session_state.roadmap), file_name="Roadmap.txt")
+                # Downloadable Tracker
+                tracker_out = f"TOpperGPT Roadmap\nTotal Progress: {progress}%\n\n"
+                for sub, ms in st.session_state.roadmap_dict.items():
+                    tracker_out += f"\n--- {sub} ---\n" + "\n".join(ms)
+                st.download_button("📥 Download Subject Tracker", tracker_out, file_name="Roadmap.txt")
 
             st.divider()
 
-            # Displaying each module as a separate checkbox
-            for i, topic in enumerate(st.session_state.roadmap):
-                is_checked = st.checkbox(topic, key=f"fixed_mod_{i}", value=(topic in st.session_state.done_topics))
-                if is_checked and topic not in st.session_state.done_topics:
-                    st.session_state.done_topics.append(topic)
-                    st.rerun()
-                elif not is_checked and topic in st.session_state.done_topics:
-                    st.session_state.done_topics.remove(topic)
-                    st.rerun()
+            # Subject-wise Expanders (Bhai, ye dekh mast dikhega)
+            for subject, modules in st.session_state.roadmap_dict.items():
+                with st.expander(f"📚 {subject}"):
+                    for m in modules:
+                        is_checked = st.checkbox(m, key=f"chk_{subject}_{m}", value=(m in st.session_state.done_topics))
+                        if is_checked and m not in st.session_state.done_topics:
+                            st.session_state.done_topics.append(m)
+                            st.rerun()
+                        elif not is_checked and m in st.session_state.done_topics:
+                            st.session_state.done_topics.remove(m)
+                            st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
    # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
     with tab3:
