@@ -252,78 +252,71 @@ else:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-   # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE - UPDATED) ---
+    # --- TAB 3: ANSWER EVALUATOR (ONE-SHOT SMART SCAN) ---
     with tab3:
-        st.subheader("🖋️ Board Moderator: Answer Evaluation")
-        st.write("Upload your handwritten answer. I will grade you like a strict University Examiner.")
+        st.subheader("🖋️ Board Moderator: One-Shot Evaluation")
+        st.write("Photo kheencho jisme Question aur Answer dono ho. AI khud pehchan lega!")
 
-        # --- NEW: QUESTION INPUT SECTION ---
-        q_mode = st.radio("Question kaise dena hai?", ["Type Text", "Upload Question Photo"], horizontal=True)
-        
-        q_text = ""
-        q_img_file = None
+        # Single Upload for everything
+        master_img = st.file_uploader("Upload Image (Question + Answer)", type=["png", "jpg", "jpeg"])
 
-        if q_mode == "Type Text":
-            q_text = st.text_area("Step 1: Paste the Question here:", placeholder="e.g. Explain the working of a BJT as an amplifier.")
-        else:
-            q_img_file = st.file_uploader("Step 1: Upload Question Paper Photo", type=["png", "jpg", "jpeg"])
-            if q_img_file:
-                st.image(q_img_file, caption="Question Detected", width=250)
-
-        # 2. Image Upload (Handwritten Answer)
-        ans_img = st.file_uploader("Step 2: Upload your handwritten answer (Image/PDF)", type=["png", "jpg", "jpeg", "pdf"])
-
-        if st.button("🔍 Evaluate My Answer") and ans_img and (q_text or q_img_file):
-            with st.spinner("Moderator is checking your paper... Be ready for honest feedback."):
+        if st.button("🔍 Smart Evaluate") and master_img:
+            with st.spinner("Moderator is scanning the page... Analyzing Question & Answer structure."):
                 try:
+                    # Vision model call
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # Prepare Answer Image
-                    ans_data = {"mime_type": "image/jpeg", "data": ans_img.getvalue()}
+                    img_data = master_img.getvalue()
                     
-                    # Logic: Agar question photo hai toh usse bhi bhejo, warna sirf text
-                    content_to_analyze = [ans_data]
+                    # THE "ONE-SHOT" PROMPT: AI khud identify karega bifurcation
+                    one_shot_prompt = """
+                    ROLE: Strict Indian University Board Examiner.
                     
-                    if q_mode == "Upload Question Photo" and q_img_file:
-                        q_data = {"mime_type": "image/jpeg", "data": q_img_file.getvalue()}
-                        content_to_analyze.append(q_data)
-                        context_q = "Look at the uploaded question photo to understand the task."
-                    else:
-                        context_q = f"QUESTION: {q_text}"
-
-                    # THE "STRICT MODERATOR" PROMPT
-                    moderator_prompt = f"""
-                    ROLE: Strict Indian University Board Examiner (20 years experience).
-                    {context_q}
+                    TASK: 
+                    1. Analyze the uploaded image.
+                    2. Identify the 'Question' (usually at the top or numbered).
+                    3. Identify the 'Handwritten Answer' provided below it.
                     
-                    GRADING RULES:
-                    1. Scan for Technical Keywords. No keywords = Heavy penalty.
-                    2. Check for Diagram/Formula. If missing but required, deduct 50% marks.
-                    3. Presentation: Underlining, labeling, and step-wise logic matter.
-                    4. Illegible Handwriting = 0 marks.
+                    GRADING CRITERIA:
+                    - Technical Keywords: Must be present.
+                    - Diagram/Formula: Essential for engineering answers.
+                    - Handwriting: Must be legible.
                     
                     OUTPUT FORMAT:
+                    ## 📌 DETECTED QUESTION:
+                    [Write the question you identified here]
+                    
+                    ---
                     ## 📊 PROVISIONAL SCORE: [X/10]
+                    
                     ### ✅ WHAT YOU DID WELL:
+                    (Brief point)
+                    
                     ### ❌ WHY YOU LOST MARKS:
-                    ### 💡 THE TOPPER'S TIP (MODEL ANSWER):
+                    (Specific misses like missing keywords or steps)
+                    
+                    ### 💡 THE TOPPER'S TIP:
+                    (What to add for full marks?)
+                    
                     ---
                     **MODERATOR'S FINAL WARNING:** (Only if handwriting is bad)
                     """
                     
-                    content_to_analyze.append(moderator_prompt)
-                    
-                    # Vision analysis (Reading both Question and Answer)
-                    response = model.generate_content(content_to_analyze)
+                    # Vision analysis
+                    response = model.generate_content([
+                        {"mime_type": "image/jpeg", "data": img_data},
+                        one_shot_prompt
+                    ])
                     
                     st.markdown(response.text)
                     
+                    # Viral Loop & Download
                     st.divider()
                     st.caption("Proud of your score? Share it with your study group!")
-                    st.download_button("📥 Download Evaluation Report", response.text, file_name="Evaluation_Report.txt")
+                    st.download_button("📥 Download Report", response.text, file_name="TopperGPT_Evaluation.txt")
                     
                 except Exception as e:
-                    st.error(f"Moderator is busy. Error: {e}")
+                    st.error(f"Moderator is tired. Error: {e}")
 
     # --- TAB 4: MIND MAP ---
     # --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
