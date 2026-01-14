@@ -252,71 +252,76 @@ else:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-    # --- TAB 3: ANSWER EVALUATOR (ONE-SHOT SMART SCAN) ---
+    # --- TAB 3: ANSWER EVALUATOR (ONE-SHOT SMART SCAN - FIXED) ---
     with tab3:
         st.subheader("🖋️ Board Moderator: One-Shot Evaluation")
-        st.write("Photo kheencho jisme Question aur Answer dono ho. AI khud pehchan lega!")
+        st.info("Photo kheencho jisme Question aur Answer dono ho. AI khud bifurcate kar lega!")
 
-        # Single Upload for everything
-        master_img = st.file_uploader("Upload Image (Question + Answer)", type=["png", "jpg", "jpeg"])
+        # Single Upload for efficiency
+        master_img = st.file_uploader("Upload Image (Question + Answer)", type=["png", "jpg", "jpeg"], key="eval_one_shot_v2")
 
         if st.button("🔍 Smart Evaluate") and master_img:
-            with st.spinner("Moderator is scanning the page... Analyzing Question & Answer structure."):
+            with st.spinner("Moderator is scanning the page... Identifying Question & Answer structure."):
                 try:
-                    # Vision model call
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # FIX: Explicit model path to avoid 404
+                    model = genai.GenerativeModel('models/gemini-1.5-flash')
                     
                     img_data = master_img.getvalue()
                     
-                    # THE "ONE-SHOT" PROMPT: AI khud identify karega bifurcation
+                    # THE "ONE-SHOT" PROMPT (Optimized for single image)
                     one_shot_prompt = """
-                    ROLE: Strict Indian University Board Examiner.
+                    ROLE: Strict Indian University Board Examiner with 20 years experience.
                     
                     TASK: 
-                    1. Analyze the uploaded image.
-                    2. Identify the 'Question' (usually at the top or numbered).
-                    3. Identify the 'Handwritten Answer' provided below it.
+                    1. Analyze the uploaded image carefully.
+                    2. Identify the 'Question' part (usually printed or at the top).
+                    3. Identify the 'Handwritten Answer' part provided for that specific question.
                     
                     GRADING CRITERIA:
-                    - Technical Keywords: Must be present.
-                    - Diagram/Formula: Essential for engineering answers.
+                    - Technical Keywords: If missing, deduct marks heavily.
+                    - Diagram/Formula: Essential for Engineering subjects. Deduct 50% if missing where required.
+                    - Logic Flow: Step-wise explanation is mandatory.
                     - Handwriting: Must be legible.
                     
                     OUTPUT FORMAT:
                     ## 📌 DETECTED QUESTION:
-                    [Write the question you identified here]
+                    [Write the exact question you identified from the image]
                     
                     ---
                     ## 📊 PROVISIONAL SCORE: [X/10]
                     
                     ### ✅ WHAT YOU DID WELL:
-                    (Brief point)
+                    (Brief one-liner)
                     
                     ### ❌ WHY YOU LOST MARKS:
-                    (Specific misses like missing keywords or steps)
+                    (Bullet points with specific technical misses)
                     
-                    ### 💡 THE TOPPER'S TIP:
-                    (What to add for full marks?)
+                    ### 💡 THE TOPPER'S TIP (MODEL ANSWER):
+                    (What exact keywords or diagrams would make this a 10/10?)
                     
                     ---
-                    **MODERATOR'S FINAL WARNING:** (Only if handwriting is bad)
+                    **MODERATOR'S FINAL WARNING:** (Only if handwriting is hard to read or logic is weak)
                     """
                     
-                    # Vision analysis
+                    # Vision analysis using standard Gemini implementation
                     response = model.generate_content([
                         {"mime_type": "image/jpeg", "data": img_data},
                         one_shot_prompt
                     ])
                     
-                    st.markdown(response.text)
-                    
-                    # Viral Loop & Download
-                    st.divider()
-                    st.caption("Proud of your score? Share it with your study group!")
-                    st.download_button("📥 Download Report", response.text, file_name="TopperGPT_Evaluation.txt")
+                    if response.text:
+                        st.markdown(response.text)
+                        
+                        st.divider()
+                        st.caption("Proud of your score? Share it with your study group!")
+                        # Branded Download Option
+                        st.download_button("📥 Download Branded Evaluation Report", response.text, file_name="TopperGPT_Evaluation.txt")
+                    else:
+                        st.error("AI could not read the image properly. Please try a clearer photo.")
                     
                 except Exception as e:
-                    st.error(f"Moderator is tired. Error: {e}")
+                    # Specific help message for the user
+                    st.error(f"Moderator Error: {e}. Check if your API Key supports the 'models/gemini-1.5-flash' endpoint.")
 
     # --- TAB 4: MIND MAP ---
     # --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
