@@ -153,71 +153,75 @@ else:
                 except Exception as e:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (PRO AI PARSER) ---
+    # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (THE AI RELOAD) ---
     with tab2:
-        st.markdown('<h3 style="text-align: center;">📋 Universal Syllabus Tracker</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align: center;">📋 TopperGPT Universal Tracker</h3>', unsafe_allow_html=True)
         
-        # User selection to focus AI
+        # 1. Semester Selector
         t_sem = st.selectbox(
             "Bhai, pehle Semester select karle:", 
             ["Select Semester", "Semester I", "Semester II"],
-            key="universal_ai_v50_selector"
+            key="final_universal_sem_selector"
         )
         
-        syll_up = st.file_uploader("Upload University Syllabus PDF", type=["pdf"], key="syll_ai_v50")
+        # 2. PDF Uploader
+        syll_up = st.file_uploader("Upload University Syllabus PDF", type=["pdf"], key="final_syll_ai")
         
-        if syll_up and t_sem != "Select Semester" and st.button("🚀 Analyze with AI", use_container_width=True):
-            with st.spinner(f"AI is filtering {t_sem} (Ignoring Labs)..."):
-                try:
-                    with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                        # Scan more pages to ensure IKS and Main subjects are found
-                        raw_text = "\n".join([p.extract_text() for p in pdf.pages[:75] if p.extract_text()])
-                    
-                    # Strict AI Prompt with Lab Filter and Chapter Validation
-                    prompt = f"""
-                    Instructions: 
-                    1. Identify ALL Theory Subjects ONLY for {t_sem}.
-                    2. STRICTLY IGNORE any subjects ending with 'Lab', 'Laboratory', 'Workshop', or 'Tutorial'.
-                    3. Extract exactly 6 core module/chapter titles for each theory subject.
-                    4. IMPORTANT: Verify that the chapters match the subject name (e.g., Mathematics II must NOT have Complex Numbers).
-                    5. Ensure 'Indian Knowledge System (IKS)' and 'Environmental Studies' are included if present.
-                    
-                    Format: {t_sem} | Subject Name | Title 1, Title 2, Title 3, Title 4, Title 5, Title 6
-                    
-                    Text: {raw_text[:18000]}
-                    """
-                    
-                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    
-                    dynamic_data = {}
-                    for line in res.choices[0].message.content.split("\n"):
-                        if "|" in line and t_sem.upper() in line.upper():
-                            parts = line.split("|")
-                            if len(parts) >= 3:
-                                s_name = parts[1].strip()
-                                # Filtering out Lab subjects just in case AI misses them
-                                if any(lab in s_name.lower() for lab in ["lab", "workshop", "tutorial"]):
-                                    continue
-                                    
-                                m_list = [m.strip() for m in parts[2].split(",") if len(m) > 3][:6]
-                                if len(m_list) >= 3:
-                                    dynamic_data[s_name] = m_list
+        # BUTTON LOGIC FIXED: Ab button tabhi dikhega jab PDF upload hogi
+        if syll_up:
+            if st.button("🚀 Analyze & Generate Tracker", use_container_width=True):
+                if t_sem == "Select Semester":
+                    st.warning("Bhai, pehle Semester toh select karle!")
+                else:
+                    with st.spinner(f"AI is decoding {t_sem} (Theory Only)..."):
+                        try:
+                            with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
+                                # Full scan to ensure no subject is missed
+                                raw_text = "\n".join([p.extract_text() for p in pdf.pages[:80] if p.extract_text()])
+                            
+                            # AI Instructions: Lab filter and Semester Lock
+                            prompt = f"""
+                            Task: Extract ALL Theory Engineering Subjects for {t_sem}.
+                            Rules:
+                            1. IGNORE all Lab, Workshop, and Tutorial subjects.
+                            2. Find exactly 6 core module titles for each subject.
+                            3. Ensure Mathematics II chapters are NOT mixed with Mathematics I.
+                            4. Include IKS and EVS if present in the text.
+                            
+                            Format: {t_sem} | Subject Name | Title 1, Title 2, Title 3, Title 4, Title 5, Title 6
+                            Text: {raw_text[:20000]}
+                            """
+                            
+                            res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                            
+                            dynamic_data = {}
+                            for line in res.choices[0].message.content.split("\n"):
+                                if "|" in line and t_sem.upper() in line.upper():
+                                    parts = line.split("|")
+                                    if len(parts) >= 3:
+                                        s_name = parts[1].strip()
+                                        # Double check for Labs
+                                        if any(lab in s_name.lower() for lab in ["lab", "workshop", "laboratory"]):
+                                            continue
+                                        m_list = [m.strip() for m in parts[2].split(",") if len(m) > 3][:6]
+                                        if len(m_list) >= 3:
+                                            dynamic_data[s_name] = m_list
 
-                    st.session_state.tracker_data = dynamic_data
-                    st.session_state.active_sem = t_sem
-                    st.session_state.done_topics = [] 
-                    st.success(f"✅ AI has mapped your {t_sem} Theory Roadmap!")
-                except Exception as e:
-                    st.error(f"Bhai kal try karenge, Rate Limit reached: {e}")
+                            st.session_state.tracker_data = dynamic_data
+                            st.session_state.active_sem = t_sem
+                            st.session_state.done_topics = [] 
+                            st.success(f"✅ AI has mapped your {t_sem} Roadmap!")
+                        except Exception as e:
+                            st.error(f"Error: {e}. Shayad tokens phir se khatam ho gaye!")
 
-        # --- PROGRESS & BRANDED SHARE CARD ---
+        # --- PREMIUM TRACKER UI ---
         if st.session_state.get("tracker_data"):
             t_data = st.session_state.tracker_data
             all_keys = [f"{st.session_state.active_sem}_{s}_{m}".replace(" ","_") for s, ms in t_data.items() for m in ms]
-            done_items = [d for d in st.session_state.get("done_topics", []) if d in all_keys]
-            prog = int((len(done_items) / len(all_keys)) * 100) if all_keys else 0
+            valid_done = len([d for d in st.session_state.get("done_topics", []) if d in all_keys])
+            prog = int((valid_done / len(all_keys)) * 100) if all_keys else 0
 
-            # Sleek Mastery Card
+            # Sleek Compact Mastery Card
             st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 12px; border-radius: 12px; color: white; border: 1px solid #4CAF50; margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -227,21 +231,22 @@ else:
                     <div style="background: rgba(255,255,255,0.2); height: 5px; border-radius: 10px; margin: 8px 0;">
                         <div style="background: #4CAF50; height: 5px; border-radius: 10px; width: {prog}%;"></div>
                     </div>
-                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.active_sem} (Theory Only)</p>
+                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.active_sem} Theory Progress</p>
                 </div>
             """, unsafe_allow_html=True)
 
             # Branded Share Button
-            share_msg = f"*TopperGPT Report*%0A🔥 Mera *{prog}%* {st.session_state.active_sem} theory syllabus khatam!%0A🚀 Tu bhi track kar apna status!"
+            share_msg = f"*TopperGPT Report*%0A🔥 Mera *{prog}%* {st.session_state.active_sem} syllabus khatam!%0A🚀 Tu bhi track kar apna status!"
             st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank" style="text-decoration:none;"><button style="background-color:#25D366; color:white; width:100%; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-bottom:15px;">📲 Share Mastery with TopperGPT Watermark</button></a>', unsafe_allow_html=True)
 
             st.divider()
             
-            # --- THE DYNAMIC LIST (NO LABS) ---
+            # --- DETAILED TRACKER LIST ---
             for subject, modules in t_data.items():
                 with st.expander(f"📚 {subject}"):
                     for m in modules:
                         u_key = f"{st.session_state.active_sem}_{subject}_{m}".replace(" ", "_")
+                        # Proper Sync with Rerun
                         if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
                             if u_key not in st.session_state.done_topics:
                                 st.session_state.done_topics.append(u_key); st.rerun()
