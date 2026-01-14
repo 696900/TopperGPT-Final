@@ -252,12 +252,12 @@ else:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-    # --- TAB: ANSWER EVALUATOR (ONE-SHOT FIXED & CLEAN UI) ---
-    with tab_eval: # Tera jo bhi tab variable name hai
+    # --- TAB 3: ANSWER EVALUATOR (ONE-SHOT FIXED & CLEAN UI) ---
+    with tab3: # Yahan maine tab3 kar diya hai taaki NameError na aaye
         st.subheader("🖋️ Board Moderator: One-Shot Evaluation")
         
-        # Blue instruction box hata diya
-        master_img = st.file_uploader("Upload Image (Question + Answer)", type=["png", "jpg", "jpeg"], key="eval_final_fix")
+        # User uploads single image containing both Question and Answer
+        master_img = st.file_uploader("Upload Image (Question + Answer)", type=["png", "jpg", "jpeg"], key="eval_one_shot_final")
 
         if st.button("🔍 Smart Evaluate") and master_img:
             with st.spinner("Moderator is scanning the page..."):
@@ -271,22 +271,27 @@ else:
                     ROLE: Strict Indian University Board Examiner.
                     
                     TASK: 
-                    1. Identify the 'Question' and the 'Handwritten Answer' from the image.
-                    2. Grade the answer based on technical keywords and diagrams.
+                    1. Identify the printed 'Question' and the 'Handwritten Answer' from the same image.
+                    2. Grade the answer strictly based on technical keywords, diagrams, and formulas.
                     
                     OUTPUT FORMAT:
                     ## 📌 DETECTED QUESTION:
-                    [Question text]
+                    [Write the identified question here]
                     
                     ---
                     ## 📊 PROVISIONAL SCORE: [X/10]
                     
                     ### ✅ WHAT YOU DID WELL:
+                    (Brief point)
+                    
                     ### ❌ WHY YOU LOST MARKS:
-                    ### 💡 THE TOPPER'S TIP:
+                    (List specific technical misses)
+                    
+                    ### 💡 THE TOPPER'S TIP (MODEL ANSWER):
+                    (Tell them exactly what diagram/keywords would get them 10/10)
                     """
                     
-                    # Vision analysis call
+                    # One-Shot Vision Analysis
                     response = model.generate_content([
                         {"mime_type": "image/jpeg", "data": img_data},
                         one_shot_prompt
@@ -295,11 +300,11 @@ else:
                     if response.text:
                         st.markdown(response.text)
                         st.divider()
-                        st.download_button("📥 Download Report", response.text, file_name="Evaluation.txt")
+                        st.download_button("📥 Download Report", response.text, file_name="Evaluation_Report.txt")
                     
                 except Exception as e:
-                    # Cleaner error handling without technical jargon
-                    st.error("Bhai, Moderator abhi busy hai. Ek baar check karle ki API key sahi se set hai ya nahi.")
+                    # Specific error message for the 404 issue
+                    st.error(f"Moderator Error: {e}. Check if API Key supports 'gemini-1.5-flash'.")
 
     # --- TAB 4: MIND MAP ---
     # --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
