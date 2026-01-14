@@ -252,58 +252,41 @@ else:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-    # --- TAB 3: ANSWER EVALUATOR (ONE-SHOT SMART SCAN - FIXED) ---
-    with tab3:
+    # --- TAB: ANSWER EVALUATOR (ONE-SHOT FIXED & CLEAN UI) ---
+    with tab_eval: # Tera jo bhi tab variable name hai
         st.subheader("🖋️ Board Moderator: One-Shot Evaluation")
-        st.info("Photo kheencho jisme Question aur Answer dono ho. AI khud bifurcate kar lega!")
-
-        # Single Upload for efficiency
-        master_img = st.file_uploader("Upload Image (Question + Answer)", type=["png", "jpg", "jpeg"], key="eval_one_shot_v2")
+        
+        # Blue instruction box hata diya
+        master_img = st.file_uploader("Upload Image (Question + Answer)", type=["png", "jpg", "jpeg"], key="eval_final_fix")
 
         if st.button("🔍 Smart Evaluate") and master_img:
-            with st.spinner("Moderator is scanning the page... Identifying Question & Answer structure."):
+            with st.spinner("Moderator is scanning the page..."):
                 try:
-                    # FIX: Explicit model path to avoid 404
-                    model = genai.GenerativeModel('models/gemini-1.5-flash')
+                    # FIX: Endpoint structure change to avoid 404
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     img_data = master_img.getvalue()
                     
-                    # THE "ONE-SHOT" PROMPT (Optimized for single image)
                     one_shot_prompt = """
-                    ROLE: Strict Indian University Board Examiner with 20 years experience.
+                    ROLE: Strict Indian University Board Examiner.
                     
                     TASK: 
-                    1. Analyze the uploaded image carefully.
-                    2. Identify the 'Question' part (usually printed or at the top).
-                    3. Identify the 'Handwritten Answer' part provided for that specific question.
-                    
-                    GRADING CRITERIA:
-                    - Technical Keywords: If missing, deduct marks heavily.
-                    - Diagram/Formula: Essential for Engineering subjects. Deduct 50% if missing where required.
-                    - Logic Flow: Step-wise explanation is mandatory.
-                    - Handwriting: Must be legible.
+                    1. Identify the 'Question' and the 'Handwritten Answer' from the image.
+                    2. Grade the answer based on technical keywords and diagrams.
                     
                     OUTPUT FORMAT:
                     ## 📌 DETECTED QUESTION:
-                    [Write the exact question you identified from the image]
+                    [Question text]
                     
                     ---
                     ## 📊 PROVISIONAL SCORE: [X/10]
                     
                     ### ✅ WHAT YOU DID WELL:
-                    (Brief one-liner)
-                    
                     ### ❌ WHY YOU LOST MARKS:
-                    (Bullet points with specific technical misses)
-                    
-                    ### 💡 THE TOPPER'S TIP (MODEL ANSWER):
-                    (What exact keywords or diagrams would make this a 10/10?)
-                    
-                    ---
-                    **MODERATOR'S FINAL WARNING:** (Only if handwriting is hard to read or logic is weak)
+                    ### 💡 THE TOPPER'S TIP:
                     """
                     
-                    # Vision analysis using standard Gemini implementation
+                    # Vision analysis call
                     response = model.generate_content([
                         {"mime_type": "image/jpeg", "data": img_data},
                         one_shot_prompt
@@ -311,17 +294,12 @@ else:
                     
                     if response.text:
                         st.markdown(response.text)
-                        
                         st.divider()
-                        st.caption("Proud of your score? Share it with your study group!")
-                        # Branded Download Option
-                        st.download_button("📥 Download Branded Evaluation Report", response.text, file_name="TopperGPT_Evaluation.txt")
-                    else:
-                        st.error("AI could not read the image properly. Please try a clearer photo.")
+                        st.download_button("📥 Download Report", response.text, file_name="Evaluation.txt")
                     
                 except Exception as e:
-                    # Specific help message for the user
-                    st.error(f"Moderator Error: {e}. Check if your API Key supports the 'models/gemini-1.5-flash' endpoint.")
+                    # Cleaner error handling without technical jargon
+                    st.error("Bhai, Moderator abhi busy hai. Ek baar check karle ki API key sahi se set hai ya nahi.")
 
     # --- TAB 4: MIND MAP ---
     # --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
