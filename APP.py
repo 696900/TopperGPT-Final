@@ -252,30 +252,49 @@ else:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-   # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE) ---
+   # --- TAB 3: ANSWER EVALUATOR (STRICT MODERATOR MODE - UPDATED) ---
     with tab3:
         st.subheader("🖋️ Board Moderator: Answer Evaluation")
         st.write("Upload your handwritten answer. I will grade you like a strict University Examiner.")
 
-        # 1. Context Setting (Morphine Strategy: Question is must)
-        q_text = st.text_area("Step 1: Paste the Question here (so I can grade accurately):", placeholder="e.g. Explain the working of a BJT as an amplifier.")
+        # --- NEW: QUESTION INPUT SECTION ---
+        q_mode = st.radio("Question kaise dena hai?", ["Type Text", "Upload Question Photo"], horizontal=True)
         
-        # 2. Image Upload
+        q_text = ""
+        q_img_file = None
+
+        if q_mode == "Type Text":
+            q_text = st.text_area("Step 1: Paste the Question here:", placeholder="e.g. Explain the working of a BJT as an amplifier.")
+        else:
+            q_img_file = st.file_uploader("Step 1: Upload Question Paper Photo", type=["png", "jpg", "jpeg"])
+            if q_img_file:
+                st.image(q_img_file, caption="Question Detected", width=250)
+
+        # 2. Image Upload (Handwritten Answer)
         ans_img = st.file_uploader("Step 2: Upload your handwritten answer (Image/PDF)", type=["png", "jpg", "jpeg", "pdf"])
 
-        if st.button("🔍 Evaluate My Answer") and ans_img and q_text:
+        if st.button("🔍 Evaluate My Answer") and ans_img and (q_text or q_img_file):
             with st.spinner("Moderator is checking your paper... Be ready for honest feedback."):
                 try:
-                    # Vision model call (Gemini for Image analysis)
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # Preparing the image data
-                    img_data = ans_img.getvalue()
+                    # Prepare Answer Image
+                    ans_data = {"mime_type": "image/jpeg", "data": ans_img.getvalue()}
                     
-                    # THE "STRICT MODERATOR" PROMPT (Your Founder Strategy)
+                    # Logic: Agar question photo hai toh usse bhi bhejo, warna sirf text
+                    content_to_analyze = [ans_data]
+                    
+                    if q_mode == "Upload Question Photo" and q_img_file:
+                        q_data = {"mime_type": "image/jpeg", "data": q_img_file.getvalue()}
+                        content_to_analyze.append(q_data)
+                        context_q = "Look at the uploaded question photo to understand the task."
+                    else:
+                        context_q = f"QUESTION: {q_text}"
+
+                    # THE "STRICT MODERATOR" PROMPT
                     moderator_prompt = f"""
                     ROLE: Strict Indian University Board Examiner (20 years experience).
-                    QUESTION: {q_text}
+                    {context_q}
                     
                     GRADING RULES:
                     1. Scan for Technical Keywords. No keywords = Heavy penalty.
@@ -283,34 +302,24 @@ else:
                     3. Presentation: Underlining, labeling, and step-wise logic matter.
                     4. Illegible Handwriting = 0 marks.
                     
-                    OUTPUT FORMAT (Strictly follow this):
+                    OUTPUT FORMAT:
                     ## 📊 PROVISIONAL SCORE: [X/10]
-                    
                     ### ✅ WHAT YOU DID WELL:
-                    (1 short sentence)
-                    
                     ### ❌ WHY YOU LOST MARKS:
-                    (Bullet points with specific misses)
-                    
                     ### 💡 THE TOPPER'S TIP (MODEL ANSWER):
-                    (Tell them exactly what keywords and diagram to add for 10/10)
-                    
                     ---
                     **MODERATOR'S FINAL WARNING:** (Only if handwriting is bad)
                     """
                     
-                    # Using Gemini Vision to 'read' the handwriting
-                    response = model.generate_content([
-                        {"mime_type": "image/jpeg", "data": img_data},
-                        moderator_prompt
-                    ])
+                    content_to_analyze.append(moderator_prompt)
+                    
+                    # Vision analysis (Reading both Question and Answer)
+                    response = model.generate_content(content_to_analyze)
                     
                     st.markdown(response.text)
                     
-                    # 3. Viral Loop: Shareable Result [Your Viral Marketing Strategy]
                     st.divider()
                     st.caption("Proud of your score? Share it with your study group!")
-                    share_text = f"I just got a {response.text.split('/10')[0][-1]}/10 from TopperGPT's Board Moderator! Can you beat me?"
                     st.download_button("📥 Download Evaluation Report", response.text, file_name="Evaluation_Report.txt")
                     
                 except Exception as e:
