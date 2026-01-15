@@ -8,9 +8,58 @@ import re
 from streamlit_mermaid import st_mermaid
 from groq import Groq
 
-# --- 1. CONFIGURATION ---
-st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_icon="🎓")
+# --- 1. CONFIGURATION & PROFESSIONAL UI STYLING ---
+st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_icon="🚀")
 
+def apply_pro_theme():
+    st.markdown("""
+        <style>
+        /* Main App Background */
+        .stApp { background-color: #0e1117; color: #ffffff; }
+        
+        /* Sidebar Styling */
+        [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
+        
+        /* Login Card */
+        .login-card {
+            background: linear-gradient(145deg, #1e2530, #161b22);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid #4CAF50;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin: auto;
+        }
+        
+        /* Premium Google Button */
+        .google-btn {
+            background-color: white;
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        /* Input Field Styling */
+        .stTextInput>div>div>input {
+            background-color: #0d1117;
+            color: white;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+apply_pro_theme()
+
+# --- 2. FIREBASE & API INIT ---
 if not firebase_admin._apps:
     try:
         fb_dict = dict(st.secrets["firebase"])
@@ -20,73 +69,95 @@ if not firebase_admin._apps:
     except Exception as e:
         st.error(f"Firebase Init Error: {e}")
 
-# Stable API Setup
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- 2. SESSION STATE INITIALIZATION ---
-# [Fixes AttributeError & State Errors]
+# --- 3. SESSION STATE ---
 state_keys = {
     "user": None, 
     "pdf_content": "", 
     "messages": [], 
-    "roadmap": [], 
-    "flashcards": []
+    "tracker_data": None,
+    "active_sem": None,
+    "done_topics": []
 }
 for key, val in state_keys.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-# --- 3. HELPER FUNCTIONS ---
-def safe_mermaid_parser(text):
-    """Extracts only valid Mermaid code to prevent Syntax Errors."""
-    try:
-        match = re.search(r"(graph\s+(?:TD|LR|BT|RL)[\s\S]*?)(?=\n\n|---|```|$)", text)
-        if match:
-            return match.group(1).strip()
-        return None
-    except:
-        return None
-
-# --- 4. LOGIN PAGE ---
+# --- 4. PROFESSIONAL LOGIN PAGE ---
 if st.session_state.user is None:
-    st.title("🔐 Engineering TopperGPT Login")
-    email_in = st.text_input("Email")
-    pass_in = st.text_input("Password", type="password")
-    if st.button("Access Portal"):
-        try:
+    _, col_mid, _ = st.columns([1, 2, 1])
+    with col_mid:
+        st.markdown("""
+            <div class="login-card">
+                <h1 style='color: #4CAF50; margin-bottom: 5px;'>🚀 TopperGPT Pro</h1>
+                <p style='color: #8b949e; font-size: 16px;'>The Only Tool an Engineer Needs to Rule University Exams.</p>
+                <hr style="border-color: #30363d; margin: 25px 0;">
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Google Login Placeholder Button
+        st.markdown("""
+            <div style="text-align: center;">
+                <button class="google-btn">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" width="18px">
+                    Sign in with Google
+                </button>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<p style='text-align:center; color:#8b949e;'>--- OR USE EMAIL ---</p>", unsafe_allow_html=True)
+        
+        email_in = st.text_input("Email", placeholder="topper@university.com")
+        pass_in = st.text_input("Password", type="password", placeholder="••••••••")
+        
+        if st.button("Access Portal 🔓", use_container_width=True):
             try:
-                user = auth.get_user_by_email(email_in)
-            except:
-                user = auth.create_user(email=email_in, password=pass_in)
-            st.session_state.user = user.email
-            st.rerun()
-        except Exception as e:
-            st.error(f"Auth Error: {e}")
-else:
-    # --- SIDEBAR ---
-    with st.sidebar:
-        st.title("🎓 TopperGPT Pro")
-        st.success(f"User: {st.session_state.user}")
-        if st.button("Logout"):
-            st.session_state.user = None
-            st.rerun()
+                try:
+                    user = auth.get_user_by_email(email_in)
+                except:
+                    user = auth.create_user(email=email_in, password=pass_in)
+                st.session_state.user = user.email
+                st.rerun()
+            except Exception as e:
+                st.error(f"Auth Error: {e}")
+    st.stop()
 
-    # --- TABS (STRICT 1-8 SEQUENCE) ---
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-        "💬 Chat PDF", 
-        "📋 Syllabus Magic", 
-        "📝 Answer Eval", 
-        "🧠 MindMap", 
-        "🃏 Flashcards", 
-        "❓ Engg PYQs", 
-        "🔍 Topic Search", 
-        "⚖️ Legal"
-    ])
+# --- 5. SIDEBAR NAVIGATION ---
+with st.sidebar:
+    st.markdown("<h2 style='color: #4CAF50; padding-top: 0;'>🚀 TopperGPT</h2>", unsafe_allow_html=True)
+    st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=70)
+    st.markdown(f"**Welcome, Topper!**")
+    st.caption(f"Logged as: {st.session_state.user}")
+    
+    st.divider()
+    
+    # Navigation Radio
+    menu = st.radio(
+        "Navigation",
+        ["💬 Chat PDF", "📊 Syllabus Magic", "📝 Answer Eval", "🧠 MindMap", "🃏 Flashcards", "❓ Engg PYQs", "🔍 Topic Search", "⚖️ Legal"]
+    )
+    
+    st.divider()
+    if st.button("🔓 Logout", use_container_width=True):
+        st.session_state.user = None
+        st.rerun()
+
+# --- 6. RENDER CONTENT BASED ON NAVIGATION ---
+# Mapping Sidebar Menu to Tabs Logic
+if menu == "💬 Chat PDF": tab = st.container()
+# ... (Yahan tera Tab 1 ka code aayega)
+
+# Lekin tere existing structure ko maintain karne ke liye hum wahi tab logic rakhte hain
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    "💬 Chat PDF", "📊 Syllabus Magic", "📝 Answer Eval", "🧠 MindMap", 
+    "🃏 Flashcards", "❓ Engg PYQs", "🔍 Topic Search", "⚖️ Legal"
+])
    
     # --- TAB 1: SMART NOTE ANALYSIS (FINAL UI FIX) ---
     # --- TAB 1: SMART NOTE ANALYSIS (HYBRID MODE) ---
-    with tab1:
+with tab1:
         st.subheader("📚 Smart Note Analysis")
         
         # 1. File Uploader (Optional)
@@ -154,7 +225,7 @@ else:
                     st.error("Connection failed. Try again.")        
     # --- TAB 2: SYLLABUS MAGIC ---
     # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
-    with tab2:
+with tab2:
         st.markdown('<h3 style="text-align: center;">📋 TopperGPT Universal Tracker</h3>', unsafe_allow_html=True)
         
         # Semester Selector
@@ -253,7 +324,7 @@ else:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
     # --- TAB 3: ANSWER EVALUATOR (ONE-SHOT FIXED & CLEAN UI) ---
-    with tab3: # Yahan maine tab3 kar diya hai taaki NameError na aaye
+with tab3: # Yahan maine tab3 kar diya hai taaki NameError na aaye
         st.subheader("🖋️ Board Moderator: One-Shot Evaluation")
         
         # User uploads single image containing both Question and Answer
@@ -308,7 +379,7 @@ else:
 
     # --- TAB 4: MIND MAP ---
     # --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
-    with tab4:
+with tab4:
         st.subheader("🧠 Concept MindMap & Summary")
         
         # Choice of source
@@ -368,7 +439,7 @@ else:
 
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
     # --- TAB 5: FLASHCARDS (UNIVERSAL SYNC FIX) ---
-    with tab5:
+with tab5:
         st.subheader("🃏 Engineering Flashcard Generator")
         
         # 1. Direct File Uploader
@@ -443,7 +514,7 @@ else:
                     with st.expander(f"🔹 {q.strip()}"):
                         st.success(f"**Ans:** {a.strip()}")
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
-    with tab6:
+with tab6:
         st.subheader("❓ University Previous Year Questions")
         st.write("Get high-probability questions based on your University and Branch.")
 
@@ -496,7 +567,7 @@ else:
                 st.warning("⚠️ Please enter a subject name first.")
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
-    with tab7:
+with tab7:
         st.subheader("🔍 Engineering Topic Research")
         st.write("Instant 360° Analysis: Definition, Diagram, & 5 Research-based PYQs.")
         
@@ -570,7 +641,7 @@ else:
                 except Exception as e:
                     st.error(f"System busy. Error: {e}")
     # --- TAB 8: LEGAL ---
-    with tab8:
+with tab8:
         st.header("⚖️ Legal & Policies")
         with st.expander("🛡️ Privacy Policy", expanded=True):
             st.write("We protect engineering data using Firebase Encryption. Files are not stored permanently.")
