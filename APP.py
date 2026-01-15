@@ -17,10 +17,15 @@ def apply_pro_theme():
         /* Main App Background */
         .stApp { background-color: #0e1117; color: #ffffff; }
         
-        /* Sidebar Styling */
-        [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
+        /* Sidebar Cleanup: Removing duplicate navigation */
+        [data-testid="stSidebarNav"] { display: none; }
+        [data-testid="stSidebar"] { 
+            background-color: #161b22; 
+            border-right: 1px solid #30363d; 
+            min-width: 240px; 
+        }
         
-        /* Login Card */
+        /* Login Card Styling */
         .login-card {
             background: linear-gradient(145deg, #1e2530, #161b22);
             padding: 40px;
@@ -30,23 +35,17 @@ def apply_pro_theme():
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             margin: auto;
         }
-        
-        /* Premium Google Button */
-        .google-btn {
-            background-color: white;
-            color: #000;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: bold;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            border: none;
-            cursor: pointer;
-            margin-bottom: 20px;
+
+        /* Access Portal Button Hover Effect */
+        .stButton>button {
+            border-radius: 10px;
+            transition: 0.3s;
         }
-        
+        .stButton>button:hover {
+            box-shadow: 0 0 15px #4CAF50;
+            border-color: #4CAF50;
+        }
+
         /* Input Field Styling */
         .stTextInput>div>div>input {
             background-color: #0d1117;
@@ -85,10 +84,11 @@ for key, val in state_keys.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-# --- 4. PROFESSIONAL LOGIN PAGE ---
+# --- 4. PROFESSIONAL LOGIN PAGE (CENTERED) ---
 if st.session_state.user is None:
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
+        st.markdown("<br><br>", unsafe_allow_html=True)
         st.markdown("""
             <div class="login-card">
                 <h1 style='color: #4CAF50; margin-bottom: 5px;'>🚀 TopperGPT Pro</h1>
@@ -97,59 +97,46 @@ if st.session_state.user is None:
             </div>
         """, unsafe_allow_html=True)
         
-        # Google Login Placeholder Button
-        st.markdown("""
-            <div style="text-align: center;">
-                <button class="google-btn">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" width="18px">
-                    Sign in with Google
-                </button>
-            </div>
-        """, unsafe_allow_html=True)
+        # ACTIVE Google Login Button (Simulated for Content Creation)
+        if st.button("Continue with Google 🔴", use_container_width=True):
+            st.session_state.user = "topper.engineer@gmail.com"
+            st.success("Google Authentication Successful! 🚀")
+            st.rerun()
         
-        st.markdown("<p style='text-align:center; color:#8b949e;'>--- OR USE EMAIL ---</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; color:#8b949e; margin-top:10px;'>--- OR USE EMAIL ---</p>", unsafe_allow_html=True)
         
         email_in = st.text_input("Email", placeholder="topper@university.com")
         pass_in = st.text_input("Password", type="password", placeholder="••••••••")
         
-        if st.button("Access Portal 🔓", use_container_width=True):
-            try:
+        if st.button("Access Portal 🔐", use_container_width=True):
+            if email_in and pass_in:
                 try:
-                    user = auth.get_user_by_email(email_in)
-                except:
-                    user = auth.create_user(email=email_in, password=pass_in)
-                st.session_state.user = user.email
-                st.rerun()
-            except Exception as e:
-                st.error(f"Auth Error: {e}")
+                    try:
+                        user = auth.get_user_by_email(email_in)
+                    except:
+                        user = auth.create_user(email=email_in, password=pass_in)
+                    st.session_state.user = user.email
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Auth Error: {e}")
+            else:
+                st.warning("Bhai, credentials toh daalo!")
     st.stop()
 
-# --- 5. SIDEBAR NAVIGATION ---
+# --- 5. CLEAN SIDEBAR (LOGOUT & PROFILE ONLY) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; padding-top: 0;'>🚀 TopperGPT</h2>", unsafe_allow_html=True)
-    st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=70)
+    st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=80)
     st.markdown(f"**Welcome, Topper!**")
     st.caption(f"Logged as: {st.session_state.user}")
     
     st.divider()
-    
-    # Navigation Radio
-    menu = st.radio(
-        "Navigation",
-        ["💬 Chat PDF", "📊 Syllabus Magic", "📝 Answer Eval", "🧠 MindMap", "🃏 Flashcards", "❓ Engg PYQs", "🔍 Topic Search", "⚖️ Legal"]
-    )
-    
-    st.divider()
+    # Manual Logout only, no duplicate navigation here
     if st.button("🔓 Logout", use_container_width=True):
         st.session_state.user = None
         st.rerun()
 
-# --- 6. RENDER CONTENT BASED ON NAVIGATION ---
-# Mapping Sidebar Menu to Tabs Logic
-if menu == "💬 Chat PDF": tab = st.container()
-# ... (Yahan tera Tab 1 ka code aayega)
-
-# Lekin tere existing structure ko maintain karne ke liye hum wahi tab logic rakhte hain
+# --- 6. MAIN CONTENT NAVIGATION (HORIZONTAL TABS) ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus Magic", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Topic Search", "⚖️ Legal"
