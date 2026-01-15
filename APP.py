@@ -7,6 +7,8 @@ import io
 import re
 from streamlit_mermaid import st_mermaid
 from groq import Groq
+# Nayi library for official OAuth popup
+from streamlit_google_auth import Authenticate
 
 # --- 1. CONFIGURATION & PRO UI ---
 st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_icon="🚀")
@@ -39,7 +41,7 @@ def apply_pro_theme():
 
 apply_pro_theme()
 
-# --- 2. FIREBASE INITIALIZATION ---
+# --- 2. FIREBASE & API INITIALIZATION ---
 if not firebase_admin._apps:
     try:
         fb_dict = dict(st.secrets["firebase"])
@@ -49,24 +51,31 @@ if not firebase_admin._apps:
     except Exception as e:
         st.error(f"Firebase Init Error: {e}")
 
-# APIs
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- 3. SESSION STATE ---
+# --- 3. OFFICIAL GOOGLE AUTH SETUP ---
+# Pehle apne secrets mein client_id, client_secret aur cookie_key dalo
+#
+authenticator = Authenticate(
+    secret_names=[
+        st.secrets["google"]["client_id"],
+        st.secrets["google"]["client_secret"],
+    ],
+    cookie_name="topper_gpt_auth",
+    cookie_key=st.secrets["google"]["cookie_key"],
+    redirect_uri=st.secrets["google"]["redirect_uri"],
+)
+
+# Check for existing login session
+authenticator.check_authenticator()
+
+# --- 4. SESSION STATE ---
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# --- 4. ACTUAL GOOGLE LOGIN LOGIC (FIREBASE OAUTH) ---
-# NOTE: Asli Google popup ke liye aapko Firebase Console mein 'Google' provider enable karna hoga.
-def handle_google_login():
-    # Streamlit mein official popup ke liye 'streamlit-google-auth' library best hai.
-    # Tab tak hum Firebase ke email-link ya manual auth ko pro UI de rahe hain.
-    st.session_state.user = "krishnaghanabahadur85@gmail.com" # Placeholder for actual token return
-    st.rerun()
-
-# --- 5. CENTERED LOGIN UI ---
-if st.session_state.user is None:
+# --- 5. THE LOGIN PAGE ---
+if not st.session_state.get('connected') and st.session_state.user is None:
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
         st.markdown("<br><br>", unsafe_allow_html=True)
@@ -79,20 +88,22 @@ if st.session_state.user is None:
             </div>
         """, unsafe_allow_html=True)
 
-        # Official Look Google Button
-        if st.button("Sign in with Google", key="google_login_main", use_container_width=True):
-            # Yahan actual OAuth flow trigger hoga
-            handle_google_login()
+        # OFFICIAL GOOGLE LOGIN POPUP
+        authenticator.login()
         
-        st.markdown("<p style='text-align:center; color:#8b949e; margin-top:15px;'>--- OR ---</p>", unsafe_allow_html=True)
+        # If successfully connected via Google OAuth
+        if st.session_state.get('connected'):
+            st.session_state.user = st.session_state.get('user_info').get('email')
+            st.rerun()
+
+        st.markdown("<p style='text-align:center; color:#8b949e; margin-top:15px;'>--- OR EMAIL LOGIN ---</p>", unsafe_allow_html=True)
         
-        email = st.text_input("University Email")
-        password = st.text_input("Password", type="password")
+        email = st.text_input("University Email", key="email_manual")
+        password = st.text_input("Password", type="password", key="pass_manual")
         
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Login 🔓", use_container_width=True):
-                # Actual Firebase Auth Check
                 try:
                     user = auth.get_user_by_email(email)
                     st.session_state.user = user.email
@@ -110,13 +121,24 @@ if st.session_state.user is None:
                     st.error(f"Error: {e}")
     st.stop()
 
+# Set user state if connected via Google but session was fresh
+if st.session_state.get('connected') and st.session_state.user is None:
+    st.session_state.user = st.session_state.get('user_info').get('email')
+
 # --- 6. POST-LOGIN SIDEBAR & TABS ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50;'>🚀 TopperGPT</h2>", unsafe_allow_html=True)
-    st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=80)
+    
+    # Show Google Profile pic if available
+    user_pic = st.session_state.get('user_info', {}).get('picture', "https://img.icons8.com/bubbles/100/000000/user.png")
+    st.image(user_pic, width=80)
+    
     st.markdown(f"**Welcome, {st.session_state.user.split('@')[0]}!**")
     st.divider()
+    
     if st.button("🔓 Logout", use_container_width=True):
+        if st.session_state.get('connected'):
+            authenticator.logout()
         st.session_state.user = None
         st.rerun()
 
@@ -124,7 +146,6 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus Magic", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Topic Search", "⚖️ Legal"
 ])
-   
     # --- TAB 1: SMART NOTE ANALYSIS (FINAL UI FIX) ---
     # --- TAB 1: SMART NOTE ANALYSIS (HYBRID MODE) ---
 with tab1:

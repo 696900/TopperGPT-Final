@@ -10,3 +10,4 @@ google-generativeai
 pdfplumber
 youtube-transcript-api
 streamlit-mermaid
+streamlit-google-auth
