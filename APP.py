@@ -616,16 +616,8 @@ with tab7:
                         
                 except Exception as e:
                     st.error(f"System busy. Error: {e}")
-    # --- TAB 8: LEGAL ---
-with tab8:
-        st.header("⚖️ Legal & Policies")
-        with st.expander("🛡️ Privacy Policy", expanded=True):
-            st.write("We protect engineering data using Firebase Encryption. Files are not stored permanently.")
-        with st.expander("📜 Terms of Service"):
-            st.write("TopperGPT is an AI assistant. Cross-verify derivations with university textbooks.")
-        st.write("Contact: support@toppergpt.com")
 
-with tab9:
+with tab8:
     st.subheader("🤝 Topper Connect: Community Hub")
     st.write("Doubt pucho, Notes share karo aur saath mein Topper bano!")
     
@@ -649,3 +641,11 @@ with tab9:
         st.markdown("### 🏆 Top Contributors")
         st.success("1. Krishna (85 Points)")
         st.info("2. Aryan (60 Points)")        
+
+with tab9:
+        st.header("⚖️ Legal & Policies")
+        with st.expander("🛡️ Privacy Policy", expanded=True):
+            st.write("We protect engineering data using Firebase Encryption. Files are not stored permanently.")
+        with st.expander("📜 Terms of Service"):
+            st.write("TopperGPT is an AI assistant. Cross-verify derivations with university textbooks.")
+        st.write("Contact: support@toppergpt.com")        
