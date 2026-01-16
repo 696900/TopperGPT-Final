@@ -7,38 +7,49 @@ import io
 import re
 from groq import Groq
 
-# --- 1. CONFIGURATION & PRO UI ---
+# --- 1. CONFIGURATION & RESPONSIVE PRO UI ---
 st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_icon="🚀")
 
 def apply_pro_theme():
     st.markdown("""
         <style>
+        /* Main Background */
         .stApp { background-color: #0e1117; color: #ffffff; }
+        
+        /* Sidebar Fix */
         [data-testid="stSidebarNav"] { display: none; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
+        /* RESPONSIVE LOGIN CARD (Mobile Friendly) */
         .login-card {
             background: linear-gradient(145deg, #1e2530, #161b22);
-            padding: 40px; border-radius: 20px; text-align: center;
-            border: 1px solid #4CAF50; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid #4CAF50;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             margin: auto;
+            width: 95%; /* Default for mobile */
         }
         
-        /* Premium Google Button Styling */
-        .google-btn {
-            background-color: white;
-            color: black;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: bold;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            border: none;
-            cursor: pointer;
-            width: 100%;
-            justify-content: center;
-            margin-bottom: 20px;
+        @media (min-width: 768px) {
+            .login-card { width: 450px; } /* Desktop width */
+        }
+
+        /* Tabs Scrollable on Mobile */
+        div[data-testid="stHorizontalBlock"] {
+            overflow-x: auto;
+            white-space: nowrap;
+            display: block;
+        }
+
+        /* Chat bubble for Topper Connect */
+        .chat-bubble {
+            background-color: #21262d;
+            padding: 10px 15px;
+            border-radius: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #4CAF50;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -62,58 +73,49 @@ groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# --- 4. THE LOGIN PAGE (OFFICIAL UI) ---
+# --- 4. THE LOGIN PAGE (RESPONSIVE) ---
 if st.session_state.user is None:
-    _, col_mid, _ = st.columns([1, 2, 1])
+    # Centering container
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    _, col_mid, _ = st.columns([0.1, 0.8, 0.1]) if st.session_state.get('mobile') else st.columns([1, 1.5, 1])
+    
     with col_mid:
-        st.markdown("<br><br>", unsafe_allow_html=True)
         st.markdown("""
             <div class="login-card">
-                <h1 style='color: #4CAF50; margin-bottom: 5px;'>🚀 TopperGPT Pro</h1>
-                <p style='color: #8b949e;'>Official University Board Moderator & Study Tool</p>
-                <hr style="border-color: #30363d; margin: 25px 0;">
-                <p style="font-size: 14px; color: #8b949e; margin-bottom: 20px;">Use Google for automatic syllabus sync</p>
+                <h1 style='color: #4CAF50; font-size: 2rem;'>🚀 TopperGPT Pro</h1>
+                <p style='color: #8b949e;'>Engineered for Toppers. Built for Success.</p>
+                <hr style="border-color: #30363d; margin: 20px 0;">
             </div>
         """, unsafe_allow_html=True)
 
-        # GOOGLE LOGIN BUTTON (Direct Logic to avoid TypeError)
+        # GOOGLE LOGIN (Actual Account Selection Logic)
+        # Note: Official Google popup requires a redirect URL
         if st.button("🔴 Continue with Google", use_container_width=True):
-            # Checking secrets exist before login
             if "google" in st.secrets:
-                st.session_state.user = "krishnaghanabahadur85@gmail.com"
-                st.success("Google Auth Verified! 🚀")
+                # Actual OAuth redirect would go here. For now, simulate selection:
+                st.session_state.user = "topper.student@gmail.com" 
+                st.success("Google Account Selected! 🚀")
                 st.rerun()
             else:
-                st.error("Secrets configuration missing!")
+                st.error("Secrets missing!")
 
         st.markdown("<p style='text-align:center; color:#8b949e; margin-top:15px;'>--- OR EMAIL LOGIN ---</p>", unsafe_allow_html=True)
         
         email = st.text_input("University Email", key="email_manual")
         password = st.text_input("Password", type="password", key="pass_manual")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Login 🔓", use_container_width=True):
-                try:
-                    user = auth.get_user_by_email(email)
-                    st.session_state.user = user.email
-                    st.rerun()
-                except:
-                    st.error("User not found.")
-        with col2:
-            if st.button("Sign Up ✨", use_container_width=True):
-                try:
-                    user = auth.create_user(email=email, password=password)
-                    st.session_state.user = user.email
-                    st.success("Topper Account Created!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
+        if st.button("Access Portal 🔐", use_container_width=True):
+            try:
+                user = auth.get_user_by_email(email)
+                st.session_state.user = user.email
+                st.rerun()
+            except:
+                st.error("Invalid credentials.")
     st.stop()
 
-# --- 5. POST-LOGIN SIDEBAR ---
+# --- 5. SIDEBAR (LOGOUT & PROFILE) ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #4CAF50; padding-top: 0;'>🚀 TopperGPT</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #4CAF50;'>🚀 TopperGPT</h2>", unsafe_allow_html=True)
     st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=80)
     
     u_display = st.session_state.user.split('@')[0]
@@ -124,10 +126,10 @@ with st.sidebar:
         st.session_state.user = None
         st.rerun()
 
-# --- 6. MAIN CONTENT ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-    "💬 Chat PDF", "📊 Syllabus Magic", "📝 Answer Eval", "🧠 MindMap", 
-    "🃏 Flashcards", "❓ Engg PYQs", "🔍 Topic Search", "⚖️ Legal"
+# --- 6. MAIN CONTENT (9 TABS - INCLUDES TOPPER CONNECT) ---
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
+    "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
     # --- TAB 1: SMART NOTE ANALYSIS (FINAL UI FIX) ---
     # --- TAB 1: SMART NOTE ANALYSIS (HYBRID MODE) ---
@@ -622,3 +624,28 @@ with tab8:
         with st.expander("📜 Terms of Service"):
             st.write("TopperGPT is an AI assistant. Cross-verify derivations with university textbooks.")
         st.write("Contact: support@toppergpt.com")
+
+with tab9:
+    st.subheader("🤝 Topper Connect: Community Hub")
+    st.write("Doubt pucho, Notes share karo aur saath mein Topper bano!")
+    
+    chat_col, leader_col = st.columns([2, 1])
+    
+    with chat_col:
+        st.markdown("### 🗨️ Recent Doubts")
+        st.markdown("""
+        <div class="chat-bubble">
+            <b>Rahul (MU):</b> Bhai, Applied Maths 2 ka Fourier Series ka koi shortcut hai?
+        </div>
+        <div class="chat-bubble">
+            <b>AI Topper:</b> Rahul, Fourier mein symmetry check karo, half calculation bach jayegi!
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.text_input("Type your doubt here...")
+        st.button("Post Doubt 🚀")
+
+    with leader_col:
+        st.markdown("### 🏆 Top Contributors")
+        st.success("1. Krishna (85 Points)")
+        st.info("2. Aryan (60 Points)")        
