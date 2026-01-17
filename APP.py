@@ -7,7 +7,7 @@ import io
 import re
 from groq import Groq
 
-# --- 1. CONFIGURATION & RESPONSIVE PRO UI ---
+# --- 1. CONFIGURATION & FINAL RESPONSIVE UI ---
 st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_icon="🚀")
 
 def apply_pro_theme():
@@ -20,12 +20,13 @@ def apply_pro_theme():
         [data-testid="stSidebarNav"] { display: none; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
-        /* ALIGNMENT FIX: Centering the Main Login Area */
+        /* ALIGNMENT FIX: Centering the Main Login Area for Mobile & Desktop */
         .main .block-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            padding-top: 2rem;
         }
 
         /* RESPONSIVE LOGIN CARD */
@@ -37,11 +38,11 @@ def apply_pro_theme():
             border: 1px solid #4CAF50;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             margin: auto;
-            width: 100%;
-            max-width: 450px; /* Limits width on desktop */
+            width: 90%; /* Responsive width for mobile */
+            max-width: 420px; /* Limits width on desktop */
         }
 
-        /* Tabs Scrollable on Mobile */
+        /* Tabs Scrollable Fix on Mobile */
         div[data-testid="stHorizontalBlock"] {
             overflow-x: auto;
             white-space: nowrap;
@@ -78,32 +79,34 @@ groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# --- 4. THE LOGIN PAGE (FIXED ALIGNMENT) ---
+# --- 4. THE LOGIN PAGE (CENTERED & FIXED) ---
 if st.session_state.user is None:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    
-    # Use a single column with centering for consistent layout
+    # Centering container with responsive columns
+    st.markdown("<br>", unsafe_allow_html=True)
     _, col_mid, _ = st.columns([0.1, 0.8, 0.1])
     
     with col_mid:
         st.markdown("""
             <div class="login-card">
-                <h1 style='color: #4CAF50; font-size: 2.2rem; margin-bottom: 0px;'>🚀 TopperGPT Pro</h1>
-                <p style='color: #8b949e; font-size: 1.1rem;'>The Only Tool an Engineer Needs.</p>
+                <h1 style='color: #4CAF50; font-size: 2rem; margin-bottom: 0px;'>🚀 TopperGPT Pro</h1>
+                <p style='color: #8b949e; font-size: 1rem;'>Engineered for Toppers. Built for Success.</p>
                 <hr style="border-color: #30363d; margin: 20px 0;">
             </div>
         """, unsafe_allow_html=True)
 
-        # GOOGLE LOGIN (Center Aligned)
+        # GOOGLE LOGIN (Simulation of Account Selection Popup)
         if st.button("🔴 Continue with Google", use_container_width=True):
-            if "google" in st.secrets:
-                st.session_state.user = "topper.student@gmail.com" 
-                st.success("Google Account Selected! 🚀")
-                st.rerun()
-            else:
-                st.error("Secrets missing!")
+            with st.spinner("Opening Google Account Selector..."):
+                import time
+                time.sleep(1.5) # Asli popup feel dene ke liye
+                if "google" in st.secrets:
+                    st.session_state.user = "krishnaghanabahadur85@gmail.com" 
+                    st.success("Account krishnaghanabahadur85@gmail.com Selected! 🚀")
+                    st.rerun()
+                else:
+                    st.error("Secrets missing!")
 
-        st.markdown("<p style='text-align:center; color:#8b949e; margin: 15px 0;'>--- OR EMAIL LOGIN ---</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; color:#8b949e; margin-top:15px;'>--- OR EMAIL LOGIN ---</p>", unsafe_allow_html=True)
         
         email = st.text_input("University Email", key="email_manual", placeholder="topper@university.edu")
         password = st.text_input("Password", type="password", key="pass_manual", placeholder="••••••••")
@@ -115,10 +118,10 @@ if st.session_state.user is None:
                 st.session_state.user = user.email
                 st.rerun()
             except:
-                st.error("Invalid credentials.")
+                st.error("Invalid credentials. Please Sign Up.")
     st.stop()
 
-# --- 5. SIDEBAR ---
+# --- 5. SIDEBAR (POST-LOGIN) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; padding-top: 0;'>🚀 TopperGPT</h2>", unsafe_allow_html=True)
     st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=80)
@@ -131,7 +134,7 @@ with st.sidebar:
         st.session_state.user = None
         st.rerun()
 
-# --- 6. MAIN CONTENT ---
+# --- 6. MAIN CONTENT TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
