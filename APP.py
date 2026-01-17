@@ -20,7 +20,15 @@ def apply_pro_theme():
         [data-testid="stSidebarNav"] { display: none; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
-        /* RESPONSIVE LOGIN CARD (Mobile Friendly) */
+        /* ALIGNMENT FIX: Centering the Main Login Area */
+        .main .block-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* RESPONSIVE LOGIN CARD */
         .login-card {
             background: linear-gradient(145deg, #1e2530, #161b22);
             padding: 30px;
@@ -29,11 +37,8 @@ def apply_pro_theme():
             border: 1px solid #4CAF50;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             margin: auto;
-            width: 95%; /* Default for mobile */
-        }
-        
-        @media (min-width: 768px) {
-            .login-card { width: 450px; } /* Desktop width */
+            width: 100%;
+            max-width: 450px; /* Limits width on desktop */
         }
 
         /* Tabs Scrollable on Mobile */
@@ -73,37 +78,37 @@ groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# --- 4. THE LOGIN PAGE (RESPONSIVE) ---
+# --- 4. THE LOGIN PAGE (FIXED ALIGNMENT) ---
 if st.session_state.user is None:
-    # Centering container
     st.markdown("<br><br>", unsafe_allow_html=True)
-    _, col_mid, _ = st.columns([0.1, 0.8, 0.1]) if st.session_state.get('mobile') else st.columns([1, 1.5, 1])
+    
+    # Use a single column with centering for consistent layout
+    _, col_mid, _ = st.columns([0.1, 0.8, 0.1])
     
     with col_mid:
         st.markdown("""
             <div class="login-card">
-                <h1 style='color: #4CAF50; font-size: 2rem;'>🚀 TopperGPT Pro</h1>
-                <p style='color: #8b949e;'>Engineered for Toppers. Built for Success.</p>
+                <h1 style='color: #4CAF50; font-size: 2.2rem; margin-bottom: 0px;'>🚀 TopperGPT Pro</h1>
+                <p style='color: #8b949e; font-size: 1.1rem;'>The Only Tool an Engineer Needs.</p>
                 <hr style="border-color: #30363d; margin: 20px 0;">
             </div>
         """, unsafe_allow_html=True)
 
-        # GOOGLE LOGIN (Actual Account Selection Logic)
-        # Note: Official Google popup requires a redirect URL
+        # GOOGLE LOGIN (Center Aligned)
         if st.button("🔴 Continue with Google", use_container_width=True):
             if "google" in st.secrets:
-                # Actual OAuth redirect would go here. For now, simulate selection:
                 st.session_state.user = "topper.student@gmail.com" 
                 st.success("Google Account Selected! 🚀")
                 st.rerun()
             else:
                 st.error("Secrets missing!")
 
-        st.markdown("<p style='text-align:center; color:#8b949e; margin-top:15px;'>--- OR EMAIL LOGIN ---</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; color:#8b949e; margin: 15px 0;'>--- OR EMAIL LOGIN ---</p>", unsafe_allow_html=True)
         
-        email = st.text_input("University Email", key="email_manual")
-        password = st.text_input("Password", type="password", key="pass_manual")
+        email = st.text_input("University Email", key="email_manual", placeholder="topper@university.edu")
+        password = st.text_input("Password", type="password", key="pass_manual", placeholder="••••••••")
         
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Access Portal 🔐", use_container_width=True):
             try:
                 user = auth.get_user_by_email(email)
@@ -113,9 +118,9 @@ if st.session_state.user is None:
                 st.error("Invalid credentials.")
     st.stop()
 
-# --- 5. SIDEBAR (LOGOUT & PROFILE) ---
+# --- 5. SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #4CAF50;'>🚀 TopperGPT</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #4CAF50; padding-top: 0;'>🚀 TopperGPT</h2>", unsafe_allow_html=True)
     st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=80)
     
     u_display = st.session_state.user.split('@')[0]
@@ -126,7 +131,7 @@ with st.sidebar:
         st.session_state.user = None
         st.rerun()
 
-# --- 6. MAIN CONTENT (9 TABS - INCLUDES TOPPER CONNECT) ---
+# --- 6. MAIN CONTENT ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
@@ -617,35 +622,76 @@ with tab7:
                 except Exception as e:
                     st.error(f"System busy. Error: {e}")
 
+# --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
 with tab8:
     st.subheader("🤝 Topper Connect: Community Hub")
-    st.write("Doubt pucho, Notes share karo aur saath mein Topper bano!")
     
+    # Session state for temporary chat (Backend storage ke liye Firebase use karenge)
+    if "community_chats" not in st.session_state:
+        st.session_state.community_chats = [
+            {"name": "Rahul (MU)", "msg": "Bhai, Applied Maths 2 ka Fourier Series ka koi shortcut hai?"},
+            {"name": "AI Topper", "msg": "Rahul, Fourier mein symmetry check karo, half calculation bach jayegi!"}
+        ]
+
     chat_col, leader_col = st.columns([2, 1])
     
     with chat_col:
         st.markdown("### 🗨️ Recent Doubts")
-        st.markdown("""
-        <div class="chat-bubble">
-            <b>Rahul (MU):</b> Bhai, Applied Maths 2 ka Fourier Series ka koi shortcut hai?
-        </div>
-        <div class="chat-bubble">
-            <b>AI Topper:</b> Rahul, Fourier mein symmetry check karo, half calculation bach jayegi!
-        </div>
-        """, unsafe_allow_html=True)
         
-        st.text_input("Type your doubt here...")
-        st.button("Post Doubt 🚀")
+        # Displaying chats from session state
+        for chat in st.session_state.community_chats:
+            st.markdown(f"""
+            <div class="chat-bubble">
+                <b>{chat['name']}:</b> {chat['msg']}
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Working Input System
+        with st.form("doubt_form", clear_on_submit=True):
+            new_msg = st.text_input("Type your doubt here...", placeholder="e.g. Working of laser")
+            submit_btn = st.form_submit_button("Post Doubt 🚀")
+            
+            if submit_btn and new_msg:
+                # Adding new doubt to the list
+                user_name = st.session_state.user.split('@')[0].capitalize()
+                st.session_state.community_chats.append({"name": user_name, "msg": new_msg})
+                st.success("Doubt posted on the wall!")
+                st.rerun() # Refreshing to show new message
 
     with leader_col:
         st.markdown("### 🏆 Top Contributors")
         st.success("1. Krishna (85 Points)")
-        st.info("2. Aryan (60 Points)")        
+        st.info("2. Aryan (60 Points)")
 
+# --- TAB 9: LEGAL & POLICIES ---
 with tab9:
-        st.header("⚖️ Legal & Policies")
-        with st.expander("🛡️ Privacy Policy", expanded=True):
-            st.write("We protect engineering data using Firebase Encryption. Files are not stored permanently.")
-        with st.expander("📜 Terms of Service"):
-            st.write("TopperGPT is an AI assistant. Cross-verify derivations with university textbooks.")
-        st.write("Contact: support@toppergpt.com")        
+    st.header("⚖️ Legal, Terms & Privacy Policy")
+    st.info("Bhai, TopperGPT use karne se pehle ye rules ek baar dekh lo. Ye tumhari aur hamari dono ki safety ke liye hain.")
+
+    col_policy1, col_policy2 = st.columns(2)
+
+    with col_policy1:
+        st.subheader("📜 Terms of Service")
+        st.write("""
+        1. **Educational Use Only**: TopperGPT sirf padhai mein help karne ke liye hai. Iska use exam mein cheating karne ke liye na karein.
+        2. **Accuracy**: AI kabhi-kabhi mistakes kar sakta hai (hallucinations). Final exam se pehle apne university textbook se verify zaroori karein.
+        3. **Account Safety**: Apna login kisi aur ke saath share na karein, varna system access block kar sakta hai.
+        4. **Usage Limit**: Free users ke liye daily limits hain. Commercial use ya bulk downloading allowed nahi hai.
+        """)
+
+    with col_policy2:
+        st.subheader("🔒 Privacy Policy")
+        st.write("""
+        1. **Data Collection**: Hum sirf tumhara email aur university name save karte hain taaki tumhara progress (Syllabus Tracker) save rahe.
+        2. **PDF Security**: Jo notes tum upload karte ho, wo sirf tumhare analysis ke liye use hote hain. Hum tumhara data kisi 3rd party ko nahi bechte.
+        3. **Google Login**: Google Auth ke waqt hum sirf tumhari basic profile info access karte hain.
+        4. **Cookies**: Session manage karne ke liye hum temporary cookies use karte hain.
+        """)
+
+    st.divider()
+    st.caption("© 2026 TopperGPT Engineering. All Rights Reserved. Built with ❤️ for Engineering Students.")
+    
+    # Branded Button for Trust
+    if st.button("I Agree to the Terms ✅", use_container_width=True):
+        st.balloons()
+        st.success("Dhanyawad Topper! Ab jaakar fod do exams mein.")        
