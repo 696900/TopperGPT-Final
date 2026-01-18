@@ -573,23 +573,19 @@ with tab7:
     st.subheader("🔍 Engineering Topic Research")
     st.write("Instant 360° Analysis: Definition, Diagram, & 5 Research-based PYQs.")
     
-    # User input
-    query = st.text_input("Enter Engineering Topic (e.g. Virtual Memory, BJT):", key="search_final_final_v10")
+    query = st.text_input("Enter Engineering Topic (e.g. Virtual Memory, BJT):", key="search_final_v12")
     
-    if st.button("Deep Research", key="btn_v10") and query:
+    if st.button("Deep Research", key="btn_v12") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
-            # Stronger prompt for better markers
             prompt = f"""
-            Act as an Engineering Professor. Provide a detailed report for: '{query}'.
+            Act as an Engineering Professor. Provide a report for: '{query}'.
             Use these EXACT markers:
             [1_DEF] for Definition
             [2_KEY] for Keywords
             [3_CXP] for Technical Breakdown
             [4_SMP] for Simple Explanation
-            [5_MER] for ONLY Mermaid graph TD code
+            [5_MER] for ONLY pure Mermaid graph TD code
             [6_PYQ] for 5 Exam Questions
-            
-            Rules: No conversational filler. Just the markers and content.
             """
             
             try:
@@ -599,50 +595,49 @@ with tab7:
                 )
                 out = res.choices[0].message.content
 
-                # --- ADVANCED ROBUST PARSER ---
                 def get_sec(m1, m2=None):
                     try:
                         parts = out.split(m1)
-                        if len(parts) < 2: return "Data not found in AI response."
+                        if len(parts) < 2: return ""
                         content = parts[1]
-                        if m2 and m2 in content:
-                            content = content.split(m2)[0]
+                        if m2 and m2 in content: content = content.split(m2)[0]
                         return content.strip().replace("```mermaid", "").replace("```", "")
-                    except: 
-                        return "Processing error for this section."
+                    except: return ""
 
-                # --- DISPLAY SECTIONS ---
+                # --- 1. TECHNICAL REPORT ---
                 st.markdown(f"## 📘 Technical Report: {query}")
+                st.info(f"**Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
                 
-                st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
-                st.write(f"**2. Key Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
-                st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
-                st.success(f"**4. Concept in Simple Words:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
-
-                # --- FLOWCHART RENDERER (FIXED) ---
+                # --- 2. DEDICATED DIAGRAM SECTION (NEW) ---
+                st.markdown("---")
+                st.markdown("### 🖼️ Engineering Visual Diagram")
+                # Yahan hum technical diagram placeholder ya AI Image trigger kar sakte hain
+                st.write(f"Visualizing the internal architecture of **{query}**:")
+                
+                # Logic to show a relevant engineering diagram
+                # Note: Aap yahan Wikimedia ya Google Image API bhi link kar sakte ho
+                st.image(f"https://img.icons8.com/external-flat-icons-inmotus-design/200/external-Engineering-engineering-flat-icons-inmotus-design-7.png", caption=f"Schematic representation of {query}", width=200)
+                
+                # --- 3. ARCHITECTURE FLOWCHART (FIXED RENDER) ---
                 st.markdown("### 📊 5. Architecture Flowchart")
                 mer_raw = get_sec('[5_MER]', '[6_PYQ]')
-                
-                # Extracting graph TD specifically
                 match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
+                
                 if match:
                     clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
                     try:
-                        st_mermaid(clean_code, height=400)
+                        from streamlit_mermaid import st_mermaid
+                        st_mermaid(clean_code, height=450)
                     except:
                         st.code(clean_code, language="mermaid")
-                        st.error("Visual render failed, showing logic above.")
+                        st.error("Visual render failed due to complex syntax.") #
                 else:
-                    st.warning("Diagram logic not found, but research is ready below.")
+                    st.warning("Flowchart logic not generated.")
 
-                # --- PYQ SECTION (FIXED: ALWAYS SHOWS) ---
+                # --- 4. PYQ SECTION ---
                 st.markdown("---")
                 st.markdown("### ❓ 6. Expected Exam Questions (PYQ Trends)")
-                pyq_content = get_sec('[6_PYQ]')
-                if pyq_content:
-                    st.write(pyq_content)
-                else:
-                    st.error("PYQs could not be generated. Please try again.")
+                st.write(get_sec('[6_PYQ]'))
 
             except Exception as e:
                 st.error(f"System busy. Error: {e}")
