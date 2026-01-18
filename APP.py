@@ -573,18 +573,20 @@ with tab7:
     st.subheader("🔍 Engineering Topic Research")
     st.write("Instant 360° Analysis: Definition, Architecture, & PYQs.")
     
-    query = st.text_input("Enter Engineering Topic (e.g. BJT, Virtual Memory):", key="search_v15_final")
+    query = st.text_input("Enter Engineering Topic (e.g. BJT, Virtual Memory):", key="search_final_fixed_v20")
     
-    if st.button("Deep Research", key="btn_v15") and query:
+    if st.button("Deep Research", key="btn_v20") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
+            # Strong prompt to ensure ALL sections are generated
             prompt = f"""
             Act as an Engineering Professor. Provide a report for: '{query}'.
-            Markers strictly: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
+            Markers strictly required: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
             
-            Rules for [5_MER]:
-            - ONLY pure Mermaid 'graph TD' code.
-            - Use square brackets [] for ALL node labels.
-            - Keep it simple and connected.
+            Rules:
+            - [2_KEY]: List 5-7 technical keywords.
+            - [4_SMP]: Explain in 2 simple sentences.
+            - [5_MER]: Provide ONLY pure Mermaid 'graph TD' code.
+            - [6_PYQ]: List 5 real university exam questions.
             """
             
             try:
@@ -594,19 +596,25 @@ with tab7:
                 )
                 out = res.choices[0].message.content
 
+                # Bullet-proof Parser to recover all missing sections
                 def get_sec(m1, m2=None):
                     try:
                         parts = out.split(m1)
-                        if len(parts) < 2: return ""
+                        if len(parts) < 2: return "Section not found. Please try again."
                         content = parts[1]
                         if m2 and m2 in content: content = content.split(m2)[0]
                         return content.strip().replace("```mermaid", "").replace("```", "")
-                    except: return ""
+                    except: return "Error parsing this section."
 
-                # --- 1. REPORT DISPLAY ---
+                # --- 1. DISPLAY ALL TEXT SECTIONS (RESTORED) ---
                 st.markdown(f"## 📘 Technical Report: {query}")
-                st.info(f"**Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
+                st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
                 
+                # Fixed: Keywords and Simple Explanation are back
+                st.write(f"**2. Key Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
+                st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
+                st.success(f"**4. Concept in Simple Words:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
+
                 # --- 2. DEDICATED VISUAL ARCHITECTURE (FIXED) ---
                 st.markdown("---")
                 st.markdown("### 🖼️ Engineering Architecture Flowchart")
@@ -615,26 +623,27 @@ with tab7:
                 match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
                 
                 if match:
-                    # Logic to fix blank screen: Injecting raw HTML/JS for stable rendering
                     clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
                     
+                    # Force white background and stable CDN for rendering
                     mermaid_html = f"""
-                    <div class="mermaid" style="background-color: white; padding: 20px; border-radius: 10px;">
+                    <div class="mermaid" style="background-color: white; padding: 20px; border-radius: 10px; color: black;">
                         {clean_code}
                     </div>
                     <script type="module">
                         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                        mermaid.initialize({{ startOnLoad: true, theme: 'default' }});
+                        mermaid.initialize({{ startOnLoad: true, theme: 'neutral' }});
                     </script>
                     """
-                    # Direct HTML injection avoids library-specific blank errors
-                    st.components.v1.html(mermaid_html, height=500, scrolling=True)
+                    st.components.v1.html(mermaid_html, height=450, scrolling=True)
                 else:
-                    st.warning("Diagram logic not found, but research is ready below.")
+                    # Fallback if AI messes up the code - show a technical icon instead of blank
+                    st.image("https://img.icons8.com/fluency/100/engineering.png", width=100)
+                    st.warning("Diagram syntax was too complex. Summary is ready below.")
 
-                # --- 3. PYQ SECTION ---
+                # --- 3. PYQ SECTION (RESTORED) ---
                 st.markdown("---")
-                st.markdown("### ❓ Expected Exam Questions (PYQ)")
+                st.markdown("### ❓ 6. Expected Exam Questions (PYQ)")
                 st.write(get_sec('[6_PYQ]'))
 
             except Exception as e:
