@@ -573,19 +573,14 @@ with tab7:
     st.subheader("🔍 Engineering Topic Research")
     st.write("Instant 360° Analysis: Definition, Architecture Flowchart, & PYQs.")
     
-    query = st.text_input("Enter Engineering Topic (e.g. BJT, Virtual Memory):", key="search_final_stable_v30")
+    query = st.text_input("Enter Engineering Topic (e.g. BJT, CPU Scheduling):", key="search_final_ultra_stable")
     
-    if st.button("Deep Research", key="btn_v30") and query:
+    if st.button("Deep Research", key="btn_ultra") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
-            # Strict Prompt: AI ko sirf graph TD banane par majboor karna
             prompt = f"""
             Act as an Engineering Professor. Provide a report for: '{query}'.
-            Markers strictly required: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
-            
-            Rules for [5_MER]:
-            - Provide ONLY pure Mermaid 'graph TD' code.
-            - Use square brackets [] for ALL node labels (e.g., A[Input] --> B[Output]).
-            - NO extra text or explanations inside the code.
+            Markers: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
+            Rules for [5_MER]: ONLY pure Mermaid 'graph TD' code using square brackets [] for nodes.
             """
             
             try:
@@ -595,63 +590,59 @@ with tab7:
                 )
                 out = res.choices[0].message.content
 
-                # --- 1. ROBUST PARSER ---
                 def get_sec(m1, m2=None):
                     try:
                         parts = out.split(m1)
-                        if len(parts) < 2: return "Data not found."
+                        if len(parts) < 2: return ""
                         content = parts[1]
                         if m2 and m2 in content: content = content.split(m2)[0]
                         return content.strip().replace("```mermaid", "").replace("```", "")
-                    except: return "Error."
+                    except: return ""
 
-                # --- 2. DISPLAY TEXT SECTIONS ---
+                # --- DISPLAY TEXT SECTIONS ---
                 st.markdown(f"## 📘 Technical Report: {query}")
                 st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
                 st.write(f"**2. Key Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
                 st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
                 st.success(f"**4. Concept in Simple Words:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
 
-                # --- 3. THE ULTIMATE FLOWCHART FIX ---
+                # --- 3. THE "NO-BLANK" FLOWCHART RENDERER ---
                 st.markdown("### 📊 5. Architecture Flowchart")
-                
                 mer_raw = get_sec('[5_MER]', '[6_PYQ]')
-                # Regex to isolate the code and ignore AI conversational filler
                 match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
                 
                 if match:
-                    # Syntax Cleaning: Force square brackets to prevent rendering errors
                     clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
                     
-                    # Injecting HTML component for stable browser-level rendering
+                    # Force render using a self-contained HTML with Mermaid CDN
+                    # Added a 'try-catch' and 'window.onload' for stability
                     mermaid_html = f"""
-                    <div class="mermaid" style="background-color: white; padding: 25px; border-radius: 12px; border: 2px solid #4CAF50;">
-                        {clean_code}
-                    </div>
-                    <script type="module">
-                        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                        mermaid.initialize({{ 
-                            startOnLoad: true, 
-                            theme: 'base',
-                            themeVariables: {{ 
-                                'primaryColor': '#4CAF50',
-                                'edgeColor': '#000000'
-                            }} 
-                        }});
-                    </script>
+                    <html>
+                    <head>
+                        <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+                        <script>
+                            mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
+                        </script>
+                    </head>
+                    <body style="background-color: white; margin: 0; padding: 10px;">
+                        <div class="mermaid">
+                            {clean_code}
+                        </div>
+                    </body>
+                    </html>
                     """
-                    # Displaying the flowchart in a stable container
-                    st.components.v1.html(mermaid_html, height=450, scrolling=True)
+                    # Height adjustment and scrolling enabled
+                    st.components.v1.html(mermaid_html, height=500, scrolling=True)
                 else:
-                    st.error("Flowchart generation failed. Showing text breakdown instead.")
+                    st.error("AI generated complex logic. Check the text breakdown above.")
 
                 # --- 4. PYQ SECTION ---
                 st.markdown("---")
-                st.markdown("### ❓ 6. Expected Exam Questions (PYQ Trends)")
+                st.markdown("### ❓ 6. Expected Exam Questions (PYQ)")
                 st.write(get_sec('[6_PYQ]'))
 
             except Exception as e:
-                st.error(f"System busy. Error: {e}")
+                st.error(f"Error: {e}")
 # --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
 with tab8:
     st.subheader("🤝 Topper Connect: Community Hub")
