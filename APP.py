@@ -571,37 +571,81 @@ with tab6:
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
-    query = st.text_input("Enter Engineering Topic:", key="search_final_final_v10")
+    st.write("Instant 360° Analysis: Definition, Diagram, & 5 Research-based PYQs.")
+    
+    # User input
+    query = st.text_input("Enter Engineering Topic (e.g. Virtual Memory, BJT):", key="search_final_final_v10")
     
     if st.button("Deep Research", key="btn_v10") and query:
-        with st.spinner(f"Analyzing '{query}'..."):
-            prompt = f"Act as an Engineering Professor. Report for: '{query}'. Markers: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ]. For [5_MER], ONLY pure graph TD code."
+        with st.spinner(f"Analyzing '{query}' for University Exams..."):
+            # Stronger prompt for better markers
+            prompt = f"""
+            Act as an Engineering Professor. Provide a detailed report for: '{query}'.
+            Use these EXACT markers:
+            [1_DEF] for Definition
+            [2_KEY] for Keywords
+            [3_CXP] for Technical Breakdown
+            [4_SMP] for Simple Explanation
+            [5_MER] for ONLY Mermaid graph TD code
+            [6_PYQ] for 5 Exam Questions
+            
+            Rules: No conversational filler. Just the markers and content.
+            """
+            
             try:
-                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                res = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile", 
+                    messages=[{"role": "user", "content": prompt}]
+                )
                 out = res.choices[0].message.content
 
+                # --- ADVANCED ROBUST PARSER ---
                 def get_sec(m1, m2=None):
-                    try: return out.split(m1)[1].split(m2)[0].strip() if m2 else out.split(m1)[1].strip()
-                    except: return "Processing..."
+                    try:
+                        parts = out.split(m1)
+                        if len(parts) < 2: return "Data not found in AI response."
+                        content = parts[1]
+                        if m2 and m2 in content:
+                            content = content.split(m2)[0]
+                        return content.strip().replace("```mermaid", "").replace("```", "")
+                    except: 
+                        return "Processing error for this section."
 
+                # --- DISPLAY SECTIONS ---
                 st.markdown(f"## 📘 Technical Report: {query}")
-                st.info(f"**1. Definition:**\n{get_sec('[1_DEF]', '[2_KEY]')}")
-                st.write(f"**2. Keywords:**\n{get_sec('[2_KEY]', '[3_CXP]')}")
-                st.warning(f"**3. Breakdown:**\n{get_sec('[3_CXP]', '[4_SMP]')}")
-                st.success(f"**4. Simple Explanation:**\n{get_sec('[4_SMP]', '[5_MER]')}")
+                
+                st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
+                st.write(f"**2. Key Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
+                st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
+                st.success(f"**4. Concept in Simple Words:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
 
-                # FLOWCHART RENDERER
+                # --- FLOWCHART RENDERER (FIXED) ---
                 st.markdown("### 📊 5. Architecture Flowchart")
                 mer_raw = get_sec('[5_MER]', '[6_PYQ]')
-                match = re.search(r"(graph (?:TD|LR|BT|RL)[\s\S]*?)(?=\[6_PYQ\]|---|```|$)", mer_raw)
-                if match:
-                    clean_code = match.group(1).replace("```mermaid", "").replace("```", "").strip()
-                    clean_code = clean_code.replace("(", "[").replace(")", "]")
-                    st_mermaid(clean_code)
                 
-                st.markdown("### ❓ 6. Expected PYQs")
-                st.write(get_sec('[6_PYQ]'))
-            except Exception as e: st.error(f"System busy. Error: {e}")
+                # Extracting graph TD specifically
+                match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
+                if match:
+                    clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
+                    try:
+                        st_mermaid(clean_code, height=400)
+                    except:
+                        st.code(clean_code, language="mermaid")
+                        st.error("Visual render failed, showing logic above.")
+                else:
+                    st.warning("Diagram logic not found, but research is ready below.")
+
+                # --- PYQ SECTION (FIXED: ALWAYS SHOWS) ---
+                st.markdown("---")
+                st.markdown("### ❓ 6. Expected Exam Questions (PYQ Trends)")
+                pyq_content = get_sec('[6_PYQ]')
+                if pyq_content:
+                    st.write(pyq_content)
+                else:
+                    st.error("PYQs could not be generated. Please try again.")
+
+            except Exception as e:
+                st.error(f"System busy. Error: {e}")
 
 # --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
 with tab8:
