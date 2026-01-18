@@ -571,21 +571,23 @@ with tab6:
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
-    st.write("Instant 360° Analysis: Definition, Architecture Flowchart, & Extensive PYQs.")
+    st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
     
-    query = st.text_input("Enter Engineering Topic (e.g. BJT, Virtual Memory):", key="search_final_v99")
+    # 1. User Input
+    query = st.text_input("Enter Engineering Topic (e.g. Virtual Memory, BJT, Transformer):", key="search_final_pro_v1")
     
-    if st.button("Deep Research", key="btn_v99") and query:
+    if st.button("Deep Research", key="btn_pro_v1") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
-            # Mega PYQ Prompt: AI ko 10-15 questions ke liye force karna
+            # Sabse solid prompt: Har ek feature ko wapas lane ke liye
             prompt = f"""
             Act as an Engineering Professor. Provide an exhaustive report for: '{query}'.
-            Markers: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
-            
-            Rules:
-            - [5_MER]: ONLY pure Mermaid 'graph TD' code. Use square brackets [] for nodes.
-            - [6_PYQ]: List at least 10-15 REAL university exam questions (2 marks, 5 marks, and 10 marks mixed).
-            Ensure no conversational filler.
+            Use these markers exactly:
+            [1_DEF] for a 3-line Technical Definition.
+            [2_KEY] for 7 important technical keywords.
+            [3_CXP] for a detailed technical breakdown/working.
+            [4_SMP] for a 2-line explanation in very simple words.
+            [5_DOT] for ONLY Graphviz DOT code (digraph G {{...}}) showing its architecture.
+            [6_PYQ] for at least 15 REAL university exam questions (short and long).
             """
             
             try:
@@ -595,70 +597,51 @@ with tab7:
                 )
                 out = res.choices[0].message.content
 
+                # Bullet-proof Parser: Isse koi bhi feature missing nahi hoga
                 def get_sec(m1, m2=None):
                     try:
                         parts = out.split(m1)
-                        if len(parts) < 2: return ""
+                        if len(parts) < 2: return "Data is being processed..."
                         content = parts[1]
                         if m2 and m2 in content: content = content.split(m2)[0]
-                        return content.strip().replace("```mermaid", "").replace("```", "")
-                    except: return ""
+                        return content.strip().replace("```dot", "").replace("```", "")
+                    except: return "Section error."
 
-                # --- DISPLAY REPORT ---
+                # --- FEATURE 1: TECHNICAL REPORT ---
                 st.markdown(f"## 📘 Technical Report: {query}")
                 st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
-                st.write(f"**2. Key Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
+                
+                # --- FEATURE 2 & 3: KEYWORDS & BREAKDOWN ---
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**2. Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
+                with col2:
+                    st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_DOT]')}")
+                
                 st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
 
-                # --- THE "FORCE-RENDER" FLOWCHART (FIXED) ---
-                st.markdown("### 📊 5. Architecture Flowchart")
-                mer_raw = get_sec('[5_MER]', '[6_PYQ]')
-                match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
-                
-                if match:
-                    clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
-                    
-                    # Force render using official Mermaid CDN within a self-adjusting HTML frame
-                    # This fixes the white blank box issue
-                    mermaid_html = f"""
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-                        <script>
-                            mermaid.initialize({{ 
-                                startOnLoad: true, 
-                                theme: 'forest',
-                                securityLevel: 'loose'
-                            }});
-                        </script>
-                        <style>
-                            body {{ background-color: white; display: flex; justify-content: center; }}
-                            .mermaid {{ width: 100%; }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="mermaid">
-                            {clean_code}
-                        </div>
-                    </body>
-                    </html>
-                    """
-                    st.components.v1.html(mermaid_html, height=550, scrolling=True)
-                else:
-                    st.error("Visual render failed. Check the logic in text above.")
-
-                # --- MEGA PYQ SECTION (FIXED: 10-15 QUESTIONS) ---
+                # --- FEATURE 4: THE "NO-FAIL" FLOWCHART (GRAPHVIZ) ---
                 st.markdown("---")
-                st.markdown("### ❓ 6. Expected Exam Questions (Comprehensive PYQ Wall)")
-                pyq_data = get_sec('[6_PYQ]')
-                if pyq_data:
-                    st.write(pyq_data)
+                st.markdown("### 📊 5. Architecture Flowchart")
+                dot_code = get_sec('[5_DOT]', '[6_PYQ]')
+                
+                if "digraph" in dot_code:
+                    try:
+                        # Graphviz browser mein blank nahi aata, ye seedha image render karta hai
+                        st.graphviz_chart(dot_code, use_container_width=True)
+                    except:
+                        st.code(dot_code, language="dot")
+                        st.error("Flowchart syntax complex hai, logic upar code mein dekhein.")
                 else:
-                    st.error("PYQs not generated. Try again.")
+                    st.warning("Flowchart currently unavailable for this topic.")
+
+                # --- FEATURE 5: MEGA PYQ WALL (15 QUESTIONS) ---
+                st.markdown("---")
+                st.markdown("### ❓ 6. Expected Exam Questions (PYQ Trends)")
+                st.write(get_sec('[6_PYQ]'))
 
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"System Busy. Error: {e}")
 # --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
 with tab8:
     st.subheader("🤝 Topper Connect: Community Hub")
