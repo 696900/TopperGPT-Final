@@ -571,12 +571,13 @@ with tab6:
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
-    st.write("Instant 360° Analysis: Definition, Diagram, & 5 Research-based PYQs.")
+    st.write("Instant 360° Analysis: Definition, Architecture, & PYQs.")
     
-    query = st.text_input("Enter Engineering Topic (e.g. Virtual Memory, BJT):", key="search_final_v12")
+    query = st.text_input("Enter Engineering Topic (e.g. Virtual Memory, BJT):", key="search_final_v13")
     
-    if st.button("Deep Research", key="btn_v12") and query:
-        with st.spinner(f"Analyzing '{query}' for University Exams..."):
+    if st.button("Deep Research", key="btn_v13") and query:
+        with st.spinner(f"Analyzing '{query}'..."):
+            # Prompt ko ekdum strict kiya hai diagram ke liye
             prompt = f"""
             Act as an Engineering Professor. Provide a report for: '{query}'.
             Use these EXACT markers:
@@ -586,6 +587,11 @@ with tab7:
             [4_SMP] for Simple Explanation
             [5_MER] for ONLY pure Mermaid graph TD code
             [6_PYQ] for 5 Exam Questions
+            
+            Rules for [5_MER]:
+            - ONLY the Mermaid code, no text.
+            - Use square brackets [] for ALL node labels.
+            - Use standard Mermaid 'graph TD' syntax.
             """
             
             try:
@@ -604,35 +610,37 @@ with tab7:
                         return content.strip().replace("```mermaid", "").replace("```", "")
                     except: return ""
 
-                # --- 1. TECHNICAL REPORT ---
+                # --- 1. REPORT DISPLAY ---
                 st.markdown(f"## 📘 Technical Report: {query}")
                 st.info(f"**Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
                 
-                # --- 2. DEDICATED DIAGRAM SECTION (NEW) ---
+                # --- 2. DEDICATED DIAGRAM SECTION (FIXED IMAGE) ---
                 st.markdown("---")
                 st.markdown("### 🖼️ Engineering Visual Diagram")
-                # Yahan hum technical diagram placeholder ya AI Image trigger kar sakte hain
-                st.write(f"Visualizing the internal architecture of **{query}**:")
+                # Using a reliable engineering icon/diagram source
+                img_url = f"https://source.unsplash.com/800x600/?engineering,{query.replace(' ', '')}"
+                st.image(img_url, caption=f"Visual representation of {query}", use_column_width=True)
                 
-                # Logic to show a relevant engineering diagram
-                # Note: Aap yahan Wikimedia ya Google Image API bhi link kar sakte ho
-                st.image(f"https://img.icons8.com/external-flat-icons-inmotus-design/200/external-Engineering-engineering-flat-icons-inmotus-design-7.png", caption=f"Schematic representation of {query}", width=200)
-                
-                # --- 3. ARCHITECTURE FLOWCHART (FIXED RENDER) ---
+                # --- 3. ARCHITECTURE FLOWCHART (STRICT SYNTAX CLEANER) ---
                 st.markdown("### 📊 5. Architecture Flowchart")
                 mer_raw = get_sec('[5_MER]', '[6_PYQ]')
+                
+                # Cleaning logic to prevent "Syntax error in text"
                 match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
                 
                 if match:
+                    # Character cleaning: Mermaid crashes on ()
                     clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
+                    
                     try:
                         from streamlit_mermaid import st_mermaid
-                        st_mermaid(clean_code, height=450)
-                    except:
+                        # Specifying height to avoid blank render
+                        st_mermaid(clean_code, height=500) 
+                    except Exception:
                         st.code(clean_code, language="mermaid")
-                        st.error("Visual render failed due to complex syntax.") #
+                        st.error("Complex logic detected. Flowchart displayed as code above.")
                 else:
-                    st.warning("Flowchart logic not generated.")
+                    st.warning("Diagram logic not found. AI provided text breakdown instead.")
 
                 # --- 4. PYQ SECTION ---
                 st.markdown("---")
@@ -641,7 +649,6 @@ with tab7:
 
             except Exception as e:
                 st.error(f"System busy. Error: {e}")
-
 # --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
 with tab8:
     st.subheader("🤝 Topper Connect: Community Hub")
