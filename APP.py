@@ -571,23 +571,25 @@ with tab6:
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
-    st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
+    st.write("Instant 360° Analysis: Definition, Professional Flowchart, & 15+ PYQs.")
     
-    # 1. User Input
-    query = st.text_input("Enter Engineering Topic (e.g. Virtual Memory, BJT, Transformer):", key="search_final_pro_v1")
+    # User input
+    query = st.text_input("Enter Engineering Topic (e.g. Transformer, BJT, Virtual Memory):", key="research_v25_full")
     
-    if st.button("Deep Research", key="btn_pro_v1") and query:
+    if st.button("Deep Research", key="btn_v25_full") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
-            # Sabse solid prompt: Har ek feature ko wapas lane ke liye
+            # Sabse bada aur detailed prompt taaki koi section miss na ho
             prompt = f"""
-            Act as an Engineering Professor. Provide an exhaustive report for: '{query}'.
-            Use these markers exactly:
-            [1_DEF] for a 3-line Technical Definition.
-            [2_KEY] for 7 important technical keywords.
-            [3_CXP] for a detailed technical breakdown/working.
-            [4_SMP] for a 2-line explanation in very simple words.
-            [5_DOT] for ONLY Graphviz DOT code (digraph G {{...}}) showing its architecture.
-            [6_PYQ] for at least 15 REAL university exam questions (short and long).
+            Act as an Engineering Professor. Provide a comprehensive report for: '{query}'.
+            Markers strictly required: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
+            
+            Rules:
+            - [1_DEF]: Detailed technical definition.
+            - [2_KEY]: List 7-10 technical keywords for exam marks.
+            - [3_CXP]: Step-by-step engineering breakdown/working.
+            - [4_SMP]: 2 lines of very simple explanation.
+            - [5_MER]: Professional Mermaid 'graph TD' flowchart showing internal architecture.
+            - [6_PYQ]: List exactly 15 REAL university exam questions (short, medium, and long).
             """
             
             try:
@@ -597,47 +599,57 @@ with tab7:
                 )
                 out = res.choices[0].message.content
 
-                # Bullet-proof Parser: Isse koi bhi feature missing nahi hoga
+                # Bullet-proof Parser: Isse koi bhi section gayab nahi hoga
                 def get_sec(m1, m2=None):
                     try:
                         parts = out.split(m1)
-                        if len(parts) < 2: return "Data is being processed..."
+                        if len(parts) < 2: return "Data missing. Please try again."
                         content = parts[1]
                         if m2 and m2 in content: content = content.split(m2)[0]
-                        return content.strip().replace("```dot", "").replace("```", "")
+                        return content.strip().replace("```mermaid", "").replace("```", "")
                     except: return "Section error."
 
-                # --- FEATURE 1: TECHNICAL REPORT ---
+                # --- 1. DISPLAY ALL TEXT SECTIONS ---
                 st.markdown(f"## 📘 Technical Report: {query}")
+                
                 st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
                 
-                # --- FEATURE 2 & 3: KEYWORDS & BREAKDOWN ---
                 col1, col2 = st.columns(2)
                 with col1:
                     st.write(f"**2. Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
                 with col2:
-                    st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_DOT]')}")
+                    st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
                 
-                st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
+                st.warning(f"**3. Technical Breakdown (Working):**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
 
-                # --- FEATURE 4: THE "NO-FAIL" FLOWCHART (GRAPHVIZ) ---
+                # --- 2. PROFESSIONAL FLOWCHART SECTION ---
                 st.markdown("---")
                 st.markdown("### 📊 5. Architecture Flowchart")
-                dot_code = get_sec('[5_DOT]', '[6_PYQ]')
+                st.caption("Copy this flowchart for your university exam theory answers.")
                 
-                if "digraph" in dot_code:
-                    try:
-                        # Graphviz browser mein blank nahi aata, ye seedha image render karta hai
-                        st.graphviz_chart(dot_code, use_container_width=True)
-                    except:
-                        st.code(dot_code, language="dot")
-                        st.error("Flowchart syntax complex hai, logic upar code mein dekhein.")
+                mer_raw = get_sec('[5_MER]', '[6_PYQ]')
+                match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
+                
+                if match:
+                    clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
+                    
+                    # Using Direct HTML injection for maximum stability (MindMap style)
+                    mermaid_html = f"""
+                    <div class="mermaid" style="background-color: white; padding: 25px; border-radius: 12px; border: 2px solid #4CAF50;">
+                        {clean_code}
+                    </div>
+                    <script type="module">
+                        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+                        mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
+                    </script>
+                    """
+                    st.components.v1.html(mermaid_html, height=500, scrolling=True)
                 else:
-                    st.warning("Flowchart currently unavailable for this topic.")
+                    st.error("Flowchart generation failed. Logic shown in technical breakdown.")
 
-                # --- FEATURE 5: MEGA PYQ WALL (15 QUESTIONS) ---
+                # --- 3. MEGA PYQ WALL (15+ QUESTIONS) ---
                 st.markdown("---")
-                st.markdown("### ❓ 6. Expected Exam Questions (PYQ Trends)")
+                st.markdown("### ❓ 6. Expected Exam Questions (15+ PYQ Trends)")
                 st.write(get_sec('[6_PYQ]'))
 
             except Exception as e:
