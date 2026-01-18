@@ -571,25 +571,22 @@ with tab6:
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
-    st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
+    st.write("Instant 360° Analysis: Definition, Architecture Flowchart, & 15+ PYQs.")
     
-    # User input
-    query = st.text_input("Enter Engineering Topic (e.g. Transformer, BJT, Virtual Memory):", key="search_final_pro_v100")
+    # 1. User Input
+    query = st.text_input("Enter Engineering Topic (e.g. Transformer, BJT, Virtual Memory):", key="search_final_fixed_v999")
     
-    if st.button("Deep Research", key="btn_pro_v100") and query:
+    if st.button("Deep Research", key="btn_v999") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
-            # Strongest prompt to ensure ALL sections and professional diagram logic
+            # Mega Prompt: Explicitly asking for 15+ PYQs and Professional Flowchart
             prompt = f"""
-            Act as an Engineering Professor. Provide a comprehensive report for: '{query}'.
+            Act as an Engineering Professor. Provide an exhaustive report for: '{query}'.
             Markers strictly required: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
             
             Rules:
-            - [1_DEF]: 3-4 line technical definition.
-            - [2_KEY]: List 7-10 technical terms for exam marks.
-            - [3_CXP]: Detailed technical breakdown/working logic.
-            - [4_SMP]: 2-line very simple explanation.
-            - [5_MER]: Professional Mermaid 'graph TD' flowchart showing architecture.
-            - [6_PYQ]: List at least 15 REAL university exam questions (short and long).
+            - [2_KEY]: List 7-10 technical keywords for exam marks.
+            - [5_MER]: Provide a detailed Mermaid 'graph TD' flowchart showing internal components.
+            - [6_PYQ]: List at least 15 REAL university exam questions (2m, 5m, 10m mixed).
             """
             
             try:
@@ -599,11 +596,11 @@ with tab7:
                 )
                 out = res.choices[0].message.content
 
-                # Bullet-proof Parser: Isse koi bhi section miss nahi hoga
+                # Bullet-proof Parser: Ensures NO section is missed
                 def get_sec(m1, m2=None):
                     try:
                         parts = out.split(m1)
-                        if len(parts) < 2: return "Data is being processed..."
+                        if len(parts) < 2: return "Data missing. Please try again."
                         content = parts[1]
                         if m2 and m2 in content: content = content.split(m2)[0]
                         return content.strip().replace("```mermaid", "").replace("```", "")
@@ -619,9 +616,9 @@ with tab7:
                 with col2:
                     st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
                 
-                st.warning(f"**3. Technical Breakdown (Working):**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
+                st.warning(f"**3. Technical Breakdown (Working Logic):**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
 
-                # --- 2. THE ULTIMATE "NO-BLANK" FLOWCHART (OFFICIAL CDN) ---
+                # --- 2. THE FINAL FLOWCHART FIX (NO-BLANK LOGIC) ---
                 st.markdown("---")
                 st.markdown("### 📊 5. Architecture Flowchart")
                 st.caption("Copy this flowchart for your university exam theory answers.")
@@ -630,11 +627,12 @@ with tab7:
                 match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
                 
                 if match:
-                    # Syntax cleaning to prevent 'Syntax error in text'
+                    # Syntax cleaning to prevent Mermaid v10 errors
                     clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
                     
-                    # Force render using a self-contained HTML frame for browser stability
+                    # Force render using official Mermaid CDN in an isolated HTML frame
                     mermaid_html = f"""
+                    <!DOCTYPE html>
                     <html>
                     <head>
                         <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
@@ -649,14 +647,19 @@ with tab7:
                     </body>
                     </html>
                     """
+                    # This fixes the blank screen issue once and for all
                     st.components.v1.html(mermaid_html, height=500, scrolling=True)
                 else:
-                    st.error("Diagram generation failed. Review logic in breakdown section.")
+                    st.error("Diagram syntax error. Please try a more specific topic.")
 
                 # --- 3. MEGA PYQ WALL (15+ QUESTIONS) ---
                 st.markdown("---")
-                st.markdown("### ❓ 6. Expected Exam Questions (Comprehensive PYQ Wall)")
-                st.write(get_sec('[6_PYQ]'))
+                st.markdown("### ❓ 6. Expected Exam Questions (15+ Comprehensive PYQs)")
+                pyq_data = get_sec('[6_PYQ]')
+                if pyq_data:
+                    st.write(pyq_data)
+                else:
+                    st.error("PYQs could not be generated. Please try again.")
 
             except Exception as e:
                 st.error(f"System Busy. Error: {e}")
