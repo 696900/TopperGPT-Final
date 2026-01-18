@@ -571,22 +571,21 @@ with tab6:
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
-    st.write("Instant 360° Analysis: Definition, Architecture, & PYQs.")
+    st.write("Instant 360° Analysis: Definition, Architecture Flowchart, & PYQs.")
     
-    query = st.text_input("Enter Engineering Topic (e.g. BJT, Virtual Memory):", key="search_final_fixed_v20")
+    query = st.text_input("Enter Engineering Topic (e.g. BJT, Virtual Memory):", key="search_final_stable_v30")
     
-    if st.button("Deep Research", key="btn_v20") and query:
+    if st.button("Deep Research", key="btn_v30") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
-            # Strong prompt to ensure ALL sections are generated
+            # Strict Prompt: AI ko sirf graph TD banane par majboor karna
             prompt = f"""
             Act as an Engineering Professor. Provide a report for: '{query}'.
             Markers strictly required: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
             
-            Rules:
-            - [2_KEY]: List 5-7 technical keywords.
-            - [4_SMP]: Explain in 2 simple sentences.
-            - [5_MER]: Provide ONLY pure Mermaid 'graph TD' code.
-            - [6_PYQ]: List 5 real university exam questions.
+            Rules for [5_MER]:
+            - Provide ONLY pure Mermaid 'graph TD' code.
+            - Use square brackets [] for ALL node labels (e.g., A[Input] --> B[Output]).
+            - NO extra text or explanations inside the code.
             """
             
             try:
@@ -596,54 +595,59 @@ with tab7:
                 )
                 out = res.choices[0].message.content
 
-                # Bullet-proof Parser to recover all missing sections
+                # --- 1. ROBUST PARSER ---
                 def get_sec(m1, m2=None):
                     try:
                         parts = out.split(m1)
-                        if len(parts) < 2: return "Section not found. Please try again."
+                        if len(parts) < 2: return "Data not found."
                         content = parts[1]
                         if m2 and m2 in content: content = content.split(m2)[0]
                         return content.strip().replace("```mermaid", "").replace("```", "")
-                    except: return "Error parsing this section."
+                    except: return "Error."
 
-                # --- 1. DISPLAY ALL TEXT SECTIONS (RESTORED) ---
+                # --- 2. DISPLAY TEXT SECTIONS ---
                 st.markdown(f"## 📘 Technical Report: {query}")
                 st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
-                
-                # Fixed: Keywords and Simple Explanation are back
                 st.write(f"**2. Key Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
                 st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
                 st.success(f"**4. Concept in Simple Words:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
 
-                # --- 2. DEDICATED VISUAL ARCHITECTURE (FIXED) ---
-                st.markdown("---")
-                st.markdown("### 🖼️ Engineering Architecture Flowchart")
+                # --- 3. THE ULTIMATE FLOWCHART FIX ---
+                st.markdown("### 📊 5. Architecture Flowchart")
                 
                 mer_raw = get_sec('[5_MER]', '[6_PYQ]')
+                # Regex to isolate the code and ignore AI conversational filler
                 match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
                 
                 if match:
+                    # Syntax Cleaning: Force square brackets to prevent rendering errors
                     clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
                     
-                    # Force white background and stable CDN for rendering
+                    # Injecting HTML component for stable browser-level rendering
                     mermaid_html = f"""
-                    <div class="mermaid" style="background-color: white; padding: 20px; border-radius: 10px; color: black;">
+                    <div class="mermaid" style="background-color: white; padding: 25px; border-radius: 12px; border: 2px solid #4CAF50;">
                         {clean_code}
                     </div>
                     <script type="module">
                         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                        mermaid.initialize({{ startOnLoad: true, theme: 'neutral' }});
+                        mermaid.initialize({{ 
+                            startOnLoad: true, 
+                            theme: 'base',
+                            themeVariables: {{ 
+                                'primaryColor': '#4CAF50',
+                                'edgeColor': '#000000'
+                            }} 
+                        }});
                     </script>
                     """
+                    # Displaying the flowchart in a stable container
                     st.components.v1.html(mermaid_html, height=450, scrolling=True)
                 else:
-                    # Fallback if AI messes up the code - show a technical icon instead of blank
-                    st.image("https://img.icons8.com/fluency/100/engineering.png", width=100)
-                    st.warning("Diagram syntax was too complex. Summary is ready below.")
+                    st.error("Flowchart generation failed. Showing text breakdown instead.")
 
-                # --- 3. PYQ SECTION (RESTORED) ---
+                # --- 4. PYQ SECTION ---
                 st.markdown("---")
-                st.markdown("### ❓ 6. Expected Exam Questions (PYQ)")
+                st.markdown("### ❓ 6. Expected Exam Questions (PYQ Trends)")
                 st.write(get_sec('[6_PYQ]'))
 
             except Exception as e:
