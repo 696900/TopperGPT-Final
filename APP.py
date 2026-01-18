@@ -571,21 +571,20 @@ with tab6:
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
-    st.write("Instant 360° Analysis: Definition, Diagram, & 5 Research-based PYQs.")
+    st.write("Instant 360° Analysis: Definition, Architecture, & PYQs.")
     
-    query = st.text_input("Enter Engineering Topic (e.g. Virtual Memory, BJT):", key="search_final_v12")
+    query = st.text_input("Enter Engineering Topic (e.g. BJT, Virtual Memory):", key="search_v15_final")
     
-    if st.button("Deep Research", key="btn_v12") and query:
+    if st.button("Deep Research", key="btn_v15") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
             prompt = f"""
             Act as an Engineering Professor. Provide a report for: '{query}'.
-            Use these EXACT markers:
-            [1_DEF] for Definition
-            [2_KEY] for Keywords
-            [3_CXP] for Technical Breakdown
-            [4_SMP] for Simple Explanation
-            [5_MER] for ONLY pure Mermaid graph TD code
-            [6_PYQ] for 5 Exam Questions
+            Markers strictly: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
+            
+            Rules for [5_MER]:
+            - ONLY pure Mermaid 'graph TD' code.
+            - Use square brackets [] for ALL node labels.
+            - Keep it simple and connected.
             """
             
             try:
@@ -604,39 +603,38 @@ with tab7:
                         return content.strip().replace("```mermaid", "").replace("```", "")
                     except: return ""
 
-                # --- 1. TECHNICAL REPORT ---
+                # --- 1. REPORT DISPLAY ---
                 st.markdown(f"## 📘 Technical Report: {query}")
                 st.info(f"**Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
                 
-                # --- 2. DEDICATED DIAGRAM SECTION (NEW) ---
+                # --- 2. DEDICATED VISUAL ARCHITECTURE (FIXED) ---
                 st.markdown("---")
-                st.markdown("### 🖼️ Engineering Visual Diagram")
-                # Yahan hum technical diagram placeholder ya AI Image trigger kar sakte hain
-                st.write(f"Visualizing the internal architecture of **{query}**:")
+                st.markdown("### 🖼️ Engineering Architecture Flowchart")
                 
-                # Logic to show a relevant engineering diagram
-                # Note: Aap yahan Wikimedia ya Google Image API bhi link kar sakte ho
-                st.image(f"https://img.icons8.com/external-flat-icons-inmotus-design/200/external-Engineering-engineering-flat-icons-inmotus-design-7.png", caption=f"Schematic representation of {query}", width=200)
-                
-                # --- 3. ARCHITECTURE FLOWCHART (FIXED RENDER) ---
-                st.markdown("### 📊 5. Architecture Flowchart")
                 mer_raw = get_sec('[5_MER]', '[6_PYQ]')
                 match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
                 
                 if match:
+                    # Logic to fix blank screen: Injecting raw HTML/JS for stable rendering
                     clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
-                    try:
-                        from streamlit_mermaid import st_mermaid
-                        st_mermaid(clean_code, height=450)
-                    except:
-                        st.code(clean_code, language="mermaid")
-                        st.error("Visual render failed due to complex syntax.") #
+                    
+                    mermaid_html = f"""
+                    <div class="mermaid" style="background-color: white; padding: 20px; border-radius: 10px;">
+                        {clean_code}
+                    </div>
+                    <script type="module">
+                        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+                        mermaid.initialize({{ startOnLoad: true, theme: 'default' }});
+                    </script>
+                    """
+                    # Direct HTML injection avoids library-specific blank errors
+                    st.components.v1.html(mermaid_html, height=500, scrolling=True)
                 else:
-                    st.warning("Flowchart logic not generated.")
+                    st.warning("Diagram logic not found, but research is ready below.")
 
-                # --- 4. PYQ SECTION ---
+                # --- 3. PYQ SECTION ---
                 st.markdown("---")
-                st.markdown("### ❓ 6. Expected Exam Questions (PYQ Trends)")
+                st.markdown("### ❓ Expected Exam Questions (PYQ)")
                 st.write(get_sec('[6_PYQ]'))
 
             except Exception as e:
