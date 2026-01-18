@@ -367,32 +367,77 @@ with tab3: # Yahan maine tab3 kar diya hai taaki NameError na aaye
     # --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
 with tab4:
     st.subheader("🧠 Concept MindMap & Summary")
+    
+    # Selection Mode
     m_mode = st.radio("Source Selection:", ["Enter Topic", "Use File Data"], horizontal=True, key="m_src_final")
     
+    # Input Logic
     if m_mode == "Enter Topic":
         m_input = st.text_input("Engineering Concept (e.g. Back EMF):", key="m_topic_final")
     else:
         m_input = st.session_state.get("pdf_content", "")[:3000]
-        if not m_input: st.warning("⚠️ Pehle Tab 1 mein notes upload karein!")
+        if not m_input: 
+            st.warning("⚠️ Pehle Tab 1 mein notes upload karein!")
 
     if st.button("Build Map", key="m_btn_final") and m_input:
-        with st.spinner("Creating Visual Roadmap..."):
-            prompt = f"Explain '{m_input}' in 5 lines. Then, provide ONLY a Mermaid.js 'graph TD' flowchart. Format: SUMMARY: [text] MERMAID: [code]"
+        with st.spinner("AI is drawing the architecture..."):
+            # Strict Prompt to ensure clean Mermaid code
+            prompt = f"""
+            Explain the engineering concept '{m_input}' in 5 clear lines. 
+            Then, provide ONLY a Mermaid.js 'graph TD' flowchart.
+            
+            Format your response exactly like this:
+            SUMMARY: [Your 5 lines here]
+            MERMAID:
+            graph TD
+            A[Start] --> B[Process]
+            
+            Rules:
+            - NO extra text, NO explanations after the code.
+            - Use ONLY square brackets [] for nodes.
+            """
+            
             try:
-                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                res = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile", 
+                    messages=[{"role": "user", "content": prompt}]
+                )
                 full_out = res.choices[0].message.content
 
+                # 1. Extract Summary
                 if "SUMMARY:" in full_out:
-                    st.info(f"**Technical Summary:**\n\n{full_out.split('SUMMARY:')[1].split('MERMAID:')[0].strip()}")
+                    # MERMAID keyword tak ka text uthayenge
+                    sum_text = full_out.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
+                    st.info(f"**Technical Summary:**\n\n{sum_text}")
 
+                # 2. Extract & Force-Fix Mermaid Code
                 if "graph TD" in full_out:
+                    # AI ke kachre se sirf 'graph TD' wala part nikalna
                     match = re.search(r"graph\s+TD[\s\S]*", full_out)
                     if match:
+                        # Character cleaning for Mermaid v10 compatibility
                         clean_code = match.group(0).replace("```mermaid", "").replace("```", "").strip()
-                        clean_code = clean_code.split("\n\n")[0].replace("(", "[").replace(")", "]")
+                        
+                        # AI aksar () use karta hai jo crash karta hai, hum use [] mein badal denge
+                        clean_code = clean_code.replace("(", "[").replace(")", "]")
+                        
+                        # Sirf pehla logical block uthana
+                        clean_code = clean_code.split("\n\n")[0]
+                        
+                        st.markdown("---")
                         st.markdown("### 📊 Architecture Flowchart")
-                        st_mermaid(clean_code)
-            except Exception as e: st.error(f"Error: {e}")
+                        
+                        # Rendering the diagram
+                        try:
+                            st_mermaid(clean_code, height=450)
+                        except Exception as render_err:
+                            st.error("Visual rendering failed. Showing code instead:")
+                            st.code(clean_code, language="mermaid")
+                    else:
+                        st.error("AI couldn't generate a proper diagram. Try again with a simpler topic.")
+                
+            except Exception as e:
+                st.error(f"System Error: {e}")
 
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
     # --- TAB 5: FLASHCARDS (UNIVERSAL SYNC FIX) ---
