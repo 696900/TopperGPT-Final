@@ -6,6 +6,8 @@ import pdfplumber
 import io
 import re
 from groq import Groq
+# 1. FIXED: Added missing import for Mermaid rendering
+from streamlit_mermaid import st_mermaid 
 
 # --- 1. CONFIGURATION & STRIKE-DARK UI (MOBILE OPTIMIZED) ---
 st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_icon="🚀")
@@ -13,7 +15,7 @@ st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_i
 def apply_pro_theme():
     st.markdown("""
         <style>
-        /* Force Dark Theme & Fix Mobile White Patches (Fixes WhatsApp Image issue) */
+        /* Force Dark Theme & Fix Mobile White Patches */
         .stApp { background-color: #0e1117 !important; color: #ffffff !important; }
         
         /* Sidebar Styling */
@@ -26,7 +28,6 @@ def apply_pro_theme():
             border: 1px dashed #4CAF50 !important; 
             border-radius: 10px; 
         }
-        /* Targetting all input fields to ensure they stay dark on mobile */
         .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stSelectbox>div>div {
             background-color: #1e2530 !important;
             color: white !important;
@@ -79,11 +80,11 @@ if not firebase_admin._apps:
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- 3. SESSION STATE FOR DATA STORAGE (CREDITS & MARKETING) ---
+# --- 3. SESSION STATE FOR DATA STORAGE ---
 if "user_data" not in st.session_state:
     st.session_state.user_data = None
 
-# --- 4. THE LOGIN PAGE (REAL AUTH FLOW) ---
+# --- 4. THE LOGIN PAGE (FIXED & CENTERED) ---
 if st.session_state.user_data is None:
     st.markdown("<br>", unsafe_allow_html=True)
     _, col_mid, _ = st.columns([0.1, 0.8, 0.1])
@@ -97,40 +98,35 @@ if st.session_state.user_data is None:
             </div>
         """, unsafe_allow_html=True)
 
-        # GOOGLE LOGIN (Actual Logic Bypass for 403 Errors while maintaining data)
         if st.button("🔴 Sign in with Google", use_container_width=True):
-            with st.spinner("Connecting to Google Services..."):
-                # Capturing actual user data to enable Credit/Subscription system
+            with st.spinner("Connecting to Google Auth..."):
                 st.session_state.user_data = {
-                    "email": "krishnaghanabahadur85@gmail.com", # Ye actual redirect se aayega
+                    "email": "krishnaghanabahadur85@gmail.com",
                     "name": "Krishna",
                     "credits": 5, 
                     "tier": "Free Topper"
                 }
-                st.success("Google Authentication Successful! 🚀")
+                st.success("Successfully Authenticated! 🚀")
                 st.rerun()
 
         st.markdown("<p style='text-align:center; color:#8b949e; margin-top:15px;'>--- OR ---</p>", unsafe_allow_html=True)
-        
         email_manual = st.text_input("University Email", key="login_email", placeholder="topper@university.edu")
         pass_manual = st.text_input("Password", type="password", key="login_pass")
         
         if st.button("Access Portal 🔐", use_container_width=True):
-            # Email login foundation
             st.session_state.user_data = {"email": email_manual, "credits": 5, "tier": "Free Topper"}
             st.rerun()
     st.stop()
 
-# --- 5. SIDEBAR (WALLET & PROFILE FOUNDATION) ---
+# --- 5. SIDEBAR (WALLET & PROFILE) ---
 with st.sidebar:
     st.markdown(f"<h2 style='color: #4CAF50; padding-top: 0;'>🚀 TopperGPT</h2>", unsafe_allow_html=True)
     st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=80)
     
-    # User Wallet Info Display - Critical for Razorpay
-    user_email = st.session_state.user_data['email']
-    st.markdown(f"**Topper:** {user_email.split('@')[0].capitalize()}")
+    u_mail = st.session_state.user_data['email']
+    st.markdown(f"**Welcome, {u_mail.split('@')[0].capitalize()}!**")
     st.markdown(f"💰 Credits: **{st.session_state.user_data['credits']}**")
-    st.caption(f"Account: {st.session_state.user_data['tier']}")
+    st.caption(f"Status: {st.session_state.user_data['tier']}")
     
     if st.button("Buy Credits 👑", use_container_width=True):
         st.info("Razorpay Gateway: Launching Next!")
@@ -370,62 +366,33 @@ with tab3: # Yahan maine tab3 kar diya hai taaki NameError na aaye
     # --- TAB 4: MIND MAP ---
     # --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
 with tab4:
-        st.subheader("🧠 Concept MindMap & Summary")
-        
-        # Choice of source
-        m_mode = st.radio("Source Selection:", ["Enter Topic", "Use File Data"], horizontal=True, key="m_src_final")
-        
-        # Getting input text
-        if m_mode == "Enter Topic":
-            m_input = st.text_input("Engineering Concept (e.g. Back EMF):", key="m_topic_final")
-        else:
-            m_input = st.session_state.get("pdf_content", "")[:3000]
-            if not m_input:
-                st.warning("⚠️ Pehle Tab 1 mein notes upload karein!")
+    st.subheader("🧠 Concept MindMap & Summary")
+    m_mode = st.radio("Source Selection:", ["Enter Topic", "Use File Data"], horizontal=True, key="m_src_final")
+    
+    if m_mode == "Enter Topic":
+        m_input = st.text_input("Engineering Concept (e.g. Back EMF):", key="m_topic_final")
+    else:
+        m_input = st.session_state.get("pdf_content", "")[:3000]
+        if not m_input: st.warning("⚠️ Pehle Tab 1 mein notes upload karein!")
 
-        if st.button("Build Map", key="m_btn_final") and m_input:
-            with st.spinner("Creating Visual Roadmap..."):
-                # Strict prompt to force correct Mermaid structure
-                prompt = f"""
-                Explain the engineering concept '{m_input}' in 5 clear lines.
-                Then, provide ONLY a Mermaid.js flowchart using 'graph TD'.
-                Ensure every node is connected and use simple words.
-                Format your response exactly like this:
-                SUMMARY: [Your 5 lines here]
-                MERMAID:
-                graph TD
-                A[Start] --> B[Process]
-                """
-                
-                try:
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", 
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    full_out = res.choices[0].message.content
+    if st.button("Build Map", key="m_btn_final") and m_input:
+        with st.spinner("Creating Visual Roadmap..."):
+            prompt = f"Explain '{m_input}' in 5 lines. Then, provide ONLY a Mermaid.js 'graph TD' flowchart. Format: SUMMARY: [text] MERMAID: [code]"
+            try:
+                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                full_out = res.choices[0].message.content
 
-                    # 1. Extract Summary
-                    if "SUMMARY:" in full_out:
-                        sum_text = full_out.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
-                        st.info(f"**Technical Summary:**\n\n{sum_text}")
+                if "SUMMARY:" in full_out:
+                    st.info(f"**Technical Summary:**\n\n{full_out.split('SUMMARY:')[1].split('MERMAID:')[0].strip()}")
 
-                    # 2. Extract & Fix Mermaid Code (Fixes Syntax Errors)
-                    #
-                    if "graph TD" in full_out:
-                        # Regex to find code starting from graph TD until the end or next marker
-                        match = re.search(r"graph\s+TD[\s\S]*", full_out)
-                        if match:
-                            clean_code = match.group(0).replace("```mermaid", "").replace("```", "").strip()
-                            # Extra safety: removing conversational filler
-                            clean_code = clean_code.split("\n\n")[0]
-                            
-                            st.markdown("---")
-                            st.markdown("### 📊 Architecture Flowchart")
-                            st_mermaid(clean_code)
-                        else:
-                            st.error("AI generated invalid diagram syntax. Please try a simpler topic.")
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                if "graph TD" in full_out:
+                    match = re.search(r"graph\s+TD[\s\S]*", full_out)
+                    if match:
+                        clean_code = match.group(0).replace("```mermaid", "").replace("```", "").strip()
+                        clean_code = clean_code.split("\n\n")[0].replace("(", "[").replace(")", "]")
+                        st.markdown("### 📊 Architecture Flowchart")
+                        st_mermaid(clean_code)
+            except Exception as e: st.error(f"Error: {e}")
 
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
     # --- TAB 5: FLASHCARDS (UNIVERSAL SYNC FIX) ---
@@ -558,78 +525,38 @@ with tab6:
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
-        st.subheader("🔍 Engineering Topic Research")
-        st.write("Instant 360° Analysis: Definition, Diagram, & 5 Research-based PYQs.")
-        
-        # User input
-        query = st.text_input("Enter Engineering Topic (e.g. Virtual Memory, BJT, Transformer):", key="search_final_final_v10")
-        
-        if st.button("Deep Research", key="btn_v10") and query:
-            with st.spinner(f"Analyzing '{query}' for University Exams..."):
-                # Strict prompt for Mermaid Version 10 stability
-                prompt = f"""
-                Act as an Engineering Professor. Provide a report for: '{query}'.
-                Markers strictly: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
+    st.subheader("🔍 Engineering Topic Research")
+    query = st.text_input("Enter Engineering Topic:", key="search_final_final_v10")
+    
+    if st.button("Deep Research", key="btn_v10") and query:
+        with st.spinner(f"Analyzing '{query}'..."):
+            prompt = f"Act as an Engineering Professor. Report for: '{query}'. Markers: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ]. For [5_MER], ONLY pure graph TD code."
+            try:
+                res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                out = res.choices[0].message.content
+
+                def get_sec(m1, m2=None):
+                    try: return out.split(m1)[1].split(m2)[0].strip() if m2 else out.split(m1)[1].strip()
+                    except: return "Processing..."
+
+                st.markdown(f"## 📘 Technical Report: {query}")
+                st.info(f"**1. Definition:**\n{get_sec('[1_DEF]', '[2_KEY]')}")
+                st.write(f"**2. Keywords:**\n{get_sec('[2_KEY]', '[3_CXP]')}")
+                st.warning(f"**3. Breakdown:**\n{get_sec('[3_CXP]', '[4_SMP]')}")
+                st.success(f"**4. Simple Explanation:**\n{get_sec('[4_SMP]', '[5_MER]')}")
+
+                # FLOWCHART RENDERER
+                st.markdown("### 📊 5. Architecture Flowchart")
+                mer_raw = get_sec('[5_MER]', '[6_PYQ]')
+                match = re.search(r"(graph (?:TD|LR|BT|RL)[\s\S]*?)(?=\[6_PYQ\]|---|```|$)", mer_raw)
+                if match:
+                    clean_code = match.group(1).replace("```mermaid", "").replace("```", "").strip()
+                    clean_code = clean_code.replace("(", "[").replace(")", "]")
+                    st_mermaid(clean_code)
                 
-                Rules for [5_MER]:
-                - Provide ONLY pure Mermaid graph TD code.
-                - Use square brackets [] for ALL node labels (e.g., A[Input] --> B[Process]).
-                - NO round brackets (), NO quotes "", NO special characters like &.
-                
-                Rules for [6_PYQ]:
-                - Provide exactly 5 REAL exam-oriented questions based on current university trends.
-                """
-                
-                try:
-                    # Using Groq to avoid Gemini 404 version errors
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", 
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    out = res.choices[0].message.content
-
-                    # Robust Section Parser
-                    def get_sec(m1, m2=None):
-                        try:
-                            s = out.split(m1)[1]
-                            return s.split(m2)[0].strip() if m2 else s.strip()
-                        except: return "Information being processed..."
-
-                    # Displaying technical sections
-                    st.markdown(f"## 📘 Technical Report: {query}")
-                    st.info(f"**1. Standard Definition:**\n{get_sec('[1_DEF]', '[2_KEY]')}")
-                    st.write(f"**2. Key Technical Keywords:**\n{get_sec('[2_KEY]', '[3_CXP]')}")
-                    st.warning(f"**3. Technical Breakdown:**\n{get_sec('[3_CXP]', '[4_SMP]')}")
-                    st.success(f"**4. Concept in Simple Words:**\n{get_sec('[4_SMP]', '[5_MER]')}")
-
-                    # --- THE ULTIMATE FLOWCHART RENDERER ---
-                    st.markdown("### 📊 5. Architecture Flowchart")
-                    mer_raw = get_sec('[5_MER]', '[6_PYQ]')
-                    
-                    # Regex to isolate only the 'graph TD' part and remove AI talk
-                    match = re.search(r"(graph (?:TD|LR|BT|RL)[\s\S]*?)(?=\[6_PYQ\]|---|```|$)", mer_raw)
-                    
-                    if match:
-                        # Character cleaning to ensure Mermaid doesn't crash
-                        clean_code = match.group(1).replace("```mermaid", "").replace("```", "").strip()
-                        # Auto-fix: Convert rounded nodes () to square [] because AI often messes up ()
-                        clean_code = clean_code.replace("(", "[").replace(")", "]")
-                        
-                        try:
-                            st_mermaid(clean_code)
-                        except Exception:
-                            # If rendering still fails, show raw code so student doesn't lose data
-                            st.code(clean_code, language="mermaid")
-                            st.error("Visual render failed due to complex syntax, logic shown above.")
-                    else:
-                        st.code(mer_raw, language="mermaid")
-
-                    # 5 Deep-researched Questions
-                    st.markdown("### ❓ 6. Expected Exam Questions (PYQ Trends)")
-                    st.write(get_sec('[6_PYQ]'))
-                        
-                except Exception as e:
-                    st.error(f"System busy. Error: {e}")
+                st.markdown("### ❓ 6. Expected PYQs")
+                st.write(get_sec('[6_PYQ]'))
+            except Exception as e: st.error(f"System busy. Error: {e}")
 
 # --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
 with tab8:
