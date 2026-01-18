@@ -571,22 +571,22 @@ with tab6:
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
-    st.write("Instant 360° Analysis: Definition, Architecture Flowchart, & 15+ PYQs.")
+    st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
     
-    # 1. User Input
-    query = st.text_input("Enter Engineering Topic (e.g. Transformer, BJT, Virtual Memory):", key="search_final_fixed_v999")
+    query = st.text_input("Enter Engineering Topic (e.g. Transformer, BJT):", key="search_final_absolute_v1")
     
-    if st.button("Deep Research", key="btn_v999") and query:
+    if st.button("Deep Research", key="btn_absolute_v1") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
-            # Mega Prompt: Explicitly asking for 15+ PYQs and Professional Flowchart
+            # Strongest prompt to ensure professional logic and 15+ PYQs
             prompt = f"""
-            Act as an Engineering Professor. Provide an exhaustive report for: '{query}'.
-            Markers strictly required: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
-            
-            Rules:
-            - [2_KEY]: List 7-10 technical keywords for exam marks.
-            - [5_MER]: Provide a detailed Mermaid 'graph TD' flowchart showing internal components.
-            - [6_PYQ]: List at least 15 REAL university exam questions (2m, 5m, 10m mixed).
+            Act as an Engineering Professor. Provide a comprehensive report for: '{query}'.
+            Use these markers exactly:
+            [1_DEF] for a technical definition.
+            [2_KEY] for 7-10 technical keywords.
+            [3_CXP] for detailed technical breakdown/working.
+            [4_SMP] for a simple 2-line explanation.
+            [5_DOT] for ONLY Graphviz DOT code (digraph G {{...}}) showing its architecture.
+            [6_PYQ] for at least 15 REAL university exam questions (2m, 5m, 10m mixed).
             """
             
             try:
@@ -596,14 +596,13 @@ with tab7:
                 )
                 out = res.choices[0].message.content
 
-                # Bullet-proof Parser: Ensures NO section is missed
                 def get_sec(m1, m2=None):
                     try:
                         parts = out.split(m1)
-                        if len(parts) < 2: return "Data missing. Please try again."
+                        if len(parts) < 2: return "Data missing."
                         content = parts[1]
                         if m2 and m2 in content: content = content.split(m2)[0]
-                        return content.strip().replace("```mermaid", "").replace("```", "")
+                        return content.strip().replace("```dot", "").replace("```", "")
                     except: return "Section error."
 
                 # --- 1. DISPLAY ALL TEXT SECTIONS ---
@@ -614,52 +613,29 @@ with tab7:
                 with col1:
                     st.write(f"**2. Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
                 with col2:
-                    st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
+                    st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_DOT]')}")
                 
-                st.warning(f"**3. Technical Breakdown (Working Logic):**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
+                st.warning(f"**3. Technical Breakdown (Working):**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
 
-                # --- 2. THE FINAL FLOWCHART FIX (NO-BLANK LOGIC) ---
+                # --- 2. THE "NO-FAIL" FLOWCHART (GRAPHVIZ) ---
                 st.markdown("---")
                 st.markdown("### 📊 5. Architecture Flowchart")
-                st.caption("Copy this flowchart for your university exam theory answers.")
+                dot_code = get_sec('[5_DOT]', '[6_PYQ]')
                 
-                mer_raw = get_sec('[5_MER]', '[6_PYQ]')
-                match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
-                
-                if match:
-                    # Syntax cleaning to prevent Mermaid v10 errors
-                    clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
-                    
-                    # Force render using official Mermaid CDN in an isolated HTML frame
-                    mermaid_html = f"""
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-                        <script>
-                            mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
-                        </script>
-                    </head>
-                    <body style="background-color: white; margin: 0; padding: 20px; border-radius: 12px; border: 2px solid #4CAF50;">
-                        <div class="mermaid">
-                            {clean_code}
-                        </div>
-                    </body>
-                    </html>
-                    """
-                    # This fixes the blank screen issue once and for all
-                    st.components.v1.html(mermaid_html, height=500, scrolling=True)
+                if "digraph" in dot_code:
+                    try:
+                        # Graphviz seedha server se image render karta hai, blank nahi hoga
+                        st.graphviz_chart(dot_code, use_container_width=True)
+                    except:
+                        st.code(dot_code, language="dot")
+                        st.error("Flowchart rendering issues. Review logic in breakdown section.")
                 else:
-                    st.error("Diagram syntax error. Please try a more specific topic.")
+                    st.warning("Diagram currently unavailable for this complex topic.")
 
                 # --- 3. MEGA PYQ WALL (15+ QUESTIONS) ---
                 st.markdown("---")
                 st.markdown("### ❓ 6. Expected Exam Questions (15+ Comprehensive PYQs)")
-                pyq_data = get_sec('[6_PYQ]')
-                if pyq_data:
-                    st.write(pyq_data)
-                else:
-                    st.error("PYQs could not be generated. Please try again.")
+                st.write(get_sec('[6_PYQ]'))
 
             except Exception as e:
                 st.error(f"System Busy. Error: {e}")
