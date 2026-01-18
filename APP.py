@@ -571,25 +571,25 @@ with tab6:
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
-    st.write("Instant 360° Analysis: Definition, Professional Flowchart, & 15+ PYQs.")
+    st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
     
     # User input
-    query = st.text_input("Enter Engineering Topic (e.g. Transformer, BJT, Virtual Memory):", key="research_v25_full")
+    query = st.text_input("Enter Engineering Topic (e.g. Transformer, BJT, Virtual Memory):", key="search_final_pro_v100")
     
-    if st.button("Deep Research", key="btn_v25_full") and query:
+    if st.button("Deep Research", key="btn_pro_v100") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
-            # Sabse bada aur detailed prompt taaki koi section miss na ho
+            # Strongest prompt to ensure ALL sections and professional diagram logic
             prompt = f"""
             Act as an Engineering Professor. Provide a comprehensive report for: '{query}'.
             Markers strictly required: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
             
             Rules:
-            - [1_DEF]: Detailed technical definition.
-            - [2_KEY]: List 7-10 technical keywords for exam marks.
-            - [3_CXP]: Step-by-step engineering breakdown/working.
-            - [4_SMP]: 2 lines of very simple explanation.
-            - [5_MER]: Professional Mermaid 'graph TD' flowchart showing internal architecture.
-            - [6_PYQ]: List exactly 15 REAL university exam questions (short, medium, and long).
+            - [1_DEF]: 3-4 line technical definition.
+            - [2_KEY]: List 7-10 technical terms for exam marks.
+            - [3_CXP]: Detailed technical breakdown/working logic.
+            - [4_SMP]: 2-line very simple explanation.
+            - [5_MER]: Professional Mermaid 'graph TD' flowchart showing architecture.
+            - [6_PYQ]: List at least 15 REAL university exam questions (short and long).
             """
             
             try:
@@ -599,11 +599,11 @@ with tab7:
                 )
                 out = res.choices[0].message.content
 
-                # Bullet-proof Parser: Isse koi bhi section gayab nahi hoga
+                # Bullet-proof Parser: Isse koi bhi section miss nahi hoga
                 def get_sec(m1, m2=None):
                     try:
                         parts = out.split(m1)
-                        if len(parts) < 2: return "Data missing. Please try again."
+                        if len(parts) < 2: return "Data is being processed..."
                         content = parts[1]
                         if m2 and m2 in content: content = content.split(m2)[0]
                         return content.strip().replace("```mermaid", "").replace("```", "")
@@ -611,7 +611,6 @@ with tab7:
 
                 # --- 1. DISPLAY ALL TEXT SECTIONS ---
                 st.markdown(f"## 📘 Technical Report: {query}")
-                
                 st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
                 
                 col1, col2 = st.columns(2)
@@ -622,7 +621,7 @@ with tab7:
                 
                 st.warning(f"**3. Technical Breakdown (Working):**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
 
-                # --- 2. PROFESSIONAL FLOWCHART SECTION ---
+                # --- 2. THE ULTIMATE "NO-BLANK" FLOWCHART (OFFICIAL CDN) ---
                 st.markdown("---")
                 st.markdown("### 📊 5. Architecture Flowchart")
                 st.caption("Copy this flowchart for your university exam theory answers.")
@@ -631,25 +630,32 @@ with tab7:
                 match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
                 
                 if match:
+                    # Syntax cleaning to prevent 'Syntax error in text'
                     clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
                     
-                    # Using Direct HTML injection for maximum stability (MindMap style)
+                    # Force render using a self-contained HTML frame for browser stability
                     mermaid_html = f"""
-                    <div class="mermaid" style="background-color: white; padding: 25px; border-radius: 12px; border: 2px solid #4CAF50;">
-                        {clean_code}
-                    </div>
-                    <script type="module">
-                        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                        mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
-                    </script>
+                    <html>
+                    <head>
+                        <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+                        <script>
+                            mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
+                        </script>
+                    </head>
+                    <body style="background-color: white; margin: 0; padding: 20px; border-radius: 12px; border: 2px solid #4CAF50;">
+                        <div class="mermaid">
+                            {clean_code}
+                        </div>
+                    </body>
+                    </html>
                     """
                     st.components.v1.html(mermaid_html, height=500, scrolling=True)
                 else:
-                    st.error("Flowchart generation failed. Logic shown in technical breakdown.")
+                    st.error("Diagram generation failed. Review logic in breakdown section.")
 
                 # --- 3. MEGA PYQ WALL (15+ QUESTIONS) ---
                 st.markdown("---")
-                st.markdown("### ❓ 6. Expected Exam Questions (15+ PYQ Trends)")
+                st.markdown("### ❓ 6. Expected Exam Questions (Comprehensive PYQ Wall)")
                 st.write(get_sec('[6_PYQ]'))
 
             except Exception as e:
