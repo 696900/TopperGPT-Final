@@ -571,16 +571,21 @@ with tab6:
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
-    st.write("Instant 360° Analysis: Definition, Architecture Flowchart, & PYQs.")
+    st.write("Instant 360° Analysis: Definition, Architecture Flowchart, & Extensive PYQs.")
     
-    query = st.text_input("Enter Engineering Topic (e.g. BJT, CPU Scheduling):", key="search_final_ultra_stable")
+    query = st.text_input("Enter Engineering Topic (e.g. BJT, Virtual Memory):", key="search_final_v99")
     
-    if st.button("Deep Research", key="btn_ultra") and query:
+    if st.button("Deep Research", key="btn_v99") and query:
         with st.spinner(f"Analyzing '{query}' for University Exams..."):
+            # Mega PYQ Prompt: AI ko 10-15 questions ke liye force karna
             prompt = f"""
-            Act as an Engineering Professor. Provide a report for: '{query}'.
+            Act as an Engineering Professor. Provide an exhaustive report for: '{query}'.
             Markers: [1_DEF], [2_KEY], [3_CXP], [4_SMP], [5_MER], [6_PYQ].
-            Rules for [5_MER]: ONLY pure Mermaid 'graph TD' code using square brackets [] for nodes.
+            
+            Rules:
+            - [5_MER]: ONLY pure Mermaid 'graph TD' code. Use square brackets [] for nodes.
+            - [6_PYQ]: List at least 10-15 REAL university exam questions (2 marks, 5 marks, and 10 marks mixed).
+            Ensure no conversational filler.
             """
             
             try:
@@ -599,14 +604,13 @@ with tab7:
                         return content.strip().replace("```mermaid", "").replace("```", "")
                     except: return ""
 
-                # --- DISPLAY TEXT SECTIONS ---
+                # --- DISPLAY REPORT ---
                 st.markdown(f"## 📘 Technical Report: {query}")
                 st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
                 st.write(f"**2. Key Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
                 st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
-                st.success(f"**4. Concept in Simple Words:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
 
-                # --- 3. THE "NO-BLANK" FLOWCHART RENDERER ---
+                # --- THE "FORCE-RENDER" FLOWCHART (FIXED) ---
                 st.markdown("### 📊 5. Architecture Flowchart")
                 mer_raw = get_sec('[5_MER]', '[6_PYQ]')
                 match = re.search(r"(graph (?:TD|LR)[\s\S]*?)", mer_raw)
@@ -614,32 +618,44 @@ with tab7:
                 if match:
                     clean_code = match.group(1).replace("(", "[").replace(")", "]").strip()
                     
-                    # Force render using a self-contained HTML with Mermaid CDN
-                    # Added a 'try-catch' and 'window.onload' for stability
+                    # Force render using official Mermaid CDN within a self-adjusting HTML frame
+                    # This fixes the white blank box issue
                     mermaid_html = f"""
+                    <!DOCTYPE html>
                     <html>
                     <head>
                         <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
                         <script>
-                            mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
+                            mermaid.initialize({{ 
+                                startOnLoad: true, 
+                                theme: 'forest',
+                                securityLevel: 'loose'
+                            }});
                         </script>
+                        <style>
+                            body {{ background-color: white; display: flex; justify-content: center; }}
+                            .mermaid {{ width: 100%; }}
+                        </style>
                     </head>
-                    <body style="background-color: white; margin: 0; padding: 10px;">
+                    <body>
                         <div class="mermaid">
                             {clean_code}
                         </div>
                     </body>
                     </html>
                     """
-                    # Height adjustment and scrolling enabled
-                    st.components.v1.html(mermaid_html, height=500, scrolling=True)
+                    st.components.v1.html(mermaid_html, height=550, scrolling=True)
                 else:
-                    st.error("AI generated complex logic. Check the text breakdown above.")
+                    st.error("Visual render failed. Check the logic in text above.")
 
-                # --- 4. PYQ SECTION ---
+                # --- MEGA PYQ SECTION (FIXED: 10-15 QUESTIONS) ---
                 st.markdown("---")
-                st.markdown("### ❓ 6. Expected Exam Questions (PYQ)")
-                st.write(get_sec('[6_PYQ]'))
+                st.markdown("### ❓ 6. Expected Exam Questions (Comprehensive PYQ Wall)")
+                pyq_data = get_sec('[6_PYQ]')
+                if pyq_data:
+                    st.write(pyq_data)
+                else:
+                    st.error("PYQs not generated. Try again.")
 
             except Exception as e:
                 st.error(f"Error: {e}")
