@@ -50,26 +50,26 @@ with st.sidebar:
         <div class="wallet-card">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
             <p style="color: white; font-size: 28px; font-weight: 900; margin: 5px 0;">{st.session_state.user_data['credits']} 🔥</p>
-            <p style="color: #8b949e; font-size: 11px; margin: 0;">Plan: {st.session_state.user_data['tier']}</p>
         </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
     st.subheader("💳 Choose Your Plan")
     
-    # ASALI SELECTION LOGIC (Ab student choose kar payega)
+    # User Plan Selection
     plan_choice = st.radio(
         "Available Packs:",
         ["Jugaad Pack (50 Credits @ ₹99)", "Monthly Pro (Unlimited @ ₹149)"],
-        index=0,
-        key="plan_selector"
+        key="plan_selector_v2"
     )
     
-    # YOUR ACTIVE PUBLIC LINK
-    # Note: Ek hi link par student apni pasand ka amount pay kar sakega
-    payment_link = "https://rzp.io/rzp/AWiyLxEi" 
+    # ANTI-CACHE LOGIC:
+    # Hum link ke piche ek random number daal rahe hain taaki browser hamesha NAYA page load kare
+    t_code = int(time.time())
+    base_link = "https://rzp.io/rzp/AWiyLxEi"
+    payment_link = f"{base_link}?t={t_code}" 
     
-    # Unlock Button logic
+    # Blueprint: Seamless 1-click redirect
     st.markdown(f"""
         <div style="margin-top: 20px;">
             <a href="{payment_link}" target="_blank" style="text-decoration: none;">
@@ -78,18 +78,18 @@ with st.sidebar:
                     background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
                     color: black;
                     text-align: center;
-                    padding: 15px 0;
+                    padding: 16px 0;
                     border-radius: 12px;
                     font-weight: bold;
                     font-size: 16px;
                     cursor: pointer;
                     box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);
                 ">
-                    Unlock {plan_choice.split(' (')[0]} 🚀
+                    🚀 Unlock {plan_choice.split(' (')[0]}
                 </div>
             </a>
             <p style="text-align: center; font-size: 10px; color: #8b949e; margin-top: 10px;">
-                Securely opens Razorpay Portal in New Tab
+                Secure 256-bit Encrypted Payment
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -98,7 +98,6 @@ with st.sidebar:
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
-
 # --- 6. MAIN CONTENT (TABS) ---
 st.title("🚀 Engineering Study Studio")
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
