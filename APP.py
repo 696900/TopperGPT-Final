@@ -100,6 +100,7 @@ if st.session_state.user_data is None:
     show_login_page()
 
 # --- 5. SIDEBAR (WALLET & REDIRECT PAYMENT) ---
+# --- 5. SIDEBAR (WALLET & FIXED REDIRECT) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
@@ -117,37 +118,36 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("💳 Upgrade & Packs")
     
-    # Product Selection
+    # Pack Selection
     pack = st.selectbox("Select Study Pack", [
         "Jugaad Pack (50 Credits) - ₹99",
         "Monthly Pro (Unlimited) - ₹149",
         "Exam-Killer (7 Days) - ₹49"
     ])
     
-    # RAZORPAY REDIRECT FIX (Opens in New Tab)
-    # PASTE YOUR PUBLISHED RAZORPAY LINK HERE
+    # YOUR ACTUAL ACTIVE RAZORPAY LINK
     payment_link = "https://rzp.io/rzp/AWiyLxEi" 
     
+    # Professional Button with Redirect Fix
     st.markdown(f"""
         <a href="{payment_link}" target="_blank" style="text-decoration: none;">
-            <button style="
+            <div style="
                 width: 100%;
                 background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
                 color: black;
-                border: none;
-                padding: 15px;
+                text-align: center;
+                padding: 15px 0;
                 border-radius: 12px;
                 font-weight: bold;
-                font-size: 15px;
+                font-size: 16px;
                 cursor: pointer;
                 box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-                transition: 0.3s;
             ">
                 Secure Payment 🚀
-            </button>
+            </div>
         </a>
         <p style="text-align: center; font-size: 10px; color: #8b949e; margin-top: 10px;">
-            Next-Gen Encryption. Opens in Secure Tab.
+            Opens Secure Payment Gateway in New Tab
         </p>
     """, unsafe_allow_html=True)
 
