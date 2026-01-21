@@ -79,7 +79,7 @@ def show_login_page():
             <div class="login-card">
                 <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px; font-style: italic;'>TopperGPT</h1>
                 <p style='color: #8b949e; font-size: 1rem; letter-spacing: 1px;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
-                <hr style="border-color: #30363d; margin: 30px 0;">
+                <hr style="border-color: #30363d; margin: 20px 0;">
                 <p style="color: white; font-size: 0.9rem; margin-bottom: 20px;">Secure Login for Engineering Students</p>
             </div>
         """, unsafe_allow_html=True)
@@ -137,8 +137,8 @@ with st.sidebar:
     ])
     
     # RAZORPAY REDIRECT FIX (Opens in New Tab - 100% Professional)
-    # Bhai yahan apna Razorpay Payment Page link dalna (Dashboard > Payment Pages)
-    payment_link = "https://rzp.io/l/your_payment_link" 
+    # Bhai yahan apna Razorpay Payment Page link dalna jo tune abhi banaya hai
+    payment_link = "https://rzp.io/rzp/AWiyLxEi" 
     
     st.markdown(f"""
         <a href="{payment_link}" target="_blank" style="text-decoration: none;">
