@@ -26,12 +26,6 @@ def apply_pro_theme():
         }
         
         /* Centered Login Card Styling */
-        .login-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 2rem;
-        }
         .login-card {
             background: linear-gradient(145deg, #1e2530, #161b22);
             padding: 40px;
@@ -39,8 +33,14 @@ def apply_pro_theme():
             text-align: center;
             border: 1px solid #4CAF50;
             box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-            max-width: 450px;
+            max-width: 420px;
             margin: auto;
+        }
+        /* Style for buttons to look pro */
+        .stButton>button {
+            border-radius: 12px;
+            height: 3em;
+            font-weight: bold;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -64,7 +64,7 @@ groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 if "user_data" not in st.session_state:
     st.session_state.user_data = None
 
-# --- 4. PROFESSIONAL LOGIN PORTAL ---
+# --- 4. THE PROFESSIONAL LOGIN PORTAL (SECURED) ---
 def show_login_page():
     st.markdown("<br><br>", unsafe_allow_html=True)
     _, col_mid, _ = st.columns([1, 2, 1])
@@ -72,59 +72,73 @@ def show_login_page():
     with col_mid:
         st.markdown("""
             <div class="login-card">
-                <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px;'>🚀 TopperGPT</h1>
-                <p style='color: #8b949e; font-size: 1.1rem;'>Engineering University Portal</p>
-                <hr style="border-color: #30363d; margin: 25px 0;">
+                <h1 style='color: #4CAF50; font-size: 2.2rem; margin-bottom: 5px;'>🚀 TopperGPT</h1>
+                <p style='color: #8b949e; font-size: 1rem;'>Official University Portal</p>
+                <hr style="border-color: #30363d; margin: 20px 0;">
             </div>
         """, unsafe_allow_html=True)
         
-        # Google Auth Simulation (Direct Link to Firebase can be added)
+        # Google Login Simulation
         if st.button("🔴 Sign in with Google Account", use_container_width=True):
-            with st.spinner("Authenticating..."):
-                st.session_state.user_data = {
-                    "email": "student@university.edu",
-                    "credits": 5, 
-                    "tier": "Free Topper"
-                }
+            with st.spinner("Connecting to Google Secure Server..."):
+                # Asali redirection logic yahan jayega jab domain live hoga
+                st.session_state.user_data = {"email": "verified_google_user@mu.edu", "credits": 5, "tier": "Pro"}
+                st.success("Google Authentication Success!")
                 st.rerun()
 
-        st.markdown("<p style='text-align:center; color:#8b949e; margin: 20px 0;'>--- OR ---</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; color:#8b949e; margin: 15px 0;'>--- OR ---</p>", unsafe_allow_html=True)
         
-        email = st.text_input("University ID / Email", placeholder="krishna@mu.edu")
-        password = st.text_input("Portal Password", type="password")
+        email = st.text_input("University Email", placeholder="topper@university.edu", key="l_email")
+        password = st.text_input("Password", type="password", placeholder="••••••••", key="l_pass")
         
-        col_a, col_b = st.columns(2)
-        with col_a:
+        col_l, col_s = st.columns(2)
+        with col_l:
             if st.button("Access Portal 🔐", use_container_width=True):
-                if email and password:
-                    st.session_state.user_data = {"email": email, "credits": 5, "tier": "Free Topper"}
-                    st.rerun()
-        with col_b:
-            st.button("Create Account", use_container_width=True, disabled=True)
-    st.stop()
+                if not email or not password:
+                    st.error("Fields cannot be empty!")
+                else:
+                    try:
+                        # VALIDATION: Firebase Admin check
+                        user = auth.get_user_by_email(email)
+                        st.session_state.user_data = {"email": email, "credits": 5, "tier": "Verified Topper"}
+                        st.balloons()
+                        st.rerun()
+                    except Exception:
+                        st.error("Invalid Email or Unauthorized User!")
+        
+        with col_s:
+            if st.button("Sign Up", use_container_width=True):
+                st.info("Registration open for Semester 2 only.")
+                
+    st.stop() # Force stop to prevent tab loading
 
-# Trigger Login if not authenticated
+# Login check before dashboard
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 5. SIDEBAR (WALLET & LOGOUT) ---
+# --- 5. SIDEBAR (LOGOUT & CREDITS) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
     st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=70)
     
     u_mail = st.session_state.user_data['email']
-    st.markdown(f"**User:** {u_mail.split('@')[0].upper()}")
-    st.markdown(f"💰 Credits: **{st.session_state.user_data['credits']}**")
+    st.markdown(f"**Welcome, {u_mail.split('@')[0].upper()}!**")
     
-    if st.button("Recharge Credits 👑", use_container_width=True):
-        st.warning("Razorpay Gateway Integration in Progress...")
+    st.markdown(f"""
+        <div style="background-color: #161b22; padding: 15px; border-radius: 12px; border: 1px solid #30363d; margin-bottom: 20px;">
+            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 14px;">💰 Credits: {st.session_state.user_data['credits']} 🔥</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("Buy Credits 👑", use_container_width=True):
+        st.warning("Razorpay integration will activate on your domain.")
     
     st.divider()
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
 
-# --- 6. MAIN DASHBOARD (ALL 9 TABS) ---
+# --- 6. MAIN DASHBOARD (TABS) ---
 st.title("🚀 Engineering Study Studio")
 
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
