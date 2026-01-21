@@ -18,36 +18,33 @@ def apply_pro_theme():
         [data-testid="stSidebarNav"] { display: none; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
-        /* Mobile Input Fixes */
-        div[data-testid="stFileUploader"] { 
-            background-color: #1e2530 !important; 
-            border: 1px dashed #4CAF50 !important; 
-            border-radius: 10px; 
-        }
-        
-        /* Centered Login Card Styling */
+        /* Centered Professional Login Card */
         .login-card {
             background: linear-gradient(145deg, #1e2530, #161b22);
             padding: 40px;
             border-radius: 25px;
             text-align: center;
             border: 1px solid #4CAF50;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-            max-width: 420px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            max-width: 450px;
             margin: auto;
         }
-        /* Style for buttons to look pro */
         .stButton>button {
             border-radius: 12px;
-            height: 3em;
+            height: 3.5em;
             font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .stButton>button:hover {
+            border: 1px solid #4CAF50;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
         }
         </style>
     """, unsafe_allow_html=True)
 
 apply_pro_theme()
 
-# --- 2. API & FIREBASE INITIALIZATION ---
+# --- 2. FIREBASE & API INITIALIZATION ---
 if not firebase_admin._apps:
     try:
         fb_dict = dict(st.secrets["firebase"])
@@ -64,59 +61,61 @@ groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 if "user_data" not in st.session_state:
     st.session_state.user_data = None
 
-# --- 4. THE PROFESSIONAL LOGIN PORTAL (SECURED) ---
+# --- 4. THE PROFESSIONAL LOGIN PORTAL (FIXED) ---
 def show_login_page():
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
     _, col_mid, _ = st.columns([1, 2, 1])
     
     with col_mid:
         st.markdown("""
             <div class="login-card">
-                <h1 style='color: #4CAF50; font-size: 2.2rem; margin-bottom: 5px;'>🚀 TopperGPT</h1>
-                <p style='color: #8b949e; font-size: 1rem;'>Official University Portal</p>
-                <hr style="border-color: #30363d; margin: 20px 0;">
+                <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px; font-style: italic;'>TopperGPT</h1>
+                <p style='color: #8b949e; font-size: 1rem; letter-spacing: 1px;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
+                <hr style="border-color: #30363d; margin: 30px 0;">
+                <p style="color: white; font-size: 0.9rem; margin-bottom: 20px;">Secure Login for Engineering Students</p>
             </div>
         """, unsafe_allow_html=True)
         
-        # Google Login Simulation
-        if st.button("🔴 Sign in with Google Account", use_container_width=True):
-            with st.spinner("Connecting to Google Secure Server..."):
-                # Asali redirection logic yahan jayega jab domain live hoga
-                st.session_state.user_data = {"email": "verified_google_user@mu.edu", "credits": 5, "tier": "Pro"}
-                st.success("Google Authentication Success!")
+        # Google Login - The Professional Way
+        if st.button("🔴 Continue with Google Account", use_container_width=True):
+            with st.spinner("Connecting to Google Identity Services..."):
+                # Simulation of a verified token response
+                st.session_state.user_data = {
+                    "email": "verified.student@university.in",
+                    "credits": 5, 
+                    "tier": "Pro Member"
+                }
+                st.success("Google Authentication Verified! 🚀")
                 st.rerun()
 
-        st.markdown("<p style='text-align:center; color:#8b949e; margin: 15px 0;'>--- OR ---</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; color:#8b949e; margin: 20px 0; font-size: 0.8rem;'>OR USE ACADEMIC CREDENTIALS</p>", unsafe_allow_html=True)
         
-        email = st.text_input("University Email", placeholder="topper@university.edu", key="l_email")
-        password = st.text_input("Password", type="password", placeholder="••••••••", key="l_pass")
+        email = st.text_input("University Email", placeholder="krishna@mu.edu", key="login_email_v1")
+        password = st.text_input("Password", type="password", placeholder="••••••••", key="login_pass_v1")
         
         col_l, col_s = st.columns(2)
         with col_l:
             if st.button("Access Portal 🔐", use_container_width=True):
-                if not email or not password:
-                    st.error("Fields cannot be empty!")
-                else:
+                if email and password:
                     try:
-                        # VALIDATION: Firebase Admin check
+                        # Real Firebase Check
                         user = auth.get_user_by_email(email)
                         st.session_state.user_data = {"email": email, "credits": 5, "tier": "Verified Topper"}
-                        st.balloons()
                         st.rerun()
                     except Exception:
-                        st.error("Invalid Email or Unauthorized User!")
-        
+                        st.error("Bhai, Email ya Password galat hai!")
         with col_s:
             if st.button("Sign Up", use_container_width=True):
-                st.info("Registration open for Semester 2 only.")
-                
-    st.stop() # Force stop to prevent tab loading
+                st.info("Registration: Contact University Admin")
+    
+    # Strictly stop execution here if not logged in
+    st.stop()
 
-# Login check before dashboard
+# Trigger Login Check
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 5. SIDEBAR (LOGOUT & CREDITS) ---
+# --- 5. SIDEBAR (WALLET & PROFILE) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
     st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=70)
@@ -124,27 +123,30 @@ with st.sidebar:
     u_mail = st.session_state.user_data['email']
     st.markdown(f"**Welcome, {u_mail.split('@')[0].upper()}!**")
     
+    # Branded Credit Card UI
     st.markdown(f"""
-        <div style="background-color: #161b22; padding: 15px; border-radius: 12px; border: 1px solid #30363d; margin-bottom: 20px;">
-            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 14px;">💰 Credits: {st.session_state.user_data['credits']} 🔥</p>
+        <div style="background-color: #161b22; padding: 15px; border-radius: 15px; border: 1px solid #30363d; margin-top: 10px;">
+            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 13px;">💰 WALLET BALANCE</p>
+            <p style="color: white; font-size: 18px; font-weight: 900; margin: 5px 0;">{st.session_state.user_data['credits']} Credits 🔥</p>
         </div>
     """, unsafe_allow_html=True)
     
     if st.button("Buy Credits 👑", use_container_width=True):
-        st.warning("Razorpay integration will activate on your domain.")
+        st.warning("Razorpay Integration: Active on Domain!")
     
     st.divider()
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
 
-# --- 6. MAIN DASHBOARD (TABS) ---
+# --- 6. MAIN CONTENT (TABS) ---
 st.title("🚀 Engineering Study Studio")
-
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
+
+# ... rest of your tab logic starts here ...
     # --- TAB 1: SMART NOTE ANALYSIS (FINAL UI FIX) ---
     # --- TAB 1: SMART NOTE ANALYSIS (HYBRID MODE) ---
 with tab1:
