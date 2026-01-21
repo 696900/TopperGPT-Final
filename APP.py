@@ -43,50 +43,55 @@ if "user_data" not in st.session_state:
 
 # --- 5. SIDEBAR (BLUEPRINT: SUBSCRIPTION & PAYMENT) ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #4CAF50;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
-    # 1. Wallet Display (Blueprint Section 4)
+    # Wallet Card
     st.markdown(f"""
         <div class="wallet-card">
-            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px;">CURRENT BALANCE</p>
+            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
             <p style="color: white; font-size: 28px; font-weight: 900; margin: 5px 0;">{st.session_state.user_data['credits']} 🔥</p>
             <p style="color: #8b949e; font-size: 11px; margin: 0;">Plan: {st.session_state.user_data['tier']}</p>
         </div>
     """, unsafe_allow_html=True)
-
-    # 2. Hybrid Pricing Options (Blueprint Section 2)
+    
+    st.markdown("---")
     st.subheader("💳 Choose Your Plan")
     
-    # Option A: Jugaad Pack
-    st.markdown("""<div class="subscription-option"><b>Jugaad Pack</b><br>50 Credits @ ₹99</div>""", unsafe_allow_html=True)
+    # ASALI SELECTION LOGIC (Ab student choose kar payega)
+    plan_choice = st.radio(
+        "Available Packs:",
+        ["Jugaad Pack (50 Credits @ ₹99)", "Monthly Pro (Unlimited @ ₹149)"],
+        index=0,
+        key="plan_selector"
+    )
     
-    # Option B: Monthly Pro
-    st.markdown("""<div class="subscription-option" style="border-left-color: #4CAF50;"><b>Monthly Pro</b><br>Unlimited Access @ ₹149</div>""", unsafe_allow_html=True)
-
-    # ASALI REDIRECT LINK (Verified from Dashboard)
-    payment_link = "https://rzp.io/rzp/AWiyLxEi"
-
-    # Blueprint Requirement: Seamless 1-click payment
+    # YOUR ACTIVE PUBLIC LINK
+    # Note: Ek hi link par student apni pasand ka amount pay kar sakega
+    payment_link = "https://rzp.io/rzp/AWiyLxEi" 
+    
+    # Unlock Button logic
     st.markdown(f"""
-        <a href="{payment_link}" target="_blank" style="text-decoration: none;">
-            <button style="
-                width: 100%;
-                background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
-                color: black;
-                border: none;
-                padding: 15px;
-                border-radius: 12px;
-                font-weight: bold;
-                font-size: 16px;
-                cursor: pointer;
-                box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);
-            ">
-                Unlock Pro Features 🚀
-            </button>
-        </a>
-        <p style="text-align: center; font-size: 10px; color: #8b949e; margin-top: 10px;">
-            Securely opens Razorpay Portal
-        </p>
+        <div style="margin-top: 20px;">
+            <a href="{payment_link}" target="_blank" style="text-decoration: none;">
+                <div style="
+                    width: 100%;
+                    background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+                    color: black;
+                    text-align: center;
+                    padding: 15px 0;
+                    border-radius: 12px;
+                    font-weight: bold;
+                    font-size: 16px;
+                    cursor: pointer;
+                    box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);
+                ">
+                    Unlock {plan_choice.split(' (')[0]} 🚀
+                </div>
+            </a>
+            <p style="text-align: center; font-size: 10px; color: #8b949e; margin-top: 10px;">
+                Securely opens Razorpay Portal in New Tab
+            </p>
+        </div>
     """, unsafe_allow_html=True)
 
     st.divider()
