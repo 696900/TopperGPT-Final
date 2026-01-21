@@ -9,7 +9,7 @@ from groq import Groq
 from streamlit_mermaid import st_mermaid 
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
-st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_icon="🚀")
+st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
 def apply_pro_theme():
     st.markdown("""
@@ -17,18 +17,6 @@ def apply_pro_theme():
         .stApp { background-color: #0e1117 !important; color: #ffffff !important; }
         [data-testid="stSidebarNav"] { display: none; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
-        
-        /* Centered Professional Login Card */
-        .login-card {
-            background: linear-gradient(145deg, #1e2530, #161b22);
-            padding: 40px;
-            border-radius: 25px;
-            text-align: center;
-            border: 1px solid #4CAF50;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
-            max-width: 450px;
-            margin: auto;
-        }
         
         /* Monetization Wallet UI (Blueprint Section 4) */
         .wallet-card {
@@ -52,7 +40,7 @@ def apply_pro_theme():
 
 apply_pro_theme()
 
-# --- 2. FIREBASE & API INITIALIZATION ---
+# --- 2. API & FIREBASE INITIALIZATION ---
 if not firebase_admin._apps:
     try:
         fb_dict = dict(st.secrets["firebase"])
@@ -79,7 +67,7 @@ def show_login_page():
             <div class="login-card">
                 <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px; font-style: italic;'>TopperGPT</h1>
                 <p style='color: #8b949e; font-size: 1rem; letter-spacing: 1px;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
-                <hr style="border-color: #30363d; margin: 20px 0;">
+                <hr style="border-color: #30363d; margin: 30px 0;">
                 <p style="color: white; font-size: 0.9rem; margin-bottom: 20px;">Secure Login for Engineering Students</p>
             </div>
         """, unsafe_allow_html=True)
@@ -117,7 +105,7 @@ with st.sidebar:
     
     u_mail = st.session_state.user_data['email']
     
-    # Wallet Card (Blueprint Section 4 Implementation)
+    # Wallet Card (Blueprint Implementation)
     st.markdown(f"""
         <div class="wallet-card">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">WALLET BALANCE</p>
@@ -129,15 +117,15 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("💳 Upgrade & Packs")
     
-    # Product Selection (Section 2 of Blueprint)
+    # Product Selection
     pack = st.selectbox("Select Study Pack", [
         "Jugaad Pack (50 Credits) - ₹99",
         "Monthly Pro (Unlimited) - ₹149",
         "Exam-Killer (7 Days) - ₹49"
     ])
     
-    # RAZORPAY REDIRECT FIX (Opens in New Tab - 100% Professional)
-    # Bhai yahan apna Razorpay Payment Page link dalna jo tune abhi banaya hai
+    # RAZORPAY REDIRECT FIX (Opens in New Tab)
+    # PASTE YOUR PUBLISHED RAZORPAY LINK HERE
     payment_link = "https://rzp.io/rzp/AWiyLxEi" 
     
     st.markdown(f"""
@@ -175,6 +163,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 
+# --- TAB LOGIC STARTS HERE (Same as your original code) ---
 # ... rest of your tab logic starts here ...
     # --- TAB 1: SMART NOTE ANALYSIS (FINAL UI FIX) ---
     # --- TAB 1: SMART NOTE ANALYSIS (HYBRID MODE) ---
