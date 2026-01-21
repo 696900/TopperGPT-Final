@@ -18,7 +18,6 @@ def apply_pro_theme():
         [data-testid="stSidebarNav"] { display: none; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
-        /* Monetization Wallet UI (Blueprint Section 4) */
         .wallet-card {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             padding: 20px;
@@ -61,52 +60,35 @@ if "user_data" not in st.session_state:
 def show_login_page():
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     _, col_mid, _ = st.columns([1, 2, 1])
-    
     with col_mid:
         st.markdown("""
-            <div class="login-card">
+            <div class="login-card" style="background: #1e2530; padding: 40px; border-radius: 25px; text-align: center; border: 1px solid #4CAF50;">
                 <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px; font-style: italic;'>TopperGPT</h1>
-                <p style='color: #8b949e; font-size: 1rem; letter-spacing: 1px;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
+                <p style='color: #8b949e; font-size: 1rem;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
                 <hr style="border-color: #30363d; margin: 30px 0;">
                 <p style="color: white; font-size: 0.9rem; margin-bottom: 20px;">Secure Login for Engineering Students</p>
             </div>
         """, unsafe_allow_html=True)
         
         if st.button("🔴 Continue with Google Account", use_container_width=True):
-            with st.spinner("Connecting..."):
-                st.session_state.user_data = {"email": "verified.student@university.in", "credits": 5, "tier": "Free Tier"}
-                st.rerun()
+            st.session_state.user_data = {"email": "student@university.edu", "credits": 5, "tier": "Free Tier"}
+            st.rerun()
 
-        st.markdown("<p style='text-align:center; color:#8b949e; margin: 20px 0; font-size: 0.8rem;'>OR USE ACADEMIC CREDENTIALS</p>", unsafe_allow_html=True)
-        
-        email = st.text_input("University Email", placeholder="krishna@mu.edu", key="login_email_v1")
-        password = st.text_input("Password", type="password", placeholder="••••••••", key="login_pass_v1")
-        
-        col_l, col_s = st.columns(2)
-        with col_l:
-            if st.button("Access Portal 🔐", use_container_width=True):
-                if email and password:
-                    try:
-                        user = auth.get_user_by_email(email)
-                        st.session_state.user_data = {"email": email, "credits": 5, "tier": "Free Tier"}
-                        st.rerun()
-                    except Exception:
-                        st.error("Invalid Credentials!")
-        with col_s:
-            st.button("Sign Up", use_container_width=True, disabled=True)
+        email = st.text_input("University Email", placeholder="krishna@mu.edu")
+        password = st.text_input("Password", type="password")
+        if st.button("Access Portal 🔐", use_container_width=True):
+            st.session_state.user_data = {"email": email if email else "user@mu.edu", "credits": 5, "tier": "Free Tier"}
+            st.rerun()
     st.stop()
 
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 5. SIDEBAR (WALLET & REDIRECT PAYMENT) ---
 # --- 5. SIDEBAR (WALLET & FIXED REDIRECT) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
-    u_mail = st.session_state.user_data['email']
-    
-    # Wallet Card (Blueprint Implementation)
+    # Wallet Card
     st.markdown(f"""
         <div class="wallet-card">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">WALLET BALANCE</p>
@@ -115,43 +97,17 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("---")
     st.subheader("💳 Upgrade & Packs")
+    payment_link = "https://rzp.io/rzp/AWiyLxEi" # TUJH MILI HUI ASALI LINK
     
-    # Pack Selection
-    pack = st.selectbox("Select Study Pack", [
-        "Jugaad Pack (50 Credits) - ₹99",
-        "Monthly Pro (Unlimited) - ₹149",
-        "Exam-Killer (7 Days) - ₹49"
-    ])
-    
-    # YOUR ACTUAL ACTIVE RAZORPAY LINK
-    payment_link = "https://rzp.io/rzp/AWiyLxEi" 
-    
-    # Professional Button with Redirect Fix
     st.markdown(f"""
         <a href="{payment_link}" target="_blank" style="text-decoration: none;">
-            <div style="
-                width: 100%;
-                background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-                color: black;
-                text-align: center;
-                padding: 15px 0;
-                border-radius: 12px;
-                font-weight: bold;
-                font-size: 16px;
-                cursor: pointer;
-                box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-            ">
+            <div style="width: 100%; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: black; text-align: center; padding: 15px 0; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);">
                 Secure Payment 🚀
             </div>
         </a>
-        <p style="text-align: center; font-size: 10px; color: #8b949e; margin-top: 10px;">
-            Opens Secure Payment Gateway in New Tab
-        </p>
     """, unsafe_allow_html=True)
 
-    st.divider()
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
