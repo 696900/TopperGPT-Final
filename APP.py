@@ -6,68 +6,48 @@ import pdfplumber
 import io
 import re
 from groq import Groq
-# 1. FIXED: Added missing import for Mermaid rendering
 from streamlit_mermaid import st_mermaid 
 
-# --- 1. CONFIGURATION & STRIKE-DARK UI (MOBILE OPTIMIZED) ---
+# --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Engineering Pro", layout="wide", page_icon="🚀")
 
 def apply_pro_theme():
     st.markdown("""
         <style>
-        /* Force Dark Theme & Fix Mobile White Patches */
         .stApp { background-color: #0e1117 !important; color: #ffffff !important; }
-        
-        /* Sidebar Styling */
         [data-testid="stSidebarNav"] { display: none; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
-        /* MOBILE WHITE-BOX FIX: Styling input boxes and uploaders */
+        /* Mobile Input Fixes */
         div[data-testid="stFileUploader"] { 
             background-color: #1e2530 !important; 
             border: 1px dashed #4CAF50 !important; 
             border-radius: 10px; 
         }
-        .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stSelectbox>div>div {
-            background-color: #1e2530 !important;
-            color: white !important;
-            border: 1px solid #30363d !important;
-        }
-
-        /* ALIGNMENT FIX: Centering the Login Portal */
-        .main .block-container {
+        
+        /* Centered Login Card Styling */
+        .login-container {
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
-            padding-top: 2rem;
+            align-items: center;
+            padding: 2rem;
         }
-
-        /* RESPONSIVE LOGIN CARD */
         .login-card {
             background: linear-gradient(145deg, #1e2530, #161b22);
-            padding: 30px;
-            border-radius: 20px;
+            padding: 40px;
+            border-radius: 25px;
             text-align: center;
             border: 1px solid #4CAF50;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            max-width: 450px;
             margin: auto;
-            width: 95%; 
-            max-width: 420px;
-        }
-
-        /* Tabs Scrollable Fix on Mobile */
-        div[data-testid="stHorizontalBlock"] {
-            overflow-x: auto;
-            white-space: nowrap;
-            display: block;
         }
         </style>
     """, unsafe_allow_html=True)
 
 apply_pro_theme()
 
-# --- 2. FIREBASE & API INITIALIZATION ---
+# --- 2. API & FIREBASE INITIALIZATION ---
 if not firebase_admin._apps:
     try:
         fb_dict = dict(st.secrets["firebase"])
@@ -80,63 +60,73 @@ if not firebase_admin._apps:
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- 3. SESSION STATE FOR DATA STORAGE ---
+# --- 3. SESSION STATE ---
 if "user_data" not in st.session_state:
     st.session_state.user_data = None
 
-# --- 4. THE LOGIN PAGE (FIXED & CENTERED) ---
-if st.session_state.user_data is None:
-    st.markdown("<br>", unsafe_allow_html=True)
-    _, col_mid, _ = st.columns([0.1, 0.8, 0.1])
+# --- 4. PROFESSIONAL LOGIN PORTAL ---
+def show_login_page():
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    _, col_mid, _ = st.columns([1, 2, 1])
     
     with col_mid:
         st.markdown("""
             <div class="login-card">
-                <h1 style='color: #4CAF50; font-size: 2rem; margin-bottom: 0px;'>🚀 TopperGPT Pro</h1>
-                <p style='color: #8b949e; font-size: 1rem;'>Official University Portal & AI Tutor</p>
-                <hr style="border-color: #30363d; margin: 20px 0;">
+                <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px;'>🚀 TopperGPT</h1>
+                <p style='color: #8b949e; font-size: 1.1rem;'>Engineering University Portal</p>
+                <hr style="border-color: #30363d; margin: 25px 0;">
             </div>
         """, unsafe_allow_html=True)
-
-        if st.button("🔴 Sign in with Google", use_container_width=True):
-            with st.spinner("Connecting to Google Auth..."):
+        
+        # Google Auth Simulation (Direct Link to Firebase can be added)
+        if st.button("🔴 Sign in with Google Account", use_container_width=True):
+            with st.spinner("Authenticating..."):
                 st.session_state.user_data = {
-                    "email": "krishnaghanabahadur85@gmail.com",
-                    "name": "Krishna",
+                    "email": "student@university.edu",
                     "credits": 5, 
                     "tier": "Free Topper"
                 }
-                st.success("Successfully Authenticated! 🚀")
                 st.rerun()
 
-        st.markdown("<p style='text-align:center; color:#8b949e; margin-top:15px;'>--- OR ---</p>", unsafe_allow_html=True)
-        email_manual = st.text_input("University Email", key="login_email", placeholder="topper@university.edu")
-        pass_manual = st.text_input("Password", type="password", key="login_pass")
+        st.markdown("<p style='text-align:center; color:#8b949e; margin: 20px 0;'>--- OR ---</p>", unsafe_allow_html=True)
         
-        if st.button("Access Portal 🔐", use_container_width=True):
-            st.session_state.user_data = {"email": email_manual, "credits": 5, "tier": "Free Topper"}
-            st.rerun()
+        email = st.text_input("University ID / Email", placeholder="krishna@mu.edu")
+        password = st.text_input("Portal Password", type="password")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("Access Portal 🔐", use_container_width=True):
+                if email and password:
+                    st.session_state.user_data = {"email": email, "credits": 5, "tier": "Free Topper"}
+                    st.rerun()
+        with col_b:
+            st.button("Create Account", use_container_width=True, disabled=True)
     st.stop()
 
-# --- 5. SIDEBAR (WALLET & PROFILE) ---
+# Trigger Login if not authenticated
+if st.session_state.user_data is None:
+    show_login_page()
+
+# --- 5. SIDEBAR (WALLET & LOGOUT) ---
 with st.sidebar:
-    st.markdown(f"<h2 style='color: #4CAF50; padding-top: 0;'>🚀 TopperGPT</h2>", unsafe_allow_html=True)
-    st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=80)
+    st.markdown("<h2 style='color: #4CAF50;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
+    st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=70)
     
     u_mail = st.session_state.user_data['email']
-    st.markdown(f"**Welcome, {u_mail.split('@')[0].capitalize()}!**")
+    st.markdown(f"**User:** {u_mail.split('@')[0].upper()}")
     st.markdown(f"💰 Credits: **{st.session_state.user_data['credits']}**")
-    st.caption(f"Status: {st.session_state.user_data['tier']}")
     
-    if st.button("Buy Credits 👑", use_container_width=True):
-        st.info("Razorpay Gateway: Launching Next!")
+    if st.button("Recharge Credits 👑", use_container_width=True):
+        st.warning("Razorpay Gateway Integration in Progress...")
     
     st.divider()
-    if st.button("🔓 Logout", use_container_width=True):
+    if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
 
-# --- 6. MAIN CONTENT TABS ---
+# --- 6. MAIN DASHBOARD (ALL 9 TABS) ---
+st.title("🚀 Engineering Study Studio")
+
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
