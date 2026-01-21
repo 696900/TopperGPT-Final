@@ -18,7 +18,6 @@ def apply_pro_theme():
         [data-testid="stSidebarNav"] { display: none; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
-        /* Centered Professional Login Card */
         .login-card {
             background: linear-gradient(145deg, #1e2530, #161b22);
             padding: 40px;
@@ -61,7 +60,7 @@ groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 if "user_data" not in st.session_state:
     st.session_state.user_data = None
 
-# --- 4. THE PROFESSIONAL LOGIN PORTAL (FIXED) ---
+# --- 4. THE PROFESSIONAL LOGIN PORTAL ---
 def show_login_page():
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     _, col_mid, _ = st.columns([1, 2, 1])
@@ -72,20 +71,12 @@ def show_login_page():
                 <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px; font-style: italic;'>TopperGPT</h1>
                 <p style='color: #8b949e; font-size: 1rem; letter-spacing: 1px;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
                 <hr style="border-color: #30363d; margin: 30px 0;">
-                <p style="color: white; font-size: 0.9rem; margin-bottom: 20px;">Secure Login for Engineering Students</p>
             </div>
         """, unsafe_allow_html=True)
         
-        # Google Login - The Professional Way
         if st.button("🔴 Continue with Google Account", use_container_width=True):
-            with st.spinner("Connecting to Google Identity Services..."):
-                # Simulation of a verified token response
-                st.session_state.user_data = {
-                    "email": "verified.student@university.in",
-                    "credits": 5, 
-                    "tier": "Pro Member"
-                }
-                st.success("Google Authentication Verified! 🚀")
+            with st.spinner("Connecting..."):
+                st.session_state.user_data = {"email": "verified.student@university.in", "credits": 5, "tier": "Pro Member"}
                 st.rerun()
 
         st.markdown("<p style='text-align:center; color:#8b949e; margin: 20px 0; font-size: 0.8rem;'>OR USE ACADEMIC CREDENTIALS</p>", unsafe_allow_html=True)
@@ -98,24 +89,19 @@ def show_login_page():
             if st.button("Access Portal 🔐", use_container_width=True):
                 if email and password:
                     try:
-                        # Real Firebase Check
                         user = auth.get_user_by_email(email)
                         st.session_state.user_data = {"email": email, "credits": 5, "tier": "Verified Topper"}
                         st.rerun()
                     except Exception:
-                        st.error("Bhai, Email ya Password galat hai!")
+                        st.error("Invalid Credentials!")
         with col_s:
-            if st.button("Sign Up", use_container_width=True):
-                st.info("Registration: Contact University Admin")
-    
-    # Strictly stop execution here if not logged in
+            st.button("Sign Up", use_container_width=True, disabled=True)
     st.stop()
 
-# Trigger Login Check
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 5. SIDEBAR (WALLET & PROFILE) ---
+# --- 5. SIDEBAR (WALLET & RAZORPAY) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
     st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=70)
@@ -123,7 +109,6 @@ with st.sidebar:
     u_mail = st.session_state.user_data['email']
     st.markdown(f"**Welcome, {u_mail.split('@')[0].upper()}!**")
     
-    # Branded Credit Card UI
     st.markdown(f"""
         <div style="background-color: #161b22; padding: 15px; border-radius: 15px; border: 1px solid #30363d; margin-top: 10px;">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 13px;">💰 WALLET BALANCE</p>
@@ -131,15 +116,51 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
     
-    if st.button("Buy Credits 👑", use_container_width=True):
-        st.warning("Razorpay Integration: Active on Domain!")
+    # --- RAZORPAY INTEGRATION ---
+    st.markdown("---")
+    st.subheader("👑 Upgrade to Pro")
     
+    # Key ID from Secrets or Default for Testing
+    RZP_KEY = st.secrets.get("RAZORPAY_KEY_ID", "rzp_test_YOUR_KEY_HERE")
+    
+    razorpay_checkout_html = f"""
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+    function openRazorpay() {{
+        var options = {{
+            "key": "{RZP_KEY}",
+            "amount": "9900", 
+            "currency": "INR",
+            "name": "TopperGPT Pro",
+            "description": "Purchase 50 Study Credits",
+            "image": "https://cdn-icons-png.flaticon.com/512/3413/3413535.png",
+            "handler": function (response){{
+                alert("Success! Payment ID: " + response.razorpay_payment_id);
+                window.parent.postMessage({{type: 'payment_success', id: response.razorpay_payment_id}}, '*');
+            }},
+            "prefill": {{
+                "email": "{u_mail}"
+            }},
+            "theme": {{
+                "color": "#4CAF50"
+            }}
+        }};
+        var rzp1 = new Razorpay(options);
+        rzp1.open();
+    }}
+    </script>
+    <button onclick="openRazorpay()" style="width:100%; background-color:#eab308; color:black; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px;">
+        🚀 Buy 50 Credits (₹99)
+    </button>
+    """
+    st.components.v1.html(razorpay_checkout_html, height=60)
+
     st.divider()
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
 
-# --- 6. MAIN CONTENT (TABS) ---
+# --- 6. MAIN CONTENT ---
 st.title("🚀 Engineering Study Studio")
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
