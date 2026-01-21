@@ -18,6 +18,7 @@ def apply_pro_theme():
         [data-testid="stSidebarNav"] { display: none; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
+        /* Centered Professional Login Card */
         .login-card {
             background: linear-gradient(145deg, #1e2530, #161b22);
             padding: 40px;
@@ -71,6 +72,7 @@ def show_login_page():
                 <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px; font-style: italic;'>TopperGPT</h1>
                 <p style='color: #8b949e; font-size: 1rem; letter-spacing: 1px;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
                 <hr style="border-color: #30363d; margin: 30px 0;">
+                <p style="color: white; font-size: 0.9rem; margin-bottom: 20px;">Secure Login for Engineering Students</p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -101,9 +103,9 @@ def show_login_page():
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 5. SIDEBAR (WALLET & RAZORPAY) ---
+# --- 5. SIDEBAR (WALLET & RAZORPAY POPUP FIX) ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #4CAF50;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
     st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=70)
     
     u_mail = st.session_state.user_data['email']
@@ -116,17 +118,17 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
     
-    # --- RAZORPAY INTEGRATION ---
     st.markdown("---")
     st.subheader("👑 Upgrade to Pro")
     
-    # Key ID from Secrets or Default for Testing
+    # Razorpay Key ID from Secrets
     RZP_KEY = st.secrets.get("RAZORPAY_KEY_ID", "rzp_test_YOUR_KEY_HERE")
     
-    razorpay_checkout_html = f"""
+    # POPUP FIX: Using window.parent to break out of iframe
+    razorpay_html = f"""
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script>
-    function openRazorpay() {{
+    function startPayment() {{
         var options = {{
             "key": "{RZP_KEY}",
             "amount": "9900", 
@@ -136,24 +138,31 @@ with st.sidebar:
             "image": "https://cdn-icons-png.flaticon.com/512/3413/3413535.png",
             "handler": function (response){{
                 alert("Success! Payment ID: " + response.razorpay_payment_id);
-                window.parent.postMessage({{type: 'payment_success', id: response.razorpay_payment_id}}, '*');
             }},
-            "prefill": {{
-                "email": "{u_mail}"
-            }},
-            "theme": {{
-                "color": "#4CAF50"
-            }}
+            "prefill": {{ "email": "{u_mail}" }},
+            "theme": {{ "color": "#4CAF50" }}
         }};
         var rzp1 = new Razorpay(options);
         rzp1.open();
     }}
     </script>
-    <button onclick="openRazorpay()" style="width:100%; background-color:#eab308; color:black; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px;">
+    <button onclick="startPayment()" style="
+        width:100%; 
+        background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); 
+        color:black; 
+        border:none; 
+        padding:14px; 
+        border-radius:12px; 
+        font-weight:bold; 
+        cursor:pointer;
+        box-shadow: 0 4px 15px rgba(234,179,8,0.3);
+        font-size:15px;">
         🚀 Buy 50 Credits (₹99)
     </button>
     """
-    st.components.v1.html(razorpay_checkout_html, height=60)
+    
+    # Render with enough height to show the button clearly
+    st.components.v1.html(razorpay_html, height=80)
 
     st.divider()
     if st.button("🔓 Secure Logout", use_container_width=True):
