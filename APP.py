@@ -29,15 +29,23 @@ def apply_pro_theme():
             max-width: 450px;
             margin: auto;
         }
+        
+        /* Monetization Wallet UI (Blueprint Section 4) */
+        .wallet-card {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #4CAF50;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
         .stButton>button {
             border-radius: 12px;
             height: 3.5em;
             font-weight: bold;
             transition: all 0.3s ease;
-        }
-        .stButton>button:hover {
-            border: 1px solid #4CAF50;
-            box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
         }
         </style>
     """, unsafe_allow_html=True)
@@ -78,7 +86,7 @@ def show_login_page():
         
         if st.button("🔴 Continue with Google Account", use_container_width=True):
             with st.spinner("Connecting..."):
-                st.session_state.user_data = {"email": "verified.student@university.in", "credits": 5, "tier": "Pro Member"}
+                st.session_state.user_data = {"email": "verified.student@university.in", "credits": 5, "tier": "Free Tier"}
                 st.rerun()
 
         st.markdown("<p style='text-align:center; color:#8b949e; margin: 20px 0; font-size: 0.8rem;'>OR USE ACADEMIC CREDENTIALS</p>", unsafe_allow_html=True)
@@ -92,7 +100,7 @@ def show_login_page():
                 if email and password:
                     try:
                         user = auth.get_user_by_email(email)
-                        st.session_state.user_data = {"email": email, "credits": 5, "tier": "Verified Topper"}
+                        st.session_state.user_data = {"email": email, "credits": 5, "tier": "Free Tier"}
                         st.rerun()
                     except Exception:
                         st.error("Invalid Credentials!")
@@ -103,73 +111,64 @@ def show_login_page():
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 5. SIDEBAR (WALLET & RAZORPAY POPUP FIX) ---
+# --- 5. SIDEBAR (WALLET & REDIRECT PAYMENT) ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
-    st.image("https://img.icons8.com/bubbles/100/000000/user.png", width=70)
+    st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
     u_mail = st.session_state.user_data['email']
-    st.markdown(f"**Welcome, {u_mail.split('@')[0].upper()}!**")
     
+    # Wallet Card (Blueprint Section 4 Implementation)
     st.markdown(f"""
-        <div style="background-color: #161b22; padding: 15px; border-radius: 15px; border: 1px solid #30363d; margin-top: 10px;">
-            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 13px;">💰 WALLET BALANCE</p>
-            <p style="color: white; font-size: 18px; font-weight: 900; margin: 5px 0;">{st.session_state.user_data['credits']} Credits 🔥</p>
+        <div class="wallet-card">
+            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">WALLET BALANCE</p>
+            <p style="color: white; font-size: 28px; font-weight: 900; margin: 5px 0;">{st.session_state.user_data['credits']} 🔥</p>
+            <p style="color: #8b949e; font-size: 11px; margin: 0;">Status: {st.session_state.user_data['tier']}</p>
         </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.subheader("👑 Upgrade to Pro")
+    st.subheader("💳 Upgrade & Packs")
     
-    # Razorpay Key ID from Secrets
-    RZP_KEY = st.secrets.get("RAZORPAY_KEY_ID", "rzp_test_YOUR_KEY_HERE")
+    # Product Selection (Section 2 of Blueprint)
+    pack = st.selectbox("Select Study Pack", [
+        "Jugaad Pack (50 Credits) - ₹99",
+        "Monthly Pro (Unlimited) - ₹149",
+        "Exam-Killer (7 Days) - ₹49"
+    ])
     
-    # POPUP FIX: Using window.parent to break out of iframe
-    razorpay_html = f"""
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <script>
-    function startPayment() {{
-        var options = {{
-            "key": "{RZP_KEY}",
-            "amount": "9900", 
-            "currency": "INR",
-            "name": "TopperGPT Pro",
-            "description": "Purchase 50 Study Credits",
-            "image": "https://cdn-icons-png.flaticon.com/512/3413/3413535.png",
-            "handler": function (response){{
-                alert("Success! Payment ID: " + response.razorpay_payment_id);
-            }},
-            "prefill": {{ "email": "{u_mail}" }},
-            "theme": {{ "color": "#4CAF50" }}
-        }};
-        var rzp1 = new Razorpay(options);
-        rzp1.open();
-    }}
-    </script>
-    <button onclick="startPayment()" style="
-        width:100%; 
-        background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); 
-        color:black; 
-        border:none; 
-        padding:14px; 
-        border-radius:12px; 
-        font-weight:bold; 
-        cursor:pointer;
-        box-shadow: 0 4px 15px rgba(234,179,8,0.3);
-        font-size:15px;">
-        🚀 Buy 50 Credits (₹99)
-    </button>
-    """
+    # RAZORPAY REDIRECT FIX (Opens in New Tab - 100% Professional)
+    # Bhai yahan apna Razorpay Payment Page link dalna (Dashboard > Payment Pages)
+    payment_link = "https://rzp.io/l/your_payment_link" 
     
-    # Render with enough height to show the button clearly
-    st.components.v1.html(razorpay_html, height=80)
+    st.markdown(f"""
+        <a href="{payment_link}" target="_blank" style="text-decoration: none;">
+            <button style="
+                width: 100%;
+                background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+                color: black;
+                border: none;
+                padding: 15px;
+                border-radius: 12px;
+                font-weight: bold;
+                font-size: 15px;
+                cursor: pointer;
+                box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+                transition: 0.3s;
+            ">
+                Secure Payment 🚀
+            </button>
+        </a>
+        <p style="text-align: center; font-size: 10px; color: #8b949e; margin-top: 10px;">
+            Next-Gen Encryption. Opens in Secure Tab.
+        </p>
+    """, unsafe_allow_html=True)
 
     st.divider()
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
 
-# --- 6. MAIN CONTENT ---
+# --- 6. MAIN CONTENT (TABS) ---
 st.title("🚀 Engineering Study Studio")
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
