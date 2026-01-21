@@ -4,20 +4,18 @@ import firebase_admin
 from firebase_admin import credentials, auth
 import pdfplumber
 import io
-import re
 from groq import Groq
-from streamlit_mermaid import st_mermaid 
 
-# --- 1. CONFIGURATION & PRO DARK UI ---
+# --- 1. CONFIGURATION & UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
 def apply_pro_theme():
     st.markdown("""
         <style>
         .stApp { background-color: #0e1117 !important; color: #ffffff !important; }
-        [data-testid="stSidebarNav"] { display: none; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
+        /* Wallet Card logic from Blueprint */
         .wallet-card {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             padding: 20px;
@@ -25,89 +23,73 @@ def apply_pro_theme():
             border: 1px solid #4CAF50;
             text-align: center;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
         
-        .stButton>button {
-            border-radius: 12px;
-            height: 3.5em;
-            font-weight: bold;
-            transition: all 0.3s ease;
+        .subscription-option {
+            background: #1e2530;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 5px solid #eab308;
+            margin-bottom: 10px;
         }
         </style>
     """, unsafe_allow_html=True)
 
 apply_pro_theme()
 
-# --- 2. API & FIREBASE INITIALIZATION ---
-if not firebase_admin._apps:
-    try:
-        fb_dict = dict(st.secrets["firebase"])
-        fb_dict["private_key"] = fb_dict["private_key"].replace("\\n", "\n")
-        cred = credentials.Certificate(fb_dict)
-        firebase_admin.initialize_app(cred)
-    except Exception as e:
-        st.error(f"Firebase Init Error: {e}")
-
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-
 # --- 3. SESSION STATE ---
 if "user_data" not in st.session_state:
-    st.session_state.user_data = None
+    st.session_state.user_data = {"email": "verified.student@mu.edu", "credits": 5, "tier": "Free Tier"}
 
-# --- 4. THE PROFESSIONAL LOGIN PORTAL ---
-def show_login_page():
-    st.markdown("<br><br><br>", unsafe_allow_html=True)
-    _, col_mid, _ = st.columns([1, 2, 1])
-    with col_mid:
-        st.markdown("""
-            <div class="login-card" style="background: #1e2530; padding: 40px; border-radius: 25px; text-align: center; border: 1px solid #4CAF50;">
-                <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px; font-style: italic;'>TopperGPT</h1>
-                <p style='color: #8b949e; font-size: 1rem;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
-                <hr style="border-color: #30363d; margin: 30px 0;">
-                <p style="color: white; font-size: 0.9rem; margin-bottom: 20px;">Secure Login for Engineering Students</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("🔴 Continue with Google Account", use_container_width=True):
-            st.session_state.user_data = {"email": "student@university.edu", "credits": 5, "tier": "Free Tier"}
-            st.rerun()
-
-        email = st.text_input("University Email", placeholder="krishna@mu.edu")
-        password = st.text_input("Password", type="password")
-        if st.button("Access Portal 🔐", use_container_width=True):
-            st.session_state.user_data = {"email": email if email else "user@mu.edu", "credits": 5, "tier": "Free Tier"}
-            st.rerun()
-    st.stop()
-
-if st.session_state.user_data is None:
-    show_login_page()
-
-# --- 5. SIDEBAR (WALLET & FIXED REDIRECT) ---
+# --- 5. SIDEBAR (BLUEPRINT: SUBSCRIPTION & PAYMENT) ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #4CAF50;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
-    # Wallet Card
+    # 1. Wallet Display (Blueprint Section 4)
     st.markdown(f"""
         <div class="wallet-card">
-            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">WALLET BALANCE</p>
+            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px;">CURRENT BALANCE</p>
             <p style="color: white; font-size: 28px; font-weight: 900; margin: 5px 0;">{st.session_state.user_data['credits']} 🔥</p>
-            <p style="color: #8b949e; font-size: 11px; margin: 0;">Status: {st.session_state.user_data['tier']}</p>
+            <p style="color: #8b949e; font-size: 11px; margin: 0;">Plan: {st.session_state.user_data['tier']}</p>
         </div>
     """, unsafe_allow_html=True)
+
+    # 2. Hybrid Pricing Options (Blueprint Section 2)
+    st.subheader("💳 Choose Your Plan")
     
-    st.subheader("💳 Upgrade & Packs")
-    payment_link = "https://rzp.io/rzp/AWiyLxEi" # TUJH MILI HUI ASALI LINK
+    # Option A: Jugaad Pack
+    st.markdown("""<div class="subscription-option"><b>Jugaad Pack</b><br>50 Credits @ ₹99</div>""", unsafe_allow_html=True)
     
+    # Option B: Monthly Pro
+    st.markdown("""<div class="subscription-option" style="border-left-color: #4CAF50;"><b>Monthly Pro</b><br>Unlimited Access @ ₹149</div>""", unsafe_allow_html=True)
+
+    # ASALI REDIRECT LINK (Verified from Dashboard)
+    payment_link = "https://rzp.io/rzp/AWiyLxEi"
+
+    # Blueprint Requirement: Seamless 1-click payment
     st.markdown(f"""
         <a href="{payment_link}" target="_blank" style="text-decoration: none;">
-            <div style="width: 100%; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: black; text-align: center; padding: 15px 0; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);">
-                Secure Payment 🚀
-            </div>
+            <button style="
+                width: 100%;
+                background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+                color: black;
+                border: none;
+                padding: 15px;
+                border-radius: 12px;
+                font-weight: bold;
+                font-size: 16px;
+                cursor: pointer;
+                box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);
+            ">
+                Unlock Pro Features 🚀
+            </button>
         </a>
+        <p style="text-align: center; font-size: 10px; color: #8b949e; margin-top: 10px;">
+            Securely opens Razorpay Portal
+        </p>
     """, unsafe_allow_html=True)
 
+    st.divider()
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
