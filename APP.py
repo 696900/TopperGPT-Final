@@ -25,11 +25,27 @@ def apply_pro_theme():
 
         .wallet-card {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            padding: 20px;
-            border-radius: 15px;
-            border: 1px solid #4CAF50;
+            padding: 20px; border-radius: 15px; border: 1px solid #4CAF50;
+            text-align: center; margin-bottom: 20px;
+        }
+        
+        /* Exam Special Badge */
+        .exam-special-tag {
+            background: rgba(255, 75, 75, 0.15);
+            color: #ff4b4b;
+            border: 1px solid #ff4b4b;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
         </style>
     """, unsafe_allow_html=True)
@@ -54,11 +70,11 @@ def show_login_page():
         """, unsafe_allow_html=True)
         
         if st.button("🔴 Continue with Google Account", use_container_width=True):
+            # Initial credits given to new users
             st.session_state.user_data = {"email": "verified.student@mu.edu", "credits": 5, "tier": "Free Tier"}
             st.rerun()
     st.stop()
 
-# Login check
 if st.session_state.user_data is None:
     show_login_page()
 
@@ -75,23 +91,31 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     st.markdown("---")
+    
+    # NEW: Weekly Sureshot Exam Special Tag
+    st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
     st.subheader("💳 Choose Your Plan")
     
-    # Selection logic for different packs (Blueprint Section 2)
+    # Updated Selection logic with Weekly Sureshot [Blueprint Section 2]
     plan_choice = st.radio(
         "Available Packs:",
-        ["Jugaad Pack (50 Credits @ ₹99)", "Monthly Pro (Unlimited @ ₹149)"],
-        key="plan_selector_v2"
+        [
+            "Weekly Sureshot (7 Days) @ ₹59",
+            "Jugaad Pack (50 Credits) @ ₹99", 
+            "Monthly Pro (Unlimited) @ ₹149"
+        ],
+        key="plan_selector_v3"
     )
     
     # Dynamic Link Logic
-    if "₹99" in plan_choice:
+    if "₹59" in plan_choice:
+        base_link = "https://rzp.io/rzp/FmwE0Ms6" # TODO: Create ₹59 page on Razorpay
+    elif "₹99" in plan_choice:
         base_link = "https://rzp.io/rzp/AWiyLxEi"
     else:
-        # Step: Yahan apna naya ₹149 wala Razorpay link paste karna
         base_link = "https://rzp.io/rzp/hXcR54E" 
 
-    # Anti-Cache Code to prevent Blank Page
+    # Anti-Cache Code
     t_code = int(time.time())
     payment_link = f"{base_link}?t={t_code}" 
     
