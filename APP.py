@@ -371,70 +371,77 @@ with tab4:
     # Input Logic
     if m_mode == "Enter Topic":
         m_input = st.text_input("Engineering Concept (e.g. Back EMF):", key="m_topic_final")
+        credit_cost = 2  # Strategy 3: Text-based Mindmap is cheap
     else:
+        # Strategy 3: Heavy processing from PDF
         m_input = st.session_state.get("pdf_content", "")[:3000]
+        credit_cost = 8  # Strategy 3: PDF-based Mindmap is expensive
         if not m_input: 
             st.warning("⚠️ Pehle Tab 1 mein notes upload karein!")
 
     if st.button("Build Map", key="m_btn_final") and m_input:
-        with st.spinner("AI is drawing the architecture..."):
-            # Strict Prompt to ensure clean Mermaid code
-            prompt = f"""
-            Explain the engineering concept '{m_input}' in 5 clear lines. 
-            Then, provide ONLY a Mermaid.js 'graph TD' flowchart.
-            
-            Format your response exactly like this:
-            SUMMARY: [Your 5 lines here]
-            MERMAID:
-            graph TD
-            A[Start] --> B[Process]
-            
-            Rules:
-            - NO extra text, NO explanations after the code.
-            - Use ONLY square brackets [] for nodes.
-            """
-            
-            try:
-                res = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile", 
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                full_out = res.choices[0].message.content
-
-                # 1. Extract Summary
-                if "SUMMARY:" in full_out:
-                    # MERMAID keyword tak ka text uthayenge
-                    sum_text = full_out.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
-                    st.info(f"**Technical Summary:**\n\n{sum_text}")
-
-                # 2. Extract & Force-Fix Mermaid Code
-                if "graph TD" in full_out:
-                    # AI ke kachre se sirf 'graph TD' wala part nikalna
-                    match = re.search(r"graph\s+TD[\s\S]*", full_out)
-                    if match:
-                        # Character cleaning for Mermaid v10 compatibility
-                        clean_code = match.group(0).replace("```mermaid", "").replace("```", "").strip()
-                        
-                        # AI aksar () use karta hai jo crash karta hai, hum use [] mein badal denge
-                        clean_code = clean_code.replace("(", "[").replace(")", "]")
-                        
-                        # Sirf pehla logical block uthana
-                        clean_code = clean_code.split("\n\n")[0]
-                        
-                        st.markdown("---")
-                        st.markdown("### 📊 Architecture Flowchart")
-                        
-                        # Rendering the diagram
-                        try:
-                            st_mermaid(clean_code, height=450)
-                        except Exception as render_err:
-                            st.error("Visual rendering failed. Showing code instead:")
-                            st.code(clean_code, language="mermaid")
-                    else:
-                        st.error("AI couldn't generate a proper diagram. Try again with a simpler topic.")
+        # Check Strategy 4: Daily Cap & Balance Check
+        if st.session_state.user_data['credits'] >= credit_cost:
+            with st.spinner("AI is drawing the architecture..."):
+                # Strict Prompt to ensure clean Mermaid code
+                prompt = f"""
+                Explain the engineering concept '{m_input}' in 5 clear lines. 
+                Then, provide ONLY a Mermaid.js 'graph TD' flowchart.
                 
-            except Exception as e:
-                st.error(f"System Error: {e}")
+                Format your response exactly like this:
+                SUMMARY: [Your 5 lines here]
+                MERMAID:
+                graph TD
+                A[Start] --> B[Process]
+                
+                Rules:
+                - NO extra text, NO explanations after the code.
+                - Use ONLY square brackets [] for nodes.
+                """
+                
+                try:
+                    # Deduction Logic
+                    st.session_state.user_data['credits'] -= credit_cost
+                    
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    full_out = res.choices[0].message.content
+
+                    # 1. Extract Summary
+                    if "SUMMARY:" in full_out:
+                        sum_text = full_out.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
+                        st.info(f"**Technical Summary:**\n\n{sum_text}")
+
+                    # 2. Extract & Force-Fix Mermaid Code
+                    if "graph TD" in full_out:
+                        match = re.search(r"graph\s+TD[\s\S]*", full_out)
+                        if match:
+                            clean_code = match.group(0).replace("```mermaid", "").replace("```", "").strip()
+                            clean_code = clean_code.replace("(", "[").replace(")", "]")
+                            clean_code = clean_code.split("\n\n")[0]
+                            
+                            st.markdown("---")
+                            st.markdown("### 📊 Architecture Flowchart")
+                            
+                            # Rendering the diagram
+                            try:
+                                st_mermaid(clean_code, height=450)
+                                st.success(f"Success! {credit_cost} Credits deducted.")
+                            except Exception as render_err:
+                                st.error("Visual rendering failed. Showing code instead:")
+                                st.code(clean_code, language="mermaid")
+                        else:
+                            st.error("AI couldn't generate a proper diagram. Try again.")
+                    
+                except Exception as e:
+                    # Refund credits if API fails
+                    st.session_state.user_data['credits'] += credit_cost
+                    st.error(f"System Error: {e}")
+        else:
+            st.error(f"Insufficient Credits! This feature requires {credit_cost} credits.")
+            st.info("Tip: Get the Weekly Sureshot pack for 70 credits!")
 
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
     # --- TAB 5: FLASHCARDS (UNIVERSAL SYNC FIX) ---
