@@ -29,30 +29,20 @@ def apply_pro_theme():
             text-align: center; margin-bottom: 20px;
         }
         
-        /* Exam Special Badge */
         .exam-special-tag {
             background: rgba(255, 75, 75, 0.15);
-            color: #ff4b4b;
-            border: 1px solid #ff4b4b;
-            padding: 5px 10px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 10px;
-            animation: pulse 2s infinite;
+            color: #ff4b4b; border: 1px solid #ff4b4b;
+            padding: 5px 10px; border-radius: 8px;
+            font-size: 12px; font-weight: bold; text-align: center;
+            margin-bottom: 10px; animation: pulse 2s infinite;
         }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         </style>
     """, unsafe_allow_html=True)
 
 apply_pro_theme()
 
-# --- 2. SESSION STATE & LOGIN LOGIC ---
+# --- 2. SESSION STATE & STRATEGY: THE HOOK (15 CREDITS) ---
 if "user_data" not in st.session_state:
     st.session_state.user_data = None
 
@@ -63,83 +53,75 @@ def show_login_page():
         st.markdown("""
             <div class="login-card">
                 <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px; font-style: italic;'>TopperGPT</h1>
-                <p style='color: #8b949e; font-size: 1rem; letter-spacing: 1px;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
+                <p style='color: #8b949e; font-size: 1rem;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
                 <hr style="border-color: #30363d; margin: 30px 0;">
-                <p style="color: white; font-size: 0.9rem; margin-bottom: 20px;">Please login to continue</p>
+                <p style="color: #4CAF50; font-weight: bold; font-size: 1.1rem;">🎁 EXCLUSIVE: Get 15 FREE Credits on Login!</p>
+                <p style="color: #8b949e; font-size: 0.8rem;">Experience Board-Level AI Evaluation Instantly</p>
             </div>
         """, unsafe_allow_html=True)
         
         if st.button("🔴 Continue with Google Account", use_container_width=True):
-            # Initial credits given to new users
-            st.session_state.user_data = {"email": "verified.student@mu.edu", "credits": 5, "tier": "Free Tier"}
+            # Strategy: 15 Free Credits + Random Referral Code Generation
+            ref_code = "TOP" + str(int(time.time()))[-4:]
+            st.session_state.user_data = {
+                "email": "verified.student@mu.edu", 
+                "credits": 15, 
+                "tier": "Free Starter",
+                "referral_code": ref_code
+            }
             st.rerun()
     st.stop()
 
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 3. SIDEBAR (MONETIZATION & DYNAMIC PAYMENT) ---
+# --- 3. SIDEBAR (STRATEGY: PRICING & REFERRAL) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
-    # Wallet Card (Blueprint Section 4)
+    # Wallet Card (Real-time Balance)
     st.markdown(f"""
         <div class="wallet-card">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
             <p style="color: white; font-size: 28px; font-weight: 900; margin: 5px 0;">{st.session_state.user_data['credits']} 🔥</p>
+            <p style="color: #8b949e; font-size: 10px; margin: 0;">Plan: {st.session_state.user_data['tier']}</p>
         </div>
     """, unsafe_allow_html=True)
     
+    # STRATEGY: Viral Referral System
+    with st.expander("🎁 Get 5 Free Credits"):
+        st.write("Invite your hostel friends! Share your code:")
+        st.code(st.session_state.user_data['referral_code'])
+        st.caption("You get 5 Credits for every friend who joins.")
+
     st.markdown("---")
-    
-    # NEW: Weekly Sureshot Exam Special Tag
     st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
-    st.subheader("💳 Choose Your Plan")
     
-    # Updated Selection logic with Weekly Sureshot [Blueprint Section 2]
+    # STRATEGY: Plan-wise Credit Allocation
+    st.subheader("💳 Upgrade Your Plan")
     plan_choice = st.radio(
-        "Available Packs:",
+        "Select your pack:",
         [
-            "Weekly Sureshot (7 Days) @ ₹59",
-            "Jugaad Pack (50 Credits) @ ₹99", 
-            "Monthly Pro (Unlimited) @ ₹149"
+            "Weekly Sureshot (70 Credits) @ ₹59",
+            "Jugaad Pack (150 Credits) @ ₹99", 
+            "Monthly Pro (350 Credits) @ ₹149"
         ],
-        key="plan_selector_v3"
+        key="plan_selector_v4"
     )
     
-    # Dynamic Link Logic
-    if "₹59" in plan_choice:
-        base_link = "https://rzp.io/rzp/FmwE0Ms6" # TODO: Create ₹59 page on Razorpay
-    elif "₹99" in plan_choice:
-        base_link = "https://rzp.io/rzp/AWiyLxEi"
-    else:
-        base_link = "https://rzp.io/rzp/hXcR54E" 
+    # Razorpay Dynamic Link Routing
+    if "₹59" in plan_choice: base_link = "https://rzp.io/rzp/FmwE0Ms6" 
+    elif "₹99" in plan_choice: base_link = "https://rzp.io/rzp/AWiyLxEi"
+    else: base_link = "https://rzp.io/rzp/hXcR54E" 
 
-    # Anti-Cache Code
     t_code = int(time.time())
-    payment_link = f"{base_link}?t={t_code}" 
-    
     st.markdown(f"""
-        <div style="margin-top: 20px;">
-            <a href="{payment_link}" target="_blank" style="text-decoration: none;">
-                <div style="
-                    width: 100%;
-                    background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
-                    color: black;
-                    text-align: center;
-                    padding: 16px 0;
-                    border-radius: 12px;
-                    font-weight: bold;
-                    font-size: 16px;
-                    cursor: pointer;
-                    box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);
-                ">
+        <div style="margin-top: 10px;">
+            <a href="{base_link}?t={t_code}" target="_blank" style="text-decoration: none;">
+                <div style="width: 100%; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: black; text-align: center; padding: 16px 0; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);">
                     🚀 Unlock {plan_choice.split(' (')[0]}
                 </div>
             </a>
-            <p style="text-align:center; font-size:10px; color:#8b949e; margin-top:10px;">
-                Secure 1-Click Payment
-            </p>
         </div>
     """, unsafe_allow_html=True)
 
