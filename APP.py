@@ -4,6 +4,7 @@ import firebase_admin
 from firebase_admin import credentials, auth
 import pdfplumber
 import io
+import time  # <--- FIXED: Added missing import
 from groq import Groq
 
 # --- 1. CONFIGURATION & UI ---
@@ -15,7 +16,6 @@ def apply_pro_theme():
         .stApp { background-color: #0e1117 !important; color: #ffffff !important; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
-        /* Wallet Card logic from Blueprint */
         .wallet-card {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             padding: 20px;
@@ -23,14 +23,6 @@ def apply_pro_theme():
             border: 1px solid #4CAF50;
             text-align: center;
             margin-bottom: 20px;
-        }
-        
-        .subscription-option {
-            background: #1e2530;
-            padding: 15px;
-            border-radius: 10px;
-            border-left: 5px solid #eab308;
-            margin-bottom: 10px;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -41,7 +33,7 @@ apply_pro_theme()
 if "user_data" not in st.session_state:
     st.session_state.user_data = {"email": "verified.student@mu.edu", "credits": 5, "tier": "Free Tier"}
 
-# --- 5. SIDEBAR (BLUEPRINT: SUBSCRIPTION & PAYMENT) ---
+# --- 5. SIDEBAR (BLUEPRINT: SUBSCRIPTION & DYNAMIC PAYMENT) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
@@ -63,10 +55,17 @@ with st.sidebar:
         key="plan_selector_v2"
     )
     
-    # ANTI-CACHE LOGIC:
-    # Hum link ke piche ek random number daal rahe hain taaki browser hamesha NAYA page load kare
+    # DYNAMIC LINK LOGIC (Solving your doubt):
+    # We choose the URL based on what the user clicked.
+    if "₹99" in plan_choice:
+        # Your existing ₹99 link
+        base_link = "https://rzp.io/rzp/AWiyLxEi"
+    else:
+        # REPLACE THIS with your new ₹149 Razorpay Page link
+        base_link = "https://rzp.io/rzp/YAHAN_NAYA_LINK_DALO" 
+
+    # ANTI-CACHE LOGIC: Ensures the page isn't blank
     t_code = int(time.time())
-    base_link = "https://rzp.io/rzp/AWiyLxEi"
     payment_link = f"{base_link}?t={t_code}" 
     
     # Blueprint: Seamless 1-click redirect
@@ -98,6 +97,7 @@ with st.sidebar:
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
+        
 # --- 6. MAIN CONTENT (TABS) ---
 st.title("🚀 Engineering Study Studio")
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
