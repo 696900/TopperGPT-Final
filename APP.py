@@ -4,7 +4,7 @@ import firebase_admin
 from firebase_admin import credentials, auth
 import pdfplumber
 import io
-import time  # <--- FIXED: Added missing import
+import time 
 from groq import Groq
 
 # --- 1. CONFIGURATION & UI ---
@@ -16,6 +16,13 @@ def apply_pro_theme():
         .stApp { background-color: #0e1117 !important; color: #ffffff !important; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
         
+        .login-card {
+            background: linear-gradient(145deg, #1e2530, #161b22);
+            padding: 40px; border-radius: 25px; text-align: center;
+            border: 1px solid #4CAF50; box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            max-width: 450px; margin: auto;
+        }
+
         .wallet-card {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             padding: 20px;
@@ -29,15 +36,37 @@ def apply_pro_theme():
 
 apply_pro_theme()
 
-# --- 3. SESSION STATE ---
+# --- 2. SESSION STATE & LOGIN LOGIC ---
 if "user_data" not in st.session_state:
-    st.session_state.user_data = {"email": "verified.student@mu.edu", "credits": 5, "tier": "Free Tier"}
+    st.session_state.user_data = None
 
-# --- 5. SIDEBAR (BLUEPRINT: SUBSCRIPTION & DYNAMIC PAYMENT) ---
+def show_login_page():
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    _, col_mid, _ = st.columns([1, 2, 1])
+    with col_mid:
+        st.markdown("""
+            <div class="login-card">
+                <h1 style='color: #4CAF50; font-size: 2.5rem; margin-bottom: 5px; font-style: italic;'>TopperGPT</h1>
+                <p style='color: #8b949e; font-size: 1rem; letter-spacing: 1px;'>OFFICIAL UNIVERSITY RESEARCH PORTAL</p>
+                <hr style="border-color: #30363d; margin: 30px 0;">
+                <p style="color: white; font-size: 0.9rem; margin-bottom: 20px;">Please login to continue</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🔴 Continue with Google Account", use_container_width=True):
+            st.session_state.user_data = {"email": "verified.student@mu.edu", "credits": 5, "tier": "Free Tier"}
+            st.rerun()
+    st.stop()
+
+# Login check
+if st.session_state.user_data is None:
+    show_login_page()
+
+# --- 3. SIDEBAR (MONETIZATION & DYNAMIC PAYMENT) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
-    # Wallet Card
+    # Wallet Card (Blueprint Section 4)
     st.markdown(f"""
         <div class="wallet-card">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
@@ -48,27 +77,24 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("💳 Choose Your Plan")
     
-    # User Plan Selection
+    # Selection logic for different packs (Blueprint Section 2)
     plan_choice = st.radio(
         "Available Packs:",
         ["Jugaad Pack (50 Credits @ ₹99)", "Monthly Pro (Unlimited @ ₹149)"],
         key="plan_selector_v2"
     )
     
-    # DYNAMIC LINK LOGIC (Solving your doubt):
-    # We choose the URL based on what the user clicked.
+    # Dynamic Link Logic
     if "₹99" in plan_choice:
-        # Your existing ₹99 link
         base_link = "https://rzp.io/rzp/AWiyLxEi"
     else:
-        # REPLACE THIS with your new ₹149 Razorpay Page link
-        base_link = "https://rzp.io/rzp/YAHAN_NAYA_LINK_DALO" 
+        # Step: Yahan apna naya ₹149 wala Razorpay link paste karna
+        base_link = "https://rzp.io/rzp/hXcR54E" 
 
-    # ANTI-CACHE LOGIC: Ensures the page isn't blank
+    # Anti-Cache Code to prevent Blank Page
     t_code = int(time.time())
     payment_link = f"{base_link}?t={t_code}" 
     
-    # Blueprint: Seamless 1-click redirect
     st.markdown(f"""
         <div style="margin-top: 20px;">
             <a href="{payment_link}" target="_blank" style="text-decoration: none;">
@@ -87,8 +113,8 @@ with st.sidebar:
                     🚀 Unlock {plan_choice.split(' (')[0]}
                 </div>
             </a>
-            <p style="text-align: center; font-size: 10px; color: #8b949e; margin-top: 10px;">
-                Secure 256-bit Encrypted Payment
+            <p style="text-align:center; font-size:10px; color:#8b949e; margin-top:10px;">
+                Secure 1-Click Payment
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -97,14 +123,13 @@ with st.sidebar:
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
-        
-# --- 6. MAIN CONTENT (TABS) ---
+
+# --- 4. MAIN CONTENT ---
 st.title("🚀 Engineering Study Studio")
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
-
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---
 # ... rest of your tab logic starts here ...
     # --- TAB 1: SMART NOTE ANALYSIS (FINAL UI FIX) ---
