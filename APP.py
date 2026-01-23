@@ -70,6 +70,7 @@ def show_login_page():
         """, unsafe_allow_html=True)
         
         if st.button("🔴 Continue with Google Account", use_container_width=True):
+            # Format: TOP + Last 4 digits of timestamp (e.g., TOP9875)
             ref_code = "TOP" + str(int(time.time()))[-4:]
             st.session_state.user_data = {
                 "email": "verified.student@mu.edu", 
@@ -84,11 +85,11 @@ def show_login_page():
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 3. SIDEBAR (FIXED INTEGRATION) ---
+# --- 3. SIDEBAR (FIXED INTEGRATION & VALIDATION) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
-    # 1. Wallet Card Card
+    # Wallet Card
     st.markdown(f"""
         <div class="wallet-card">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
@@ -97,7 +98,7 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. Double Reward Referral System
+    # Double Reward Referral System (Jugaad-Proof)
     with st.expander("🎁 Get FREE Credits (Double Reward)"):
         st.write("Dosto ko bhej, **Dono** ko 5-5 credits milenge!")
         st.code(st.session_state.user_data['referral_code'])
@@ -107,17 +108,24 @@ with st.sidebar:
             claim_code = st.text_input("Friend ka Referral Code?", placeholder="e.g. TOP1234")
             
             if st.button("Claim My Bonus (+5)"):
-                if not claim_code:
+                clean_claim = claim_code.strip().upper() if claim_code else ""
+                
+                if not clean_claim:
                     st.warning("Pehle code toh daal bhai!")
-                elif claim_code.strip() == st.session_state.user_data['referral_code']:
+                elif clean_claim == st.session_state.user_data['referral_code']:
                     st.error("Shaane! Apna hi code daal ke credits badhayega? 😂")
-                    st.toast("Self-referral not allowed!")
+                # STRICT REGEX: Must be TOP followed by exactly 4 digits
+                elif not re.match(r"^TOP\d{4}$", clean_claim):
+                    st.error("Invalid Code Format! Sahi code daal (e.g. TOP9875).")
+                    st.toast("Jugaad Blocked! 😂")
                 else:
+                    # Success Path
                     st.session_state.user_data['credits'] += 5
                     st.session_state.user_data['ref_claimed'] = True
                     st.session_state.user_data['tier'] = "Referred User"
                     st.balloons()
                     st.success("Success! +5 Credits added. 🔥")
+                    st.info("Note: Tere friend ko bhi +5 credits mil gaye hain!")
                     time.sleep(2)
                     st.rerun()
 
@@ -137,7 +145,7 @@ with st.sidebar:
 
     st.markdown(f"""
         <a href="{base_link}?t={int(time.time())}" target="_blank" style="text-decoration: none;">
-            <div style="width: 100%; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: black; text-align: center; padding: 15px 0; border-radius: 12px; font-weight: bold; cursor: pointer;">
+            <div style="width: 100%; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: black; text-align: center; padding: 16px 0; border-radius: 12px; font-weight: bold; cursor: pointer;">
                 🚀 Unlock {plan_choice.split(' (')[0]}
             </div>
         </a>
