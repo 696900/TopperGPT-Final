@@ -539,40 +539,32 @@ with tab5:
                     with st.expander(f"🔹 {q.strip()}"):
                         st.success(f"**Ans:** {a.strip()}")
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
+# --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
 with tab6:
     st.subheader("❓ University Previous Year Questions")
-    st.write("Get high-probability questions based on your University and Branch.")
     
-    # Visual cost indicator
-    st.caption("💎 Cost: 1 Credit per search")
+    # Persistent State for Output
+    if "pyq_result" not in st.session_state:
+        st.session_state.pyq_result = None
+    if "pyq_subject_last" not in st.session_state:
+        st.session_state.pyq_subject_last = ""
 
-    # 1. Selection Filters
+    # Filters
     col1, col2, col3 = st.columns(3)
     with col1:
-        univ = st.selectbox("Select University:", 
-            ["Mumbai University (MU)", "Pune University (SPPU)", "GTU", "VTU", "AKTU", "Other"], key="pyq_univ")
+        univ = st.selectbox("Select University:", ["Mumbai University (MU)", "Pune University (SPPU)", "GTU", "VTU", "AKTU", "Other"], key="pyq_univ_v2")
     with col2:
-        branch = st.selectbox("Select Branch:", 
-            ["Computer/IT", "Mechanical", "Civil", "Electrical", "Electronics", "Chemical"], key="pyq_branch")
+        branch = st.selectbox("Select Branch:", ["Computer/IT", "Mechanical", "Civil", "Electrical", "Electronics", "Chemical"], key="pyq_branch_v2")
     with col3:
-        semester = st.selectbox("Semester:", [f"Sem {i}" for i in range(1, 9)], key="pyq_sem")
+        semester = st.selectbox("Semester:", [f"Sem {i}" for i in range(1, 9)], key="pyq_sem_v2")
 
-    subj_name = st.text_input("Enter Subject Name (e.g., Engineering Mathematics, Thermodynamics):", key="pyq_subject")
+    subj_name = st.text_input("Enter Subject Name:", key="pyq_sub_v2")
 
-    # 2. Fetch Logic
     if st.button("🔍 Fetch Important PYQs"):
         if subj_name:
-            # --- CREDIT CHECK START ---
             if st.session_state.user_data['credits'] >= 1:
-                with st.spinner(f"Searching {univ} database for {subj_name}..."):
-                    prompt = f"""
-                    Act as a University Paper Setter for {univ}. 
-                    For the subject '{subj_name}' ({branch}, {semester}), provide:
-                    1. 5 Most Repeated PYQs (Previous Year Questions).
-                    2. 2 High-Probability 'Expected' questions for the upcoming exam.
-                    3. Brief tips on how to score full marks in these specific questions.
-                    Format: Clearly numbered with 'Year' if possible.
-                    """
+                with st.spinner(f"Fetching {subj_name} Question Bank..."):
+                    prompt = f"Act as a Paper Setter for {univ}. Provide 5 Repeated PYQs and 2 Expected questions for {subj_name} ({branch}, {semester}). Format: Clear and Professional."
                     
                     try:
                         res = groq_client.chat.completions.create(
@@ -580,32 +572,38 @@ with tab6:
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
-                        # --- DEDUCTION HAPPENS HERE ONLY IF SUCCESSFUL ---
+                        # SAVE TO SESSION STATE FIRST
+                        st.session_state.pyq_result = res.choices[0].message.content
+                        st.session_state.pyq_subject_last = subj_name
+                        
+                        # DEDUCT CREDIT
                         st.session_state.user_data['credits'] -= 1
                         
-                        st.markdown("---")
-                        st.success(f"Questions Fetched! 1 Credit Deducted. (Remaining: {st.session_state.user_data['credits']})")
-                        st.markdown(f"### 📑 {subj_name} Question Bank")
-                        st.write(res.choices[0].message.content)
-                        
-                        st.download_button(
-                            label="📥 Download Question Bank",
-                            data=res.choices[0].message.content,
-                            file_name=f"{subj_name}_PYQs.txt",
-                            mime="text/plain"
-                        )
-                        
-                        # Force update the sidebar balance
-                        time.sleep(0.5)
+                        # NOW RERUN
                         st.rerun()
 
                     except Exception as e:
-                        st.error("Error fetching questions. Please check your connection.")
+                        st.error(f"API Error: {e}")
             else:
-                st.error("Bhai credits khatam ho gaye! Sidebar se top-up kar le ya dosto ko refer kar.")
-            # --- CREDIT CHECK END ---
+                st.error("Low Balance! Sidebar se top-up karo.")
         else:
-            st.warning("⚠️ Please enter a subject name first.")
+            st.warning("Subject name dalo bhai.")
+
+    # DISPLAY LOGIC (Rerun ke baad yahan se dikhega)
+    if st.session_state.pyq_result:
+        st.markdown("---")
+        st.success(f"Result for {st.session_state.pyq_subject_last}")
+        st.markdown(st.session_state.pyq_result)
+        
+        st.download_button(
+            label="📥 Download This Bank",
+            data=st.session_state.pyq_result,
+            file_name=f"{st.session_state.pyq_subject_last}_PYQs.txt"
+        )
+        
+        if st.button("Clear Results"):
+            st.session_state.pyq_result = None
+            st.rerun()
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
     # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
