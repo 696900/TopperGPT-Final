@@ -5,7 +5,9 @@ from firebase_admin import credentials, auth
 import pdfplumber
 import io
 import time 
+import re
 from groq import Groq
+from streamlit_mermaid import st_mermaid 
 
 # --- 1. CONFIGURATION & UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -42,7 +44,12 @@ def apply_pro_theme():
 
 apply_pro_theme()
 
-# --- 2. SESSION STATE & STRATEGY: THE HOOK (15 CREDITS) ---
+# --- INITIALIZE CLIENTS ---
+if "GROQ_API_KEY" in st.secrets:
+    groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+# --- 2. SESSION STATE & LOGIN LOGIC ---
 if "user_data" not in st.session_state:
     st.session_state.user_data = None
 
@@ -61,7 +68,6 @@ def show_login_page():
         """, unsafe_allow_html=True)
         
         if st.button("🔴 Continue with Google Account", use_container_width=True):
-            # Strategy: 15 Free Credits + Random Referral Code Generation
             ref_code = "TOP" + str(int(time.time()))[-4:]
             st.session_state.user_data = {
                 "email": "verified.student@mu.edu", 
@@ -75,11 +81,10 @@ def show_login_page():
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 3. SIDEBAR (STRATEGY: PRICING & REFERRAL) ---
+# --- 3. SIDEBAR (MONETIZATION & REFERRAL) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
-    # Wallet Card (Real-time Balance)
     st.markdown(f"""
         <div class="wallet-card">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
@@ -88,44 +93,34 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
     
-    # STRATEGY: Viral Referral System
     with st.expander("🎁 Get 5 Free Credits"):
-        st.write("Invite your hostel friends! Share your code:")
+        st.write("Invite friends! Share your code:")
         st.code(st.session_state.user_data['referral_code'])
         st.caption("You get 5 Credits for every friend who joins.")
 
     st.markdown("---")
     st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
-    
-    # STRATEGY: Plan-wise Credit Allocation
     st.subheader("💳 Upgrade Your Plan")
-    plan_choice = st.radio(
-        "Select your pack:",
-        [
-            "Weekly Sureshot (70 Credits) @ ₹59",
-            "Jugaad Pack (150 Credits) @ ₹99", 
-            "Monthly Pro (350 Credits) @ ₹149"
-        ],
-        key="plan_selector_v4"
-    )
+    plan_choice = st.radio("Select pack:", [
+        "Weekly Sureshot (70 Credits) @ ₹59",
+        "Jugaad Pack (150 Credits) @ ₹99", 
+        "Monthly Pro (350 Credits) @ ₹149"
+    ], key="plan_selector_v4")
     
-    # Razorpay Dynamic Link Routing
     if "₹59" in plan_choice: base_link = "https://rzp.io/rzp/FmwE0Ms6" 
     elif "₹99" in plan_choice: base_link = "https://rzp.io/rzp/AWiyLxEi"
     else: base_link = "https://rzp.io/rzp/hXcR54E" 
 
-    t_code = int(time.time())
     st.markdown(f"""
         <div style="margin-top: 10px;">
-            <a href="{base_link}?t={t_code}" target="_blank" style="text-decoration: none;">
-                <div style="width: 100%; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: black; text-align: center; padding: 16px 0; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);">
+            <a href="{base_link}?t={int(time.time())}" target="_blank" style="text-decoration: none;">
+                <div style="width: 100%; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: black; text-align: center; padding: 16px 0; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer;">
                     🚀 Unlock {plan_choice.split(' (')[0]}
                 </div>
             </a>
         </div>
     """, unsafe_allow_html=True)
 
-    st.divider()
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
@@ -364,84 +359,52 @@ with tab3: # Yahan maine tab3 kar diya hai taaki NameError na aaye
     # --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
 with tab4:
     st.subheader("🧠 Concept MindMap & Summary")
-    
-    # Selection Mode
     m_mode = st.radio("Source Selection:", ["Enter Topic", "Use File Data"], horizontal=True, key="m_src_final")
     
-    # Input Logic
     if m_mode == "Enter Topic":
         m_input = st.text_input("Engineering Concept (e.g. Back EMF):", key="m_topic_final")
-        credit_cost = 2  # Strategy 3: Text-based Mindmap is cheap
+        credit_cost = 2 
     else:
-        # Strategy 3: Heavy processing from PDF
         m_input = st.session_state.get("pdf_content", "")[:3000]
-        credit_cost = 8  # Strategy 3: PDF-based Mindmap is expensive
-        if not m_input: 
-            st.warning("⚠️ Pehle Tab 1 mein notes upload karein!")
+        credit_cost = 8 
+        if not m_input: st.warning("⚠️ Pehle Tab 1 mein notes upload karein!")
 
     if st.button("Build Map", key="m_btn_final") and m_input:
-        # Check Strategy 4: Daily Cap & Balance Check
         if st.session_state.user_data['credits'] >= credit_cost:
             with st.spinner("AI is drawing the architecture..."):
-                # Strict Prompt to ensure clean Mermaid code
                 prompt = f"""
                 Explain the engineering concept '{m_input}' in 5 clear lines. 
                 Then, provide ONLY a Mermaid.js 'graph TD' flowchart.
-                
-                Format your response exactly like this:
-                SUMMARY: [Your 5 lines here]
-                MERMAID:
-                graph TD
-                A[Start] --> B[Process]
-                
-                Rules:
-                - NO extra text, NO explanations after the code.
-                - Use ONLY square brackets [] for nodes.
+                Format: SUMMARY: [text] MERMAID: graph TD... node definitions using []
                 """
-                
                 try:
-                    # Deduction Logic
                     st.session_state.user_data['credits'] -= credit_cost
-                    
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
                     full_out = res.choices[0].message.content
 
-                    # 1. Extract Summary
                     if "SUMMARY:" in full_out:
                         sum_text = full_out.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
                         st.info(f"**Technical Summary:**\n\n{sum_text}")
 
-                    # 2. Extract & Force-Fix Mermaid Code
                     if "graph TD" in full_out:
                         match = re.search(r"graph\s+TD[\s\S]*", full_out)
                         if match:
                             clean_code = match.group(0).replace("```mermaid", "").replace("```", "").strip()
-                            clean_code = clean_code.replace("(", "[").replace(")", "]")
-                            clean_code = clean_code.split("\n\n")[0]
-                            
-                            st.markdown("---")
+                            clean_code = clean_code.replace("(", "[").replace(")", "]").split("\n\n")[0]
                             st.markdown("### 📊 Architecture Flowchart")
-                            
-                            # Rendering the diagram
                             try:
                                 st_mermaid(clean_code, height=450)
                                 st.success(f"Success! {credit_cost} Credits deducted.")
-                            except Exception as render_err:
-                                st.error("Visual rendering failed. Showing code instead:")
+                            except:
                                 st.code(clean_code, language="mermaid")
-                        else:
-                            st.error("AI couldn't generate a proper diagram. Try again.")
-                    
                 except Exception as e:
-                    # Refund credits if API fails
                     st.session_state.user_data['credits'] += credit_cost
                     st.error(f"System Error: {e}")
         else:
-            st.error(f"Insufficient Credits! This feature requires {credit_cost} credits.")
-            st.info("Tip: Get the Weekly Sureshot pack for 70 credits!")
+            st.error(f"Insufficient Credits! Need {credit_cost}.")
 
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
     # --- TAB 5: FLASHCARDS (UNIVERSAL SYNC FIX) ---
