@@ -354,61 +354,61 @@ with tab3: # Yahan maine tab3 kar diya hai taaki NameError na aaye
                     st.error(f"Moderator Error: {e}. Check if API Key supports 'gemini-1.5-flash'.")
 
     # --- TAB 4: MIND MAP ---
-# --- TAB 4: ENGINEERING MIND MAP (ULTRA-STABLE) ---
+# --- TAB 4: FIXED MINDMAP (NO GAYAB LOGIC) ---
 with tab4:
     st.subheader("🧠 Concept MindMap & Summary")
-    m_mode = st.radio("Source Selection:", ["Enter Topic", "Use File Data"], horizontal=True, key="m_src_final")
     
-    if m_mode == "Enter Topic":
-        m_input = st.text_input("Engineering Concept (e.g. Back EMF):", key="m_topic_final")
-        credit_cost = 2 
-    else:
-        m_input = st.session_state.get("pdf_content", "")[:3000]
-        credit_cost = 8 
-        if not m_input: st.warning("⚠️ Pehle Tab 1 mein notes upload karein!")
+    # 1. State Initialization for Persistence
+    if "last_map" not in st.session_state:
+        st.session_state.last_map = None
+    if "last_summary" not in st.session_state:
+        st.session_state.last_summary = None
 
-    if st.button("Build Map", key="m_btn_final") and m_input:
+    m_mode = st.radio("Source:", ["Enter Topic", "Use File Data"], horizontal=True, key="m_src_v5")
+    m_input = st.text_input("Engineering Concept:", key="m_topic_v5") if m_mode == "Enter Topic" else st.session_state.get("pdf_content", "")[:3000]
+    credit_cost = 2 if m_mode == "Enter Topic" else 8
+
+    if st.button("Build Map", key="m_build_v5") and m_input:
         if st.session_state.user_data['credits'] >= credit_cost:
-            with st.spinner("AI is drawing the architecture..."):
-                # Strategy: Strict Rules prevent Syntax Errors
+            with st.spinner("AI is drawing architecture..."):
                 prompt = f"""
-                Explain the engineering concept '{m_input}' in 5 clear lines. 
-                Then, provide ONLY a Mermaid.js 'graph TD' flowchart.
+                Explain '{m_input}' in 5 clear lines. 
+                Then provide a Mermaid.js 'graph TD' flowchart.
+                RULES: Use ONLY square brackets [] for nodes. NO round brackets ().
                 Format: SUMMARY: [text] MERMAID: graph TD...
-                Rules: NO round brackets (), use ONLY square brackets [] for nodes.
                 """
                 try:
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", 
-                        messages=[{"role": "user", "content": prompt}]
-                    )
+                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     full_out = res.choices[0].message.content
-
-                    # 1. Technical Summary
-                    if "SUMMARY:" in full_out:
-                        sum_text = full_out.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
-                        st.info(f"**Technical Summary:**\n\n{sum_text}")
-
-                    # 2. Render & Update Credits (Rerun Logic)
-                    if "graph TD" in full_out:
-                        match = re.search(r"graph\s+TD[\s\S]*", full_out)
-                        if match:
-                            clean_code = match.group(0).replace("```mermaid", "").replace("```", "").strip()
-                            clean_code = clean_code.replace("(", "[").replace(")", "]").split("\n\n")[0]
-                            
-                            st.markdown("---")
-                            st.markdown("### 📊 Architecture Flowchart")
-                            st_mermaid(clean_code, height=450)
-                            
-                            # Credit Deduction & Refresh
-                            st.session_state.user_data['credits'] -= credit_cost
-                            st.toast(f"🔥 {credit_cost} Credits deducted!")
-                            time.sleep(1)
-                            st.rerun() 
+                    
+                    # 2. Extract and Store in Session (Taaki refresh pe gayab na ho)
+                    if "SUMMARY:" in full_out and "graph TD" in full_out:
+                        st.session_state.last_summary = full_out.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
+                        
+                        clean_mermaid = "graph TD\n" + full_out.split("graph TD")[1].strip()
+                        st.session_state.last_map = clean_mermaid.replace("(", "[").replace(")", "]").replace("```", "").split("\n\n")[0]
+                        
+                        # 3. Update Credits and Trigger Rerun
+                        st.session_state.user_data['credits'] -= credit_cost
+                        st.rerun() 
                 except Exception as e:
-                    st.error(f"System Error: {e}")
+                    st.error(f"Error: {e}")
         else:
-            st.error(f"Insufficient Credits! Need {credit_cost}.")
+            st.error("Insufficient Credits!")
+
+    # 4. Display Logic (Refresh ke baad yahan se dikhega)
+    if st.session_state.last_summary:
+        st.info(f"**Technical Summary:**\n\n{st.session_state.last_summary}")
+    
+    if st.session_state.last_map:
+        st.markdown("### 📊 Architecture Flowchart")
+        st_mermaid(st.session_state.last_map, height=450)
+        
+        # Download Option (Extra Value)
+        if st.button("Clear Map"):
+            st.session_state.last_map = None
+            st.session_state.last_summary = None
+            st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
     # --- TAB 5: FLASHCARDS (UNIVERSAL SYNC FIX) ---
 with tab5:
