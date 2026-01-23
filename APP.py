@@ -84,8 +84,20 @@ def show_login_page():
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 3. SIDEBAR (WALLET, DOUBLE REWARD REFERRAL & PAYMENTS) ---
-# --- SIDEBAR: DOUBLE REWARD REFERRAL (FIXED) ---
+# --- 3. SIDEBAR (FIXED INTEGRATION) ---
+with st.sidebar:
+    st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
+    
+    # 1. Wallet Card Card
+    st.markdown(f"""
+        <div class="wallet-card">
+            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
+            <p style="color: white; font-size: 28px; font-weight: 900; margin: 5px 0;">{st.session_state.user_data['credits']} 🔥</p>
+            <p style="color: #8b949e; font-size: 10px; margin: 0;">Plan: {st.session_state.user_data['tier']}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # 2. Double Reward Referral System
     with st.expander("🎁 Get FREE Credits (Double Reward)"):
         st.write("Dosto ko bhej, **Dono** ko 5-5 credits milenge!")
         st.code(st.session_state.user_data['referral_code'])
@@ -95,26 +107,23 @@ if st.session_state.user_data is None:
             claim_code = st.text_input("Friend ka Referral Code?", placeholder="e.g. TOP1234")
             
             if st.button("Claim My Bonus (+5)"):
-                # FIX: Check if the code is empty OR if it's the user's own code
                 if not claim_code:
                     st.warning("Pehle code toh daal bhai!")
                 elif claim_code.strip() == st.session_state.user_data['referral_code']:
                     st.error("Shaane! Apna hi code daal ke credits badhayega? 😂")
                     st.toast("Self-referral not allowed!")
                 else:
-                    # Success Path
                     st.session_state.user_data['credits'] += 5
                     st.session_state.user_data['ref_claimed'] = True
                     st.session_state.user_data['tier'] = "Referred User"
-                    
                     st.balloons()
-                    st.success("Success! +5 Credits tere wallet mein add ho gaye. 🔥")
-                    st.info("Note: Tere friend ko bhi +5 credits mil gaye hain!")
+                    st.success("Success! +5 Credits added. 🔥")
                     time.sleep(2)
                     st.rerun()
 
     st.markdown("---")
     st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
+    
     plan_choice = st.radio("Select pack:", [
         "Weekly Sureshot (70 Credits) @ ₹59",
         "Jugaad Pack (150 Credits) @ ₹99", 
