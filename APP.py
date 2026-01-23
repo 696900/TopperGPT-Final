@@ -605,77 +605,101 @@ with tab6:
             st.session_state.pyq_result = None
             st.rerun()
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
-    # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
+# --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
     st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
     
+    # Monetization: Deep research is premium
+    search_cost = 3
+    st.info(f"🚀 Premium Analysis costs **{search_cost} Credits**")
+
+    # Persistent State to prevent data disappearing on rerun
+    if "research_data" not in st.session_state:
+        st.session_state.research_data = None
+    if "research_query" not in st.session_state:
+        st.session_state.research_query = ""
+
     query = st.text_input("Enter Engineering Topic (e.g. Transformer, BJT):", key="search_final_absolute_v1")
     
     if st.button("Deep Research", key="btn_absolute_v1") and query:
-        with st.spinner(f"Analyzing '{query}' for University Exams..."):
-            # Strongest prompt to ensure professional logic and 15+ PYQs
-            prompt = f"""
-            Act as an Engineering Professor. Provide a comprehensive report for: '{query}'.
-            Use these markers exactly:
-            [1_DEF] for a technical definition.
-            [2_KEY] for 7-10 technical keywords.
-            [3_CXP] for detailed technical breakdown/working.
-            [4_SMP] for a simple 2-line explanation.
-            [5_DOT] for ONLY Graphviz DOT code (digraph G {{...}}) showing its architecture.
-            [6_PYQ] for at least 15 REAL university exam questions (2m, 5m, 10m mixed).
-            """
-            
+        # Check Credits
+        if st.session_state.user_data['credits'] >= search_cost:
+            with st.spinner(f"Analyzing '{query}' for University Exams..."):
+                prompt = f"""
+                Act as an Engineering Professor. Provide a comprehensive report for: '{query}'.
+                Use these markers exactly:
+                [1_DEF] for a technical definition.
+                [2_KEY] for 7-10 technical keywords.
+                [3_CXP] for detailed technical breakdown/working.
+                [4_SMP] for a simple 2-line explanation.
+                [5_DOT] for ONLY Graphviz DOT code (digraph G {{...}}) showing its architecture.
+                [6_PYQ] for at least 15 REAL university exam questions (2m, 5m, 10m mixed).
+                """
+                
+                try:
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    
+                    # Store everything in session state
+                    st.session_state.research_data = res.choices[0].message.content
+                    st.session_state.research_query = query
+                    
+                    # Deduct Credits & Sync Wallet
+                    st.session_state.user_data['credits'] -= search_cost
+                    st.toast(f"Success! {search_cost} Credits deducted.")
+                    time.sleep(1)
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"System Busy. Error: {e}")
+        else:
+            st.error(f"Insufficient Credits! Need {search_cost} credits for Deep Research.")
+
+    # --- DISPLAY LOGIC (Outside the button block so it stays after rerun) ---
+    if st.session_state.research_data:
+        out = st.session_state.research_data
+        q_name = st.session_state.research_query
+
+        def get_sec(m1, m2=None):
             try:
-                res = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile", 
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                out = res.choices[0].message.content
+                parts = out.split(m1)
+                if len(parts) < 2: return "Data missing."
+                content = parts[1]
+                if m2 and m2 in content: content = content.split(m2)[0]
+                return content.strip().replace("```dot", "").replace("```", "")
+            except: return "Section error."
 
-                def get_sec(m1, m2=None):
-                    try:
-                        parts = out.split(m1)
-                        if len(parts) < 2: return "Data missing."
-                        content = parts[1]
-                        if m2 and m2 in content: content = content.split(m2)[0]
-                        return content.strip().replace("```dot", "").replace("```", "")
-                    except: return "Section error."
+        st.markdown(f"## 📘 Technical Report: {q_name}")
+        st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**2. Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
+        with col2:
+            st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_DOT]')}")
+        
+        st.warning(f"**3. Technical Breakdown (Working):**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
 
-                # --- 1. DISPLAY ALL TEXT SECTIONS ---
-                st.markdown(f"## 📘 Technical Report: {query}")
-                st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.write(f"**2. Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
-                with col2:
-                    st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_DOT]')}")
-                
-                st.warning(f"**3. Technical Breakdown (Working):**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
-
-                # --- 2. THE "NO-FAIL" FLOWCHART (GRAPHVIZ) ---
-                st.markdown("---")
-                st.markdown("### 📊 5. Architecture Flowchart")
-                dot_code = get_sec('[5_DOT]', '[6_PYQ]')
-                
-                if "digraph" in dot_code:
-                    try:
-                        # Graphviz seedha server se image render karta hai, blank nahi hoga
-                        st.graphviz_chart(dot_code, use_container_width=True)
-                    except:
-                        st.code(dot_code, language="dot")
-                        st.error("Flowchart rendering issues. Review logic in breakdown section.")
-                else:
-                    st.warning("Diagram currently unavailable for this complex topic.")
-
-                # --- 3. MEGA PYQ WALL (15+ QUESTIONS) ---
-                st.markdown("---")
-                st.markdown("### ❓ 6. Expected Exam Questions (15+ Comprehensive PYQs)")
-                st.write(get_sec('[6_PYQ]'))
-
-            except Exception as e:
-                st.error(f"System Busy. Error: {e}")
+        # Graphviz Section
+        st.markdown("---")
+        st.markdown("### 📊 5. Architecture Flowchart")
+        dot_code = get_sec('[5_DOT]', '[6_PYQ]')
+        if "digraph" in dot_code:
+            try:
+                st.graphviz_chart(dot_code, use_container_width=True)
+            except:
+                st.code(dot_code, language="dot")
+        
+        st.markdown("---")
+        st.markdown("### ❓ 6. Expected Exam Questions (15+ PYQs)")
+        st.write(get_sec('[6_PYQ]'))
+        
+        if st.button("Clear Research"):
+            st.session_state.research_data = None
+            st.rerun()
 # --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
 with tab8:
     st.subheader("🤝 Topper Connect: Community Hub")
