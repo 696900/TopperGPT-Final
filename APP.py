@@ -354,60 +354,82 @@ with tab3: # Yahan maine tab3 kar diya hai taaki NameError na aaye
                     st.error(f"Moderator Error: {e}. Check if API Key supports 'gemini-1.5-flash'.")
 
     # --- TAB 4: MIND MAP ---
-# --- TAB 4: FIXED MINDMAP (NO GAYAB LOGIC) ---
+# --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
 with tab4:
     st.subheader("🧠 Concept MindMap & Summary")
     
-    # 1. State Initialization for Persistence
-    if "last_map" not in st.session_state:
-        st.session_state.last_map = None
-    if "last_summary" not in st.session_state:
-        st.session_state.last_summary = None
+    # 1. Persistent State - Yeh refresh hone par bhi data bachayega
+    if "final_mermaid" not in st.session_state:
+        st.session_state.final_mermaid = None
+    if "final_summary" not in st.session_state:
+        st.session_state.final_summary = None
 
-    m_mode = st.radio("Source:", ["Enter Topic", "Use File Data"], horizontal=True, key="m_src_v5")
-    m_input = st.text_input("Engineering Concept:", key="m_topic_v5") if m_mode == "Enter Topic" else st.session_state.get("pdf_content", "")[:3000]
+    m_mode = st.radio("Source:", ["Enter Topic", "Use File Data"], horizontal=True, key="m_v6")
+    m_input = st.text_input("Engineering Concept:", key="topic_v6") if m_mode == "Enter Topic" else st.session_state.get("pdf_content", "")[:3000]
     credit_cost = 2 if m_mode == "Enter Topic" else 8
 
-    if st.button("Build Map", key="m_build_v5") and m_input:
+    if st.button("Build Map", key="build_v6") and m_input:
         if st.session_state.user_data['credits'] >= credit_cost:
-            with st.spinner("AI is drawing architecture..."):
+            with st.spinner("Moderator is drawing the architecture..."):
+                # ULTRA-CLEAN PROMPT: Syntax error se bachne ke liye
                 prompt = f"""
-                Explain '{m_input}' in 5 clear lines. 
-                Then provide a Mermaid.js 'graph TD' flowchart.
-                RULES: Use ONLY square brackets [] for nodes. NO round brackets ().
-                Format: SUMMARY: [text] MERMAID: graph TD...
+                Act as a Technical Architect. Explain '{m_input}' in 5 lines.
+                Then, provide a Mermaid.js graph.
+                
+                STRICT RULES:
+                - Start with 'graph TD'
+                - Use ONLY square brackets [] for nodes.
+                - NO round brackets (), NO quotes "", NO special characters.
+                - Keep node names short (1-3 words).
+                
+                FORMAT:
+                SUMMARY: [Your text]
+                MERMAID:
+                graph TD
+                A[Start] --> B[Next]
                 """
                 try:
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    full_out = res.choices[0].message.content
+                    raw_output = res.choices[0].message.content
                     
-                    # 2. Extract and Store in Session (Taaki refresh pe gayab na ho)
-                    if "SUMMARY:" in full_out and "graph TD" in full_out:
-                        st.session_state.last_summary = full_out.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
+                    # 2. Hard Extraction & Data Cleaning
+                    if "SUMMARY:" in raw_output and "graph TD" in raw_output:
+                        # Summary nikalna
+                        st.session_state.final_summary = raw_output.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
                         
-                        clean_mermaid = "graph TD\n" + full_out.split("graph TD")[1].strip()
-                        st.session_state.last_map = clean_mermaid.replace("(", "[").replace(")", "]").replace("```", "").split("\n\n")[0]
+                        # Mermaid Code ki Safai (Fixing Syntax Error)
+                        m_code = "graph TD\n" + raw_output.split("graph TD")[1].strip()
+                        m_code = m_code.replace("(", "[").replace(")", "]").replace("```", "").split("\n\n")[0]
+                        # Remove illegal Mermaid characters
+                        m_code = re.sub(r'[^\w\s\-\>\[\]]', '', m_code) 
+                        st.session_state.final_mermaid = m_code
                         
-                        # 3. Update Credits and Trigger Rerun
+                        # 3. Credits Update & Force Refresh
                         st.session_state.user_data['credits'] -= credit_cost
                         st.rerun() 
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Logic Error: {e}")
         else:
-            st.error("Insufficient Credits!")
+            st.error("Balance low! Please top-up.")
 
-    # 4. Display Logic (Refresh ke baad yahan se dikhega)
-    if st.session_state.last_summary:
-        st.info(f"**Technical Summary:**\n\n{st.session_state.last_summary}")
+    # 4. Permanent Display - Refresh ke baad bhi yahan se dikhega
+    if st.session_state.final_summary:
+        st.info(f"**Technical Summary:**\n\n{st.session_state.final_summary}")
     
-    if st.session_state.last_map:
+    if st.session_state.final_mermaid:
+        st.markdown("---")
         st.markdown("### 📊 Architecture Flowchart")
-        st_mermaid(st.session_state.last_map, height=450)
+        try:
+            # Drawing the diagram
+            st_mermaid(st.session_state.final_mermaid, height=500)
+        except:
+            st.warning("Visual rendering skipped. Here is the technical flow:")
+            st.code(st.session_state.final_mermaid, language="mermaid")
         
-        # Download Option (Extra Value)
-        if st.button("Clear Map"):
-            st.session_state.last_map = None
-            st.session_state.last_summary = None
+        # Clear Button taaki naya search kar sakein
+        if st.button("🗑️ Clear & Search New"):
+            st.session_state.final_mermaid = None
+            st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
     # --- TAB 5: FLASHCARDS (UNIVERSAL SYNC FIX) ---
