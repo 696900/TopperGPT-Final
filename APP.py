@@ -108,7 +108,7 @@ with st.sidebar:
     ])
     
     # Razorpay Links
-    base_link = "https://rzp.io/rzp/AWiyLxEi" # Default
+    base_link = "https://rzp.io/rzp/AWiyLxEi" 
     if "₹59" in plan_choice: base_link = "https://rzp.io/rzp/FmwE0Ms6" 
     elif "₹149" in plan_choice: base_link = "https://rzp.io/rzp/hXcR54E" 
 
@@ -370,6 +370,7 @@ with tab4:
     if st.button("Build Map", key="m_btn_final") and m_input:
         if st.session_state.user_data['credits'] >= credit_cost:
             with st.spinner("AI is drawing the architecture..."):
+                # Strategy: Strict Rules prevent Syntax Errors
                 prompt = f"""
                 Explain the engineering concept '{m_input}' in 5 clear lines. 
                 Then, provide ONLY a Mermaid.js 'graph TD' flowchart.
@@ -383,22 +384,23 @@ with tab4:
                     )
                     full_out = res.choices[0].message.content
 
-                    # Display Summary
+                    # 1. Technical Summary
                     if "SUMMARY:" in full_out:
                         sum_text = full_out.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
                         st.info(f"**Technical Summary:**\n\n{sum_text}")
 
-                    # Render Mermaid & Update Wallet
+                    # 2. Render & Update Credits (Rerun Logic)
                     if "graph TD" in full_out:
                         match = re.search(r"graph\s+TD[\s\S]*", full_out)
                         if match:
                             clean_code = match.group(0).replace("```mermaid", "").replace("```", "").strip()
-                            clean_code = clean_code.replace("(", "[").replace(")", "]")
+                            clean_code = clean_code.replace("(", "[").replace(")", "]").split("\n\n")[0]
                             
                             st.markdown("---")
+                            st.markdown("### 📊 Architecture Flowchart")
                             st_mermaid(clean_code, height=450)
                             
-                            # Real-time Wallet Update Fix
+                            # Credit Deduction & Refresh
                             st.session_state.user_data['credits'] -= credit_cost
                             st.toast(f"🔥 {credit_cost} Credits deducted!")
                             time.sleep(1)
