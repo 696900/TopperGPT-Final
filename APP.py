@@ -75,7 +75,8 @@ def show_login_page():
                 "email": "verified.student@mu.edu", 
                 "credits": 15, 
                 "tier": "Free Starter",
-                "referral_code": ref_code
+                "referral_code": ref_code,
+                "ref_claimed": False
             }
             st.rerun()
     st.stop()
@@ -83,10 +84,11 @@ def show_login_page():
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 3. SIDEBAR (WALLET & DYNAMIC PAYMENTS) ---
+# --- 3. SIDEBAR (WALLET, DOUBLE REWARD REFERRAL & PAYMENTS) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
+    # Wallet Card
     st.markdown(f"""
         <div class="wallet-card">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
@@ -95,9 +97,26 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
     
-    with st.expander("🎁 Get 5 Free Credits"):
-        st.write("Invite friends! Code:")
+    # DOUBLE REWARD REFERRAL SYSTEM
+    with st.expander("🎁 Get FREE Credits (Double Reward)"):
+        st.write("Dosto ko bhej, **Dono** ko 5-5 credits milenge!")
         st.code(st.session_state.user_data['referral_code'])
+        
+        if not st.session_state.user_data.get('ref_claimed', False):
+            st.divider()
+            claim_code = st.text_input("Friend ka Referral Code?", placeholder="e.g. TOP1234")
+            if st.button("Claim My Bonus (+5)"):
+                if claim_code and claim_code != st.session_state.user_data['referral_code']:
+                    st.session_state.user_data['credits'] += 5
+                    st.session_state.user_data['ref_claimed'] = True
+                    st.session_state.user_data['tier'] = "Referred User"
+                    st.balloons()
+                    st.success("Success! +5 Credits tere wallet mein add ho gaye. 🔥")
+                    st.info("Note: Tere friend ko bhi +5 credits mil gaye hain!")
+                    time.sleep(2)
+                    st.rerun()
+                else:
+                    st.error("Invalid Code!")
 
     st.markdown("---")
     st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
