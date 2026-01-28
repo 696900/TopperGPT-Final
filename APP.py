@@ -161,11 +161,11 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---
-# --- TAB 1: SMART NOTE ANALYSIS (404 ERROR & PERSISTENCE FIX) ---
+# --- TAB 1: SMART NOTE ANALYSIS (MASTER GROQ VERSION - NO CLOUD ERRORS) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
-    # Professional English Pricing Header
+    # Professional English Header
     st.markdown("""
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
@@ -182,93 +182,82 @@ with tab1:
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    # 1. UPLOADER SECTION
-    up_notes = st.file_uploader("Upload Engineering Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="gemini_final_fix")
+    # 1. UPLOADER
+    up_notes = st.file_uploader("Upload Engineering Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="master_sync_v9")
     
-    # 2. CLOUD SYNC LOGIC (The 404 Fix)
+    # 2. THE "NO-FAIL" SYNC LOGIC
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Cloud Syncing... AI is processing the document."):
+            with st.spinner("Extracting Knowledge... (Using High-Speed Groq Engine)"):
                 try:
-                    # FIX: Using direct model name and calling generate_content correctly
-                    # Some SDKs prefer the model name without 'models/' prefix
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    raw_text = ""
+                    if up_notes.type == "application/pdf":
+                        import pdfplumber
+                        # Memory-Efficient Reading: Only taking core technical pages to avoid crash
+                        with pdfplumber.open(io.BytesIO(up_notes.read())) as pdf:
+                            pages = pdf.pages[:30] # First 30 pages are enough for most Q-Banks
+                            raw_text = "\n".join([p.extract_text() for p in pages if p.extract_text()])
+                    else:
+                        # Image fallback using a direct model name to avoid 404
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract all technical text."])
+                        raw_text = res.text
                     
-                    # Preparing content for cloud processing
-                    res = model.generate_content([
-                        {"mime_type": up_notes.type, "data": up_notes.getvalue()},
-                        "Extract all technical text, formulas, and concepts for engineering study."
-                    ])
-                    
-                    if res and res.text:
-                        st.session_state.pdf_content = res.text
+                    if raw_text.strip():
+                        st.session_state.pdf_content = raw_text
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
                         st.session_state.user_data['credits'] -= 3
                         st.success(f"✅ Document '{up_notes.name}' Synced!")
                         time.sleep(1)
                         st.rerun()
+                    else:
+                        st.error("Text extraction failed. Try a clearer document.")
                 except Exception as e:
-                    # If direct name fails, try the alternative naming convention
-                    try:
-                        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract text."])
-                        st.session_state.pdf_content = res.text
-                        st.session_state.current_file = up_notes.name
-                        st.session_state.user_data['credits'] -= 3
-                        st.rerun()
-                    except:
-                        st.error(f"Cloud Connection Error: {e}. Please ensure your GEMINI_API_KEY is active and valid.")
+                    st.error(f"Sync Error: {e}. Try uploading a smaller version (under 5MB).")
         else:
-            st.error("Low Credit Balance! 3 Credits needed for Sync.")
+            st.error("Low Credit Balance!")
 
     st.divider()
     
-    # 3. HYBRID CHAT INTERFACE (ALWAYS ACTIVE)
+    # 3. HYBRID CHAT (Always Active)
     if st.session_state.pdf_content:
         st.info(f"📂 **Context Active:** Analysis of {st.session_state.current_file}")
     else:
         st.warning("🌐 **General Mode:** Ask any engineering question (No notes uploaded)")
 
-    # The Chat Box - Placed outside of any condition so it never disappears
     ui_chat = st.chat_input("Ask Professor GPT anything...")
     
     if ui_chat:
-        # Determine cost (Free for first 3 questions after sync)
+        # Credit Logic
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
         
         if st.session_state.user_data['credits'] >= cost:
             with st.spinner("Professor GPT is typing..."):
-                # Building context from PDF (if available) or general knowledge
-                context_chunk = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General Engineering Knowledge"
-                prompt = f"Role: Expert Engineering Professor.\nContext: {context_chunk}\n\nStudent Question: {ui_chat}"
+                # Use Groq (Llama-3.3) directly for text processing - Bulletproof!
+                context_chunk = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General expertise."
+                prompt = f"Engineering Expert. Context: {context_chunk}\n\nQuestion: {ui_chat}"
                 
                 try:
-                    # Use Groq for fast chat response
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
                     
                     st.session_state.user_data['credits'] -= cost
-                    if st.session_state.pdf_content: 
-                        st.session_state.ques_count += 1
+                    if st.session_state.pdf_content: st.session_state.ques_count += 1
                     
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
-                    
                     if cost > 0: st.toast("1 Credit used.")
-                    elif st.session_state.pdf_content: st.toast(f"Free Slot Used ({st.session_state.ques_count}/3)")
                 except Exception as e:
-                    st.error("AI service is busy. Please resubmit.")
+                    st.error("AI service is busy. Please try again.")
         else:
-            st.error("Insufficient Credits! Please top-up.")
+            st.error("Insufficient Credits!")
 
-    # 4. RESET OPTION
     if st.session_state.pdf_content:
-        if st.button("🗑️ Reset Note Context"):
+        if st.button("🗑️ Reset Session"):
             st.session_state.pdf_content = ""
             st.session_state.current_file = None
-            st.session_state.ques_count = 0
             st.rerun()
     # --- TAB 2: SYLLABUS MAGIC ---
     # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
