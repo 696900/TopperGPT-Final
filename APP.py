@@ -161,8 +161,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---import PyPDF2 # Iske liye 'pip install PyPDF2' chahiye hoga agar error aaye toh
-
-# --- TAB 1: SMART NOTE ANALYSIS (GEMINI CLOUD ENGINE - 100% WORKING) ---
+# --- TAB 1: SMART NOTE ANALYSIS (FINAL 404 BYPASS VERSION) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
@@ -172,34 +171,36 @@ with tab1:
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
         <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
             <li><b>3 Credits:</b> Charged to Sync and Analyze any Document (PDF/Image).</li>
-            <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per successful document sync.</li>
-            <li><b>1 Credit:</b> Will be charged per question starting from the 4th interaction.</li>
+            <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per document sync.</li>
+            <li><b>1 Credit:</b> Charged per question from the 4th interaction onwards.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
 
-    # Persistence States
+    # State Persistence
     if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
     # 1. UPLOADER
-    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="cloud_engine_v20")
+    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="final_404_fix_v25")
     
-    # 2. THE CLOUD ENGINE (NO LOCAL HANG)
+    # 2. THE STABLE ENGINE (404 BYPASS)
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("AI Cloud is reading your file... Please wait."):
+            with st.spinner("AI is reading your document..."):
                 try:
-                    # FIX: Using the most stable model call to avoid 404
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # FIX: Using 'gemini-1.5-flash-latest' to avoid 404 on v1beta
+                    # This is the most stable way to call the model right now
+                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
                     
-                    # Sending to Cloud for OCR/Reading
-                    # This handles large 12MB files easily because it happens on Google servers
-                    response = model.generate_content([
-                        "Act as an Engineering Professor. Read this entire document and extract all the key technical concepts and text so I can study from it.",
+                    # Prepare content
+                    contents = [
+                        "Extract all engineering text, formulas, and important questions from this document for student study.",
                         {"mime_type": up_notes.type, "data": up_notes.getvalue()}
-                    ])
+                    ]
+                    
+                    response = model.generate_content(contents)
                     
                     if response and response.text:
                         st.session_state.pdf_content = response.text
@@ -207,22 +208,28 @@ with tab1:
                         st.session_state.ques_count = 0
                         st.session_state.user_data['credits'] -= 3
                         st.success(f"✅ '{up_notes.name}' Analysis Complete!")
-                        time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("AI cloud returned empty text. Try a clearer scan.")
+                        st.error("AI cloud returned empty text. Please try a clearer scan.")
                 except Exception as e:
-                    # Catching 404 or other API errors
-                    st.error(f"Cloud Engine Error: {e}")
-                    st.info("Tip: If you see 404, check if your Gemini API key has 'Generative AI API' enabled.")
+                    # Alternative model name if 'latest' is not supported in your region
+                    try:
+                        model = genai.GenerativeModel('gemini-1.5-pro')
+                        response = model.generate_content(contents)
+                        st.session_state.pdf_content = response.text
+                        st.session_state.current_file = up_notes.name
+                        st.session_state.user_data['credits'] -= 3
+                        st.rerun()
+                    except:
+                        st.error(f"System Error: {e}. Please ensure your GEMINI_API_KEY is active.")
         else:
-            st.error("Insufficient Credits! Need 3 credits.")
+            st.error("Insufficient Credits! Please Top-up.")
 
     st.divider()
     
-    # 3. CHAT INTERFACE
+    # 3. HYBRID CHAT INTERFACE
     if st.session_state.pdf_content:
-        st.info(f"📂 **Context Active:** Analyzing {st.session_state.current_file}")
+        st.info(f"📂 **Context Active:** Analysis of {st.session_state.current_file}")
     else:
         st.warning("🌐 **General Mode:** Ask any engineering question (No notes uploaded)")
 
@@ -232,12 +239,12 @@ with tab1:
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
         
         if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("Professor GPT is thinking..."):
-                # Use the extracted Cloud text as context for Groq (Llama 3.3)
+            with st.spinner("Professor GPT is typing..."):
                 context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
                 prompt = f"Role: Engineering Expert. Context: {context}\n\nStudent Question: {ui_chat}"
                 
                 try:
+                    # Chatting is handled by Groq for lightning speed
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
@@ -248,7 +255,7 @@ with tab1:
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
                     if cost > 0: st.toast("1 Credit used.")
                 except Exception as e:
-                    st.error("AI service is busy. Try again.")
+                    st.error("AI service is currently busy. Try again.")
         else:
             st.error("Insufficient Credits!")
 
