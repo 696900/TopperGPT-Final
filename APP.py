@@ -162,7 +162,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---import PyPDF2 # Iske liye 'pip install PyPDF2' chahiye hoga agar error aaye toh
 
-# --- TAB 1: SMART NOTE ANALYSIS (ULTRA-FAST HYBRID) ---
+# --- TAB 1: SMART NOTE ANALYSIS (ULTRA-STABLE ENGINE) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
@@ -172,8 +172,8 @@ with tab1:
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
         <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
             <li><b>3 Credits:</b> Charged to Sync and Analyze any Document (PDF/Image).</li>
-            <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per document sync.</li>
-            <li><b>1 Credit:</b> Charged per question from the 4th interaction onwards.</li>
+            <li><b>Free Access:</b> The first <b>3 Questions</b> are FREE after every successful sync.</li>
+            <li><b>1 Credit:</b> Will be charged per question starting from the 4th interaction.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -183,41 +183,44 @@ with tab1:
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    # 2. UPLOADER
-    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="ultra_fast_sync_v1")
+    # 2. FILE UPLOADER
+    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="stable_engine_v12")
     
-    # 3. FAST EXTRACTION LOGIC
+    # 3. FAST SYNC LOGIC (NO CLOUD ERRORS)
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Fast-Syncing Engineering Data..."):
+            with st.spinner("Processing Document..."):
                 try:
                     raw_text = ""
                     if up_notes.type == "application/pdf":
-                        # PyPDF2 is much lighter than pdfplumber for large files
-                        reader = PyPDF2.PdfReader(io.BytesIO(up_notes.read()))
-                        # Reading up to 60 pages (Mechanics Q-Bank cover ho jayega)
-                        pages_limit = min(len(reader.pages), 60)
-                        for i in range(pages_limit):
+                        # Using pypdf which is light and fast for 12MB+ files
+                        from pypdf import PdfReader
+                        reader = PdfReader(io.BytesIO(up_notes.read()))
+                        # Reading up to 50 pages to prevent memory crash
+                        num_pages = min(len(reader.pages), 50)
+                        for i in range(num_pages):
                             page = reader.pages[i]
-                            raw_text += page.extract_text() + "\n"
+                            raw_text += (page.extract_text() or "") + "\n"
                     else:
-                        # Image OCR stays with Gemini (Simple & Stable)
+                        # Image OCR using Gemini stable model
+                        import google.generativeai as genai
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract all technical text."])
+                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract technical text."])
                         raw_text = res.text
                     
                     if raw_text.strip():
                         st.session_state.pdf_content = raw_text
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
+                        # Deduct credits on success
                         st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ '{up_notes.name}' Synced! 3 Credits Deducted.")
+                        st.success(f"✅ '{up_notes.name}' Synced!")
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("Text not found. File might be an unreadable scan.")
+                        st.error("Text extraction failed. Try a clearer document.")
                 except Exception as e:
-                    st.error(f"Sync Error: {e}. Please try a smaller PDF.")
+                    st.error(f"Sync Error: {e}. Ensure you have 'pypdf' installed.")
         else:
             st.error("Low Credit Balance!")
 
@@ -229,20 +232,19 @@ with tab1:
     else:
         st.warning("🌐 **General Mode:** Ask any engineering question (No notes uploaded)")
 
-    # Always Visible Chat Box
     ui_chat = st.chat_input("Ask Professor GPT anything...")
     
     if ui_chat:
-        # Credit Logic: 3 Free then 1 Credit
+        # Credit Logic: 3 free, then 1 per question
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
         
         if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("Processing..."):
-                context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "No context. Use general engineering knowledge."
-                prompt = f"Role: Expert Engineering Professor. Context: {context}\n\nStudent Question: {ui_chat}"
+            with st.spinner("Thinking..."):
+                context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
+                prompt = f"Role: Engineering Expert. Context: {context}\n\nQuestion: {ui_chat}"
                 
                 try:
-                    # Groq (Llama 3.3) for instant answers
+                    # Using Groq (Llama 3.3) for instant responses
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
@@ -253,7 +255,7 @@ with tab1:
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
                     if cost > 0: st.toast("1 Credit used.")
                 except Exception as e:
-                    st.error("AI service busy. Please resubmit.")
+                    st.error("AI service busy. Try again.")
         else:
             st.error("Insufficient Credits!")
 
