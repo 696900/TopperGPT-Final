@@ -161,11 +161,11 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---
-# --- TAB 1: SMART NOTE ANALYSIS (FINAL 404 & HYBRID FIX) ---
+# --- TAB 1: SMART NOTE ANALYSIS (404 ERROR & PERSISTENCE FIX) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
-    # 1. Professional Pricing Header (English)
+    # Professional English Pricing Header
     st.markdown("""
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
@@ -177,95 +177,99 @@ with tab1:
     </div>
     """, unsafe_allow_html=True)
 
-    # State Persistence
+    # Persistence States
     if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    # 2. Uploader
-    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="final_stable_sync")
+    # 1. UPLOADER SECTION
+    up_notes = st.file_uploader("Upload Engineering Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="gemini_final_fix")
     
-    # 3. CLOUD SYNC LOGIC (404 ERROR FIX)
+    # 2. CLOUD SYNC LOGIC (The 404 Fix)
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Processing document via Cloud AI..."):
+            with st.spinner("Cloud Syncing... AI is processing the document."):
                 try:
-                    # FIX: Correct model calling for v1beta to avoid 404
+                    # FIX: Using direct model name and calling generate_content correctly
+                    # Some SDKs prefer the model name without 'models/' prefix
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # Native call without 'models/' prefix if using the latest SDK
+                    # Preparing content for cloud processing
                     res = model.generate_content([
                         {"mime_type": up_notes.type, "data": up_notes.getvalue()},
-                        "Extract all engineering text and concepts from this document."
+                        "Extract all technical text, formulas, and concepts for engineering study."
                     ])
                     
-                    if res.text:
+                    if res and res.text:
                         st.session_state.pdf_content = res.text
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
                         st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ Document Synced!")
+                        st.success(f"✅ Document '{up_notes.name}' Synced!")
                         time.sleep(1)
                         st.rerun()
                 except Exception as e:
-                    # Detailed Error logging to debug
-                    st.error(f"Cloud Error: {e}")
+                    # If direct name fails, try the alternative naming convention
+                    try:
+                        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract text."])
+                        st.session_state.pdf_content = res.text
+                        st.session_state.current_file = up_notes.name
+                        st.session_state.user_data['credits'] -= 3
+                        st.rerun()
+                    except:
+                        st.error(f"Cloud Connection Error: {e}. Please ensure your GEMINI_API_KEY is active and valid.")
         else:
-            st.error("Low Credit Balance!")
+            st.error("Low Credit Balance! 3 Credits needed for Sync.")
 
     st.divider()
     
-    # 4. HYBRID CHAT INTERFACE (ALWAYS ON)
+    # 3. HYBRID CHAT INTERFACE (ALWAYS ACTIVE)
     if st.session_state.pdf_content:
         st.info(f"📂 **Context Active:** Analysis of {st.session_state.current_file}")
     else:
         st.warning("🌐 **General Mode:** Ask any engineering question (No notes uploaded)")
 
-    # The Input Box that NEVER disappears
+    # The Chat Box - Placed outside of any condition so it never disappears
     ui_chat = st.chat_input("Ask Professor GPT anything...")
     
     if ui_chat:
-        # Credit Logic
+        # Determine cost (Free for first 3 questions after sync)
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
         
         if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("Professor GPT is thinking..."):
-                context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General Engineering Knowledge"
-                prompt = f"Role: Engineering Expert.\nContext: {context}\nQuestion: {ui_chat}"
+            with st.spinner("Professor GPT is typing..."):
+                # Building context from PDF (if available) or general knowledge
+                context_chunk = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General Engineering Knowledge"
+                prompt = f"Role: Expert Engineering Professor.\nContext: {context_chunk}\n\nStudent Question: {ui_chat}"
                 
                 try:
+                    # Use Groq for fast chat response
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
+                    
                     st.session_state.user_data['credits'] -= cost
-                    if st.session_state.pdf_content: st.session_state.ques_count += 1
+                    if st.session_state.pdf_content: 
+                        st.session_state.ques_count += 1
                     
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
+                    
                     if cost > 0: st.toast("1 Credit used.")
+                    elif st.session_state.pdf_content: st.toast(f"Free Slot Used ({st.session_state.ques_count}/3)")
                 except Exception as e:
-                    st.error("Connection busy.")
+                    st.error("AI service is busy. Please resubmit.")
         else:
-            st.error("Insufficient Credits!")
+            st.error("Insufficient Credits! Please top-up.")
 
-# --- SIDEBAR (STRICT ANTI-JUGAAD FIX) ---
-with st.sidebar:
-    # ... (Wallet code remains same)
-    
-    with st.expander("🎁 Get FREE Credits (Double Reward)"):
-        st.code(st.session_state.user_data['referral_code'])
-        if not st.session_state.user_data.get('ref_claimed', False):
-            claim_input = st.text_input("Friend's Code?", key="ref_claim_final")
-            if st.button("Claim My Bonus"):
-                clean_ref = claim_input.strip().upper()
-                # STRICT REGEX FIX: Must be exactly TOP + 4 digits
-                if re.fullmatch(r"TOP\d{4}", clean_ref) and clean_ref != st.session_state.user_data['referral_code']:
-                    st.session_state.user_data['credits'] += 5
-                    st.session_state.user_data['ref_claimed'] = True
-                    st.balloons()
-                    st.rerun()
-                else:
-                    st.error("Invalid Code! Jugaad not allowed. 😂")
+    # 4. RESET OPTION
+    if st.session_state.pdf_content:
+        if st.button("🗑️ Reset Note Context"):
+            st.session_state.pdf_content = ""
+            st.session_state.current_file = None
+            st.session_state.ques_count = 0
+            st.rerun()
     # --- TAB 2: SYLLABUS MAGIC ---
     # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
 with tab2:
