@@ -160,8 +160,9 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
-# --- TAB LOGIC STARTS HERE (Same as your original code) ---
-# --- TAB 1: SMART NOTE ANALYSIS (STABLE GROQ ENGINE) ---
+# --- TAB LOGIC STARTS HERE (Same as your original code) ---import PyPDF2 # Iske liye 'pip install PyPDF2' chahiye hoga agar error aaye toh
+
+# --- TAB 1: SMART NOTE ANALYSIS (ULTRA-FAST HYBRID) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
@@ -183,24 +184,26 @@ with tab1:
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
     # 2. UPLOADER
-    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="final_master_v10")
+    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="ultra_fast_sync_v1")
     
-    # 3. DIRECT EXTRACTION LOGIC (NO CLOUD ERRORS)
+    # 3. FAST EXTRACTION LOGIC
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Analyzing document..."):
+            with st.spinner("Fast-Syncing Engineering Data..."):
                 try:
                     raw_text = ""
                     if up_notes.type == "application/pdf":
-                        import pdfplumber
-                        # Efficient Reading: Taking enough pages for context without crashing
-                        with pdfplumber.open(io.BytesIO(up_notes.read())) as pdf:
-                            pages = pdf.pages[:40] # Reads up to 40 pages
-                            raw_text = "\n".join([p.extract_text() for p in pages if p.extract_text()])
+                        # PyPDF2 is much lighter than pdfplumber for large files
+                        reader = PyPDF2.PdfReader(io.BytesIO(up_notes.read()))
+                        # Reading up to 60 pages (Mechanics Q-Bank cover ho jayega)
+                        pages_limit = min(len(reader.pages), 60)
+                        for i in range(pages_limit):
+                            page = reader.pages[i]
+                            raw_text += page.extract_text() + "\n"
                     else:
-                        # Image fallback using stable Gemini call
+                        # Image OCR stays with Gemini (Simple & Stable)
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract technical text."])
+                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract all technical text."])
                         raw_text = res.text
                     
                     if raw_text.strip():
@@ -208,36 +211,38 @@ with tab1:
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
                         st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ '{up_notes.name}' Synced!")
+                        st.success(f"✅ '{up_notes.name}' Synced! 3 Credits Deducted.")
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("Extraction failed. Document might be too blurry or empty.")
+                        st.error("Text not found. File might be an unreadable scan.")
                 except Exception as e:
-                    st.error(f"Sync Error: {e}. Try a file under 5MB.")
+                    st.error(f"Sync Error: {e}. Please try a smaller PDF.")
         else:
             st.error("Low Credit Balance!")
 
     st.divider()
     
-    # 4. HYBRID CHAT (Always Active)
+    # 4. HYBRID CHAT INTERFACE
     if st.session_state.pdf_content:
         st.info(f"📂 **Context Active:** Analysis of {st.session_state.current_file}")
     else:
         st.warning("🌐 **General Mode:** Ask any engineering question (No notes uploaded)")
 
+    # Always Visible Chat Box
     ui_chat = st.chat_input("Ask Professor GPT anything...")
     
     if ui_chat:
-        # Credit Logic: 3 free then 1 per question
+        # Credit Logic: 3 Free then 1 Credit
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
         
         if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("Thinking..."):
-                context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
-                prompt = f"Role: Engineering Expert. Context: {context}\n\nStudent Question: {ui_chat}"
+            with st.spinner("Processing..."):
+                context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "No context. Use general engineering knowledge."
+                prompt = f"Role: Expert Engineering Professor. Context: {context}\n\nStudent Question: {ui_chat}"
                 
                 try:
+                    # Groq (Llama 3.3) for instant answers
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
@@ -246,14 +251,14 @@ with tab1:
                     if st.session_state.pdf_content: st.session_state.ques_count += 1
                     
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
-                    if cost > 0: st.toast("1 Credit deducted.")
+                    if cost > 0: st.toast("1 Credit used.")
                 except Exception as e:
-                    st.error("AI node is busy. Try again.")
+                    st.error("AI service busy. Please resubmit.")
         else:
             st.error("Insufficient Credits!")
 
     if st.session_state.pdf_content:
-        if st.button("🗑️ Reset Session"):
+        if st.button("🗑️ Reset Chat Context"):
             st.session_state.pdf_content = ""
             st.session_state.current_file = None
             st.rerun()
