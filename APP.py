@@ -162,8 +162,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---
 # ... rest of your tab logic starts here ...
-    # --- TAB 1: SMART NOTE ANALYSIS (FINAL UI FIX) ---
-# --- TAB 1: SMART NOTE ANALYSIS (HYBRID MODE - FIXED) ---
+# --- TAB 1: SMART NOTE ANALYSIS (FIXED SYNC LOGIC) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
@@ -171,99 +170,80 @@ with tab1:
     if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
     if "current_file" not in st.session_state: st.session_state.current_file = None
     
-    # Pricing info
     st.caption("💎 Cost: 5 Credits to Sync File | 1 Credit per Question")
 
     # 2. File Uploader
     up_notes = st.file_uploader(
         "Upload Notes (PDF or Image)", 
         type=["pdf", "png", "jpg", "jpeg"], 
-        key="hybrid_uploader_v2"
+        key="hybrid_uploader_v3"
     )
     
-    # 3. File Processing Logic (5 Credits)
-    if up_notes and st.session_state.current_file != up_notes.name:
-        if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Analyzing technical data & extracting text..."):
-                try:
-                    if up_notes.type == "application/pdf":
-                        # PDF Extraction
-                        with pdfplumber.open(io.BytesIO(up_notes.read())) as pdf:
-                            text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                            st.session_state.pdf_content = text
-                    else:
-                        # Image OCR using Gemini Flash (FREE API)
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content([
-                            {"mime_type": up_notes.type, "data": up_notes.getvalue()}, 
-                            "Extract all technical text and formulas from this image."
-                        ])
-                        st.session_state.pdf_content = res.text
-                    
-                    # Deduct 5 Credits for Syncing
-                    st.session_state.user_data['credits'] -= 5
-                    st.session_state.current_file = up_notes.name
-                    st.success("File Synced! 5 Credits deducted.")
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Sync Error: {e}")
-        else:
-            st.error("Low Balance! File analysis requires 5 credits.")
+    # 3. FORCE SYNC LOGIC
+    if up_notes:
+        # Check if it's a new file or if content is missing
+        if st.session_state.current_file != up_notes.name or not st.session_state.pdf_content:
+            if st.session_state.user_data['credits'] >= 5:
+                with st.spinner("Processing PDF... Analyzing engineering context..."):
+                    try:
+                        extracted_text = ""
+                        if up_notes.type == "application/pdf":
+                            # Using pdfplumber for high-quality extraction
+                            with pdfplumber.open(io.BytesIO(up_notes.read())) as pdf:
+                                extracted_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                        else:
+                            # Image OCR Logic
+                            model = genai.GenerativeModel('gemini-1.5-flash')
+                            res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract all text."])
+                            extracted_text = res.text
+                        
+                        if extracted_text.strip():
+                            st.session_state.pdf_content = extracted_text
+                            st.session_state.current_file = up_notes.name
+                            st.session_state.user_data['credits'] -= 5
+                            st.success(f"✅ {up_notes.name} Synced! 5 Credits deducted.")
+                            st.rerun() # Refresh to update UI mode
+                        else:
+                            st.error("Could not extract text from this file. Is it empty?")
+                    except Exception as e:
+                        st.error(f"Processing Error: {e}")
+            else:
+                st.error("Insufficient Credits (Need 5)!")
 
     st.markdown("---")
     
-    # Mode Indicator
+    # 4. DYNAMIC MODE INDICATOR
     if st.session_state.pdf_content:
-        st.info("🔍 **Context Mode:** Active (AI is reading your notes)")
+        st.info(f"✅ **Context Mode Active:** Analyzing '{st.session_state.current_file}'")
     else:
-        st.warning("🌐 **General Mode:** Ask anything (No notes uploaded)")
+        st.warning("🌐 **General Mode:** Using global engineering knowledge (No notes detected)")
 
-    # 4. Chat Interface (1 Credit per Question)
-    ui_chat = st.chat_input("Ask Professor GPT anything...")
+    # 5. Chat Input
+    ui_chat = st.chat_input("Ask Professor GPT anything about your notes...")
     
     if ui_chat:
         if st.session_state.user_data['credits'] >= 1:
-            with st.spinner("Professor GPT is analyzing..."):
-                # Building the Context
-                context = st.session_state.pdf_content[:15000] # Safe limit
-                prompt = f"""
-                You are a Topper Engineering Professor. 
-                NOTES CONTEXT: {context if context else 'No notes uploaded.'}
-                
-                STUDENT QUESTION: {ui_chat}
-                
-                INSTRUCTIONS:
-                - Use the NOTES primarily to answer.
-                - If not in notes, use your deep engineering expertise.
-                - Use clear bullet points and bold technical terms.
-                """
+            with st.spinner("Analyzing..."):
+                # Use PDF content as context
+                context = st.session_state.pdf_content[:15000]
+                prompt = f"System: You are an Engineering Professor. Context: {context}\n\nUser: {ui_chat}"
                 
                 try:
-                    # Deduction for processing
                     st.session_state.user_data['credits'] -= 1
-                    
-                    # Groq Call (Llama 3.3 for Speed)
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
-                    
-                    # Display Result
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
-                    st.toast("1 Credit deducted for AI analysis.")
-                    
-                    # Note: We don't rerun here immediately so user can read the answer
-                    # Wallet will update on next interaction
                 except Exception as e:
-                    st.session_state.user_data['credits'] += 1 # Refund on error
-                    st.error(f"Connection error: {e}")
+                    st.session_state.user_data['credits'] += 1 # Refund
+                    st.error(f"Error: {e}")
         else:
-            st.error("Insufficient Credits! 1 Credit required to ask questions.")
+            st.error("Insufficient Credits (Need 1)!")
 
-    # 5. Clear Button
+    # Clear Button
     if st.session_state.pdf_content:
-        if st.button("🗑️ Clear Notes Cache"):
+        if st.button("🗑️ Clear Current File"):
             st.session_state.pdf_content = ""
             st.session_state.current_file = None
             st.rerun()       
