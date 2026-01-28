@@ -163,73 +163,110 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---
 # ... rest of your tab logic starts here ...
     # --- TAB 1: SMART NOTE ANALYSIS (FINAL UI FIX) ---
-    # --- TAB 1: SMART NOTE ANALYSIS (HYBRID MODE) ---
+# --- TAB 1: SMART NOTE ANALYSIS (HYBRID MODE - FIXED) ---
 with tab1:
-        st.subheader("📚 Smart Note Analysis")
-        
-        # 1. File Uploader (Optional)
-        up_notes = st.file_uploader(
-            "Upload Notes (Optional - for context-based answers)", 
-            type=["pdf", "png", "jpg", "jpeg"], 
-            key="hybrid_uploader"
-        )
-        
-        # 2. Background Syncing (If file is uploaded)
-        if up_notes:
-            if "current_file" not in st.session_state or st.session_state.current_file != up_notes.name:
-                with st.spinner("Syncing technical data..."):
+    st.subheader("📚 Smart Note Analysis")
+    
+    # 1. State Initialization
+    if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
+    if "current_file" not in st.session_state: st.session_state.current_file = None
+    
+    # Pricing info
+    st.caption("💎 Cost: 5 Credits to Sync File | 1 Credit per Question")
+
+    # 2. File Uploader
+    up_notes = st.file_uploader(
+        "Upload Notes (PDF or Image)", 
+        type=["pdf", "png", "jpg", "jpeg"], 
+        key="hybrid_uploader_v2"
+    )
+    
+    # 3. File Processing Logic (5 Credits)
+    if up_notes and st.session_state.current_file != up_notes.name:
+        if st.session_state.user_data['credits'] >= 5:
+            with st.spinner("Analyzing technical data & extracting text..."):
+                try:
                     if up_notes.type == "application/pdf":
-                        try:
-                            with pdfplumber.open(io.BytesIO(up_notes.read())) as pdf:
-                                st.session_state.pdf_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                            st.session_state.current_file = up_notes.name
-                            st.toast("✅ Notes Synced! Using context mode.", icon="📚")
-                        except Exception as e:
-                            st.error(f"Sync Error: {e}")
+                        # PDF Extraction
+                        with pdfplumber.open(io.BytesIO(up_notes.read())) as pdf:
+                            text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                            st.session_state.pdf_content = text
                     else:
+                        # Image OCR using Gemini Flash (FREE API)
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract text."])
+                        res = model.generate_content([
+                            {"mime_type": up_notes.type, "data": up_notes.getvalue()}, 
+                            "Extract all technical text and formulas from this image."
+                        ])
                         st.session_state.pdf_content = res.text
-                        st.session_state.current_file = up_notes.name
-                        st.toast("✅ Image Synced!", icon="📸")
-
-        # 3. Permanent Chat Interface (No Warning)
-        st.markdown("---")
-        
-        # Minimal status indicator
-        if st.session_state.get("pdf_content"):
-            st.caption("🔍 **Mode:** Contextual (Analyzing your uploaded notes)")
+                    
+                    # Deduct 5 Credits for Syncing
+                    st.session_state.user_data['credits'] -= 5
+                    st.session_state.current_file = up_notes.name
+                    st.success("File Synced! 5 Credits deducted.")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Sync Error: {e}")
         else:
-            st.caption("🌐 **Mode:** General Engineering Knowledge (Hybrid Mode Active)")
+            st.error("Low Balance! File analysis requires 5 credits.")
 
-        # Chat Input - ALWAYS VISIBLE AND ACTIVE
-        ui_chat = st.chat_input("Ask any engineering question...")
-        
-        if ui_chat:
-            with st.spinner("Professor GPT is thinking..."):
-                # Hybrid Logic: Context + General Knowledge
-                context = st.session_state.get("pdf_content", "No specific notes uploaded.")
+    st.markdown("---")
+    
+    # Mode Indicator
+    if st.session_state.pdf_content:
+        st.info("🔍 **Context Mode:** Active (AI is reading your notes)")
+    else:
+        st.warning("🌐 **General Mode:** Ask anything (No notes uploaded)")
+
+    # 4. Chat Interface (1 Credit per Question)
+    ui_chat = st.chat_input("Ask Professor GPT anything...")
+    
+    if ui_chat:
+        if st.session_state.user_data['credits'] >= 1:
+            with st.spinner("Professor GPT is analyzing..."):
+                # Building the Context
+                context = st.session_state.pdf_content[:15000] # Safe limit
                 prompt = f"""
-                You are an expert Engineering Professor. 
-                Context from Student Notes (if any): {context[:12000]}
+                You are a Topper Engineering Professor. 
+                NOTES CONTEXT: {context if context else 'No notes uploaded.'}
                 
-                Question: {ui_chat}
+                STUDENT QUESTION: {ui_chat}
                 
-                Instructions:
-                1. If the answer is in the notes, use it.
-                2. If not in the notes, use your general engineering knowledge.
-                3. Be technically accurate and provide a detailed explanation.
+                INSTRUCTIONS:
+                - Use the NOTES primarily to answer.
+                - If not in notes, use your deep engineering expertise.
+                - Use clear bullet points and bold technical terms.
                 """
                 
-                # Using Groq for instant results without timeout
                 try:
+                    # Deduction for processing
+                    st.session_state.user_data['credits'] -= 1
+                    
+                    # Groq Call (Llama 3.3 for Speed)
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
-                    st.markdown(f"**Professor GPT:** {res.choices[0].message.content}")
+                    
+                    # Display Result
+                    st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
+                    st.toast("1 Credit deducted for AI analysis.")
+                    
+                    # Note: We don't rerun here immediately so user can read the answer
+                    # Wallet will update on next interaction
                 except Exception as e:
-                    st.error("Connection failed. Try again.")        
+                    st.session_state.user_data['credits'] += 1 # Refund on error
+                    st.error(f"Connection error: {e}")
+        else:
+            st.error("Insufficient Credits! 1 Credit required to ask questions.")
+
+    # 5. Clear Button
+    if st.session_state.pdf_content:
+        if st.button("🗑️ Clear Notes Cache"):
+            st.session_state.pdf_content = ""
+            st.session_state.current_file = None
+            st.rerun()       
     # --- TAB 2: SYLLABUS MAGIC ---
     # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
 with tab2:
