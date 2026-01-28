@@ -161,11 +161,11 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---
-# --- TAB 1: SMART NOTE ANALYSIS (MASTER GROQ VERSION - NO CLOUD ERRORS) ---
+# --- TAB 1: SMART NOTE ANALYSIS (STABLE GROQ ENGINE) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
-    # Professional English Header
+    # 1. Professional Pricing Header (English)
     st.markdown("""
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
@@ -182,25 +182,25 @@ with tab1:
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    # 1. UPLOADER
-    up_notes = st.file_uploader("Upload Engineering Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="master_sync_v9")
+    # 2. UPLOADER
+    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="final_master_v10")
     
-    # 2. THE "NO-FAIL" SYNC LOGIC
+    # 3. DIRECT EXTRACTION LOGIC (NO CLOUD ERRORS)
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Extracting Knowledge... (Using High-Speed Groq Engine)"):
+            with st.spinner("Analyzing document..."):
                 try:
                     raw_text = ""
                     if up_notes.type == "application/pdf":
                         import pdfplumber
-                        # Memory-Efficient Reading: Only taking core technical pages to avoid crash
+                        # Efficient Reading: Taking enough pages for context without crashing
                         with pdfplumber.open(io.BytesIO(up_notes.read())) as pdf:
-                            pages = pdf.pages[:30] # First 30 pages are enough for most Q-Banks
+                            pages = pdf.pages[:40] # Reads up to 40 pages
                             raw_text = "\n".join([p.extract_text() for p in pages if p.extract_text()])
                     else:
-                        # Image fallback using a direct model name to avoid 404
+                        # Image fallback using stable Gemini call
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract all technical text."])
+                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract technical text."])
                         raw_text = res.text
                     
                     if raw_text.strip():
@@ -208,19 +208,19 @@ with tab1:
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
                         st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ Document '{up_notes.name}' Synced!")
+                        st.success(f"✅ '{up_notes.name}' Synced!")
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("Text extraction failed. Try a clearer document.")
+                        st.error("Extraction failed. Document might be too blurry or empty.")
                 except Exception as e:
-                    st.error(f"Sync Error: {e}. Try uploading a smaller version (under 5MB).")
+                    st.error(f"Sync Error: {e}. Try a file under 5MB.")
         else:
             st.error("Low Credit Balance!")
 
     st.divider()
     
-    # 3. HYBRID CHAT (Always Active)
+    # 4. HYBRID CHAT (Always Active)
     if st.session_state.pdf_content:
         st.info(f"📂 **Context Active:** Analysis of {st.session_state.current_file}")
     else:
@@ -229,28 +229,26 @@ with tab1:
     ui_chat = st.chat_input("Ask Professor GPT anything...")
     
     if ui_chat:
-        # Credit Logic
+        # Credit Logic: 3 free then 1 per question
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
         
         if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("Professor GPT is typing..."):
-                # Use Groq (Llama-3.3) directly for text processing - Bulletproof!
-                context_chunk = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General expertise."
-                prompt = f"Engineering Expert. Context: {context_chunk}\n\nQuestion: {ui_chat}"
+            with st.spinner("Thinking..."):
+                context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
+                prompt = f"Role: Engineering Expert. Context: {context}\n\nStudent Question: {ui_chat}"
                 
                 try:
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
-                    
                     st.session_state.user_data['credits'] -= cost
                     if st.session_state.pdf_content: st.session_state.ques_count += 1
                     
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
-                    if cost > 0: st.toast("1 Credit used.")
+                    if cost > 0: st.toast("1 Credit deducted.")
                 except Exception as e:
-                    st.error("AI service is busy. Please try again.")
+                    st.error("AI node is busy. Try again.")
         else:
             st.error("Insufficient Credits!")
 
