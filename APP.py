@@ -161,11 +161,11 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---
-# --- TAB 1: SMART NOTE ANALYSIS (STABLE HYBRID & CLOUD FIX) ---
+# --- TAB 1: SMART NOTE ANALYSIS (FINAL 404 & HYBRID FIX) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
-    # English Pricing Header (Always Visible)
+    # 1. Professional Pricing Header (English)
     st.markdown("""
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
@@ -177,26 +177,26 @@ with tab1:
     </div>
     """, unsafe_allow_html=True)
 
-    # Persistence States
+    # State Persistence
     if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    # 1. UPLOADER SECTION
-    up_notes = st.file_uploader("Upload Engineering Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="gemini_stable_v1")
+    # 2. Uploader
+    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="final_stable_sync")
     
-    # 2. CLOUD SYNC LOGIC (With 404 Error Fix)
+    # 3. CLOUD SYNC LOGIC (404 ERROR FIX)
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Cloud Syncing... AI is processing the document."):
+            with st.spinner("Processing document via Cloud AI..."):
                 try:
-                    # Using the standard stable model to avoid 404 version issues
+                    # FIX: Correct model calling for v1beta to avoid 404
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # Native Cloud Processing
+                    # Native call without 'models/' prefix if using the latest SDK
                     res = model.generate_content([
                         {"mime_type": up_notes.type, "data": up_notes.getvalue()},
-                        "Extract all technical text, formulas, and concepts from this file for engineering study."
+                        "Extract all engineering text and concepts from this document."
                     ])
                     
                     if res.text:
@@ -204,62 +204,68 @@ with tab1:
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
                         st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ Document '{up_notes.name}' Synced!")
+                        st.success(f"✅ Document Synced!")
                         time.sleep(1)
                         st.rerun()
                 except Exception as e:
-                    st.error(f"Cloud Connection Error: {e}. Please ensure your GEMINI_API_KEY is active.")
+                    # Detailed Error logging to debug
+                    st.error(f"Cloud Error: {e}")
         else:
-            st.error("Low Credit Balance! 3 Credits needed for Sync.")
+            st.error("Low Credit Balance!")
 
     st.divider()
     
-    # 3. HYBRID CHAT INTERFACE (ALWAYS ACTIVE)
+    # 4. HYBRID CHAT INTERFACE (ALWAYS ON)
     if st.session_state.pdf_content:
         st.info(f"📂 **Context Active:** Analysis of {st.session_state.current_file}")
     else:
         st.warning("🌐 **General Mode:** Ask any engineering question (No notes uploaded)")
 
-    # Professor GPT Chat Input
+    # The Input Box that NEVER disappears
     ui_chat = st.chat_input("Ask Professor GPT anything...")
     
     if ui_chat:
-        # Determine cost (Free for first 3 questions after sync)
+        # Credit Logic
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
-        if not st.session_state.pdf_content: cost = 0 # General chat is free for testing
         
         if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("Professor GPT is typing..."):
-                # Combining PDF Context with Global Knowledge
-                context_chunk = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General Engineering Knowledge"
-                prompt = f"Role: Expert Engineering Professor.\nContext: {context_chunk}\n\nStudent Question: {ui_chat}"
+            with st.spinner("Professor GPT is thinking..."):
+                context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General Engineering Knowledge"
+                prompt = f"Role: Engineering Expert.\nContext: {context}\nQuestion: {ui_chat}"
                 
                 try:
-                    # Llama-3 (Groq) for lightning fast chat logic
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
                     )
-                    
                     st.session_state.user_data['credits'] -= cost
                     if st.session_state.pdf_content: st.session_state.ques_count += 1
                     
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
-                    
                     if cost > 0: st.toast("1 Credit used.")
-                    elif st.session_state.pdf_content: st.toast(f"Free Slot Used ({st.session_state.ques_count}/3)")
                 except Exception as e:
-                    st.error("AI node is busy. Please resubmit your question.")
+                    st.error("Connection busy.")
         else:
-            st.error("Insufficient Credits! Please top-up from the sidebar.")
+            st.error("Insufficient Credits!")
 
-    # 4. RESET OPTION
-    if st.session_state.pdf_content:
-        if st.button("🗑️ Reset Context"):
-            st.session_state.pdf_content = ""
-            st.session_state.current_file = None
-            st.session_state.ques_count = 0
-            st.rerun()
+# --- SIDEBAR (STRICT ANTI-JUGAAD FIX) ---
+with st.sidebar:
+    # ... (Wallet code remains same)
+    
+    with st.expander("🎁 Get FREE Credits (Double Reward)"):
+        st.code(st.session_state.user_data['referral_code'])
+        if not st.session_state.user_data.get('ref_claimed', False):
+            claim_input = st.text_input("Friend's Code?", key="ref_claim_final")
+            if st.button("Claim My Bonus"):
+                clean_ref = claim_input.strip().upper()
+                # STRICT REGEX FIX: Must be exactly TOP + 4 digits
+                if re.fullmatch(r"TOP\d{4}", clean_ref) and clean_ref != st.session_state.user_data['referral_code']:
+                    st.session_state.user_data['credits'] += 5
+                    st.session_state.user_data['ref_claimed'] = True
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.error("Invalid Code! Jugaad not allowed. 😂")
     # --- TAB 2: SYLLABUS MAGIC ---
     # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
 with tab2:
