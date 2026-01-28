@@ -161,18 +161,18 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---
-# --- TAB 1: SMART NOTE ANALYSIS (ADVANCED SYNC & NEW PRICING) ---
+# --- TAB 1: SMART NOTE ANALYSIS (RELIABLE SYNC & NEW PRICING) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
-    # Pricing Rules Display (English as requested)
+    # Professional Pricing Header (English)
     st.markdown("""
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
-        <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Pricing Policy:</p>
-        <ul style="color: #ffffff; font-size: 14px;">
-            <li><b>3 Credits:</b> To Sync and Analyze a new File (PDF/Image).</li>
-            <li><b>Free Trial:</b> First 3 Questions are FREE after syncing.</li>
-            <li><b>1 Credit:</b> Charged per question from the 4th question onwards.</li>
+        <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
+        <ul style="color: #ffffff; font-size: 14px; line-height: 1.6;">
+            <li><b>3 Credits:</b> To Sync and perform deep analysis on a new Document (PDF/Image).</li>
+            <li><b>Free Access:</b> The first <b>3 Questions</b> are completely FREE after every successful sync.</li>
+            <li><b>1 Credit:</b> Will be charged per question starting from the 4th interaction.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -182,63 +182,67 @@ with tab1:
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="hybrid_v4")
+    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="hybrid_v5_final")
     
-    # 1. FILE SYNC LOGIC (3 CREDITS)
+    # 1. OPTIMIZED FILE SYNC LOGIC
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Analyzing File Content... Please wait."):
+            with st.spinner("Analyzing large document... Please wait while Professor GPT reads."):
                 try:
                     extracted_text = ""
                     if up_notes.type == "application/pdf":
-                        # Try pdfplumber first
+                        # CRASH FIX: Using a faster, safer way to read large PDFs
+                        import pdfplumber
                         with pdfplumber.open(io.BytesIO(up_notes.read())) as pdf:
-                            extracted_text = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
+                            # Only taking first 50 pages to prevent "Not Responding" error for very large banks
+                            pages_to_read = pdf.pages[:50] 
+                            extracted_text = "\n".join([p.extract_text() for p in pages_to_read if p.extract_text()])
                         
-                        # If pdfplumber fails, use Gemini AI Vision (OCR)
+                        # Fallback to AI OCR if text is empty or binary
                         if not extracted_text.strip():
                             model = genai.GenerativeModel('gemini-1.5-flash')
-                            # Just taking the first page for OCR if text extraction fails
-                            res = model.generate_content(["Extract all text from this PDF content.", up_notes.getvalue()])
+                            # Sending small chunk to avoid timeout
+                            res = model.generate_content(["Convert this PDF data to text:", up_notes.getvalue()[:500000]])
                             extracted_text = res.text
                     else:
                         # Image OCR
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract all technical text."])
+                        res = model.generate_content([{"mime_type": up_notes.type, "data": up_notes.getvalue()}, "Extract technical text."])
                         extracted_text = res.text
                     
                     if extracted_text.strip():
+                        # SAVE DATA FIRST
                         st.session_state.pdf_content = extracted_text
                         st.session_state.current_file = up_notes.name
+                        st.session_state.ques_count = 0 
+                        
+                        # DEDUCT CREDITS ONLY ON SUCCESS
                         st.session_state.user_data['credits'] -= 3
-                        st.session_state.ques_count = 0 # Reset free questions for new file
-                        st.success(f"✅ {up_notes.name} Synced! 3 Credits deducted.")
+                        st.success(f"✅ {up_notes.name} Synced successfully!")
                         st.rerun()
                     else:
-                        st.error("Error: Could not read text. Please upload a clearer file.")
+                        st.error("Document is empty or unreadable. Please try a different version.")
                 except Exception as e:
-                    st.error(f"Processing Error: {e}")
+                    st.error(f"Processing Timeout: File is too large or complex. Try a smaller version.")
         else:
-            st.error("Low Balance! 3 Credits required for file analysis.")
+            st.error("Insufficient Balance! You need 3 Credits to analyze this file.")
 
     st.markdown("---")
     
-    # 2. CHAT LOGIC (FREE + 1 CREDIT)
+    # 2. INTERACTIVE CHAT INTERFACE
     if st.session_state.pdf_content:
-        st.info(f"🔍 Mode: Contextual Analysis of '{st.session_state.current_file}'")
+        st.info(f"🔍 **Active Context:** '{st.session_state.current_file}'")
     
-    ui_chat = st.chat_input("Ask Professor GPT...")
+    ui_chat = st.chat_input("Ask about your document...")
     
     if ui_chat:
-        # Determine cost
-        cost = 0
-        if st.session_state.ques_count >= 3:
-            cost = 1
+        # Credit Logic: First 3 free, then 1 credit
+        cost = 1 if st.session_state.ques_count >= 3 else 0
         
         if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("AI Professor is typing..."):
-                context = st.session_state.pdf_content[:15000]
-                prompt = f"System: Engineering Expert. Context: {context}\nUser: {ui_chat}"
+            with st.spinner("Professor GPT is analyzing..."):
+                context = st.session_state.pdf_content[:12000]
+                prompt = f"Expert System. Use this context: {context}\n\nQuestion: {ui_chat}"
                 
                 try:
                     res = groq_client.chat.completions.create(
@@ -248,24 +252,21 @@ with tab1:
                     
                     st.session_state.user_data['credits'] -= cost
                     st.session_state.ques_count += 1
-                    
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
                     
-                    if cost > 0:
-                        st.toast("1 Credit deducted.")
-                    else:
-                        st.toast(f"Free question used! ({st.session_state.ques_count}/3)")
+                    if cost > 0: st.toast("1 Credit used.")
+                    else: st.toast(f"Free Slot Used ({st.session_state.ques_count}/3)")
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error("AI service is currently busy. Try again in a moment.")
         else:
-            st.error("Insufficient Credits! Please top-up.")
+            st.error("Insufficient Credits for further questions. Please Top-up.")
 
     if st.session_state.pdf_content:
-        if st.button("🗑️ Clear File"):
+        if st.button("🗑️ Reset Session"):
             st.session_state.pdf_content = ""
             st.session_state.current_file = None
             st.session_state.ques_count = 0
-            st.rerun()    
+            st.rerun()  
     # --- TAB 2: SYLLABUS MAGIC ---
     # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
 with tab2:
