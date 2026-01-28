@@ -161,15 +161,15 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---
-# --- TAB 1: SMART NOTE ANALYSIS (GEMINI CLOUD SYNC) ---
+# --- TAB 1: SMART NOTE ANALYSIS (STABLE HYBRID & CLOUD FIX) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
-    # Professional English Header
+    # English Pricing Header (Always Visible)
     st.markdown("""
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
-        <ul style="color: #ffffff; font-size: 14px; line-height: 1.6;">
+        <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
             <li><b>3 Credits:</b> Charged to Sync and Analyze any Document (PDF/Image).</li>
             <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per document sync.</li>
             <li><b>1 Credit:</b> Charged per question from the 4th interaction onwards.</li>
@@ -177,29 +177,26 @@ with tab1:
     </div>
     """, unsafe_allow_html=True)
 
-    # State Persistence
+    # Persistence States
     if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    up_notes = st.file_uploader("Upload Engineering Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="gemini_sync_v1")
+    # 1. UPLOADER SECTION
+    up_notes = st.file_uploader("Upload Engineering Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="gemini_stable_v1")
     
-    # 1. CLOUD SYNC LOGIC (GEMINI FLASH)
+    # 2. CLOUD SYNC LOGIC (With 404 Error Fix)
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Cloud Syncing... AI is reading the entire document."):
+            with st.spinner("Cloud Syncing... AI is processing the document."):
                 try:
-                    # GEMINI FLASH NATIVE OCR (Handles large PDFs easily)
+                    # Using the standard stable model to avoid 404 version issues
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # File conversion for Gemini
-                    file_data = up_notes.getvalue()
-                    mime_type = up_notes.type
-                    
-                    # Deep Analysis Prompt
+                    # Native Cloud Processing
                     res = model.generate_content([
-                        {"mime_type": mime_type, "data": file_data},
-                        "You are an Engineering Professor. Read this entire document and summarize the core technical concepts so I can ask you questions later. Extract all visible text."
+                        {"mime_type": up_notes.type, "data": up_notes.getvalue()},
+                        "Extract all technical text, formulas, and concepts from this file for engineering study."
                     ])
                     
                     if res.text:
@@ -207,55 +204,62 @@ with tab1:
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
                         st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ {up_notes.name} Synced via Cloud AI!")
+                        st.success(f"✅ Document '{up_notes.name}' Synced!")
+                        time.sleep(1)
                         st.rerun()
-                    else:
-                        st.error("AI couldn't parse this file. Is it password protected?")
                 except Exception as e:
-                    st.error(f"Cloud Error: {e}")
+                    st.error(f"Cloud Connection Error: {e}. Please ensure your GEMINI_API_KEY is active.")
         else:
-            st.error("Need 3 Credits for Cloud Analysis.")
+            st.error("Low Credit Balance! 3 Credits needed for Sync.")
 
-    st.markdown("---")
+    st.divider()
     
-    # 2. CHAT INTERFACE
+    # 3. HYBRID CHAT INTERFACE (ALWAYS ACTIVE)
     if st.session_state.pdf_content:
-        st.info(f"📂 **Analyzing:** {st.session_state.current_file}")
-        
-        ui_chat = st.chat_input("Ask about the technical details...")
-        
-        if ui_chat:
-            cost = 1 if st.session_state.ques_count >= 3 else 0
-            
-            if st.session_state.user_data['credits'] >= cost:
-                with st.spinner("AI thinking..."):
-                    # Groq for fast chat response using Gemini's extracted summary
-                    context = st.session_state.pdf_content[:20000] # Increased context window
-                    prompt = f"Engineering Context: {context}\n\nUser Question: {ui_chat}\n\nExplain in detail as a Professor."
-                    
-                    try:
-                        res = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile", 
-                            messages=[{"role": "user", "content": prompt}]
-                        )
-                        
-                        st.session_state.user_data['credits'] -= cost
-                        st.session_state.ques_count += 1
-                        st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
-                        
-                        if cost > 0: st.toast("1 Credit used.")
-                        else: st.toast(f"Free Slot Used ({st.session_state.ques_count}/3)")
-                    except Exception as e:
-                        st.error("Service busy, please try again.")
-            else:
-                st.error("Insufficient Credits!")
+        st.info(f"📂 **Context Active:** Analysis of {st.session_state.current_file}")
+    else:
+        st.warning("🌐 **General Mode:** Ask any engineering question (No notes uploaded)")
 
+    # Professor GPT Chat Input
+    ui_chat = st.chat_input("Ask Professor GPT anything...")
+    
+    if ui_chat:
+        # Determine cost (Free for first 3 questions after sync)
+        cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
+        if not st.session_state.pdf_content: cost = 0 # General chat is free for testing
+        
+        if st.session_state.user_data['credits'] >= cost:
+            with st.spinner("Professor GPT is typing..."):
+                # Combining PDF Context with Global Knowledge
+                context_chunk = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General Engineering Knowledge"
+                prompt = f"Role: Expert Engineering Professor.\nContext: {context_chunk}\n\nStudent Question: {ui_chat}"
+                
+                try:
+                    # Llama-3 (Groq) for lightning fast chat logic
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    
+                    st.session_state.user_data['credits'] -= cost
+                    if st.session_state.pdf_content: st.session_state.ques_count += 1
+                    
+                    st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
+                    
+                    if cost > 0: st.toast("1 Credit used.")
+                    elif st.session_state.pdf_content: st.toast(f"Free Slot Used ({st.session_state.ques_count}/3)")
+                except Exception as e:
+                    st.error("AI node is busy. Please resubmit your question.")
+        else:
+            st.error("Insufficient Credits! Please top-up from the sidebar.")
+
+    # 4. RESET OPTION
     if st.session_state.pdf_content:
-        if st.button("🗑️ Reset Note Session"):
+        if st.button("🗑️ Reset Context"):
             st.session_state.pdf_content = ""
             st.session_state.current_file = None
             st.session_state.ques_count = 0
-            st.rerun()  
+            st.rerun()
     # --- TAB 2: SYLLABUS MAGIC ---
     # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
 with tab2:
