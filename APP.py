@@ -161,7 +161,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
-# --- TAB 1: SMART NOTE ANALYSIS (THE FINAL NO-FAIL ENGINE) ---
+## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
@@ -170,71 +170,62 @@ with tab1:
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
         <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
-            <li><b>3 Credits:</b> To Sync and Analyze any Document (PDF/Notes).</li>
+            <li><b>3 Credits:</b> To Sync and Analyze any Document (PDF/Scanned Images).</li>
             <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per document sync.</li>
-            <li><b>1 Credit:</b> Charged per question from the 4th interaction onwards.</li>
+            <li><b>1 Credit:</b> Charged per question starting from the 4th interaction.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
 
-    # Persistence States
     if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    # 1. UPLOADER
-    up_notes = st.file_uploader("Upload Engineering Notes (PDF Only)", type=["pdf"], key="final_absolute_v100")
+    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="stable_vision_v1")
     
-    # 2. LOCAL SYNC LOGIC (NO GEMINI API USED - NO 404 POSSIBLE)
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Syncing Knowledge Base..."):
+            with st.spinner("AI Cloud is scanning your document... (Vision Mode)"):
                 try:
-                    # Fast Local Extraction
-                    reader = PdfReader(io.BytesIO(up_notes.read()))
-                    raw_text = ""
-                    # Reading first 50 pages
-                    for page in reader.pages[:50]:
-                        extracted = page.extract_text()
-                        if extracted:
-                            raw_text += extracted + "\n"
+                    # Using the most stable call to avoid 404
+                    import google.generativeai as genai
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    if len(raw_text.strip()) > 50:
-                        st.session_state.pdf_content = raw_text
+                    # Force Vision OCR: Sending the file as a visual data part
+                    # Even if it's a scanned PDF, Gemini will 'look' at the first few pages
+                    response = model.generate_content([
+                        "Act as an Engineering Professor. Extract all text and formulas from this document. If it's a scanned image, perform deep OCR.",
+                        {"mime_type": up_notes.type, "data": up_notes.getvalue()}
+                    ])
+                    
+                    if response.text:
+                        st.session_state.pdf_content = response.text
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
-                        # Deduct credits only on 100% success
                         st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ '{up_notes.name}' Synced Successfully!")
-                        time.sleep(1)
+                        st.success(f"✅ '{up_notes.name}' Analyzed Successfully!")
                         st.rerun()
                     else:
-                        st.error("Text extraction failed. This PDF looks like a scanned image.")
-                        st.info("Tip: Use a text-based PDF or wait for GPT-4o integration tonight for scanned files.")
+                        st.error("AI returned empty content. Try a clearer scan.")
                 except Exception as e:
-                    st.error(f"Sync Error: {e}")
+                    # Fallback for 404 Error
+                    st.error(f"Cloud Engine Busy: {e}")
+                    st.info("Bhai, agar API 404 de rahi hai, toh sham ko GPT-4o key ke saath milte hain. Tab tak general chat use kar.")
         else:
             st.error("Insufficient Credits!")
 
     st.divider()
     
-    # 3. HYBRID CHAT (ALWAYS ACTIVE - USING STABLE GROQ)
-    if st.session_state.pdf_content:
-        st.info(f"📂 **Active Context:** {st.session_state.current_file}")
-    else:
-        st.warning("🌐 **General Mode:** Ask any engineering question (No context)")
-
+    # 3. HYBRID CHAT (Using Groq - 100% Stable)
     ui_chat = st.chat_input("Ask Professor GPT anything...")
     
     if ui_chat:
-        # Credit logic: first 3 questions are free
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
-        
         if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("Professor GPT is typing..."):
-                # Using Groq (Llama 3.3) for intelligence - It NEVER gives 404
-                context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General expertise."
-                prompt = f"Role: Senior Engineering Professor. Use this context: {context}\n\nStudent Question: {ui_chat}"
+            with st.spinner("Professor GPT is thinking..."):
+                # Intelligence from Groq (Llama 3.3)
+                context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
+                prompt = f"Role: Engineering Professor. Context: {context}\n\nQuestion: {ui_chat}"
                 
                 try:
                     res = groq_client.chat.completions.create(
@@ -245,17 +236,10 @@ with tab1:
                     if st.session_state.pdf_content: st.session_state.ques_count += 1
                     
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
-                    if cost > 0: st.toast("1 Credit used.")
                 except Exception as e:
-                    st.error("AI service is busy. Try again.")
+                    st.error("AI Node Busy.")
         else:
             st.error("Insufficient Credits!")
-
-    if st.session_state.pdf_content:
-        if st.button("🗑️ Reset Context"):
-            st.session_state.pdf_content = ""
-            st.session_state.current_file = None
-            st.rerun()
     # --- TAB 2: SYLLABUS MAGIC ---
     # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
 with tab2:
