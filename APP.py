@@ -161,7 +161,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---import PyPDF2 # Iske liye 'pip install PyPDF2' chahiye hoga agar error aaye toh
-# --- TAB 1: SMART NOTE ANALYSIS (STABLE OCR & HYBRID ENGINE) ---
+# --- TAB 1: SMART NOTE ANALYSIS (STABLE HYBRID ENGINE) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
@@ -170,7 +170,7 @@ with tab1:
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
         <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
-            <li><b>3 Credits:</b> To Sync and Analyze any Document (PDF/Image/Scan).</li>
+            <li><b>3 Credits:</b> To Sync and Analyze any Document (PDF/Image).</li>
             <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per document sync.</li>
             <li><b>1 Credit:</b> Charged per question from the 4th interaction onwards.</li>
         </ul>
@@ -181,19 +181,19 @@ with tab1:
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    up_notes = st.file_uploader("Upload Engineering Notes (PDF or Scanned Images)", type=["pdf", "png", "jpg", "jpeg"], key="stable_ocr_v30")
+    up_notes = st.file_uploader("Upload Notes (PDF or Scanned Images)", type=["pdf", "png", "jpg", "jpeg"], key="stable_engine_v50")
     
-    # THE STABLE CLOUD OCR LOGIC
+    # STABLE CLOUD LOGIC (BYPASSING V1BETA 404)
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("AI is performing Deep OCR (Optical Character Recognition)..."):
+            with st.spinner("AI is analyzing document context..."):
                 try:
-                    # Using the standard stable model path to avoid 404
+                    # Using the direct stable model name which is most compatible
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # Preparing content for Scanned/Text PDF
+                    # Prepare content for Stable API
                     response = model.generate_content([
-                        "You are an Engineering OCR Expert. Extract all text, formulas, and diagrams descriptions from this document accurately.",
+                        "Extract all technical text and concepts from this engineering document.",
                         {"mime_type": up_notes.type, "data": up_notes.getvalue()}
                     ])
                     
@@ -205,11 +205,11 @@ with tab1:
                         st.success(f"✅ '{up_notes.name}' Analysis Complete!")
                         st.rerun()
                     else:
-                        st.error("Text extraction failed. Try a clearer scan or a smaller file.")
+                        st.error("Text extraction failed. Try a clearer document.")
                 except Exception as e:
-                    # Last fallback: if API fails, try to notify about API key
+                    # Final fallback if Gemini Cloud completely fails
                     st.error(f"Sync Error: {e}")
-                    st.info("Ensure your Google Generative AI API is enabled in Google Cloud Console.")
+                    st.info("Check if your API Key is correctly set in the environment.")
         else:
             st.error("Insufficient Credits!")
 
@@ -218,7 +218,9 @@ with tab1:
     # CHAT INTERFACE
     if st.session_state.pdf_content:
         st.info(f"📂 **Context Active:** {st.session_state.current_file}")
-    
+    else:
+        st.warning("🌐 **General Mode:** Ask any engineering question (No notes uploaded)")
+
     ui_chat = st.chat_input("Ask Professor GPT anything...")
     
     if ui_chat:
@@ -226,9 +228,10 @@ with tab1:
         if st.session_state.user_data['credits'] >= cost:
             with st.spinner("Thinking..."):
                 context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
-                prompt = f"Engineering Professor Context: {context}\n\nQuestion: {ui_chat}"
+                prompt = f"Engineering Expert Context: {context}\n\nQuestion: {ui_chat}"
                 
                 try:
+                    # Groq stays as the primary chat brain (working perfectly)
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile", 
                         messages=[{"role": "user", "content": prompt}]
@@ -239,7 +242,7 @@ with tab1:
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
                     if cost > 0: st.toast("1 Credit used.")
                 except Exception as e:
-                    st.error(f"AI Service busy: {e}")
+                    st.error("AI service busy.")
         else:
             st.error("Insufficient Credits!")
 
