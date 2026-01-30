@@ -161,7 +161,6 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---import PyPDF2 # Iske liye 'pip install PyPDF2' chahiye hoga agar error aaye toh
-# --- TAB 1: SMART NOTE ANALYSIS (ULTRA-STABLE HYBRID) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
@@ -170,8 +169,8 @@ with tab1:
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
         <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
-            <li><b>3 Credits:</b> To Sync and Analyze any Document (PDF/Image).</li>
-            <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per successful sync.</li>
+            <li><b>3 Credits:</b> To Sync and Analyze any Document (PDF/Notes).</li>
+            <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per document sync.</li>
             <li><b>1 Credit:</b> Charged per question from the 4th interaction onwards.</li>
         </ul>
     </div>
@@ -183,61 +182,61 @@ with tab1:
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
     # 1. UPLOADER
-    up_notes = st.file_uploader("Upload Engineering Notes (PDF or Scanned Images)", type=["pdf", "png", "jpg", "jpeg"], key="final_v100_stable")
+    up_notes = st.file_uploader("Upload Engineering Notes (PDF Only)", type=["pdf"], key="final_college_fix_v1")
     
-    # 2. THE STABLE ENGINE (BYPASSING 404 AND MEMORY CRASH)
+    # 2. LOCAL SYNC LOGIC (BYPASSING ALL GOOGLE CLOUD ERRORS)
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("AI Professor is reading your notes..."):
+            with st.spinner("Local Syncing... No API dependencies..."):
                 try:
-                    # FIX: Using the absolute most stable model call available
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # Using pypdf for maximum stability and no 404 errors
+                    from pypdf import PdfReader
+                    reader = PdfReader(io.BytesIO(up_notes.read()))
                     
-                    # Preparing content for OCR
-                    # This format is more robust against API version changes
-                    contents = [
-                        "Please perform high-quality OCR on this document and extract all engineering text and concepts.",
-                        {"mime_type": up_notes.type, "data": up_notes.getvalue()}
-                    ]
+                    raw_text = ""
+                    # Reading first 60 pages (Mechanics Bank handled easily)
+                    num_pages = min(len(reader.pages), 60)
+                    for i in range(num_pages):
+                        page = reader.pages[i]
+                        raw_text += (page.extract_text() or "") + "\n"
                     
-                    response = model.generate_content(contents)
-                    
-                    if response and response.text:
-                        st.session_state.pdf_content = response.text
+                    if raw_text.strip():
+                        st.session_state.pdf_content = raw_text
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
-                        # Deduct credits only on 100% success
+                        # Deduct credits only after successful reading
                         st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ '{up_notes.name}' Analysis Complete!")
+                        st.success(f"✅ Document Synced Successfully!")
+                        time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("AI cloud returned empty text. Please try a clearer scan.")
+                        st.error("Text extraction failed. Ensure PDF is not a scanned image.")
+                except ImportError:
+                    st.error("Technical Error: Run 'pip install pypdf' in terminal.")
                 except Exception as e:
-                    # Final Fail-safe: Local extraction if API key is invalid or 404 persists
-                    st.error(f"System Error: {e}")
-                    st.info("Check your API Key settings in Google Cloud Console.")
+                    st.error(f"Sync Error: {e}")
         else:
-            st.error("Insufficient Credits! Please Top-up.")
+            st.error("Low Credit Balance!")
 
     st.divider()
     
-    # 3. HYBRID CHAT INTERFACE (ALWAYS ACTIVE)
+    # 3. HYBRID CHAT INTERFACE (USING STABLE GROQ)
     if st.session_state.pdf_content:
-        st.info(f"📂 **Context Active:** Analyzing {st.session_state.current_file}")
+        st.info(f"📂 **Context Active:** {st.session_state.current_file}")
     else:
         st.warning("🌐 **General Mode:** Ask any engineering question (No notes uploaded)")
 
     ui_chat = st.chat_input("Ask Professor GPT anything...")
     
     if ui_chat:
-        # Credit logic: first 3 questions are free
+        # 3 free then 1 credit
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
         
         if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("Professor GPT is typing..."):
-                # Using Groq (Llama 3.3) for intelligence - This part is working!
+            with st.spinner("Thinking..."):
+                # Groq (Llama 3.3) is used here because it's working 100% for you
                 context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
-                prompt = f"Role: Engineering Expert. Context: {context}\n\nStudent Question: {ui_chat}"
+                prompt = f"Role: Expert Engineering Professor. Context: {context}\n\nStudent Question: {ui_chat}"
                 
                 try:
                     res = groq_client.chat.completions.create(
@@ -250,7 +249,7 @@ with tab1:
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
                     if cost > 0: st.toast("1 Credit used.")
                 except Exception as e:
-                    st.error("AI service is busy. Try again.")
+                    st.error("AI service busy. Please try again.")
         else:
             st.error("Insufficient Credits!")
 
