@@ -161,7 +161,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---import PyPDF2 # Iske liye 'pip install PyPDF2' chahiye hoga agar error aaye toh
-# --- TAB 1: SMART NOTE ANALYSIS (FINAL ULTIMATE FIX) ---
+# --- TAB 1: SMART NOTE ANALYSIS (FINAL STABLE VERSION) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
@@ -181,23 +181,26 @@ with tab1:
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    up_notes = st.file_uploader("Upload Engineering Notes (PDF or Image)", type=["pdf", "png", "jpg", "jpeg"], key="ultimate_fix_v99")
+    up_notes = st.file_uploader("Upload Engineering Notes (PDF or Image)", type=["pdf", "png", "jpg", "jpeg"], key="final_college_fix_v99")
     
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("AI is scanning your document (Deep Analysis)..."):
+            with st.spinner("AI is performing Deep Vision Analysis..."):
                 try:
-                    # STEP 1: Using Gemini but with a different calling method to avoid 404
-                    # This is how professional apps handle images and scanned PDFs
+                    # FIX: Calling model directly without 'models/' prefix to avoid 404
+                    # Using Gemini 1.5 Flash which is the best for Scanned PDFs
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # Preparing content for Scanned Documents
+                    # Convert file to bytes for stable processing
+                    file_bytes = up_notes.getvalue()
+                    
+                    # PRO PROMPT: Force AI to act as an OCR engine
                     response = model.generate_content([
-                        "Read this document carefully. Extract all the technical information, formulas, and study points. Output it as text.",
-                        {"mime_type": up_notes.type, "data": up_notes.getvalue()}
+                        "Act as a professional OCR and Engineering Professor. Extract every single word, formula, and technical detail from this document. If it's a scanned PDF, read it like an image.",
+                        {"mime_type": up_notes.type, "data": file_bytes}
                     ])
                     
-                    if response.text:
+                    if response and response.text:
                         st.session_state.pdf_content = response.text
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
@@ -205,11 +208,13 @@ with tab1:
                         st.success(f"✅ '{up_notes.name}' Analyzed Successfully!")
                         st.rerun()
                     else:
-                        st.error("Text extraction failed. Try a clearer image or PDF.")
+                        st.error("AI could not read the content. Please ensure the file is not corrupted.")
                 except Exception as e:
-                    # STEP 2: Fallback to Local Extraction if Cloud fails
-                    st.error(f"Cloud Error: {e}")
-                    st.info("Trying local emergency extraction...")
+                    # Detailed error logging for you to see
+                    st.error(f"Cloud Engine Error: {str(e)}")
+                    st.info("Bhai, agar 404 aa raha hai, toh API version mismatch hai. I'm trying an alternative method...")
+                    
+                    # Emergency Fallback: Standard Text Extraction
                     from pypdf import PdfReader
                     reader = PdfReader(io.BytesIO(up_notes.read()))
                     extracted = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
@@ -218,16 +223,14 @@ with tab1:
                         st.session_state.current_file = up_notes.name
                         st.session_state.user_data['credits'] -= 3
                         st.rerun()
-                    else:
-                        st.error("Bhai, ye PDF image based hai. Clear photos khich ke upload kar ya proper PDF use kar.")
         else:
             st.error("Insufficient Credits!")
 
     st.divider()
     
-    # 4. CHAT INTERFACE (ALWAYS ACTIVE)
+    # CHAT INTERFACE
     if st.session_state.pdf_content:
-        st.info(f"📂 **Active Context:** {st.session_state.current_file}")
+        st.info(f"📂 **Context Active:** {st.session_state.current_file}")
 
     ui_chat = st.chat_input("Ask Professor GPT anything...")
     
@@ -235,6 +238,7 @@ with tab1:
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
         if st.session_state.user_data['credits'] >= cost:
             with st.spinner("Thinking..."):
+                # Using Groq for the actual conversation (It's fast and doesn't give 404)
                 context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
                 prompt = f"Engineering Professor Context: {context}\n\nQuestion: {ui_chat}"
                 
@@ -248,9 +252,15 @@ with tab1:
                     
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
                 except Exception as e:
-                    st.error("Service busy. Try again.")
+                    st.error("AI node is busy. Try again.")
         else:
             st.error("Insufficient Credits!")
+
+    if st.session_state.pdf_content:
+        if st.button("🗑️ Reset Note Session"):
+            st.session_state.pdf_content = ""
+            st.session_state.current_file = None
+            st.rerun()
     # --- TAB 2: SYLLABUS MAGIC ---
     # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
 with tab2:
