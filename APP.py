@@ -161,74 +161,62 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 # --- TAB LOGIC STARTS HERE (Same as your original code) ---import PyPDF2 # Iske liye 'pip install PyPDF2' chahiye hoga agar error aaye toh
-# --- TAB 1: SMART NOTE ANALYSIS (FINAL STABLE VERSION) ---
+  # --- TAB 1: SMART NOTE ANALYSIS (THE NO-CARD "Jugaad" ENGINE) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
-    # Professional English Header
+    # Pricing Header (English)
     st.markdown("""
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
         <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
-            <li><b>3 Credits:</b> To Sync and Analyze any Document (PDF/Image/Notes).</li>
-            <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per document sync.</li>
-            <li><b>1 Credit:</b> Charged per question from the 4th interaction onwards.</li>
+            <li><b>3 Credits:</b> To Sync and Analyze any Document (PDF/Notes).</li>
+            <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per sync.</li>
+            <li><b>1 Credit:</b> Charged per question starting from the 4th interaction.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
 
+    # Persistence States
     if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    up_notes = st.file_uploader("Upload Engineering Notes (PDF or Image)", type=["pdf", "png", "jpg", "jpeg"], key="final_college_fix_v99")
+    up_notes = st.file_uploader("Upload Engineering Notes (PDF Only)", type=["pdf"], key="no_card_sync_v1")
     
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("AI is performing Deep Vision Analysis..."):
+            with st.spinner("Syncing locally... (No Cards Needed)"):
                 try:
-                    # FIX: Calling model directly without 'models/' prefix to avoid 404
-                    # Using Gemini 1.5 Flash which is the best for Scanned PDFs
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # Method: Local Text Extraction using pypdf (Stable & Fast)
+                    from pypdf import PdfReader
+                    reader = PdfReader(io.BytesIO(up_notes.read()))
                     
-                    # Convert file to bytes for stable processing
-                    file_bytes = up_notes.getvalue()
+                    full_text = ""
+                    # Reading up to 50 pages for exam context
+                    for page in reader.pages[:50]:
+                        text = page.extract_text()
+                        if text:
+                            full_text += text + "\n"
                     
-                    # PRO PROMPT: Force AI to act as an OCR engine
-                    response = model.generate_content([
-                        "Act as a professional OCR and Engineering Professor. Extract every single word, formula, and technical detail from this document. If it's a scanned PDF, read it like an image.",
-                        {"mime_type": up_notes.type, "data": file_bytes}
-                    ])
-                    
-                    if response and response.text:
-                        st.session_state.pdf_content = response.text
+                    if full_text.strip():
+                        st.session_state.pdf_content = full_text
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
                         st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ '{up_notes.name}' Analyzed Successfully!")
+                        st.success(f"✅ '{up_notes.name}' Synced Locally!")
                         st.rerun()
                     else:
-                        st.error("AI could not read the content. Please ensure the file is not corrupted.")
+                        st.error("Bhai, ye PDF images se bani hai. Iske liye hume Cloud OCR chahiye.")
+                        st.info("Tip: Kisi dost ke Visa/Mastercard ka jugad sham tak kar lena.")
                 except Exception as e:
-                    # Detailed error logging for you to see
-                    st.error(f"Cloud Engine Error: {str(e)}")
-                    st.info("Bhai, agar 404 aa raha hai, toh API version mismatch hai. I'm trying an alternative method...")
-                    
-                    # Emergency Fallback: Standard Text Extraction
-                    from pypdf import PdfReader
-                    reader = PdfReader(io.BytesIO(up_notes.read()))
-                    extracted = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
-                    if extracted:
-                        st.session_state.pdf_content = extracted
-                        st.session_state.current_file = up_notes.name
-                        st.session_state.user_data['credits'] -= 3
-                        st.rerun()
+                    st.error(f"Sync Error: {e}")
         else:
-            st.error("Insufficient Credits!")
+            st.error("Low Credit Balance!")
 
     st.divider()
     
-    # CHAT INTERFACE
+    # CHAT INTERFACE (Using Groq - 100% Stable)
     if st.session_state.pdf_content:
         st.info(f"📂 **Context Active:** {st.session_state.current_file}")
 
@@ -237,10 +225,10 @@ with tab1:
     if ui_chat:
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
         if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("Thinking..."):
-                # Using Groq for the actual conversation (It's fast and doesn't give 404)
+            with st.spinner("AI Professor Thinking..."):
+                # Using Groq (Llama 3.3) for intelligence - NO CARD REQUIRED
                 context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
-                prompt = f"Engineering Professor Context: {context}\n\nQuestion: {ui_chat}"
+                prompt = f"Role: Expert Engineering Professor. Context: {context}\n\nStudent Question: {ui_chat}"
                 
                 try:
                     res = groq_client.chat.completions.create(
@@ -251,16 +239,11 @@ with tab1:
                     if st.session_state.pdf_content: st.session_state.ques_count += 1
                     
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
+                    if cost > 0: st.toast("1 Credit used.")
                 except Exception as e:
-                    st.error("AI node is busy. Try again.")
+                    st.error("AI service busy. Try again.")
         else:
             st.error("Insufficient Credits!")
-
-    if st.session_state.pdf_content:
-        if st.button("🗑️ Reset Note Session"):
-            st.session_state.pdf_content = ""
-            st.session_state.current_file = None
-            st.rerun()
     # --- TAB 2: SYLLABUS MAGIC ---
     # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
 with tab2:
