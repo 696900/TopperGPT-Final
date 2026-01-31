@@ -468,97 +468,79 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (ZERO-CLOUD / NO-GEMINI VERSION) ---
+# --- TAB 5: FLASHCARDS (PYMUPDF UNIVERSAL ENGINE) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
     
-    # Professional Header
     st.markdown("""
-    <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
-        <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Study Card Policy:</p>
-        <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
-            <li><b>2 Credits:</b> To scan and process document locally.</li>
-            <li><b>3 Credits:</b> To generate 10 Premium Flashcards via Groq.</li>
-            <li><b>Total: 5 Credits</b> per session. (Sasta & Fast)</li>
-        </ul>
+    <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50;">
+        <p style="color: #4CAF50; font-weight: bold;">💳 Policy: 5 Credits (Total Sync + AI Cards)</p>
+        <p style="font-size: 12px; color: #ccc;">Uses High-End Local Engine to read Scanned/Digital PDFs.</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # State Initialisation
     if "flash_text_content" not in st.session_state: st.session_state.flash_text_content = ""
     if "last_uploaded_card_file" not in st.session_state: st.session_state.last_uploaded_card_file = None
     if "current_flashcards" not in st.session_state: st.session_state.current_flashcards = []
 
-    # 1. LOCAL UPLOADER (No Gemini Call)
-    card_file = st.file_uploader("Upload Engineering Notes (PDF Only)", type=["pdf"], key="local_card_sync_v1")
+    # 1. UNIVERSAL UPLOADER
+    card_file = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg"], key="universal_reader_v1")
     
     if card_file and st.session_state.last_uploaded_card_file != card_file.name:
-        if st.session_state.user_data['credits'] >= 2:
-            with st.spinner("Syncing document locally..."):
+        if st.session_state.user_data['credits'] >= 5:
+            with st.spinner("Deep Scanning your document..."):
                 try:
-                    # LOCAL EXTRACTION - 0% Chance of 404 Error
-                    reader = PdfReader(io.BytesIO(card_file.read()))
-                    raw_text = ""
-                    # Reading first 40 pages
-                    for page in reader.pages[:40]:
-                        t = page.extract_text()
-                        if t: raw_text += t + "\n"
+                    # NEW ENGINE: PyMuPDF (fitz) - Best for heavy engineering PDFs
+                    import fitz 
+                    doc = fitz.open(stream=card_file.read(), filetype="pdf" if card_file.type == "application/pdf" else "img")
                     
-                    if len(raw_text.strip()) > 50:
-                        st.session_state.flash_text_content = raw_text
+                    full_text = ""
+                    for page in doc:
+                        full_text += page.get_text() + "\n"
+                    
+                    if len(full_text.strip()) > 50:
+                        st.session_state.flash_text_content = full_text
                         st.session_state.last_uploaded_card_file = card_file.name
-                        st.session_state.user_data['credits'] -= 2
-                        st.success(f"✅ Knowledge Synced: {card_file.name}")
+                        st.success(f"✅ Context Loaded: {card_file.name}")
                     else:
-                        st.error("Text extraction failed. This PDF is a scanned image.")
-                        st.info("Emergency Hack: Agar scan hai, toh sham tak GPT-4o ka wait karein ya digital notes use karein.")
+                        st.error("Text is invisible or very blurry. Scanning requires OCR.")
+                        st.info("Bhai, agar ye fail ho raha hai toh PDF ko SmallPDF.com pe jaake 'Word' mein convert karlo, phir makkhan chalega!")
                 except Exception as e:
-                    st.error(f"Sync Error: {e}")
+                    st.error(f"Engine Error: {e}")
         else:
-            st.error("Need 2 Credits to sync!")
+            st.error("Insufficient Credits!")
 
-    # 2. GENERATION VIA GROQ (No Cost API)
-    if st.button("🚀 Generate 10 Engineering Cards"):
-        raw_data = st.session_state.get("flash_text_content", "")
-        
-        if raw_data:
-            if st.session_state.user_data['credits'] >= 3:
-                with st.spinner("Groq AI is building your cards..."):
-                    # Groq Llama 3.3 is FREE and incredibly fast
-                    prompt = f"""
-                    Role: Engineering Professor. 
-                    Context: {raw_data[:15000]}
-                    Task: Create 10 Flashcards (Question | Answer).
-                    Focus: Key definitions, Laws, and Formulas.
-                    Format: Question | Answer
-                    """
-                    try:
-                        res = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile", 
-                            messages=[{"role": "user", "content": prompt}]
-                        )
-                        cards = res.choices[0].message.content.strip().split("\n")
-                        # Saving only valid cards
-                        st.session_state.current_flashcards = [c for c in cards if "|" in c]
-                        st.session_state.user_data['credits'] -= 3
-                        st.toast("3 Credits Used for AI Analysis.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Groq API Error: {e}")
-            else:
-                st.error("Need 3 Credits to generate cards!")
+    # 2. GENERATION USING GROQ (Stable & Free)
+    if st.button("🚀 Generate Exam Flashcards"):
+        if st.session_state.get("flash_text_content"):
+            with st.spinner("AI Professor is analyzing context..."):
+                prompt = f"""
+                Role: Engineering Professor. Context: {st.session_state.flash_text_content[:10000]}
+                Create 10 Flashcards. Format: Question | Answer
+                """
+                try:
+                    # We use Groq because it never gives 404
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    cards = res.choices[0].message.content.strip().split("\n")
+                    st.session_state.current_flashcards = [c for c in cards if "|" in c]
+                    st.session_state.user_data['credits'] -= 5
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"AI Busy: {e}")
         else:
-            st.error("Please sync a PDF first!")
+            st.error("Upload a file first!")
 
     # 3. DISPLAY
     if st.session_state.current_flashcards:
         st.divider()
-        st.markdown("### 🗂️ Your Flashcards")
         for line in st.session_state.current_flashcards:
             try:
                 q, a = line.split("|", 1)
                 with st.expander(f"📌 {q.strip()}"):
-                    st.success(f"**Answer:** {a.strip()}")
+                    st.success(f"**Ans:** {a.strip()}")
             except: continue
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
