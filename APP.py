@@ -470,40 +470,41 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (SECURE OPENROUTER ENGINE) ---
+# --- TAB 5: FLASHCARDS (SECURE VISION ENGINE) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
     
-    st.warning("💳 Total: 5 Credits")
+    # Short Credit Display as requested
+    st.success("💳 Cost: **5 Credits** per 10 cards")
 
-    # Accessing key securely from secrets
+    # Accessing Key from Secrets
     try:
         OR_KEY = st.secrets["OPENROUTER_API_KEY"]
     except:
-        st.error("🔑 API Key not found in Secrets!")
+        st.error("🔑 Error: 'OPENROUTER_API_KEY' not found in Secrets!")
         OR_KEY = None
 
     # 1. FILE UPLOADER
-    card_file = st.file_uploader("Upload Scanned Notes (PDF/Image)", type=["pdf", "png", "jpg"], key="or_vision_v2")
+    card_file = st.file_uploader("Upload Scanned Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="flash_or_v3")
     
     if card_file and st.button("🚀 Generate via GPT-4o Vision"):
         if OR_KEY and st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Deep Scanning via GPT-4o..."):
+            with st.spinner("GPT-4o Vision is reading your notes..."):
                 try:
-                    # Converting to base64 for Vision
+                    # Convert scanned file to base64
                     encoded_file = base64.b64encode(card_file.getvalue()).decode('utf-8')
                     
-                    # OpenRouter API Call (Handles Scanned PDFs perfectly)
+                    # API Call to OpenRouter
                     response = requests.post(
                         url="https://openrouter.ai/api/v1/chat/completions",
                         headers={"Authorization": f"Bearer {OR_KEY}"},
                         json={
-                            "model": "openai/gpt-4o-mini", # Super cheap & high intelligence
+                            "model": "openai/gpt-4o-mini", # Stable & Cheap
                             "messages": [
                                 {
                                     "role": "user",
                                     "content": [
-                                        {"type": "text", "text": "Extract all technical text and generate 10 'Question | Answer' flashcards from this image/document."},
+                                        {"type": "text", "text": "Analyze this scanned engineering document and create 10 flashcards. Format: Question | Answer"},
                                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_file}"}}
                                     ]
                                 }
@@ -513,17 +514,17 @@ with tab5:
                     
                     data = response.json()
                     if 'choices' in data:
-                        cards_raw = data['choices'][0]['message']['content']
-                        st.session_state.current_flashcards = [c for c in cards_raw.split("\n") if "|" in c]
+                        raw_cards = data['choices'][0]['message']['content']
+                        st.session_state.current_flashcards = [c for c in raw_cards.split("\n") if "|" in c]
                         st.session_state.user_data['credits'] -= 5
-                        st.success("✅ Flashcards Ready!")
+                        st.success("✅ Flashcards Generated!")
                         st.rerun()
                     else:
-                        st.error("API Error: Check your OpenRouter Balance.")
+                        st.error("Check OpenRouter Balance or Key!")
                 except Exception as e:
-                    st.error(f"Critical Error: {e}")
+                    st.error(f"Engine Error: {e}")
         else:
-            st.error("Check Credits or API Key!")
+            st.error("Insufficient Credits or Key missing!")
 
     # 3. DISPLAY
     if st.session_state.get("current_flashcards"):
@@ -532,7 +533,7 @@ with tab5:
             try:
                 q, a = line.split("|", 1)
                 with st.expander(f"📌 {q.strip()}"):
-                    st.success(f"Ans: {a.strip()}")
+                    st.info(f"**Ans:** {a.strip()}")
             except: continue
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
