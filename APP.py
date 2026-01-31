@@ -468,81 +468,100 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-    # --- TAB 5: FLASHCARDS (UNIVERSAL SYNC FIX) ---
+# --- TAB 5: FLASHCARDS (STABLE ENGINE FIX) ---
 with tab5:
-        st.subheader("🃏 Engineering Flashcard Generator")
-        
-        # 1. Direct File Uploader
-        card_file = st.file_uploader(
-            "Upload Notes (PDF/Image)", 
-            type=["pdf", "png", "jpg"], 
-            key="universal_card_sync"
-        )
-        
-        # 2. Robust Extraction Logic
-        if card_file:
-            # File name check to prevent repeated processing
-            if st.session_state.get("last_uploaded_card_file") != card_file.name:
-                with st.spinner("Extracting text from your notes..."):
-                    try:
-                        if card_file.type == "application/pdf":
-                            with pdfplumber.open(io.BytesIO(card_file.read())) as pdf:
-                                # PDF ka poora text nikal kar state mein permanent save karna
-                                st.session_state.flash_text_content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
-                        else:
-                            # Image/Handwritten notes extraction
-                            model = genai.GenerativeModel('gemini-1.5-flash')
-                            res = model.generate_content([{"mime_type": card_file.type, "data": card_file.getvalue()}, "Extract all technical text."])
-                            st.session_state.flash_text_content = res.text
-                        
-                        st.session_state.last_uploaded_card_file = card_file.name
-                        st.toast(f"✅ Context Synced: {card_file.name}")
-                    except Exception as e:
-                        st.error(f"Error reading file: {e}")
+    st.subheader("🃏 Engineering Flashcard Generator")
+    
+    # Pricing Info
+    st.info("💳 Pricing: **5 Credits** per 10 Premium Flashcards.")
 
-        # 3. Generation Button (Name changed as requested)
-        if st.button("🚀 Generate Cards"):
-            # Checking if content exists in state
-            raw_data = st.session_state.get("flash_text_content", "")
-            
-            if raw_data:
-                with st.spinner("AI is analyzing your specific topics..."):
-                    # Strict context-based prompt
+    # 1. State Initialisation (Taaki crash na ho)
+    if "flash_text_content" not in st.session_state: st.session_state.flash_text_content = ""
+    if "last_uploaded_card_file" not in st.session_state: st.session_state.last_uploaded_card_file = None
+    if "current_flashcards" not in st.session_state: st.session_state.current_flashcards = []
+
+    # 2. Direct File Uploader
+    card_file = st.file_uploader(
+        "Upload Notes (PDF Only for now)", 
+        type=["pdf"], 
+        key="stable_card_sync"
+    )
+    
+    # 3. Robust Local Extraction (Bypassing 404 Errors)
+    if card_file:
+        if st.session_state.last_uploaded_card_file != card_file.name:
+            with st.spinner("Analyzing notes for Flashcard generation..."):
+                try:
+                    # Using pypdf because it's lighter than pdfplumber
+                    from pypdf import PdfReader
+                    reader = PdfReader(io.BytesIO(card_file.read()))
+                    raw_text = ""
+                    # Reading first 30 pages to keep it fast
+                    for page in reader.pages[:30]:
+                        t = page.extract_text()
+                        if t: raw_text += t + "\n"
+                    
+                    if raw_text.strip():
+                        st.session_state.flash_text_content = raw_text
+                        st.session_state.last_uploaded_card_file = card_file.name
+                        st.success(f"✅ Context Synced: {card_file.name}")
+                    else:
+                        st.error("Text extraction failed. Try a digital PDF.")
+                except Exception as e:
+                    st.error(f"Error reading file: {e}")
+
+    # 4. Generation Button
+    if st.button("🚀 Generate 10 Flashcards"):
+        raw_data = st.session_state.get("flash_text_content", "")
+        
+        if raw_data:
+            if st.session_state.user_data['credits'] >= 5:
+                with st.spinner("AI Professor is picking the most important topics..."):
+                    # Groq (Llama 3.3) is fast and stable
                     prompt = f"""
                     Context: {raw_data[:12000]}
                     
                     Instruction: Act as an Engineering Professor. 
                     Create exactly 10 'Question | Answer' flashcards based ONLY on the provided context.
-                    If the context is about PCE, focus on Modulation/Signals. 
-                    If it is about other subjects, focus on those specific core concepts.
-                    Format: Question | Answer
+                    Focus on core engineering concepts, formulas, and definitions.
+                    Format: Question | Answer (Exactly one per line)
                     """
                     
-                    # High-speed processing via Groq
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", 
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    st.session_state.current_flashcards = res.choices[0].message.content.split("\n")
+                    try:
+                        res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile", 
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                        # Processing and deducting credits
+                        cards = res.choices[0].message.content.strip().split("\n")
+                        # Filtering only lines with '|'
+                        st.session_state.current_flashcards = [c for c in cards if "|" in c]
+                        st.session_state.user_data['credits'] -= 5
+                        st.toast("5 Credits Deducted")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"AI Service Error: {e}")
             else:
-                #
-                st.error("⚠️ Error: Pehle PDF upload karein taaki AI context read kar sake!")
+                st.error("Insufficient Credits! Need 5 credits.")
+        else:
+            st.error("⚠️ Error: Pehle PDF upload karein!")
 
-        # 4. Display & Offline Save
-        if st.session_state.get("current_flashcards"):
-            st.markdown("---")
-            # Creating a neat text file for download
-            st.download_button(
-                "📥 Download Flashcards (Text File)",
-                data="\n".join(st.session_state.current_flashcards),
-                file_name="TopperGPT_StudyCards.txt"
-            )
+    # 5. Display & Download
+    if st.session_state.current_flashcards:
+        st.markdown("---")
+        st.download_button(
+            "📥 Download Flashcards (Text File)",
+            data="\n".join(st.session_state.current_flashcards),
+            file_name="TopperGPT_StudyCards.txt"
+        )
 
-            for i, line in enumerate(st.session_state.current_flashcards):
-                if "|" in line:
-                    q, a = line.split("|")
-                    with st.expander(f"🔹 {q.strip()}"):
-                        st.success(f"**Ans:** {a.strip()}")
+        for i, line in enumerate(st.session_state.current_flashcards):
+            try:
+                q, a = line.split("|", 1)
+                with st.expander(f"🔹 {q.strip()}"):
+                    st.success(f"**Ans:** {a.strip()}")
+            except:
+                continue
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
 with tab6:
