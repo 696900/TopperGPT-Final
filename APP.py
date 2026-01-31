@@ -468,29 +468,35 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (PYMUPDF UNIVERSAL ENGINE) ---
+# --- TAB 5: FLASHCARDS (PYMUPDF REPAIR VERSION) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
     
+    # EXACT CREDIT DISPLAY
     st.markdown("""
-    <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50;">
-        <p style="color: #4CAF50; font-weight: bold;">💳 Policy: 5 Credits (Total Sync + AI Cards)</p>
-        <p style="font-size: 12px; color: #ccc;">Uses High-End Local Engine to read Scanned/Digital PDFs.</p>
+    <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
+        <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Study Card Policy:</p>
+        <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
+            <li><b>3 Credits:</b> To Sync and Deep-Scan your document (Digital or Scanned).</li>
+            <li><b>2 Credits:</b> To Generate 10 Premium Flashcards using AI.</li>
+            <li><b>Total: 5 Credits</b> will be used for a complete session.</li>
+        </ul>
     </div>
     """, unsafe_allow_html=True)
 
+    # State Initialisation
     if "flash_text_content" not in st.session_state: st.session_state.flash_text_content = ""
     if "last_uploaded_card_file" not in st.session_state: st.session_state.last_uploaded_card_file = None
     if "current_flashcards" not in st.session_state: st.session_state.current_flashcards = []
 
     # 1. UNIVERSAL UPLOADER
-    card_file = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg"], key="universal_reader_v1")
+    card_file = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg"], key="universal_reader_v2")
     
     if card_file and st.session_state.last_uploaded_card_file != card_file.name:
-        if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Deep Scanning your document..."):
+        if st.session_state.user_data['credits'] >= 3:
+            with st.spinner("Analyzing Document Engine..."):
                 try:
-                    # NEW ENGINE: PyMuPDF (fitz) - Best for heavy engineering PDFs
+                    # FIXING THE 'FITZ' ERROR
                     import fitz 
                     doc = fitz.open(stream=card_file.read(), filetype="pdf" if card_file.type == "application/pdf" else "img")
                     
@@ -501,35 +507,40 @@ with tab5:
                     if len(full_text.strip()) > 50:
                         st.session_state.flash_text_content = full_text
                         st.session_state.last_uploaded_card_file = card_file.name
-                        st.success(f"✅ Context Loaded: {card_file.name}")
+                        # Deduct 3 Credits for Sync
+                        st.session_state.user_data['credits'] -= 3
+                        st.success(f"✅ Sync Successful! 3 Credits used.")
+                        st.rerun()
                     else:
-                        st.error("Text is invisible or very blurry. Scanning requires OCR.")
-                        st.info("Bhai, agar ye fail ho raha hai toh PDF ko SmallPDF.com pe jaake 'Word' mein convert karlo, phir makkhan chalega!")
+                        st.error("Text extraction failed. Try a clearer document.")
+                except ImportError:
+                    st.error("Engine Error: Run 'pip install pymupdf' in terminal.")
                 except Exception as e:
                     st.error(f"Engine Error: {e}")
         else:
-            st.error("Insufficient Credits!")
+            st.error("Insufficient Credits! Need 3 to Sync.")
 
-    # 2. GENERATION USING GROQ (Stable & Free)
-    if st.button("🚀 Generate Exam Flashcards"):
+    # 2. GENERATION USING GROQ
+    if st.button("🚀 Generate 10 Engineering Cards"):
         if st.session_state.get("flash_text_content"):
-            with st.spinner("AI Professor is analyzing context..."):
-                prompt = f"""
-                Role: Engineering Professor. Context: {st.session_state.flash_text_content[:10000]}
-                Create 10 Flashcards. Format: Question | Answer
-                """
-                try:
-                    # We use Groq because it never gives 404
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", 
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    cards = res.choices[0].message.content.strip().split("\n")
-                    st.session_state.current_flashcards = [c for c in cards if "|" in c]
-                    st.session_state.user_data['credits'] -= 5
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"AI Busy: {e}")
+            if st.session_state.user_data['credits'] >= 2:
+                with st.spinner("AI Professor is picking the top 10 concepts..."):
+                    prompt = f"Engineering Professor Context: {st.session_state.flash_text_content[:10000]}\n\nCreate 10 Flashcards in Format: Question | Answer"
+                    try:
+                        res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile", 
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                        cards = res.choices[0].message.content.strip().split("\n")
+                        st.session_state.current_flashcards = [c for c in cards if "|" in c]
+                        # Deduct 2 Credits for AI Generation
+                        st.session_state.user_data['credits'] -= 2
+                        st.toast("2 Credits used for AI Cards.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error("AI service busy.")
+            else:
+                st.error("Need 2 Credits to generate cards!")
         else:
             st.error("Upload a file first!")
 
