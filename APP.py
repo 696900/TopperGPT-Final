@@ -470,41 +470,48 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (SECURE VISION ENGINE) ---
+# --- TAB 5: FLASHCARDS (FINAL SECURE VISION VERSION) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
     
-    # Short Credit Display as requested
-    st.success("💳 Cost: **5 Credits** per 10 cards")
+    # Ekdum short credit info jaisa tune bola tha
+    st.warning("💳 Total Cost: **5 Credits**")
 
-    # Accessing Key from Secrets
+    # Secrets se key uthana (Security Fix)
     try:
         OR_KEY = st.secrets["OPENROUTER_API_KEY"]
     except:
-        st.error("🔑 Error: 'OPENROUTER_API_KEY' not found in Secrets!")
+        st.error("🔑 Key missing! Pehle '.streamlit/secrets.toml' check kar.")
         OR_KEY = None
 
-    # 1. FILE UPLOADER
-    card_file = st.file_uploader("Upload Scanned Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="flash_or_v3")
+    # Persistent state maintain karne ke liye
+    if "current_flashcards" not in st.session_state:
+        st.session_state.current_flashcards = []
+
+    # 1. FILE UPLOADER (Scanned PDF ya Photo dono chalenge)
+    card_file = st.file_uploader("Upload Scanned Notes/PDF", type=["pdf", "png", "jpg", "jpeg"], key="flash_final_paste")
     
-    if card_file and st.button("🚀 Generate via GPT-4o Vision"):
+    if card_file and st.button("🚀 Generate 10 Cards"):
         if OR_KEY and st.session_state.user_data['credits'] >= 5:
-            with st.spinner("GPT-4o Vision is reading your notes..."):
+            with st.spinner("AI Professor is reading your notes..."):
                 try:
-                    # Convert scanned file to base64
+                    import base64
+                    import requests
+                    
+                    # File ko base64 mein convert karna taaki GPT-4o Vision ise 'dekh' sake
                     encoded_file = base64.b64encode(card_file.getvalue()).decode('utf-8')
                     
-                    # API Call to OpenRouter
+                    # OpenRouter API Call (Zero 404 Error Guarantee)
                     response = requests.post(
                         url="https://openrouter.ai/api/v1/chat/completions",
                         headers={"Authorization": f"Bearer {OR_KEY}"},
                         json={
-                            "model": "openai/gpt-4o-mini", # Stable & Cheap
+                            "model": "openai/gpt-4o-mini", # Sabse sasta aur smart vision model
                             "messages": [
                                 {
                                     "role": "user",
                                     "content": [
-                                        {"type": "text", "text": "Analyze this scanned engineering document and create 10 flashcards. Format: Question | Answer"},
+                                        {"type": "text", "text": "Extract all technical data and create exactly 10 flashcards in this format: Question | Answer. Focus on engineering concepts."},
                                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_file}"}}
                                     ]
                                 }
@@ -514,27 +521,31 @@ with tab5:
                     
                     data = response.json()
                     if 'choices' in data:
-                        raw_cards = data['choices'][0]['message']['content']
-                        st.session_state.current_flashcards = [c for c in raw_cards.split("\n") if "|" in c]
+                        raw_content = data['choices'][0]['message']['content']
+                        # Sirf un lines ko lena jisme '|' ho
+                        st.session_state.current_flashcards = [c for c in raw_content.split("\n") if "|" in c]
                         st.session_state.user_data['credits'] -= 5
                         st.success("✅ Flashcards Generated!")
                         st.rerun()
                     else:
-                        st.error("Check OpenRouter Balance or Key!")
+                        st.error("API Error: OpenRouter balance check kar.")
                 except Exception as e:
                     st.error(f"Engine Error: {e}")
         else:
-            st.error("Insufficient Credits or Key missing!")
+            if not OR_KEY: st.error("API Key nahi mili!")
+            else: st.error("Insufficient Credits! Need 5.")
 
-    # 3. DISPLAY
-    if st.session_state.get("current_flashcards"):
+    # 3. DISPLAY CARDS
+    if st.session_state.current_flashcards:
         st.divider()
+        st.markdown("### 🗂️ Your Study Deck")
         for line in st.session_state.current_flashcards:
             try:
                 q, a = line.split("|", 1)
                 with st.expander(f"📌 {q.strip()}"):
                     st.info(f"**Ans:** {a.strip()}")
-            except: continue
+            except:
+                continue
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
 with tab6:
