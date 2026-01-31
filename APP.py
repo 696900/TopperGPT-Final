@@ -468,17 +468,18 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (ULTRA-STABLE VISION ENGINE) ---
+# --- TAB 5: FLASHCARDS (ZERO-CLOUD / NO-GEMINI VERSION) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
     
     # Professional Header
     st.markdown("""
-    <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #2196F3; margin-bottom: 20px;">
-        <p style="color: #2196F3; font-weight: bold; margin-bottom: 5px;">💳 Study Card Policy:</p>
+    <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
+        <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Study Card Policy:</p>
         <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
-            <li><b>5 Credits:</b> To scan, perform OCR, and generate 10 Premium Flashcards.</li>
-            <li>Best for Scanned Notes, Question Banks, and Handwritten PDF.</li>
+            <li><b>2 Credits:</b> To scan and process document locally.</li>
+            <li><b>3 Credits:</b> To generate 10 Premium Flashcards via Groq.</li>
+            <li><b>Total: 5 Credits</b> per session. (Sasta & Fast)</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -488,71 +489,76 @@ with tab5:
     if "last_uploaded_card_file" not in st.session_state: st.session_state.last_uploaded_card_file = None
     if "current_flashcards" not in st.session_state: st.session_state.current_flashcards = []
 
-    # 1. UPLOADER
-    card_file = st.file_uploader("Upload Scanned Notes/PDF", type=["pdf", "png", "jpg"], key="vision_card_sync")
+    # 1. LOCAL UPLOADER (No Gemini Call)
+    card_file = st.file_uploader("Upload Engineering Notes (PDF Only)", type=["pdf"], key="local_card_sync_v1")
     
-    # 2. VISION OCR LOGIC (Fixes "Text extraction failed")
     if card_file and st.session_state.last_uploaded_card_file != card_file.name:
-        with st.spinner("AI is reading your scanned pages..."):
-            try:
-                # Using the STABLE model name to avoid 404
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                
-                # We send the file to Gemini's Vision Engine
-                # This reads photos/scans where normal PDF readers fail
-                response = model.generate_content([
-                    "Extract all engineering text and concepts from this document so I can make flashcards.",
-                    {"mime_type": card_file.type, "data": card_file.getvalue()}
-                ])
-                
-                if response and response.text:
-                    st.session_state.flash_text_content = response.text
-                    st.session_state.last_uploaded_card_file = card_file.name
-                    st.success(f"✅ Context Synced: {card_file.name}")
-                else:
-                    st.error("AI couldn't see the text. Try a clearer photo.")
-            except Exception as e:
-                st.error(f"Cloud Error: {e}")
-                st.info("Tip: If 404 persists, wait for GPT-4o tonight.")
+        if st.session_state.user_data['credits'] >= 2:
+            with st.spinner("Syncing document locally..."):
+                try:
+                    # LOCAL EXTRACTION - 0% Chance of 404 Error
+                    reader = PdfReader(io.BytesIO(card_file.read()))
+                    raw_text = ""
+                    # Reading first 40 pages
+                    for page in reader.pages[:40]:
+                        t = page.extract_text()
+                        if t: raw_text += t + "\n"
+                    
+                    if len(raw_text.strip()) > 50:
+                        st.session_state.flash_text_content = raw_text
+                        st.session_state.last_uploaded_card_file = card_file.name
+                        st.session_state.user_data['credits'] -= 2
+                        st.success(f"✅ Knowledge Synced: {card_file.name}")
+                    else:
+                        st.error("Text extraction failed. This PDF is a scanned image.")
+                        st.info("Emergency Hack: Agar scan hai, toh sham tak GPT-4o ka wait karein ya digital notes use karein.")
+                except Exception as e:
+                    st.error(f"Sync Error: {e}")
+        else:
+            st.error("Need 2 Credits to sync!")
 
-    # 3. GENERATION BUTTON
-    if st.button("🚀 Generate 10 Flashcards"):
+    # 2. GENERATION VIA GROQ (No Cost API)
+    if st.button("🚀 Generate 10 Engineering Cards"):
         raw_data = st.session_state.get("flash_text_content", "")
         
         if raw_data:
-            if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Processing cards via Groq..."):
+            if st.session_state.user_data['credits'] >= 3:
+                with st.spinner("Groq AI is building your cards..."):
+                    # Groq Llama 3.3 is FREE and incredibly fast
                     prompt = f"""
-                    Context: {raw_data[:12000]}
-                    Instruction: Create exactly 10 'Question | Answer' flashcards from this engineering data.
+                    Role: Engineering Professor. 
+                    Context: {raw_data[:15000]}
+                    Task: Create 10 Flashcards (Question | Answer).
+                    Focus: Key definitions, Laws, and Formulas.
                     Format: Question | Answer
                     """
                     try:
-                        # Chatting via Groq (Stable & Fast)
                         res = groq_client.chat.completions.create(
                             model="llama-3.3-70b-versatile", 
                             messages=[{"role": "user", "content": prompt}]
                         )
                         cards = res.choices[0].message.content.strip().split("\n")
+                        # Saving only valid cards
                         st.session_state.current_flashcards = [c for c in cards if "|" in c]
-                        st.session_state.user_data['credits'] -= 5
-                        st.toast("5 Credits used.")
+                        st.session_state.user_data['credits'] -= 3
+                        st.toast("3 Credits Used for AI Analysis.")
                         st.rerun()
                     except Exception as e:
-                        st.error("AI Busy. Try again.")
+                        st.error(f"Groq API Error: {e}")
             else:
-                st.error("Need 5 credits!")
+                st.error("Need 3 Credits to generate cards!")
         else:
-            st.error("Upload a file first!")
+            st.error("Please sync a PDF first!")
 
-    # 4. DISPLAY
+    # 3. DISPLAY
     if st.session_state.current_flashcards:
         st.divider()
+        st.markdown("### 🗂️ Your Flashcards")
         for line in st.session_state.current_flashcards:
             try:
                 q, a = line.split("|", 1)
-                with st.expander(f"🔹 {q.strip()}"):
-                    st.info(f"**Ans:** {a.strip()}")
+                with st.expander(f"📌 {q.strip()}"):
+                    st.success(f"**Answer:** {a.strip()}")
             except: continue
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
