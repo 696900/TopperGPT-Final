@@ -468,81 +468,60 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (PYMUPDF REPAIR VERSION) ---
+# --- TAB 5: FLASHCARDS (FAST & SIMPLE) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
     
-    # EXACT CREDIT DISPLAY
-    st.markdown("""
-    <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
-        <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Study Card Policy:</p>
-        <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
-            <li><b>3 Credits:</b> To Sync and Deep-Scan your document (Digital or Scanned).</li>
-            <li><b>2 Credits:</b> To Generate 10 Premium Flashcards using AI.</li>
-            <li><b>Total: 5 Credits</b> will be used for a complete session.</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
+    # Short Credit Info
+    st.warning("💳 Total: **5 Credits** (Sync + AI Cards)")
 
-    # State Initialisation
+    # States
     if "flash_text_content" not in st.session_state: st.session_state.flash_text_content = ""
     if "last_uploaded_card_file" not in st.session_state: st.session_state.last_uploaded_card_file = None
     if "current_flashcards" not in st.session_state: st.session_state.current_flashcards = []
 
-    # 1. UNIVERSAL UPLOADER
-    card_file = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg"], key="universal_reader_v2")
+    # 1. SIMPLE UPLOADER
+    card_file = st.file_uploader("Upload Notes (PDF Only)", type=["pdf"], key="final_v10")
     
     if card_file and st.session_state.last_uploaded_card_file != card_file.name:
-        if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Analyzing Document Engine..."):
+        if st.session_state.user_data['credits'] >= 5:
+            with st.spinner("Syncing..."):
                 try:
-                    # FIXING THE 'FITZ' ERROR
-                    import fitz 
-                    doc = fitz.open(stream=card_file.read(), filetype="pdf" if card_file.type == "application/pdf" else "img")
+                    # Using pypdf because it's the most stable for you
+                    reader = PdfReader(io.BytesIO(card_file.read()))
+                    raw_text = ""
+                    for page in reader.pages[:30]:
+                        t = page.extract_text()
+                        if t: raw_text += t + "\n"
                     
-                    full_text = ""
-                    for page in doc:
-                        full_text += page.get_text() + "\n"
-                    
-                    if len(full_text.strip()) > 50:
-                        st.session_state.flash_text_content = full_text
+                    if len(raw_text.strip()) > 50:
+                        st.session_state.flash_text_content = raw_text
                         st.session_state.last_uploaded_card_file = card_file.name
-                        # Deduct 3 Credits for Sync
-                        st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ Sync Successful! 3 Credits used.")
-                        st.rerun()
+                        st.success("✅ Done!")
                     else:
-                        st.error("Text extraction failed. Try a clearer document.")
-                except ImportError:
-                    st.error("Engine Error: Run 'pip install pymupdf' in terminal.")
+                        st.error("Text not found. Use a clearer PDF.")
                 except Exception as e:
-                    st.error(f"Engine Error: {e}")
+                    st.error(f"Error: {e}")
         else:
-            st.error("Insufficient Credits! Need 3 to Sync.")
+            st.error("Need 5 Credits!")
 
-    # 2. GENERATION USING GROQ
-    if st.button("🚀 Generate 10 Engineering Cards"):
+    # 2. GENERATE BUTTON
+    if st.button("🚀 Generate Cards"):
         if st.session_state.get("flash_text_content"):
-            if st.session_state.user_data['credits'] >= 2:
-                with st.spinner("AI Professor is picking the top 10 concepts..."):
-                    prompt = f"Engineering Professor Context: {st.session_state.flash_text_content[:10000]}\n\nCreate 10 Flashcards in Format: Question | Answer"
-                    try:
-                        res = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile", 
-                            messages=[{"role": "user", "content": prompt}]
-                        )
-                        cards = res.choices[0].message.content.strip().split("\n")
-                        st.session_state.current_flashcards = [c for c in cards if "|" in c]
-                        # Deduct 2 Credits for AI Generation
-                        st.session_state.user_data['credits'] -= 2
-                        st.toast("2 Credits used for AI Cards.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error("AI service busy.")
-            else:
-                st.error("Need 2 Credits to generate cards!")
+            with st.spinner("AI Typing..."):
+                prompt = f"Engineering context: {st.session_state.flash_text_content[:10000]}\n\nCreate 10 Flashcards: Question | Answer"
+                try:
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", 
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    st.session_state.current_flashcards = [c for c in res.choices[0].message.content.split("\n") if "|" in c]
+                    st.session_state.user_data['credits'] -= 5
+                    st.rerun()
+                except:
+                    st.error("AI Busy!")
         else:
-            st.error("Upload a file first!")
+            st.error("Upload first!")
 
     # 3. DISPLAY
     if st.session_state.current_flashcards:
@@ -551,7 +530,7 @@ with tab5:
             try:
                 q, a = line.split("|", 1)
                 with st.expander(f"📌 {q.strip()}"):
-                    st.success(f"**Ans:** {a.strip()}")
+                    st.success(f"Ans: {a.strip()}")
             except: continue
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
