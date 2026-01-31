@@ -162,6 +162,8 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
+# --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
+# --- TAB 1: SMART NOTE ANALYSIS (LOCAL SYNC - NO 404 ERROR) ---
 with tab1:
     st.subheader("📚 Smart Note Analysis")
     
@@ -170,7 +172,7 @@ with tab1:
     <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
         <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
         <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
-            <li><b>3 Credits:</b> To Sync and Analyze any Document (PDF/Scanned Images).</li>
+            <li><b>3 Credits:</b> To Sync and Analyze any Document (Text-based PDF).</li>
             <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per document sync.</li>
             <li><b>1 Credit:</b> Charged per question starting from the 4th interaction.</li>
         </ul>
@@ -181,36 +183,30 @@ with tab1:
     if "current_file" not in st.session_state: st.session_state.current_file = None
     if "ques_count" not in st.session_state: st.session_state.ques_count = 0
 
-    up_notes = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="stable_vision_v1")
+    up_notes = st.file_uploader("Upload Notes (PDF Only)", type=["pdf"], key="no_cloud_sync_v5")
     
     if up_notes and st.session_state.current_file != up_notes.name:
         if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("AI Cloud is scanning your document... (Vision Mode)"):
+            with st.spinner("Syncing locally... (Bypassing Gemini Cloud)"):
                 try:
-                    # Using the most stable call to avoid 404
-                    import google.generativeai as genai
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # LOCAL EXTRACTION (No API Call = No 404)
+                    reader = PdfReader(io.BytesIO(up_notes.read()))
+                    raw_text = ""
+                    for page in reader.pages[:50]: # First 50 pages
+                        raw_text += (page.extract_text() or "") + "\n"
                     
-                    # Force Vision OCR: Sending the file as a visual data part
-                    # Even if it's a scanned PDF, Gemini will 'look' at the first few pages
-                    response = model.generate_content([
-                        "Act as an Engineering Professor. Extract all text and formulas from this document. If it's a scanned image, perform deep OCR.",
-                        {"mime_type": up_notes.type, "data": up_notes.getvalue()}
-                    ])
-                    
-                    if response.text:
-                        st.session_state.pdf_content = response.text
+                    if len(raw_text.strip()) > 100:
+                        st.session_state.pdf_content = raw_text
                         st.session_state.current_file = up_notes.name
                         st.session_state.ques_count = 0
                         st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ '{up_notes.name}' Analyzed Successfully!")
+                        st.success(f"✅ '{up_notes.name}' Synced Locally!")
                         st.rerun()
                     else:
-                        st.error("AI returned empty content. Try a clearer scan.")
+                        st.error("Text extraction failed. This PDF seems to be a scanned image.")
+                        st.info("Bhai, scanned PDF ke liye Cloud OCR chahiye hoga. Tab tak text-based PDF try kar.")
                 except Exception as e:
-                    # Fallback for 404 Error
-                    st.error(f"Cloud Engine Busy: {e}")
-                    st.info("Bhai, agar API 404 de rahi hai, toh sham ko GPT-4o key ke saath milte hain. Tab tak general chat use kar.")
+                    st.error(f"Sync Error: {e}")
         else:
             st.error("Insufficient Credits!")
 
@@ -223,9 +219,9 @@ with tab1:
         cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
         if st.session_state.user_data['credits'] >= cost:
             with st.spinner("Professor GPT is thinking..."):
-                # Intelligence from Groq (Llama 3.3)
+                # We use Groq (Llama 3.3) which is working perfectly for you
                 context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
-                prompt = f"Role: Engineering Professor. Context: {context}\n\nQuestion: {ui_chat}"
+                prompt = f"Role: Expert Engineering Professor. Context: {context}\n\nStudent Question: {ui_chat}"
                 
                 try:
                     res = groq_client.chat.completions.create(
@@ -234,10 +230,9 @@ with tab1:
                     )
                     st.session_state.user_data['credits'] -= cost
                     if st.session_state.pdf_content: st.session_state.ques_count += 1
-                    
                     st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
                 except Exception as e:
-                    st.error("AI Node Busy.")
+                    st.error("AI service is busy.")
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
