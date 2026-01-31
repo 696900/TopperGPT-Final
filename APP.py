@@ -9,6 +9,8 @@ import re
 from groq import Groq
 from streamlit_mermaid import st_mermaid
 from pypdf import PdfReader
+import requests
+import base64
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -468,63 +470,63 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (FAST & SIMPLE) ---
+# --- TAB 5: FLASHCARDS (SECURE OPENROUTER ENGINE) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
     
-    # Short Credit Info
-    st.warning("💳 Total: **5 Credits** (Sync + AI Cards)")
+    st.warning("💳 Total: 5 Credits")
 
-    # States
-    if "flash_text_content" not in st.session_state: st.session_state.flash_text_content = ""
-    if "last_uploaded_card_file" not in st.session_state: st.session_state.last_uploaded_card_file = None
-    if "current_flashcards" not in st.session_state: st.session_state.current_flashcards = []
+    # Accessing key securely from secrets
+    try:
+        OR_KEY = st.secrets["OPENROUTER_API_KEY"]
+    except:
+        st.error("🔑 API Key not found in Secrets!")
+        OR_KEY = None
 
-    # 1. SIMPLE UPLOADER
-    card_file = st.file_uploader("Upload Notes (PDF Only)", type=["pdf"], key="final_v10")
+    # 1. FILE UPLOADER
+    card_file = st.file_uploader("Upload Scanned Notes (PDF/Image)", type=["pdf", "png", "jpg"], key="or_vision_v2")
     
-    if card_file and st.session_state.last_uploaded_card_file != card_file.name:
-        if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Syncing..."):
+    if card_file and st.button("🚀 Generate via GPT-4o Vision"):
+        if OR_KEY and st.session_state.user_data['credits'] >= 5:
+            with st.spinner("Deep Scanning via GPT-4o..."):
                 try:
-                    # Using pypdf because it's the most stable for you
-                    reader = PdfReader(io.BytesIO(card_file.read()))
-                    raw_text = ""
-                    for page in reader.pages[:30]:
-                        t = page.extract_text()
-                        if t: raw_text += t + "\n"
+                    # Converting to base64 for Vision
+                    encoded_file = base64.b64encode(card_file.getvalue()).decode('utf-8')
                     
-                    if len(raw_text.strip()) > 50:
-                        st.session_state.flash_text_content = raw_text
-                        st.session_state.last_uploaded_card_file = card_file.name
-                        st.success("✅ Done!")
-                    else:
-                        st.error("Text not found. Use a clearer PDF.")
-                except Exception as e:
-                    st.error(f"Error: {e}")
-        else:
-            st.error("Need 5 Credits!")
-
-    # 2. GENERATE BUTTON
-    if st.button("🚀 Generate Cards"):
-        if st.session_state.get("flash_text_content"):
-            with st.spinner("AI Typing..."):
-                prompt = f"Engineering context: {st.session_state.flash_text_content[:10000]}\n\nCreate 10 Flashcards: Question | Answer"
-                try:
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", 
-                        messages=[{"role": "user", "content": prompt}]
+                    # OpenRouter API Call (Handles Scanned PDFs perfectly)
+                    response = requests.post(
+                        url="https://openrouter.ai/api/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {OR_KEY}"},
+                        json={
+                            "model": "openai/gpt-4o-mini", # Super cheap & high intelligence
+                            "messages": [
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Extract all technical text and generate 10 'Question | Answer' flashcards from this image/document."},
+                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_file}"}}
+                                    ]
+                                }
+                            ]
+                        }
                     )
-                    st.session_state.current_flashcards = [c for c in res.choices[0].message.content.split("\n") if "|" in c]
-                    st.session_state.user_data['credits'] -= 5
-                    st.rerun()
-                except:
-                    st.error("AI Busy!")
+                    
+                    data = response.json()
+                    if 'choices' in data:
+                        cards_raw = data['choices'][0]['message']['content']
+                        st.session_state.current_flashcards = [c for c in cards_raw.split("\n") if "|" in c]
+                        st.session_state.user_data['credits'] -= 5
+                        st.success("✅ Flashcards Ready!")
+                        st.rerun()
+                    else:
+                        st.error("API Error: Check your OpenRouter Balance.")
+                except Exception as e:
+                    st.error(f"Critical Error: {e}")
         else:
-            st.error("Upload first!")
+            st.error("Check Credits or API Key!")
 
     # 3. DISPLAY
-    if st.session_state.current_flashcards:
+    if st.session_state.get("current_flashcards"):
         st.divider()
         for line in st.session_state.current_flashcards:
             try:
