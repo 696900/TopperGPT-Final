@@ -470,19 +470,29 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (FINAL SECURE VISION VERSION) ---
-# --- TAB 5: FLASHCARDS (ULTRA-STABLE VERSION) ---
+# --- TAB 5: FLASHCARDS (ULTIMATE STABLE VERSION) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
     st.warning("💳 Cost: **5 Credits**")
 
-    # Dono common names check karega taaki error na aaye
-    OR_KEY = st.secrets.get("OPENROUTER_API_KEY") or st.secrets.get("I_KEY")
+    # 1. SMART KEY DETECTION (Sab kuch check karega)
+    # Ye check karega ki tune Secrets mein kya naam rakha hai
+    OR_KEY = None
+    if "OPENROUTER_API_KEY" in st.secrets:
+        OR_KEY = st.secrets["OPENROUTER_API_KEY"]
+    elif "I_KEY" in st.secrets:
+        OR_KEY = st.secrets["I_KEY"]
+    elif "api_key" in st.secrets:
+        OR_KEY = st.secrets["api_key"]
 
+    # 2. ERROR HANDLING
     if not OR_KEY:
-        st.error("🔑 API Key disabled or missing! Check Streamlit Cloud Settings.")
+        st.error("🔑 Error: Streamlit Cloud ko Key nahi mil rahi!")
+        st.info("Bhai, Streamlit Dashboard > Settings > Secrets mein ye dalo:")
+        st.code('OPENROUTER_API_KEY = "teri-key-yahan"')
     else:
-        card_file = st.file_uploader("Upload Notes", type=["pdf", "png", "jpg", "jpeg"], key="flash_final_fix_v3")
+        # Agar key mil gayi toh uploader dikhao
+        card_file = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="flash_final_final")
         
         if card_file and st.button("🚀 Generate 10 Cards"):
             if st.session_state.user_data['credits'] >= 5:
@@ -491,6 +501,7 @@ with tab5:
                         import base64, requests
                         encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
                         
+                        # OpenRouter Call
                         response = requests.post(
                             url="https://openrouter.ai/api/v1/chat/completions",
                             headers={"Authorization": f"Bearer {OR_KEY}"},
@@ -508,15 +519,16 @@ with tab5:
                             raw = data['choices'][0]['message']['content']
                             st.session_state.current_flashcards = [c for c in raw.split("\n") if "|" in c]
                             st.session_state.user_data['credits'] -= 5
+                            st.success("✅ Success!")
                             st.rerun()
                         else:
-                            st.error("API Error: Balance ya Key check karein.")
+                            st.error(f"API Error: {data.get('error', {}).get('message', 'Unknown Error')}")
                     except Exception as e:
                         st.error(f"Error: {e}")
             else:
-                st.error("Credits khatam ho gaye!")
+                st.error("Need 5 Credits!")
 
-    # Display Results
+    # 3. DISPLAY
     if st.session_state.get("current_flashcards"):
         st.divider()
         for line in st.session_state.current_flashcards:
