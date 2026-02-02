@@ -471,29 +471,27 @@ with tab4:
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: FLASHCARDS (FINAL SECURE VISION VERSION) ---
-# --- TAB 5: FLASHCARDS (SECURE VISION VERSION) ---
+# --- TAB 5: FLASHCARDS (ULTRA SECURE) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
-    st.warning("💳 Total Cost: **5 Credits**")
+    st.warning("💳 Cost: **5 Credits**")
 
-    # Secrets check
+    # Correct key name check
     if "OPENROUTER_API_KEY" in st.secrets:
         OR_KEY = st.secrets["OPENROUTER_API_KEY"]
     else:
-        st.error("🔑 API Key disabled or missing! Check Step 3 above.")
+        st.error("🔑 Key disabled or missing! Setting mein check kar.")
         OR_KEY = None
 
-    if "current_flashcards" not in st.session_state:
-        st.session_state.current_flashcards = []
-
-    card_file = st.file_uploader("Upload Notes", type=["pdf", "png", "jpg", "jpeg"], key="flash_final_secure")
+    card_file = st.file_uploader("Upload Notes", type=["pdf", "png", "jpg", "jpeg"], key="flash_final_fix")
     
     if card_file and st.button("🚀 Generate 10 Cards"):
         if OR_KEY and st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Scanning..."):
+            with st.spinner("Processing..."):
                 try:
                     import base64, requests
                     encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
+                    # GPT-4o Mini call via OpenRouter
                     response = requests.post(
                         url="https://openrouter.ai/api/v1/chat/completions",
                         headers={"Authorization": f"Bearer {OR_KEY}"},
@@ -506,10 +504,12 @@ with tab5:
                         }
                     )
                     data = response.json()
-                    st.session_state.current_flashcards = [c for c in data['choices'][0]['message']['content'].split("\n") if "|" in c]
+                    raw = data['choices'][0]['message']['content']
+                    st.session_state.current_flashcards = [c for c in raw.split("\n") if "|" in c]
                     st.session_state.user_data['credits'] -= 5
                     st.rerun()
                 except Exception as e: st.error(f"Error: {e}")
+               
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
 with tab6:
