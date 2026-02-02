@@ -470,39 +470,30 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (ULTIMATE STABLE VERSION) ---
+# --- TAB 5: FLASHCARDS (DEBUG & STABLE) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
     st.warning("💳 Cost: **5 Credits**")
 
-    # 1. SMART KEY DETECTION (Sab kuch check karega)
-    # Ye check karega ki tune Secrets mein kya naam rakha hai
-    OR_KEY = None
-    if "OPENROUTER_API_KEY" in st.secrets:
-        # app.py mein ye line check kar lo
-        OR_KEY = st.secrets.get("OPENROUTER_API_KEY")
-    elif "I_KEY" in st.secrets:
-        OR_KEY = st.secrets["I_KEY"]
-    elif "api_key" in st.secrets:
-        OR_KEY = st.secrets["api_key"]
+    # DEBUG: Ye line temporarily enable karo agar phir bhi error aaye
+    # st.write("Available Secrets:", list(st.secrets.keys())) 
 
-    # 2. ERROR HANDLING
+    # Key dhoondne ka sabse robust tarika
+    OR_KEY = st.secrets.get("OPENROUTER_API_KEY")
+
     if not OR_KEY:
-        st.error("🔑 Error: Streamlit Cloud ko Key nahi mil rahi!")
-        st.info("Bhai, Streamlit Dashboard > Settings > Secrets mein ye dalo:")
-        st.code('OPENROUTER_API_KEY = "teri-key-yahan"')
+        st.error("🔑 Error: Streamlit Cloud ko abhi bhi Key nahi mil rahi!")
+        st.info("Bhai, Reboot App karne ke baad bhi ye aaye toh Dashboard mein variable name check kar.")
     else:
-        # Agar key mil gayi toh uploader dikhao
-        card_file = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="flash_final_final")
+        card_file = st.file_uploader("Upload Notes", type=["pdf", "png", "jpg", "jpeg"], key="flash_final_debug")
         
         if card_file and st.button("🚀 Generate 10 Cards"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("GPT-4o Vision is reading your notes..."):
+                with st.spinner("Processing..."):
                     try:
                         import base64, requests
                         encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
                         
-                        # OpenRouter Call
                         response = requests.post(
                             url="https://openrouter.ai/api/v1/chat/completions",
                             headers={"Authorization": f"Bearer {OR_KEY}"},
@@ -520,16 +511,15 @@ with tab5:
                             raw = data['choices'][0]['message']['content']
                             st.session_state.current_flashcards = [c for c in raw.split("\n") if "|" in c]
                             st.session_state.user_data['credits'] -= 5
-                            st.success("✅ Success!")
                             st.rerun()
                         else:
-                            st.error(f"API Error: {data.get('error', {}).get('message', 'Unknown Error')}")
+                            st.error(f"API Error: {data.get('error', {}).get('message', 'Check Balance')}")
                     except Exception as e:
                         st.error(f"Error: {e}")
             else:
-                st.error("Need 5 Credits!")
+                st.error("Credits khatam!")
 
-    # 3. DISPLAY
+    # Display Results
     if st.session_state.get("current_flashcards"):
         st.divider()
         for line in st.session_state.current_flashcards:
