@@ -470,61 +470,51 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (FREE GROQ VISION ENGINE) ---
+# --- TAB 5: FLASHCARDS (FREE & STABLE VISION) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
     st.info("⚡ Powered by Groq Vision (Free & Unlimited Scans)")
-    
-    # Simple Credit Info
     st.warning("💳 Cost: 5 Credits")
 
-    # 1. GET FREE KEY FROM SECRETS
+    # 1. Dashboard se Free Key uthana
     GROQ_KEY = st.secrets.get("GROQ_VISION_KEY")
 
     if not GROQ_KEY:
         st.error("🔑 Groq Key Missing! Dashboard mein 'GROQ_VISION_KEY' dalo.")
     else:
-        # 2. USER UPLOADER
-        card_file = st.file_uploader("Upload Scanned Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="groq_vision_v1")
+        card_file = st.file_uploader("Upload Scanned Notes", type=["pdf", "png", "jpg", "jpeg"], key="groq_v5_final")
         
         if card_file and st.button("🚀 Generate Exam Cards"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Llama 3.2 Vision is reading your notes..."):
+                with st.spinner("Llama 3.2 Vision is reading your notes for FREE..."):
                     try:
-                        # Convert to base64
-                        encoded_file = base64.b64encode(card_file.getvalue()).decode('utf-8')
+                        import base64, requests
+                        encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
                         
-                        # Calling Groq Vision API (100% Free for now)
+                        # API Call to Groq (No $5 required!)
                         response = requests.post(
                             url="https://api.groq.com/openai/v1/chat/completions",
                             headers={"Authorization": f"Bearer {GROQ_KEY}"},
                             json={
-                                "model": "llama-3.2-11b-vision-preview", # Vision Model
-                                "messages": [
-                                    {
-                                        "role": "user",
-                                        "content": [
-                                            {"type": "text", "text": "Extract all technical data and make 10 'Question | Answer' flashcards from this. Format: Question | Answer"},
-                                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_file}"}}
-                                        ]
-                                    }
-                                ]
+                                "model": "llama-3.2-11b-vision-preview",
+                                "messages": [{
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Extract all technical text and make 10 flashcards: Question | Answer"},
+                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
+                                    ]
+                                }]
                             }
                         )
-                        
                         data = response.json()
-                        if 'choices' in data:
-                            raw_content = data['choices'][0]['message']['content']
-                            st.session_state.current_flashcards = [c for c in raw_content.split("\n") if "|" in c]
-                            st.session_state.user_data['credits'] -= 5
-                            st.success("✅ Success! 0 API Cost.")
-                            st.rerun()
-                        else:
-                            st.error(f"Groq Error: {data.get('error', {}).get('message', 'Check API')}")
+                        raw = data['choices'][0]['message']['content']
+                        st.session_state.current_flashcards = [c for c in raw.split("\n") if "|" in c]
+                        st.session_state.user_data['credits'] -= 5
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Engine Error: {e}")
             else:
-                st.error("Insufficient Credits!")
+                st.error("Credits khatam!")
 
     # 3. DISPLAY
     if st.session_state.get("current_flashcards"):
@@ -533,7 +523,7 @@ with tab5:
             try:
                 q, a = line.split("|", 1)
                 with st.expander(f"📌 {q.strip()}"):
-                    st.success(f"Ans: {a.strip()}")
+                    st.success(f"**Ans:** {a.strip()}")
             except: continue
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
