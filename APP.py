@@ -470,37 +470,42 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (DEBUG & STABLE) ---
+# --- TAB 5: FLASHCARDS (ULTRA-ROBUST VISION VERSION) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
-    st.warning("💳 Cost: **5 Credits**")
+    st.warning("💳 Cost: 5 Credits")
 
-    # DEBUG: Ye line temporarily enable karo agar phir bhi error aaye
-    # st.write("Available Secrets:", list(st.secrets.keys())) 
+    # 1. SMART KEY RETRIEVAL
+    # Pehle Streamlit Cloud ke Dashboard (Secrets) se dhoondega
+    OR_KEY = st.secrets.get("OPENROUTER_API_KEY") or st.secrets.get("I_KEY")
 
-    # Key dhoondne ka sabse robust tarika
-    OR_KEY = st.secrets.get("OPENROUTER_API_KEY")
+    # Agar Secrets fail ho jayein, toh manual option do (No more error screens!)
+    if not OR_KEY:
+        st.info("🔑 Step 1: Niche box mein apni OpenRouter API Key dalo")
+        manual_key = st.text_input("Paste OpenRouter Key Here:", type="password", key="manual_or_key")
+        OR_KEY = manual_key if manual_key else None
 
     if not OR_KEY:
-        st.error("🔑 Error: Streamlit Cloud ko abhi bhi Key nahi mil rahi!")
-        st.info("Bhai, Reboot App karne ke baad bhi ye aaye toh Dashboard mein variable name check kar.")
+        st.error("⚠️ Error: Bina API Key ke Flashcards nahi banenge. OpenRouter Dashboard se key lekar yahan dalo.")
     else:
-        card_file = st.file_uploader("Upload Notes", type=["pdf", "png", "jpg", "jpeg"], key="flash_final_debug")
+        # 2. FILE UPLOADER
+        card_file = st.file_uploader("Upload Scanned Notes/PDF", type=["pdf", "png", "jpg", "jpeg"], key="flash_final_v5")
         
         if card_file and st.button("🚀 Generate 10 Cards"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Processing..."):
+                with st.spinner("GPT-4o Vision is reading your notes..."):
                     try:
                         import base64, requests
                         encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
                         
+                        # Direct API Call to OpenRouter
                         response = requests.post(
                             url="https://openrouter.ai/api/v1/chat/completions",
                             headers={"Authorization": f"Bearer {OR_KEY}"},
                             json={
-                                "model": "openai/gpt-4o-mini",
+                                "model": "openai/gpt-4o-mini", # Sabse sasta aur vision ready
                                 "messages": [{"role": "user", "content": [
-                                    {"type": "text", "text": "Extract text and make 10 engineering flashcards. Format: Question | Answer"},
+                                    {"type": "text", "text": "Extract all technical data and create exactly 10 flashcards in this format: Question | Answer. Focus on core engineering concepts."},
                                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
                                 ]}]
                             }
@@ -508,25 +513,26 @@ with tab5:
                         
                         data = response.json()
                         if 'choices' in data:
-                            raw = data['choices'][0]['message']['content']
-                            st.session_state.current_flashcards = [c for c in raw.split("\n") if "|" in c]
+                            raw_content = data['choices'][0]['message']['content']
+                            st.session_state.current_flashcards = [c for c in raw_content.split("\n") if "|" in c]
                             st.session_state.user_data['credits'] -= 5
+                            st.success("✅ Success! Credits deducted.")
                             st.rerun()
                         else:
-                            st.error(f"API Error: {data.get('error', {}).get('message', 'Check Balance')}")
+                            st.error(f"API Error: {data.get('error', {}).get('message', 'Balance check karo.')}")
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"Critical Error: {e}")
             else:
-                st.error("Credits khatam!")
+                st.error("Bhai, balance khatam ho gaya hai (5 Credits chahiye)!")
 
-    # Display Results
+    # 3. DISPLAY CARDS
     if st.session_state.get("current_flashcards"):
         st.divider()
         for line in st.session_state.current_flashcards:
             try:
                 q, a = line.split("|", 1)
                 with st.expander(f"📌 {q.strip()}"):
-                    st.success(f"Ans: {a.strip()}")
+                    st.info(f"**Ans:** {a.strip()}")
             except: continue
                
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
