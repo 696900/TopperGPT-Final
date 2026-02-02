@@ -470,29 +470,27 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (INTEGRATED ENGINE) ---
+# --- TAB 5: FLASHCARDS (PERMANENT INTEGRATED FIX) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
-    st.warning("💳 Cost: 5 Credits")
-
-    # 1. INTERNAL KEY CHECK
-    # Sabse pehle dashboard ke secrets check karega
-    OR_KEY = st.secrets.get("OPENROUTER_API_KEY")
-
-    # Agar dashboard mein key nahi mili, tabhi admin manual input dikhayega
-    if not OR_KEY:
-        with st.expander("🛠️ Admin API Setup (Internal Use Only)"):
-            OR_KEY = st.text_input("Enter System API Key:", type="password")
+    
+    # 1. SMART KEY DETECTION (No more Manual/Admin boxes)
+    # Ye system tere dashboard ke secrets mein se har possible naam check karega
+    OR_KEY = st.secrets.get("OPENROUTER_API_KEY") or \
+             st.secrets.get("I_KEY") or \
+             st.secrets.get("api_key")
 
     if not OR_KEY:
-        st.error("⚠️ System Offline: API Key not configured in dashboard.")
+        # Agar bilkul nahi mili toh hi ye error dikhayega
+        st.error("⚠️ System Offline: Dashboard mein Key nahi mili. Settings > Secrets check karein.")
     else:
-        # 2. SIMPLE USER INTERFACE
-        card_file = st.file_uploader("Upload Your Notes", type=["pdf", "png", "jpg", "jpeg"], key="user_flash_v1")
+        # Simple Interface for Users
+        st.warning("💳 Cost: 5 Credits")
+        card_file = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="user_flash_final")
         
         if card_file and st.button("🚀 Generate Exam Cards"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("TopperGPT AI is analyzing your PDF..."):
+                with st.spinner("TopperGPT is analyzing your notes..."):
                     try:
                         import base64, requests
                         encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
@@ -503,29 +501,29 @@ with tab5:
                             json={
                                 "model": "openai/gpt-4o-mini", 
                                 "messages": [{"role": "user", "content": [
-                                    {"type": "text", "text": "Analyze this engineering document and give 10 flashcards: Question | Answer"},
+                                    {"type": "text", "text": "Extract all engineering concepts and give 10 flashcards: Question | Answer"},
                                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
                                 ]}]
                             }
                         )
                         
                         data = response.json()
-                        # Error Check for Credits
+                        
+                        # Wallet/Credit error handling from provider
                         if 'error' in data:
-                            st.error(f"💳 Wallet Error: {data['error'].get('message', 'No Credits')}")
-                            st.info("Bhai, OpenRouter dashboard mein balance check kar!")
+                            st.error(f"💳 Wallet Error: {data['error'].get('message', 'Check Balance')}")
+                            st.info("Bhai, OpenRouter mein $5 (₹420) add karne honge tabhi ye chalega.")
                         elif 'choices' in data:
                             raw = data['choices'][0]['message']['content']
                             st.session_state.current_flashcards = [c for c in raw.split("\n") if "|" in c]
                             st.session_state.user_data['credits'] -= 5
-                            st.success("✅ Flashcards Generated!")
                             st.rerun()
                     except Exception as e:
-                        st.error(f"System Busy: {e}")
+                        st.error(f"Engine Error: {e}")
             else:
-                st.error("Need 5 Credits to process this PDF!")
+                st.error("Credits khatam!")
 
-    # 3. DISPLAY
+    # Display Cards
     if st.session_state.get("current_flashcards"):
         st.divider()
         for line in st.session_state.current_flashcards:
