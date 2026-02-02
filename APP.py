@@ -470,67 +470,70 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (PERMANENT INTEGRATED FIX) ---
+# --- TAB 5: FLASHCARDS (FREE GROQ VISION ENGINE) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
+    st.info("⚡ Powered by Groq Vision (Free & Unlimited Scans)")
     
-    # 1. SMART KEY DETECTION (No more Manual/Admin boxes)
-    # Ye system tere dashboard ke secrets mein se har possible naam check karega
-    OR_KEY = st.secrets.get("OPENROUTER_API_KEY") or \
-             st.secrets.get("I_KEY") or \
-             st.secrets.get("api_key")
+    # Simple Credit Info
+    st.warning("💳 Cost: 5 Credits")
 
-    if not OR_KEY:
-        # Agar bilkul nahi mili toh hi ye error dikhayega
-        st.error("⚠️ System Offline: Dashboard mein Key nahi mili. Settings > Secrets check karein.")
+    # 1. GET FREE KEY FROM SECRETS
+    GROQ_KEY = st.secrets.get("GROQ_VISION_KEY")
+
+    if not GROQ_KEY:
+        st.error("🔑 Groq Key Missing! Dashboard mein 'GROQ_VISION_KEY' dalo.")
     else:
-        # Simple Interface for Users
-        st.warning("💳 Cost: 5 Credits")
-        card_file = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="user_flash_final")
+        # 2. USER UPLOADER
+        card_file = st.file_uploader("Upload Scanned Notes (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="groq_vision_v1")
         
         if card_file and st.button("🚀 Generate Exam Cards"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("TopperGPT is analyzing your notes..."):
+                with st.spinner("Llama 3.2 Vision is reading your notes..."):
                     try:
-                        import base64, requests
-                        encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
+                        # Convert to base64
+                        encoded_file = base64.b64encode(card_file.getvalue()).decode('utf-8')
                         
+                        # Calling Groq Vision API (100% Free for now)
                         response = requests.post(
-                            url="https://openrouter.ai/api/v1/chat/completions",
-                            headers={"Authorization": f"Bearer {OR_KEY}"},
+                            url="https://api.groq.com/openai/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {GROQ_KEY}"},
                             json={
-                                "model": "openai/gpt-4o-mini", 
-                                "messages": [{"role": "user", "content": [
-                                    {"type": "text", "text": "Extract all engineering concepts and give 10 flashcards: Question | Answer"},
-                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
-                                ]}]
+                                "model": "llama-3.2-11b-vision-preview", # Vision Model
+                                "messages": [
+                                    {
+                                        "role": "user",
+                                        "content": [
+                                            {"type": "text", "text": "Extract all technical data and make 10 'Question | Answer' flashcards from this. Format: Question | Answer"},
+                                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_file}"}}
+                                        ]
+                                    }
+                                ]
                             }
                         )
                         
                         data = response.json()
-                        
-                        # Wallet/Credit error handling from provider
-                        if 'error' in data:
-                            st.error(f"💳 Wallet Error: {data['error'].get('message', 'Check Balance')}")
-                            st.info("Bhai, OpenRouter mein $5 (₹420) add karne honge tabhi ye chalega.")
-                        elif 'choices' in data:
-                            raw = data['choices'][0]['message']['content']
-                            st.session_state.current_flashcards = [c for c in raw.split("\n") if "|" in c]
+                        if 'choices' in data:
+                            raw_content = data['choices'][0]['message']['content']
+                            st.session_state.current_flashcards = [c for c in raw_content.split("\n") if "|" in c]
                             st.session_state.user_data['credits'] -= 5
+                            st.success("✅ Success! 0 API Cost.")
                             st.rerun()
+                        else:
+                            st.error(f"Groq Error: {data.get('error', {}).get('message', 'Check API')}")
                     except Exception as e:
                         st.error(f"Engine Error: {e}")
             else:
-                st.error("Credits khatam!")
+                st.error("Insufficient Credits!")
 
-    # Display Cards
+    # 3. DISPLAY
     if st.session_state.get("current_flashcards"):
         st.divider()
         for line in st.session_state.current_flashcards:
             try:
                 q, a = line.split("|", 1)
                 with st.expander(f"📌 {q.strip()}"):
-                    st.success(f"**Ans:** {a.strip()}")
+                    st.success(f"Ans: {a.strip()}")
             except: continue
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
