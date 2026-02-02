@@ -479,7 +479,8 @@ with tab5:
     # Ye check karega ki tune Secrets mein kya naam rakha hai
     OR_KEY = None
     if "OPENROUTER_API_KEY" in st.secrets:
-        OR_KEY = st.secrets["OPENROUTER_API_KEY"]
+        # app.py mein ye line check kar lo
+        OR_KEY = st.secrets.get("OPENROUTER_API_KEY")
     elif "I_KEY" in st.secrets:
         OR_KEY = st.secrets["I_KEY"]
     elif "api_key" in st.secrets:
