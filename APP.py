@@ -470,61 +470,79 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (FREE & STABLE VISION) ---
+# --- TAB 5: FLASHCARDS (VERIFIED GROQ ENGINE) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
-    st.info("⚡ Powered by Groq Vision (Free & Unlimited Scans)")
-    st.warning("💳 Cost: 5 Credits")
+    
+    # Simple UI as requested
+    st.warning("💳 Total Cost: **5 Credits**")
 
-    # 1. Dashboard se Free Key uthana
-    GROQ_KEY = st.secrets.get("GROQ_VISION_KEY")
+    # Persistent State to keep cards visible
+    if "flash_cards_list" not in st.session_state:
+        st.session_state.flash_cards_list = None
+    if "flash_file_last" not in st.session_state:
+        st.session_state.flash_file_last = ""
 
-    if not GROQ_KEY:
-        st.error("🔑 Groq Key Missing! Dashboard mein 'GROQ_VISION_KEY' dalo.")
-    else:
-        card_file = st.file_uploader("Upload Scanned Notes", type=["pdf", "png", "jpg", "jpeg"], key="groq_v5_final")
-        
-        if card_file and st.button("🚀 Generate Exam Cards"):
+    # 1. FILE UPLOADER (Simple & Clean)
+    card_file = st.file_uploader("Upload Notes (PDF Only)", type=["pdf"], key="flash_verified_v1")
+    
+    if card_file:
+        if st.button("🚀 Generate Exam Flashcards"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Llama 3.2 Vision is reading your notes for FREE..."):
+                with st.spinner("AI Professor is extracting key concepts..."):
                     try:
-                        import base64, requests
-                        encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
+                        # Local Extraction (Fast & No API Cost for Sync)
+                        reader = PdfReader(io.BytesIO(card_file.read()))
+                        raw_text = ""
+                        for page in reader.pages[:25]: # First 25 pages for speed
+                            raw_text += (page.extract_text() or "") + "\n"
                         
-                        # API Call to Groq (No $5 required!)
-                        response = requests.post(
-                            url="https://api.groq.com/openai/v1/chat/completions",
-                            headers={"Authorization": f"Bearer {GROQ_KEY}"},
-                            json={
-                                "model": "llama-3.2-11b-vision-preview",
-                                "messages": [{
-                                    "role": "user",
-                                    "content": [
-                                        {"type": "text", "text": "Extract all technical text and make 10 flashcards: Question | Answer"},
-                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
-                                    ]
-                                }]
-                            }
-                        )
-                        data = response.json()
-                        raw = data['choices'][0]['message']['content']
-                        st.session_state.current_flashcards = [c for c in raw.split("\n") if "|" in c]
-                        st.session_state.user_data['credits'] -= 5
-                        st.rerun()
+                        if len(raw_text.strip()) > 100:
+                            # Using the SAME groq_client that works in Tab 6/7
+                            prompt = f"""
+                            Act as an Engineering Professor. Create 10 'Question | Answer' flashcards 
+                            based on this text: {raw_text[:12000]}
+                            Format: Exactly one 'Question | Answer' per line.
+                            """
+                            
+                            res = groq_client.chat.completions.create(
+                                model="llama-3.3-70b-versatile", 
+                                messages=[{"role": "user", "content": prompt}]
+                            )
+                            
+                            # Save to State
+                            st.session_state.flash_cards_list = res.choices[0].message.content
+                            st.session_state.flash_file_last = card_file.name
+                            
+                            # Deduct Credits
+                            st.session_state.user_data['credits'] -= 5
+                            st.toast("5 Credits Deducted")
+                            st.rerun()
+                        else:
+                            st.error("Bhai, is PDF mein text nahi mil raha. Scanned image hai kya?")
                     except Exception as e:
                         st.error(f"Engine Error: {e}")
             else:
-                st.error("Credits khatam!")
+                st.error("Low Balance! Sidebar se top-up karo.")
 
-    # 3. DISPLAY
-    if st.session_state.get("current_flashcards"):
+    # 2. DISPLAY LOGIC (Outside button so it stays after rerun)
+    if st.session_state.flash_cards_list:
+        st.markdown(f"### 🗂️ Study Deck: {st.session_state.flash_file_last}")
         st.divider()
-        for line in st.session_state.current_flashcards:
-            try:
-                q, a = line.split("|", 1)
-                with st.expander(f"📌 {q.strip()}"):
-                    st.success(f"**Ans:** {a.strip()}")
-            except: continue
+        
+        lines = st.session_state.flash_cards_list.strip().split("\n")
+        for line in lines:
+            if "|" in line:
+                try:
+                    q, a = line.split("|", 1)
+                    with st.expander(f"📌 {q.strip()}"):
+                        st.success(f"**Ans:** {a.strip()}")
+                except:
+                    continue
+        
+        if st.button("🗑️ Clear Flashcards"):
+            st.session_state.flash_cards_list = None
+            st.rerun()
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
 with tab6:
