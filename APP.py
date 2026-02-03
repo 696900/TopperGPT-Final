@@ -11,7 +11,7 @@ from streamlit_mermaid import st_mermaid
 from pypdf import PdfReader
 import requests
 import base64
-from pdf2image import convert_from_bytes
+import fitz
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -471,39 +471,35 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (OCR + LLM PIPELINE) ---
+# --- TAB 5: FLASHCARDS (STABLE OCR PIPELINE) ---
 with tab5:
-    st.subheader("🃏 Engineering Flashcard Generator (OCR Vision)")
-    st.info("💡 Tip: Scanned notes ke liye best hai.")
-    st.warning("💳 Cost: **5 Credits**")
-
-    # Verified Groq Key check
+    st.subheader("🃏 Engineering Flashcard Generator")
+    st.info("💡 Research Applied: PDF -> Image -> Groq Vision LLM")
+    
+    # Dashboard se key uthana (Jo tune setup ki hai)
     GROQ_KEY = st.secrets.get("GROQ_VISION_KEY") or st.secrets.get("I_KEY")
 
     if not GROQ_KEY:
-        st.error("🔑 Dashboard mein 'GROQ_VISION_KEY' miss hai!")
+        st.error("🔑 API Key missing! Dashboard > Settings > Secrets check kar.")
     else:
-        # File Uploader
-        card_file = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg"], key="final_pipeline_v1")
+        card_file = st.file_uploader("Upload Scanned Notes (PDF/Image)", type=["pdf", "png", "jpg"], key="pipeline_final_fix")
         
-        if card_file and st.button("🚀 Generate Flashcards"):
+        if card_file and st.button("🚀 Run OCR & Generate"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Step 1: Extracting Text (OCR) ... Step 2: AI Processing..."):
+                with st.spinner("Pipeline Active: Converting PDF to Image..."):
                     try:
-                        # Logic: PDF ho ya Image, base64 mein convert karo
+                        # PIPELINE STEP 1: Convert to Base64
                         if card_file.type == "application/pdf":
-                            # PDF ke pehle page ko image mein badlo (Fastest Pipeline)
-                            # Note: pdf2image needs 'poppler' on cloud, hum bypass use karenge
-                            import fitz # PyMuPDF (Fast & No extra install)
+                            # PDF to Image conversion without poppler/pdf2image
                             doc = fitz.open(stream=card_file.read(), filetype="pdf")
-                            page = doc.load_page(0) # First page only for speed
+                            page = doc.load_page(0) # First page sample
                             pix = page.get_pixmap()
-                            img_display = pix.tobytes("jpg")
-                            encoded = base64.b64encode(img_display).decode('utf-8')
+                            img_data = pix.tobytes("jpg")
+                            encoded = base64.b64encode(img_data).decode('utf-8')
                         else:
                             encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
 
-                        # API CALL: Sidha Vision Model ko bhejo (No Tesseract needed!)
+                        # PIPELINE STEP 2: LLM Analysis (Using Groq for Free Speed)
                         response = requests.post(
                             url="https://api.groq.com/openai/v1/chat/completions",
                             headers={"Authorization": f"Bearer {GROQ_KEY}"},
@@ -512,7 +508,7 @@ with tab5:
                                 "messages": [{
                                     "role": "user",
                                     "content": [
-                                        {"type": "text", "text": "Act as a Professor. Extract text and create 10 flashcards. Format: Question | Answer"},
+                                        {"type": "text", "text": "Extract text and make 10 Question | Answer flashcards. Return ONLY plain text."},
                                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
                                     ]
                                 }]
@@ -526,14 +522,14 @@ with tab5:
                             st.session_state.user_data['credits'] -= 5
                             st.rerun()
                         else:
-                            st.error(f"Provider Error: {data.get('error', {}).get('message')}")
+                            st.error("API Response error. Balance check kar.")
                             
                     except Exception as e:
-                        st.error(f"Pipeline Error: {e}")
+                        st.error(f"Pipeline Broken: {e}")
             else:
                 st.error("Credits low!")
 
-    # DISPLAY CARDS
+    # DISPLAY
     if st.session_state.get("flash_cards_list"):
         st.divider()
         for line in st.session_state.flash_cards_list:
