@@ -11,6 +11,7 @@ from streamlit_mermaid import st_mermaid
 from pypdf import PdfReader
 import requests
 import base64
+from pdf2image import convert_from_bytes
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -470,79 +471,77 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (VERIFIED GROQ ENGINE) ---
+# --- TAB 5: FLASHCARDS (OCR + LLM PIPELINE) ---
 with tab5:
-    st.subheader("🃏 Engineering Flashcard Generator")
-    
-    # Simple UI as requested
-    st.warning("💳 Total Cost: **5 Credits**")
+    st.subheader("🃏 Engineering Flashcard Generator (OCR Vision)")
+    st.info("💡 Tip: Scanned notes ke liye best hai.")
+    st.warning("💳 Cost: **5 Credits**")
 
-    # Persistent State to keep cards visible
-    if "flash_cards_list" not in st.session_state:
-        st.session_state.flash_cards_list = None
-    if "flash_file_last" not in st.session_state:
-        st.session_state.flash_file_last = ""
+    # Verified Groq Key check
+    GROQ_KEY = st.secrets.get("GROQ_VISION_KEY") or st.secrets.get("I_KEY")
 
-    # 1. FILE UPLOADER (Simple & Clean)
-    card_file = st.file_uploader("Upload Notes (PDF Only)", type=["pdf"], key="flash_verified_v1")
-    
-    if card_file:
-        if st.button("🚀 Generate Exam Flashcards"):
+    if not GROQ_KEY:
+        st.error("🔑 Dashboard mein 'GROQ_VISION_KEY' miss hai!")
+    else:
+        # File Uploader
+        card_file = st.file_uploader("Upload Notes (PDF/Image)", type=["pdf", "png", "jpg"], key="final_pipeline_v1")
+        
+        if card_file and st.button("🚀 Generate Flashcards"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("AI Professor is extracting key concepts..."):
+                with st.spinner("Step 1: Extracting Text (OCR) ... Step 2: AI Processing..."):
                     try:
-                        # Local Extraction (Fast & No API Cost for Sync)
-                        reader = PdfReader(io.BytesIO(card_file.read()))
-                        raw_text = ""
-                        for page in reader.pages[:25]: # First 25 pages for speed
-                            raw_text += (page.extract_text() or "") + "\n"
+                        # Logic: PDF ho ya Image, base64 mein convert karo
+                        if card_file.type == "application/pdf":
+                            # PDF ke pehle page ko image mein badlo (Fastest Pipeline)
+                            # Note: pdf2image needs 'poppler' on cloud, hum bypass use karenge
+                            import fitz # PyMuPDF (Fast & No extra install)
+                            doc = fitz.open(stream=card_file.read(), filetype="pdf")
+                            page = doc.load_page(0) # First page only for speed
+                            pix = page.get_pixmap()
+                            img_display = pix.tobytes("jpg")
+                            encoded = base64.b64encode(img_display).decode('utf-8')
+                        else:
+                            encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
+
+                        # API CALL: Sidha Vision Model ko bhejo (No Tesseract needed!)
+                        response = requests.post(
+                            url="https://api.groq.com/openai/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {GROQ_KEY}"},
+                            json={
+                                "model": "llama-3.2-11b-vision-preview",
+                                "messages": [{
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Act as a Professor. Extract text and create 10 flashcards. Format: Question | Answer"},
+                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
+                                    ]
+                                }]
+                            }
+                        )
                         
-                        if len(raw_text.strip()) > 100:
-                            # Using the SAME groq_client that works in Tab 6/7
-                            prompt = f"""
-                            Act as an Engineering Professor. Create 10 'Question | Answer' flashcards 
-                            based on this text: {raw_text[:12000]}
-                            Format: Exactly one 'Question | Answer' per line.
-                            """
-                            
-                            res = groq_client.chat.completions.create(
-                                model="llama-3.3-70b-versatile", 
-                                messages=[{"role": "user", "content": prompt}]
-                            )
-                            
-                            # Save to State
-                            st.session_state.flash_cards_list = res.choices[0].message.content
-                            st.session_state.flash_file_last = card_file.name
-                            
-                            # Deduct Credits
+                        data = response.json()
+                        if 'choices' in data:
+                            raw = data['choices'][0]['message']['content']
+                            st.session_state.flash_cards_list = [c for c in raw.split("\n") if "|" in c]
                             st.session_state.user_data['credits'] -= 5
-                            st.toast("5 Credits Deducted")
                             st.rerun()
                         else:
-                            st.error("Bhai, is PDF mein text nahi mil raha. Scanned image hai kya?")
+                            st.error(f"Provider Error: {data.get('error', {}).get('message')}")
+                            
                     except Exception as e:
-                        st.error(f"Engine Error: {e}")
+                        st.error(f"Pipeline Error: {e}")
             else:
-                st.error("Low Balance! Sidebar se top-up karo.")
+                st.error("Credits low!")
 
-    # 2. DISPLAY LOGIC (Outside button so it stays after rerun)
-    if st.session_state.flash_cards_list:
-        st.markdown(f"### 🗂️ Study Deck: {st.session_state.flash_file_last}")
+    # DISPLAY CARDS
+    if st.session_state.get("flash_cards_list"):
         st.divider()
-        
-        lines = st.session_state.flash_cards_list.strip().split("\n")
-        for line in lines:
-            if "|" in line:
-                try:
-                    q, a = line.split("|", 1)
-                    with st.expander(f"📌 {q.strip()}"):
-                        st.success(f"**Ans:** {a.strip()}")
-                except:
-                    continue
-        
-        if st.button("🗑️ Clear Flashcards"):
-            st.session_state.flash_cards_list = None
-            st.rerun()
+        for line in st.session_state.flash_cards_list:
+            try:
+                q, a = line.split("|", 1)
+                with st.expander(f"📌 {q.strip()}"):
+                    st.success(f"**Ans:** {a.strip()}")
+            except: continue
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
 with tab6:

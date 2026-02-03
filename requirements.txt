@@ -10,3 +10,5 @@ google-generativeai
 pdfplumber
 youtube-transcript-api
 streamlit-mermaid
+PyMuPDF
+requests
