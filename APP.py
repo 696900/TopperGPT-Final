@@ -471,44 +471,44 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (STABLE OCR PIPELINE) ---
+# --- TAB 5: FLASHCARDS (PROFESSIONAL INTEGRATED VERSION) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
-    st.info("💡 Research Applied: PDF -> Image -> Groq Vision LLM")
-    
-    # Dashboard se key uthana (Jo tune setup ki hai)
-    GROQ_KEY = st.secrets.get("GROQ_VISION_KEY") or st.secrets.get("I_KEY")
+    st.info("⚡ Research Applied: PDF -> Image -> Groq Vision LLM")
+    st.warning("💳 Cost: 5 Credits")
 
-    if not GROQ_KEY:
-        st.error("🔑 API Key missing! Dashboard > Settings > Secrets check kar.")
+    # FIX: Using the verified key from your Secrets directly
+    G_KEY = st.secrets.get("GROQ_VISION_KEY") or st.secrets.get("GROQ_API_KEY")
+
+    if not G_KEY:
+        st.error("🔑 API Key missing! Dashboard mein 'GROQ_VISION_KEY' check kar.")
     else:
-        card_file = st.file_uploader("Upload Scanned Notes (PDF/Image)", type=["pdf", "png", "jpg"], key="pipeline_final_fix")
+        card_file = st.file_uploader("Upload Scanned Notes/PDF", type=["pdf", "png", "jpg"], key="pipeline_v_final_verified")
         
-        if card_file and st.button("🚀 Run OCR & Generate"):
+        if card_file and st.button("🚀 Generate Flashcards"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Pipeline Active: Converting PDF to Image..."):
+                with st.spinner("AI is reading your scanned pages..."):
                     try:
-                        # PIPELINE STEP 1: Convert to Base64
+                        # PIPELINE: PDF to Base64 Image (No Poppler/Tesseract needed)
                         if card_file.type == "application/pdf":
-                            # PDF to Image conversion without poppler/pdf2image
                             doc = fitz.open(stream=card_file.read(), filetype="pdf")
-                            page = doc.load_page(0) # First page sample
+                            page = doc.load_page(0)  # Reading first page
                             pix = page.get_pixmap()
                             img_data = pix.tobytes("jpg")
                             encoded = base64.b64encode(img_data).decode('utf-8')
                         else:
                             encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
 
-                        # PIPELINE STEP 2: LLM Analysis (Using Groq for Free Speed)
+                        # API Call using the SAME Groq logic as Tab 6/7
                         response = requests.post(
                             url="https://api.groq.com/openai/v1/chat/completions",
-                            headers={"Authorization": f"Bearer {GROQ_KEY}"},
+                            headers={"Authorization": f"Bearer {G_KEY}"},
                             json={
                                 "model": "llama-3.2-11b-vision-preview",
                                 "messages": [{
                                     "role": "user",
                                     "content": [
-                                        {"type": "text", "text": "Extract text and make 10 Question | Answer flashcards. Return ONLY plain text."},
+                                        {"type": "text", "text": "Extract technical concepts and create exactly 10 flashcards. Format: Question | Answer"},
                                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
                                     ]
                                 }]
@@ -518,18 +518,19 @@ with tab5:
                         data = response.json()
                         if 'choices' in data:
                             raw = data['choices'][0]['message']['content']
+                            # Filtering Question | Answer format
                             st.session_state.flash_cards_list = [c for c in raw.split("\n") if "|" in c]
                             st.session_state.user_data['credits'] -= 5
                             st.rerun()
                         else:
-                            st.error("API Response error. Balance check kar.")
+                            st.error(f"API Error: {data.get('error', {}).get('message', 'Provider Busy')}")
                             
                     except Exception as e:
                         st.error(f"Pipeline Broken: {e}")
             else:
-                st.error("Credits low!")
+                st.error("Credits low! Sidebar se recharge karlo.")
 
-    # DISPLAY
+    # 3. DISPLAY CARDS
     if st.session_state.get("flash_cards_list"):
         st.divider()
         for line in st.session_state.flash_cards_list:
