@@ -471,31 +471,31 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (ULTRA-STABLE VISION ENGINE) ---
+# --- TAB 5: FLASHCARDS (FINAL PRODUCTION STABLE VERSION) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
-    st.info("⚡ Status: Latest Llama 3.2 Vision Engine Active")
+    st.info("⚡ Status: Production Vision Engine Active")
     st.warning("💳 Total Cost: **5 Credits**")
 
     # Persistent State
     if "flash_cards_list" not in st.session_state:
         st.session_state.flash_cards_list = None
 
-    # Using the verified key from your top-level configuration
-    V_KEY = st.secrets.get("GROQ_API_KEY") # Sidha top wala key use kar raha hoon
+    # Bulletproof Key Retrieval from your Secrets
+    G_KEY = st.secrets.get("GROQ_API_KEY") or st.secrets.get("GROQ_VISION_KEY")
 
-    if not V_KEY:
-        st.error("🔑 API Key not found! Check Streamlit Cloud Secrets.")
+    if not G_KEY:
+        st.error("🔑 API Key missing! Dashboard Secrets check karein.")
     else:
-        card_file = st.file_uploader("Upload Scanned Notes/PDF", type=["pdf", "png", "jpg", "jpeg"], key="flash_vision_v_fixed")
+        card_file = st.file_uploader("Upload Scanned Notes/PDF", type=["pdf", "png", "jpg", "jpeg"], key="flash_vision_final_prod")
         
         if card_file and st.button("🚀 Generate Flashcards"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("AI is reading your notes with the latest engine..."):
+                with st.spinner("TopperGPT AI is reading your notes..."):
                     try:
                         import base64, requests
                         
-                        # PIPELINE: PDF to Base64 Image (Fast & Cloud-safe)
+                        # PIPELINE: PDF to Base64 Image using PyMuPDF
                         if card_file.type == "application/pdf":
                             import fitz
                             doc = fitz.open(stream=card_file.read(), filetype="pdf")
@@ -506,16 +506,16 @@ with tab5:
                         else:
                             encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
 
-                        # API Call using the ONLY supported vision model right now
+                        # API Call to Groq using the LATEST supported model
                         response = requests.post(
                             url="https://api.groq.com/openai/v1/chat/completions",
-                            headers={"Authorization": f"Bearer {V_KEY}"},
+                            headers={"Authorization": f"Bearer {G_KEY}"},
                             json={
-                                "model": "llama-3.2-11b-vision-preview", # FIXED: Stable production model
+                                "model": "llama-3.2-11b-vision-preview", # Stable Production Model
                                 "messages": [{
                                     "role": "user",
                                     "content": [
-                                        {"type": "text", "text": "Extract all engineering data and create 10 flashcards in format: Question | Answer"},
+                                        {"type": "text", "text": "Extract all technical data and create exactly 10 flashcards. Format: Question | Answer"},
                                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
                                     ]
                                 }]
@@ -529,14 +529,14 @@ with tab5:
                             st.session_state.user_data['credits'] -= 5
                             st.rerun()
                         else:
-                            # Detailed error logging to avoid "Engine Busy" confusion
-                            err_msg = data.get('error', {}).get('message', 'Unknown API Error')
-                            st.error(f"Groq API says: {err_msg}")
+                            # Direct display of Groq error message
+                            err_msg = data.get('error', {}).get('message', 'Model Support Issue')
+                            st.error(f"Groq API: {err_msg}")
                             
                     except Exception as e:
-                        st.error(f"Pipeline Broken: {e}")
+                        st.error(f"Pipeline Error: {e}")
             else:
-                st.error("Low Balance! Sidebar se top-up karo.")
+                st.error("Credits low! Sidebar se recharge karein.")
 
     # DISPLAY
     if st.session_state.get("flash_cards_list"):
