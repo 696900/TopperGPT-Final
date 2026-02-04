@@ -341,64 +341,64 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (HYBRID STABLE) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (GROQ STABLE) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>OCR Extraction • Text-Only Evaluation • Zero Error</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Groq Vision Analysis • Zero 404 Error Build</p>", unsafe_allow_html=True)
     
     if "mod_result" not in st.session_state:
         st.session_state.mod_result = None
 
     st.warning("💳 Evaluation Cost: **5 Credits**")
     
-    # 1. Input Section
-    ans_photo = st.file_uploader("Upload Answer Photo", type=["jpg", "png", "jpeg"], key="mod_hybrid")
-    manual_q = st.text_input("Optional: Type Question (for 100% accuracy)", placeholder="e.g. What is BJT?")
+    # Input Section
+    ans_photo = st.file_uploader("Upload Answer Photo", type=["jpg", "png", "jpeg"], key="mod_groq_stable")
+    manual_q = st.text_input("Optional: Question (for better accuracy)", placeholder="e.g. What is BJT?")
 
-    if st.button("🔍 Start Stable Evaluation") and ans_photo:
+    if st.button("🚀 Start Stable Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Moderator is scanning & evaluating..."):
+            with st.spinner("TopperGPT AI is scanning your response..."):
                 try:
-                    # STEP 1: Using Gemini to extract text (Stable OCR mode)
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    img_data = ans_photo.getvalue()
+                    # STEP 1: Using Groq Key from Secrets
+                    G_KEY = st.secrets["GROQ_API_KEY"]
+                    encoded_img = base64.b64encode(ans_photo.getvalue()).decode('utf-8')
                     
-                    # Pro-Prompt for JSON Output as per your research
-                    prompt = f"""
-                    You are a strict Indian Board Examiner. 
-                    Extract text from image and evaluate based on this question: {manual_q if manual_q else 'Detect from image'}.
+                    # STEP 2: Groq Vision API Call (100% Stable)
+                    response = requests.post(
+                        url="https://api.groq.com/openai/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {G_KEY}"},
+                        json={
+                            "model": "llama-3.2-90b-vision-preview",
+                            "messages": [{
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": f"Strict Examiner Mode. Identify Question: {manual_q if manual_q else 'Detect from image'}. Evaluate Handwritten Answer out of 10. Return ONLY JSON: {{\"q\": \"...\", \"marks\": \"X/10\", \"pros\": \"...\", \"cons\": \"...\", \"tip\": \"...\"}}"},
+                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_img}"}}
+                                ]
+                            }],
+                            "response_format": {"type": "json_object"}
+                        }
+                    )
                     
-                    Return ONLY a JSON object:
-                    {{
-                      "q": "Detected Question",
-                      "marks": "X/10",
-                      "pros": "what is good",
-                      "cons": "what is missing",
-                      "tip": "topper advice"
-                    }}
-                    """
-                    
-                    response = model.generate_content([{"mime_type": "image/jpeg", "data": img_data}, prompt])
-                    
-                    # Cleaning JSON (Sometimes Gemini adds ```json ... ```)
-                    clean_json = response.text.replace("```json", "").replace("```", "").strip()
-                    st.session_state.mod_result = json.loads(clean_json)
+                    # STEP 3: Safe Parsing
+                    data = response.json()
+                    st.session_state.mod_result = json.loads(data['choices'][0]['message']['content'])
                     st.session_state.user_data['credits'] -= 5
                     
                 except Exception as e:
-                    st.error(f"Moderator Error: {e}. Please ensure Gemini Key is 'Text-Enabled'.")
+                    st.error(f"Moderator Error: {e}")
         else:
             st.error("Balance low!")
 
-    # --- THE CINEMATIC UI (Using JSON Data) ---
+    # --- THE CINEMATIC UI ---
     if st.session_state.get("mod_result"):
         res = st.session_state.mod_result
         st.divider()
         
-        # 1. Question Box
+        # 1. Detected Question Box
         st.markdown(f"""
         <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
-            <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">MODERATOR SCAN</p>
+            <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">BOARD MODERATOR SCAN</p>
             <h3 style="color: white; font-size: 1.5rem; margin: 10px 0;">{res.get('q', 'Question Detected')}</h3>
         </div>
         """, unsafe_allow_html=True)
@@ -408,7 +408,7 @@ with tab3:
         with c1:
             st.markdown(f"""
             <div style="background: #1e3c72; padding: 35px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
-                <p style="color: white; font-size: 0.8rem; margin:0;">GRADE</p>
+                <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR SCORE</p>
                 <h1 style="color: white; font-size: 3.5rem; margin:0; font-weight: 900;">{res.get('marks', '7/10')}</h1>
             </div>
             """, unsafe_allow_html=True)
@@ -417,19 +417,19 @@ with tab3:
             <div style="background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; height: 100%;">
                 <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem;">✅ STRENGTHS</p>
                 <p style="color: #babbbe; font-size: 0.95rem;">{res.get('pros', 'Content analyzed.')}</p>
-                <p style="color: #ff4b4b; font-weight: bold; margin-top: 15px;">❌ GAPS</p>
-                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('cons', 'Keywords missing.')}</p>
+                <p style="color: #ff4b4b; font-weight: bold; margin-top: 15px;">❌ MARKS LOST</p>
+                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('cons', 'Technical gaps detected.')}</p>
             </div>
             """, unsafe_allow_html=True)
 
-        # 3. Topper Tip Box
+        # 3. Cinematic Topper Tip
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
                     margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
             <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76, 175, 80, 0.04); z-index:0;">TIP</div>
             <div style="position: relative; z-index: 1;">
                 <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 THE TOPPER'S MASTERSTROKE</p>
-                <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600; line-height: 1.3;">{res.get('tip', 'Add more diagrams.')}</p>
+                <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600;">{res.get('tip', 'Add diagrams.')}</p>
                 <p style="text-align: right; color: #4CAF50; font-size: 0.7rem; margin-top: 25px;">@TOPPERGPT</p>
             </div>
         </div>
