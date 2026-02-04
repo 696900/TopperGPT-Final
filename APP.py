@@ -341,77 +341,89 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
+# --- TAB 3: CINEMATIC ANSWER EVALUATOR (STABLE VISION ENGINE) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Bulletproof Text Evaluation • Official Board Logic</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>AI Vision Analysis • Official TopperGPT Moderator</p>", unsafe_allow_html=True)
     
-    if "eval_json" not in st.session_state:
-        st.session_state.eval_json = None
+    # Session state to hold result
+    if "final_eval" not in st.session_state:
+        st.session_state.final_eval = None
 
     st.warning("💳 Evaluation Cost: **5 Credits**")
     
-    # 1. INPUT SECTION (Text-only to avoid 404 Vision Errors)
-    input_q = st.text_area("Question:", placeholder="Paste the exam question here...", height=70)
-    input_a = st.text_area("Your Answer:", placeholder="Paste or type your answer here...", height=200)
+    # 1. Image/PDF Uploader Section
+    ans_file = st.file_uploader("Upload Answer (Image or PDF)", type=["jpg", "png", "jpeg", "pdf"], key="mod_stable_v16")
 
-    if st.button("🔍 Evaluate My Answer") and input_q and input_a:
+    if st.button("🔍 Analyze My Response") and ans_file:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("TopperGPT is analyzing technical accuracy..."):
+            with st.spinner("TopperGPT Moderator is scanning your work..."):
                 try:
-                    # Using the most stable Text-Only model
+                    # STEP 1: Using the most stable production model path
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    prompt = f"""
-                    Role: Strict Board Examiner.
-                    Question: {input_q}
-                    Student Answer: {input_a}
+                    # File handling
+                    file_data = ans_file.getvalue()
+                    mime = "application/pdf" if ans_file.name.endswith(".pdf") else "image/jpeg"
                     
-                    Evaluate and return ONLY a JSON object:
-                    {{
-                      "marks": "X/10",
-                      "pros": "what was covered well",
-                      "cons": "what was missed",
-                      "tip": "topper strategic advice"
-                    }}
+                    # STEP 2: Precise University Prompt
+                    eval_prompt = """
+                    Act as a strict University Moderator. 
+                    1. Detect the 'Question' and 'Handwritten Answer' from this file.
+                    2. Evaluate technically out of 10.
+                    3. Return ONLY a JSON object:
+                    {"q": "Detected Question", "marks": "X/10", "pros": "What's good", "cons": "Gaps", "tip": "Topper strategy"}
                     """
                     
-                    response = model.generate_content(prompt)
-                    # Cleaning JSON markers
+                    response = model.generate_content([
+                        {"mime_type": mime, "data": file_data},
+                        eval_prompt
+                    ])
+                    
+                    # STEP 3: Safe JSON Cleaning
                     res_raw = response.text.replace("```json", "").replace("```", "").strip()
-                    st.session_state.eval_json = json.loads(res_raw)
+                    st.session_state.final_eval = json.loads(res_raw)
                     st.session_state.user_data['credits'] -= 5
+                    
                 except Exception as e:
                     st.error(f"Moderator Error: {e}")
+                    st.info("Bhai, ensure your API Key supports Flash 1.5 in Google AI Studio.")
         else:
-            st.error("Insufficient Credits!")
+            st.error("Insufficient Credits! Sidebar check karo.")
 
     # --- THE CINEMATIC UI DISPLAY ---
-    if st.session_state.get("eval_json"):
-        res = st.session_state.eval_json
+    if st.session_state.get("final_eval"):
+        res = st.session_state.final_eval
         st.divider()
         
-        # 1. Score Box (Big Impact)
-        c_score, c_feed = st.columns([1, 2])
-        with c_score:
+        # 1. Question Box
+        st.markdown(f"""
+        <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
+            <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">BOARD QUESTION SCAN</p>
+            <h3 style="color: white; font-size: 1.5rem; margin: 10px 0;">{res.get('q', 'Question Detected')}</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # 2. Score & Feedback Grid
+        c1, c2 = st.columns([1, 2])
+        with c1:
             st.markdown(f"""
             <div style="background: #1e3c72; padding: 40px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
                 <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR GRADE</p>
                 <h1 style="color: white; font-size: 3.8rem; margin:0; font-weight: 900;">{res.get('marks', 'N/A')}</h1>
             </div>
             """, unsafe_allow_html=True)
-        
-        with c_feed:
+        with c2:
             st.markdown(f"""
             <div style="background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; height: 100%;">
                 <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem;">✅ STRENGTHS</p>
-                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('pros', 'Analyzing...')}</p>
+                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('pros', 'Analyzing strengths...')}</p>
                 <p style="color: #ff4b4b; font-weight: bold; margin-top: 15px;">❌ MARKS LOST</p>
                 <p style="color: #babbbe; font-size: 0.95rem;">{res.get('cons', 'Checking gaps...')}</p>
             </div>
             """, unsafe_allow_html=True)
 
-        # 2. Topper Tip (Premium Box)
+        # 3. Cinematic Topper Tip
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
                     margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
