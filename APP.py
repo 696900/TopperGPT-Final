@@ -3,6 +3,7 @@ import google.generativeai as genai
 import firebase_admin
 from firebase_admin import credentials, auth
 import pdfplumber
+from PIL import Image, ImageDraw, ImageFont
 import io
 import time 
 import re
@@ -471,64 +472,81 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: VISUAL FLASHCARDS (REVISION PRO VERSION) ---
+# --- TAB 5: MOBILE-FIRST VISUAL FLASHCARDS ---
 with tab5:
     st.subheader("🃏 Engineering Visual Flashcards")
-    st.markdown("""
-    <p style='color: #8b949e; font-size: 0.9rem;'>
-    Enter a topic to get 10 structured cards for quick exam revision.
-    </p>
-    """, unsafe_allow_html=True)
-    st.warning("💳 Revision Cost: **2 Credits**")
-
+    st.markdown("<p style='font-size: 0.8rem; color: #8b949e;'>Mobile Optimized • Image Export • Precise AI</p>", unsafe_allow_html=True)
+    
     if "flash_cards_list" not in st.session_state:
         st.session_state.flash_cards_list = None
 
-    t_input = st.text_input("Revision Topic:", placeholder="e.g. 'Operating Systems', 'Thermodynamics'", key="rev_input_v1")
+    t_input = st.text_input("Revision Topic:", placeholder="e.g. 'BJT Working', 'OSI Layers'", key="rev_v2")
     
-    if st.button("🚀 Build Study Deck"):
-        if not t_input:
-            st.error("Bhai pehle topic toh likh!")
-        elif st.session_state.user_data['credits'] >= 2:
-            with st.spinner(f"AI is designing cards for {t_input}..."):
+    if st.button("🚀 Build Visual Deck") and t_input:
+        if st.session_state.user_data['credits'] >= 2:
+            with st.spinner("AI is crafting precise cards..."):
                 try:
-                    # Using verified groq_client
+                    # Precise Prompt for To-the-point results
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[
-                            {"role": "system", "content": "You are an Engineering Examiner. Create 10 flashcards for revision. Format: Concept Name | Simplified Explanation (under 30 words)."},
-                            {"role": "user", "content": f"Generate revision cards for: {t_input}"}
+                            {"role": "system", "content": "You are a precise Engineering Professor. Create 10 cards. Each line: Topic Name | 1-line exact technical definition. Be very precise to the user's input."},
+                            {"role": "user", "content": f"Topic: {t_input}"}
                         ]
                     )
-                    
                     raw = res.choices[0].message.content
                     st.session_state.flash_cards_list = [c for c in raw.split("\n") if "|" in c]
                     st.session_state.user_data['credits'] -= 2
-                    st.success("Deck Ready!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Logic Error: {e}")
+                    st.error(f"Error: {e}")
 
-    # --- THE VISUAL DISPLAY ---
+    # --- DISPLAY & DOWNLOAD LOGIC ---
     if st.session_state.get("flash_cards_list"):
         st.divider()
-        col1, col2 = st.columns(2)
         
         for i, card in enumerate(st.session_state.flash_cards_list):
             try:
                 title, content = card.split("|", 1)
-                target_col = col1 if i % 2 == 0 else col2
+                title, content = title.strip(), content.strip()
                 
-                with target_col:
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(145deg, #1e2530, #161b22); 
-                                padding: 20px; border-radius: 15px; border-left: 5px solid #4CAF50; 
-                                margin-bottom: 15px; min-height: 150px; box-shadow: 2px 2px 10px rgba(0,0,0,0.3);">
-                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.8rem; margin: 0;">CONCEPT CARD {i+1}</p>
-                        <h4 style="color: white; margin: 5px 0 10px 0;">{title.strip()}</h4>
-                        <p style="color: #8b949e; font-size: 0.9rem; line-height: 1.4;">{content.strip()}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                # 1. VISUAL CARD FOR MOBILE UI
+                st.markdown(f"""
+                <div style="background: #161b22; padding: 15px; border-radius: 12px; 
+                            border: 1px solid #30363d; border-left: 5px solid #4CAF50; margin-bottom: 10px;">
+                    <b style="color: #4CAF50; font-size: 0.7rem;">TOPPERGPT CARD {i+1}</b>
+                    <h5 style="margin: 5px 0; color: white;">{title}</h5>
+                    <p style="font-size: 0.85rem; color: #8b949e; line-height: 1.3;">{content}</p>
+                    <p style="font-size: 0.6rem; color: #4CAF50; text-align: right; margin:0;">@TopperGPT Pro</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # 2. IMAGE GENERATION (The "Work" for Download/Share)
+                def create_card_img(t, c):
+                    img = Image.new('RGB', (800, 400), color='#161b22')
+                    d = ImageDraw.Draw(img)
+                    # Simple Watermark logic
+                    d.rectangle([0, 0, 15, 400], fill='#4CAF50') # Green Bar
+                    d.text((40, 40), "TOPPERGPT PRO", fill='#4CAF50')
+                    d.text((40, 100), t[:40], fill='white') # Title
+                    d.text((40, 180), c[:150], fill='#8b949e') # Content
+                    d.text((600, 350), "@TopperGPT Pro", fill='#4CAF50')
+                    
+                    buf = io.BytesIO()
+                    img.save(buf, format="PNG")
+                    return buf.getvalue()
+
+                # 3. DOWNLOAD & SHARE BUTTONS
+                img_bytes = create_card_img(title, content)
+                col_dl, col_wa = st.columns(2)
+                with col_dl:
+                    st.download_button(f"📥 Download Card {i+1}", img_bytes, f"Card_{i+1}.png", "image/png")
+                with col_wa:
+                    whatsapp_url = f"https://wa.me/?text=Check this {title} Flashcard from TopperGPT!"
+                    st.markdown(f'<a href="{whatsapp_url}" target="_blank"><button style="width:100%; border-radius:5px; background:#25D366; border:none; color:white; padding:5px;">📲 Share</button></a>', unsafe_allow_html=True)
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+
             except: continue
 
         if st.button("🗑️ Clear Deck"):

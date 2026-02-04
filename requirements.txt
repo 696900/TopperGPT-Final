@@ -12,3 +12,4 @@ youtube-transcript-api
 streamlit-mermaid
 PyMuPDF
 requests
+Pillow
