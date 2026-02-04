@@ -340,41 +340,37 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC ANSWER EVALUATOR (STABLE PRODUCTION ENGINE) ---
+# --- TAB 3: CINEMATIC ANSWER EVALUATOR (STABLE VERSION) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>AI Vision Analysis • Stable Production Engine</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>AI Vision Analysis • Production Stable Engine</p>", unsafe_allow_html=True)
     
     st.warning("💳 Evaluation Cost: **5 Credits**")
 
     # Image Uploader (Question + Answer in same photo)
-    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_v3_stable")
+    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_v4_stable")
 
     if st.button("🔍 Start Cinematic Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
             with st.spinner("Moderator is scanning your handwritten response..."):
                 try:
                     # STEP 1: Using Production Stable Model (Fixes 404)
-                    # Note: 'gemini-1.5-flash' handles vision automatically in newer library
                     model = genai.GenerativeModel(model_name="gemini-1.5-flash")
                     img_data = ans_photo.getvalue()
                     
                     # STEP 2: Precise Examiner Prompt
                     eval_prompt = """
                     ROLE: Strict Indian University Board Moderator.
-                    TASK: 
-                    1. Scan the image and identify the 'Question'.
-                    2. Read the 'Handwritten Answer' and grade it out of 10.
+                    TASK: Scan the image, identify the 'Question', and grade the 'Handwritten Answer' out of 10.
                     
                     OUTPUT FORMAT:
-                    Q: [Detected Question]
+                    Q: [Question]
                     SCORE: [X/10]
-                    GOOD: [Points covered well]
-                    MISSING: [Keywords or Diagrams missed]
-                    TOPPER_TIP: [Exact tip to secure 10/10]
+                    GOOD: [Strengths]
+                    MISSING: [Technical gaps]
+                    TIP: [Strategic advice for full marks]
                     """
                     
-                    # Sending as part of the content list (Vision-enabled)
                     response = model.generate_content([
                         {"mime_type": "image/jpeg", "data": img_data},
                         eval_prompt
@@ -384,9 +380,9 @@ with tab3:
                     st.session_state.user_data['credits'] -= 5
                     st.divider()
 
-                    # --- THE CINEMATIC UI (TOPPER STYLE) ---
+                    # --- THE CINEMATIC UI ---
                     # 1. Question Box
-                    q_text = raw_res.split("Q:")[1].split("SCORE:")[0].strip() if "Q:" in raw_res else "Board Question Detected"
+                    q_text = raw_res.split("Q:")[1].split("SCORE:")[0].strip() if "Q:" in raw_res else "Question Detected"
                     st.markdown(f"""
                     <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
                         <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">UNIVERSITY MODERATOR SCAN</p>
@@ -411,12 +407,12 @@ with tab3:
                             <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem; margin-bottom:5px;">✅ STRENGTHS</p>
                             <p style="color: #babbbe; font-size: 0.95rem;">{raw_res.split("GOOD:")[1].split("MISSING:")[0].strip() if "GOOD:" in raw_res else "Content detected."}</p>
                             <p style="color: #ff4b4b; font-weight: bold; font-size: 0.85rem; margin-top: 15px; margin-bottom:5px;">❌ MARKS CUT FOR</p>
-                            <p style="color: #babbbe; font-size: 0.95rem;">{raw_res.split("MISSING:")[1].split("TOPPER_TIP:")[0].strip() if "MISSING:" in raw_res else "Formatting issues."}</p>
+                            <p style="color: #babbbe; font-size: 0.95rem;">{raw_res.split("MISSING:")[1].split("TIP:")[0].strip() if "MISSING:" in raw_res else "Technical gaps."}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
                     # 3. Premium Topper Masterstroke
-                    tip = raw_res.split("TOPPER_TIP:")[1].strip() if "TOPPER_TIP:" in raw_res else "Add more technical diagrams."
+                    tip = raw_res.split("TIP:")[1].strip() if "TIP:" in raw_res else "Add more technical diagrams."
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
                                 margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
@@ -425,16 +421,15 @@ with tab3:
                             <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 THE TOPPER'S MASTERSTROKE</p>
                             <h2 style="color: white; margin: 10px 0;">Strategic Advice</h2>
                             <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600; line-height: 1.3;">{tip}</p>
-                            <p style="text-align: right; color: #4CAF50; font-size: 0.7rem; margin-top: 25px;">@TOPPERGPT OFFICIAL RESEARCH</p>
+                            <p style="text-align: right; color: #4CAF50; font-size: 0.7rem; margin-top: 25px;">@TOPPERGPT</p>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
                     st.balloons()
 
                 except Exception as e:
-                    # Special Debugging Message
-                    st.error(f"Moderator Connection Error: {e}")
-                    st.info("Bhai, agar error 'API Key' ka hai, toh Google AI Studio se naya key generate karke Secrets mein update karo.")
+                    st.error(f"Moderator Error: {e}")
+                    st.info("Bhai, agar error '404' fir bhi aaye, toh API Key generate karke Secrets mein update karo.")
         else:
             st.error("Insufficient Credits! Need 5 credits for Answer Eval.")
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
