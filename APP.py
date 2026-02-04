@@ -472,14 +472,14 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: CINEMATIC VISUAL FLASHCARDS (FIXED UI) ---
+# --- TAB 5: CINEMATIC VISUAL FLASHCARDS (STABLE VERSION) ---
 with tab5:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎬 Cinematic Revision Deck</h2>", unsafe_allow_html=True)
     
     if "flash_cards_list" not in st.session_state:
         st.session_state.flash_cards_list = None
 
-    t_input = st.text_input("Enter Topic for Cinematic Cards:", placeholder="e.g. 'Quantum Physics'", key="rev_v4")
+    t_input = st.text_input("Enter Topic for Cinematic Cards:", placeholder="e.g. 'Thermodynamics'", key="rev_v5_final")
     
     if st.button("🎨 Build Cinematic Deck") and t_input:
         if st.session_state.user_data['credits'] >= 2:
@@ -488,78 +488,75 @@ with tab5:
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[
-                            {"role": "system", "content": "Engineering Professor mode. Create 10 cards. Format: TITLE | One Powerful Definition. Maximum precision."},
+                            {"role": "system", "content": "Engineering Professor mode. Create 10 cards. Format: TITLE | One Powerful Definition. Maximum precision. NO extra markdown or bold stars."},
                             {"role": "user", "content": f"Topic: {t_input}"}
                         ]
                     )
-                    st.session_state.flash_cards_list = [c for c in res.choices[0].message.content.split("\n") if "|" in c]
+                    # Cleaning extra markers that break HTML
+                    clean_res = res.choices[0].message.content.replace("**", "").replace("*", "")
+                    st.session_state.flash_cards_list = [c for c in clean_res.split("\n") if "|" in c]
                     st.session_state.user_data['credits'] -= 2
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-    # --- THE CINEMATIC UI (FIXED HTML RENDER) ---
+    # --- THE CINEMATIC UI FIX ---
     if st.session_state.get("flash_cards_list"):
         st.divider()
         
         for i, card in enumerate(st.session_state.flash_cards_list):
             try:
                 title, content = card.split("|", 1)
-                title, content = title.strip().replace("**", ""), content.strip().replace("**", "")
+                title, content = title.strip(), content.strip()
                 
-                # Visual CSS Mask Effect - Fixed to render properly
-                card_html = f"""
-                <div style="position: relative; background: #1a1c23; padding: 30px; border-radius: 20px; 
-                            margin-bottom: 25px; border: 1px solid #30363d; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                    
-                    <div style="position: absolute; top: -20px; right: -10px; font-size: 120px; 
-                                font-weight: 900; color: rgba(76, 175, 80, 0.05); z-index: 0; pointer-events: none; text-transform: uppercase;">
-                        {title[:5]}
-                    </div>
+                # REPAIR: Wrapping in a dedicated container with allow_html=True
+                with st.container():
+                    st.markdown(f"""
+                    <div style="position: relative; background: #1a1c23; padding: 30px; border-radius: 20px; 
+                                margin-bottom: 25px; border: 1px solid #30363d; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                        
+                        <div style="position: absolute; top: -15px; right: -10px; font-size: 100px; 
+                                    font-weight: 900; color: rgba(76, 175, 80, 0.04); z-index: 0; pointer-events: none; text-transform: uppercase; font-family: sans-serif;">
+                            {title[:5]}
+                        </div>
 
-                    <div style="position: relative; z-index: 1;">
-                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px; margin: 0;">TOPPERGPT CARD {i+1}</p>
-                        <h2 style="color: white; font-size: 2.2rem; margin: 10px 0; font-weight: 800; line-height: 1.1;">{title}</h2>
-                        <p style="font-size: 1.1rem; color: #babbbe; line-height: 1.5; font-weight: 400;">{content}</p>
-                        <hr style="border-color: rgba(76, 175, 80, 0.2); margin: 20px 0;">
-                        <p style="font-size: 0.7rem; color: #4CAF50; text-align: right; font-weight: bold; margin:0;">@TOPPERGPT PRO • OFFICIAL RESEARCH</p>
+                        <div style="position: relative; z-index: 1;">
+                            <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px; margin: 0;">TOPPERGPT CARD {i+1}</p>
+                            <h2 style="color: white; font-size: 2.2rem; margin: 10px 0; font-weight: 800; line-height: 1.1; font-family: sans-serif;">{title}</h2>
+                            <p style="font-size: 1.1rem; color: #babbbe; line-height: 1.5; font-weight: 400; font-family: sans-serif;">{content}</p>
+                            <hr style="border-color: rgba(76, 175, 80, 0.2); margin: 20px 0;">
+                            <p style="font-size: 0.7rem; color: #4CAF50; text-align: right; font-weight: bold; margin:0;">@TOPPERGPT PRO • OFFICIAL RESEARCH</p>
+                        </div>
                     </div>
-                </div>
-                """
-                # This ensures the HTML is interpreted by the browser, not shown as text
-                st.markdown(card_html, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
 
                 # --- HD IMAGE EXPORT (With Watermark) ---
                 def create_hd_card(t, c, idx):
+                    # Background Image Creation using Pillow
                     img = Image.new('RGB', (1200, 630), color='#1a1c23')
                     d = ImageDraw.Draw(img)
-                    d.rectangle([0, 0, 25, 630], fill='#4CAF50')
+                    d.rectangle([0, 0, 30, 630], fill='#4CAF50') # Green side bar
                     d.text((80, 80), f"CARD {idx+1} | TOPPERGPT PRO", fill='#4CAF50')
-                    # Title
                     d.text((80, 180), t.upper(), fill='white')
-                    # Wrap content logic placeholder
-                    d.text((80, 320), c[:180] + "...", fill='#babbbe')
+                    d.text((80, 320), c[:200], fill='#babbbe')
                     d.text((950, 560), "@TopperGPT Pro", fill='#4CAF50')
                     
                     buf = io.BytesIO()
                     img.save(buf, format="PNG")
                     return buf.getvalue()
 
-                # Action Buttons
+                # HD Export and Share Buttons
                 card_img = create_hd_card(title, content, i)
-                col_dl, col_wa = st.columns(2)
-                with col_dl:
+                c1, c2 = st.columns(2)
+                with c1:
                     st.download_button(f"📥 HD Download {i+1}", card_img, f"Card_{i+1}.png", "image/png", use_container_width=True)
-                with col_wa:
-                    st.markdown(f"""
-                    <a href="https://wa.me/?text=Check this {title} Revision Card from TopperGPT!" target="_blank" style="text-decoration:none;">
-                        <div style="background:#25D366; color:white; text-align:center; padding:10px; border-radius:10px; font-weight:bold;">📲 Share Card</div>
-                    </a>
-                    """, unsafe_allow_html=True)
+                with c2:
+                    wa_url = f"https://wa.me/?text=Check this {title} Cinematic Flashcard on TopperGPT!"
+                    st.markdown(f'<a href="{wa_url}" target="_blank" style="text-decoration:none;"><div style="background:#25D366; color:white; text-align:center; padding:10px; border-radius:10px; font-weight:bold;">📲 Share Card</div></a>', unsafe_allow_html=True)
 
             except: continue
 
-        if st.button("🗑️ Clear Cinematic Deck"):
+        if st.button("🗑️ Clear Deck"):
             st.session_state.flash_cards_list = None
             st.rerun()
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
