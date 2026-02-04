@@ -471,82 +471,60 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (FINAL PRODUCTION STABLE VERSION) ---
+# --- TAB 5: FLASHCARDS (TEXT-BASED SPEED VERSION) ---
 with tab5:
     st.subheader("🃏 Engineering Flashcard Generator")
-    st.info("⚡ Status: Production Vision Engine Active")
-    st.warning("💳 Total Cost: **5 Credits**")
+    st.info("💡 Tip: Jo bhi topic likhoge (e.g. 'Thermodynamics Laws' ya 'Python Lists'), AI uspar cards bana dega.")
+    st.warning("💳 Total Cost: **2 Credits** (Super Saver)")
 
-    # Persistent State
+    # Persistent State for Flashcards
     if "flash_cards_list" not in st.session_state:
         st.session_state.flash_cards_list = None
 
-    # Bulletproof Key Retrieval from your Secrets
-    G_KEY = st.secrets.get("GROQ_API_KEY") or st.secrets.get("GROQ_VISION_KEY")
+    # Topic Input
+    topic_input = st.text_input("Enter Topic Name:", placeholder="e.g. Computer Networks OSI Model")
+    
+    if st.button("🚀 Generate Flashcards"):
+        if not topic_input:
+            st.error("Bhai pehle topic toh likh!")
+        elif st.session_state.user_data['credits'] >= 2:
+            with st.spinner(f"AI is preparing cards for: {topic_input}..."):
+                try:
+                    # Using existing groq_client (Fastest Model: Llama 3.3 70B)
+                    completion = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": "You are an engineering expert. Create exactly 10 high-quality flashcards. Format each line exactly as: Question | Answer"},
+                            {"role": "user", "content": f"Generate 10 flashcards for the topic: {topic_input}"}
+                        ],
+                        temperature=0.6
+                    )
+                    
+                    raw_content = completion.choices[0].message.content
+                    # Split lines and filter only valid cards
+                    st.session_state.flash_cards_list = [c for c in raw_content.split("\n") if "|" in c]
+                    
+                    # Deduct only 2 credits
+                    st.session_state.user_data['credits'] -= 2
+                    st.success(f"Deduct 2 Credits! Topic: {topic_input}")
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        else:
+            st.error("Low Balance! Sidebar se top-up karo.")
 
-    if not G_KEY:
-        st.error("🔑 API Key missing! Dashboard Secrets check karein.")
-    else:
-        card_file = st.file_uploader("Upload Scanned Notes/PDF", type=["pdf", "png", "jpg", "jpeg"], key="flash_vision_final_prod")
-        
-        if card_file and st.button("🚀 Generate Flashcards"):
-            if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("TopperGPT AI is reading your notes..."):
-                    try:
-                        import base64, requests
-                        
-                        # PIPELINE: PDF to Base64 Image using PyMuPDF
-                        if card_file.type == "application/pdf":
-                            import fitz
-                            doc = fitz.open(stream=card_file.read(), filetype="pdf")
-                            page = doc.load_page(0) 
-                            pix = page.get_pixmap()
-                            img_data = pix.tobytes("jpg")
-                            encoded = base64.b64encode(img_data).decode('utf-8')
-                        else:
-                            encoded = base64.b64encode(card_file.getvalue()).decode('utf-8')
-
-                        # API Call to Groq using the LATEST supported model
-                        response = requests.post(
-                            url="https://api.groq.com/openai/v1/chat/completions",
-                            headers={"Authorization": f"Bearer {G_KEY}"},
-                            json={
-                                "model": "llama-3.2-11b-vision-preview", # Stable Production Model
-                                "messages": [{
-                                    "role": "user",
-                                    "content": [
-                                        {"type": "text", "text": "Extract all technical data and create exactly 10 flashcards. Format: Question | Answer"},
-                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
-                                    ]
-                                }]
-                            }
-                        )
-                        
-                        data = response.json()
-                        if 'choices' in data:
-                            raw = data['choices'][0]['message']['content']
-                            st.session_state.flash_cards_list = [c for c in raw.split("\n") if "|" in c]
-                            st.session_state.user_data['credits'] -= 5
-                            st.rerun()
-                        else:
-                            # Direct display of Groq error message
-                            err_msg = data.get('error', {}).get('message', 'Model Support Issue')
-                            st.error(f"Groq API: {err_msg}")
-                            
-                    except Exception as e:
-                        st.error(f"Pipeline Error: {e}")
-            else:
-                st.error("Credits low! Sidebar se recharge karein.")
-
-    # DISPLAY
+    # DISPLAY CARDS
     if st.session_state.get("flash_cards_list"):
         st.divider()
-        for line in st.session_state.flash_cards_list:
+        st.write(f"📝 **Generated Cards:**")
+        for i, line in enumerate(st.session_state.flash_cards_list):
             try:
                 q, a = line.split("|", 1)
-                with st.expander(f"📌 {q.strip()}"):
+                with st.expander(f"📌 Card {i+1}: {q.strip()}"):
                     st.success(f"**Ans:** {a.strip()}")
-            except: continue
+            except:
+                continue
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
 with tab6:
