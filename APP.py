@@ -340,30 +340,31 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC ANSWER EVALUATOR (STABLE PRODUCTION BUILD) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR STABLE) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Official Grading Engine • Stable Production Build</p>", unsafe_allow_html=True)
     
     st.warning("💳 Evaluation Cost: **5 Credits**")
 
-    # Image Uploader for handwritten page
-    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_stable_v11")
+    # Photo Uploader
+    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_v12_final_stable")
 
     if st.button("🔍 Start Cinematic Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
             with st.spinner("TopperGPT Moderator is scanning your response..."):
                 try:
-                    # STEP 1: Using the most stable production name (Fixes 404)
+                    # STEP 1: Using the direct model name (Fixes 404)
+                    # Note: Do not use 'models/' prefix or 'v1beta' path
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     img_bytes = ans_photo.getvalue()
                     
-                    # STEP 2: Precise University Grading Prompt
+                    # STEP 2: Strict University Marking Prompt
                     eval_prompt = """
                     Act as a strict University Moderator. Scan the image:
-                    1. Detect the 'Question' on the page.
+                    1. Identify the 'Question'.
                     2. Evaluate the 'Handwritten Answer' technically.
-                    3. Output format: Q: [Question] | SCORE: [X/10] | GOOD: [Strengths] | MISSING: [Technical gaps] | TIP: [Strategy for 10/10]
+                    3. Output format: Q: [Question] | SCORE: [X/10] | GOOD: [Strengths] | MISSING: [Technical gaps] | TIP: [Strategic advice]
                     """
                     
                     response = model.generate_content([
@@ -376,12 +377,11 @@ with tab3:
                     st.divider()
 
                     # --- THE CINEMATIC UI ---
-                    # Parsing logic
                     parts = res_text.split("|")
                     q_val = parts[0].replace("Q:", "").strip() if len(parts) > 0 else "Question Detected"
                     score_val = parts[1].replace("SCORE:", "").strip() if len(parts) > 1 else "7/10"
                     
-                    # 1. Question Box (Cinematic Style)
+                    # 1. Question Box
                     st.markdown(f"""
                     <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
                         <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">BOARD QUESTION SCAN</p>
@@ -394,7 +394,7 @@ with tab3:
                     with c1:
                         st.markdown(f"""
                         <div style="background: #1e3c72; padding: 35px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
-                            <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR SCORE</p>
+                            <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR GRADE</p>
                             <h1 style="color: white; font-size: 3.5rem; margin:0; font-weight: 900;">{score_val}</h1>
                         </div>
                         """, unsafe_allow_html=True)
@@ -403,14 +403,14 @@ with tab3:
                         st.markdown(f"""
                         <div style="background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; height: 100%;">
                             <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem;">✅ STRENGTHS</p>
-                            <p style="color: #babbbe; font-size: 0.95rem;">{parts[2].replace("GOOD:", "").strip() if len(parts) > 2 else "Content analyzed."}</p>
+                            <p style="color: #babbbe; font-size: 0.95rem;">{parts[2].replace("GOOD:", "").strip() if len(parts) > 2 else "Content detected."}</p>
                             <p style="color: #ff4b4b; font-weight: bold; margin-top: 15px;">❌ MARKS LOST</p>
-                            <p style="color: #babbbe; font-size: 0.95rem;">{parts[3].replace("MISSING:", "").strip() if len(parts) > 3 else "Keywords missing."}</p>
+                            <p style="color: #babbbe; font-size: 0.95rem;">{parts[3].replace("MISSING:", "").strip() if len(parts) > 3 else "Technical gaps."}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
                     # 3. Cinematic Masterstroke Tip
-                    tip_val = parts[4].replace("TIP:", "").strip() if len(parts) > 4 else "Add diagrams."
+                    tip_val = parts[4].replace("TIP:", "").strip() if len(parts) > 4 else "Focus on diagrams."
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
                                 margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
@@ -427,9 +427,9 @@ with tab3:
                     st.rerun()
 
                 except Exception as e:
-                    # Enhanced error reporting
+                    # Enhanced error reporting to catch key issues
                     st.error(f"Moderator Error: {e}")
-                    st.info("Bhai, agar error persist kare toh check karo ki 'GEMINI_API_KEY' Secrets mein active hai ya nahi.")
+                    st.info("Bhai, agar error persist kare toh dashboard ke 'Secrets' mein GEMINI_API_KEY check kar.")
         else:
             st.error("Balance low! Sidebar se top-up karo.")
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
