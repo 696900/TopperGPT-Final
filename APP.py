@@ -341,39 +341,39 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR STABLE) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (ULTRA STABLE FIX) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Official Grading Engine • Stable Production Build</p>", unsafe_allow_html=True)
     
     if "final_eval" not in st.session_state:
         st.session_state.final_eval = None
 
     st.warning("💳 Evaluation Cost: **5 Credits**")
     
-    # 1. FILE UPLOADER (Supports Photo & PDF)
-    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg", "pdf"], key="mod_stable_v17")
+    ans_file = st.file_uploader("Upload Answer Sheet (Image/PDF)", type=["jpg", "png", "jpeg", "pdf"], key="mod_stable_v18")
 
     if st.button("🔍 Start Cinematic Evaluation") and ans_file:
         if st.session_state.user_data['credits'] >= 5:
             with st.spinner("TopperGPT Moderator is scanning your response..."):
                 try:
-                    # FIXED: Using the most stable production model name (Fixes 404)
-                    model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+                    # STEP 1: UNIVERSAL MODEL RESOLVER (Fixes 404)
+                    # Try stable production name first
+                    try:
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                    except:
+                        model = genai.GenerativeModel('models/gemini-1.5-flash')
                     
                     file_data = ans_file.getvalue()
                     mime_type = "application/pdf" if ans_file.name.endswith(".pdf") else "image/jpeg"
                     
-                    # PRECISE PROMPT FOR JSON OUTPUT
                     eval_prompt = """
                     Act as a strict Indian Board Examiner. 
-                    1. Detect 'Question' and 'Handwritten Answer' from the file.
+                    1. Detect 'Question' and 'Handwritten Answer' from file.
                     2. Evaluate technically out of 10.
                     3. Return ONLY a JSON object:
                     {"q": "Question Text", "marks": "X/10", "pros": "What's good", "cons": "Gaps", "tip": "Topper strategy"}
                     """
                     
-                    # Stable content generation
                     response = model.generate_content([
                         {"mime_type": mime_type, "data": file_data},
                         eval_prompt
@@ -386,9 +386,9 @@ with tab3:
                     
                 except Exception as e:
                     st.error(f"Moderator Error: {e}")
-                    st.info("Bhai, agar 404 fir bhi aaye, toh 'Manage App' mein jaake 'Reboot App' kar dena.")
+                    st.info("Bhai, agar ye fir bhi fail ho, toh ek baar 'requirements.txt' mein 'google-generativeai>=0.7.0' check karo.")
         else:
-            st.error("Balance low! Sidebar se top-up karo.")
+            st.error("Balance low!")
 
     # --- THE CINEMATIC UI DISPLAY ---
     if st.session_state.get("final_eval"):
@@ -416,13 +416,13 @@ with tab3:
             st.markdown(f"""
             <div style="background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; height: 100%;">
                 <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem;">✅ STRENGTHS</p>
-                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('pros', 'Analyzing...')}</p>
+                <p style="color: #babbbe; font-size: 0.95rem; line-height:1.4;">{res.get('pros', 'Analyzing...')}</p>
                 <p style="color: #ff4b4b; font-weight: bold; margin-top: 15px;">❌ MARKS LOST</p>
-                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('cons', 'Checking gaps...')}</p>
+                <p style="color: #babbbe; font-size: 0.95rem; line-height:1.4;">{res.get('cons', 'Checking gaps...')}</p>
             </div>
             """, unsafe_allow_html=True)
 
-        # 3. Premium Masterstroke Tip
+        # 3. Topper Tip (Premium Box)
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
                     margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
