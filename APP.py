@@ -340,23 +340,22 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (PRODUCTION STABLE) ---
+# --- TAB 3: CINEMATIC ANSWER EVALUATOR (STABLE PRODUCTION BUILD) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Official Grading Engine • No-Error Stable Build</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Official Grading Engine • Stable Production Build</p>", unsafe_allow_html=True)
     
     st.warning("💳 Evaluation Cost: **5 Credits**")
 
-    # Image Uploader
-    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_final_stable_v10")
+    # Image Uploader for handwritten page
+    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_stable_v11")
 
     if st.button("🔍 Start Cinematic Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
             with st.spinner("TopperGPT Moderator is scanning your response..."):
                 try:
-                    # STEP 1: Using the most stable production model
-                    # This bypasses all decommissioned preview models
-                    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+                    # STEP 1: Using the most stable production name (Fixes 404)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     img_bytes = ans_photo.getvalue()
                     
                     # STEP 2: Precise University Grading Prompt
@@ -377,12 +376,12 @@ with tab3:
                     st.divider()
 
                     # --- THE CINEMATIC UI ---
-                    # Parsing
+                    # Parsing logic
                     parts = res_text.split("|")
                     q_val = parts[0].replace("Q:", "").strip() if len(parts) > 0 else "Question Detected"
                     score_val = parts[1].replace("SCORE:", "").strip() if len(parts) > 1 else "7/10"
                     
-                    # 1. Question Box
+                    # 1. Question Box (Cinematic Style)
                     st.markdown(f"""
                     <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
                         <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">BOARD QUESTION SCAN</p>
@@ -428,6 +427,7 @@ with tab3:
                     st.rerun()
 
                 except Exception as e:
+                    # Enhanced error reporting
                     st.error(f"Moderator Error: {e}")
                     st.info("Bhai, agar error persist kare toh check karo ki 'GEMINI_API_KEY' Secrets mein active hai ya nahi.")
         else:
