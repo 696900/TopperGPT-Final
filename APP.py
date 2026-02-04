@@ -340,52 +340,57 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC ANSWER EVALUATOR (STABLE VERSION) ---
+# --- TAB 3: BOARD MODERATOR (GROQ VISION STABLE ENGINE) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>AI Vision Analysis • Production Stable Engine</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Groq Vision Analysis • Instant Handwriting Grading</p>", unsafe_allow_html=True)
     
     st.warning("💳 Evaluation Cost: **5 Credits**")
 
-    # Image Uploader (Question + Answer in same photo)
-    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_v4_stable")
+    # Image Uploader (Question + Answer)
+    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_v5_groq")
 
     if st.button("🔍 Start Cinematic Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Moderator is scanning your handwritten response..."):
+            with st.spinner("Groq Engine is scanning your response..."):
                 try:
-                    # STEP 1: Using Production Stable Model (Fixes 404)
-                    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-                    img_data = ans_photo.getvalue()
+                    # STEP 1: Using Groq Key from your Secrets
+                    G_KEY = st.secrets.get("GROQ_API_KEY") or st.secrets.get("GROQ_VISION_KEY")
                     
-                    # STEP 2: Precise Examiner Prompt
-                    eval_prompt = """
-                    ROLE: Strict Indian University Board Moderator.
-                    TASK: Scan the image, identify the 'Question', and grade the 'Handwritten Answer' out of 10.
+                    # Convert image to base64 for API
+                    encoded_img = base64.b64encode(ans_photo.getvalue()).decode('utf-8')
                     
-                    OUTPUT FORMAT:
-                    Q: [Question]
-                    SCORE: [X/10]
-                    GOOD: [Strengths]
-                    MISSING: [Technical gaps]
-                    TIP: [Strategic advice for full marks]
-                    """
+                    # STEP 2: Groq API Call (Using Llama 3.2 90B Vision)
+                    response = requests.post(
+                        url="https://api.groq.com/openai/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {G_KEY}"},
+                        json={
+                            "model": "llama-3.2-90b-vision-preview",
+                            "messages": [{
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": "Act as a strict Indian University Moderator. Identify the 'Question' and grade the 'Handwritten Answer' out of 10. Format: Q: [Question] | SCORE: [X/10] | GOOD: [Strengths] | MISSING: [Technical gaps] | TIP: [Strategic advice]"},
+                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_img}"}}
+                                ]
+                            }]
+                        }
+                    )
                     
-                    response = model.generate_content([
-                        {"mime_type": "image/jpeg", "data": img_data},
-                        eval_prompt
-                    ])
-                    
-                    raw_res = response.text
+                    data = response.json()
+                    raw_res = data['choices'][0]['message']['content']
                     st.session_state.user_data['credits'] -= 5
                     st.divider()
 
-                    # --- THE CINEMATIC UI ---
+                    # --- THE CINEMATIC UI (TOPPER STYLE) ---
+                    # Parsing Logic
+                    parts = raw_res.split("|")
+                    q_text = parts[0].replace("Q:", "").strip() if len(parts) > 0 else "Detected"
+                    score = parts[1].replace("SCORE:", "").strip() if len(parts) > 1 else "7/10"
+                    
                     # 1. Question Box
-                    q_text = raw_res.split("Q:")[1].split("SCORE:")[0].strip() if "Q:" in raw_res else "Question Detected"
                     st.markdown(f"""
                     <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
-                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">UNIVERSITY MODERATOR SCAN</p>
+                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">MODERATOR VISION SCAN</p>
                         <h3 style="color: white; font-size: 1.6rem; margin: 10px 0;">{q_text}</h3>
                     </div>
                     """, unsafe_allow_html=True)
@@ -393,7 +398,6 @@ with tab3:
                     # 2. Score & Feedback Grid
                     c1, c2 = st.columns([1, 2])
                     with c1:
-                        score = raw_res.split("SCORE:")[1].split("GOOD:")[0].strip() if "SCORE:" in raw_res else "7/10"
                         st.markdown(f"""
                         <div style="background: #1e3c72; padding: 35px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
                             <p style="color: white; font-size: 0.8rem; margin:0;">PROVISIONAL GRADE</p>
@@ -405,18 +409,18 @@ with tab3:
                         st.markdown(f"""
                         <div style="background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; height: 100%;">
                             <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem; margin-bottom:5px;">✅ STRENGTHS</p>
-                            <p style="color: #babbbe; font-size: 0.95rem;">{raw_res.split("GOOD:")[1].split("MISSING:")[0].strip() if "GOOD:" in raw_res else "Content detected."}</p>
+                            <p style="color: #babbbe; font-size: 0.95rem;">{parts[2].replace("GOOD:", "").strip() if len(parts) > 2 else "Content detected."}</p>
                             <p style="color: #ff4b4b; font-weight: bold; font-size: 0.85rem; margin-top: 15px; margin-bottom:5px;">❌ MARKS CUT FOR</p>
-                            <p style="color: #babbbe; font-size: 0.95rem;">{raw_res.split("MISSING:")[1].split("TIP:")[0].strip() if "MISSING:" in raw_res else "Technical gaps."}</p>
+                            <p style="color: #babbbe; font-size: 0.95rem;">{parts[3].replace("MISSING:", "").strip() if len(parts) > 3 else "Technical gaps."}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
                     # 3. Premium Topper Masterstroke
-                    tip = raw_res.split("TIP:")[1].strip() if "TIP:" in raw_res else "Add more technical diagrams."
+                    tip = parts[4].replace("TIP:", "").strip() if len(parts) > 4 else "Add diagrams."
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
                                 margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76,175,80,0.04); z-index:0;">TIP</div>
+                        <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76, 175, 80, 0.04); z-index:0;">TIP</div>
                         <div style="position: relative; z-index: 1;">
                             <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 THE TOPPER'S MASTERSTROKE</p>
                             <h2 style="color: white; margin: 10px 0;">Strategic Advice</h2>
@@ -429,7 +433,7 @@ with tab3:
 
                 except Exception as e:
                     st.error(f"Moderator Error: {e}")
-                    st.info("Bhai, agar error '404' fir bhi aaye, toh API Key generate karke Secrets mein update karo.")
+                    st.info("Bhai, Groq Engine se connection try ho raha hai. Isme 404 nahi aana chahiye.")
         else:
             st.error("Insufficient Credits! Need 5 credits for Answer Eval.")
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
