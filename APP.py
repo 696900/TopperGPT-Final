@@ -472,36 +472,34 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: MOBILE-FIRST VISUAL FLASHCARDS ---
+# --- TAB 5: CINEMATIC VISUAL FLASHCARDS ---
 with tab5:
-    st.subheader("🃏 Engineering Visual Flashcards")
-    st.markdown("<p style='font-size: 0.8rem; color: #8b949e;'>Mobile Optimized • Image Export • Precise AI</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎬 Cinematic Revision Deck</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Big Fonts • Concept Mask • HD Export</p>", unsafe_allow_html=True)
     
     if "flash_cards_list" not in st.session_state:
         st.session_state.flash_cards_list = None
 
-    t_input = st.text_input("Revision Topic:", placeholder="e.g. 'BJT Working', 'OSI Layers'", key="rev_v2")
+    t_input = st.text_input("Enter Topic for Cinematic Cards:", placeholder="e.g. 'Quantum Physics', 'Data Structures'", key="rev_v3")
     
-    if st.button("🚀 Build Visual Deck") and t_input:
+    if st.button("🎨 Build Cinematic Deck") and t_input:
         if st.session_state.user_data['credits'] >= 2:
-            with st.spinner("AI is crafting precise cards..."):
+            with st.spinner("Designing High-Impact Cards..."):
                 try:
-                    # Precise Prompt for To-the-point results
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[
-                            {"role": "system", "content": "You are a precise Engineering Professor. Create 10 cards. Each line: Topic Name | 1-line exact technical definition. Be very precise to the user's input."},
+                            {"role": "system", "content": "Engineering Professor mode. Create 10 cards. Each line: BOLD TITLE | One Powerful Definition. Maximum precision."},
                             {"role": "user", "content": f"Topic: {t_input}"}
                         ]
                     )
-                    raw = res.choices[0].message.content
-                    st.session_state.flash_cards_list = [c for c in raw.split("\n") if "|" in c]
+                    st.session_state.flash_cards_list = [c for c in res.choices[0].message.content.split("\n") if "|" in c]
                     st.session_state.user_data['credits'] -= 2
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-    # --- DISPLAY & DOWNLOAD LOGIC ---
+    # --- THE CINEMATIC UI ---
     if st.session_state.get("flash_cards_list"):
         st.divider()
         
@@ -510,46 +508,59 @@ with tab5:
                 title, content = card.split("|", 1)
                 title, content = title.strip(), content.strip()
                 
-                # 1. VISUAL CARD FOR MOBILE UI
+                # Visual CSS Mask Effect (Bada font piche, clean text aage)
                 st.markdown(f"""
-                <div style="background: #161b22; padding: 15px; border-radius: 12px; 
-                            border: 1px solid #30363d; border-left: 5px solid #4CAF50; margin-bottom: 10px;">
-                    <b style="color: #4CAF50; font-size: 0.7rem;">TOPPERGPT CARD {i+1}</b>
-                    <h5 style="margin: 5px 0; color: white;">{title}</h5>
-                    <p style="font-size: 0.85rem; color: #8b949e; line-height: 1.3;">{content}</p>
-                    <p style="font-size: 0.6rem; color: #4CAF50; text-align: right; margin:0;">@TopperGPT Pro</p>
+                <div style="position: relative; background: #1a1c23; padding: 30px; border-radius: 20px; 
+                            margin-bottom: 25px; border: 1px solid #30363d; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    
+                    <div style="position: absolute; top: -20px; right: -10px; font-size: 120px; 
+                                font-weight: 900; color: rgba(76, 175, 80, 0.05); z-index: 0; pointer-events: none; text-transform: uppercase;">
+                        {title[:5]}
+                    </div>
+
+                    <div style="position: relative; z-index: 1;">
+                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px; margin: 0;">TOPPERGPT CARD {i+1}</p>
+                        <h2 style="color: white; font-size: 2.2rem; margin: 10px 0; font-weight: 800; line-height: 1.1;">{title}</h2>
+                        <p style="font-size: 1.1rem; color: #babbbe; line-height: 1.5; font-weight: 400; max-width: 90%;">{content}</p>
+                        <hr style="border-color: rgba(76, 175, 80, 0.2); margin: 20px 0;">
+                        <p style="font-size: 0.7rem; color: #4CAF50; text-align: right; font-weight: bold; margin:0;">@TOPPERGPT PRO • OFFICIAL RESEARCH</p>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
 
-                # 2. IMAGE GENERATION (The "Work" for Download/Share)
-                def create_card_img(t, c):
-                    img = Image.new('RGB', (800, 400), color='#161b22')
+                # --- HD IMAGE EXPORT LOGIC ---
+                def create_hd_card(t, c, idx):
+                    # Bada canvas for high quality
+                    img = Image.new('RGB', (1200, 630), color='#1a1c23')
                     d = ImageDraw.Draw(img)
-                    # Simple Watermark logic
-                    d.rectangle([0, 0, 15, 400], fill='#4CAF50') # Green Bar
-                    d.text((40, 40), "TOPPERGPT PRO", fill='#4CAF50')
-                    d.text((40, 100), t[:40], fill='white') # Title
-                    d.text((40, 180), c[:150], fill='#8b949e') # Content
-                    d.text((600, 350), "@TopperGPT Pro", fill='#4CAF50')
+                    
+                    # Manual "Watermark & Design"
+                    d.rectangle([0, 0, 20, 630], fill='#4CAF50') # Left Accent
+                    d.text((60, 60), f"CARD {idx+1} | TOPPERGPT PRO", fill='#4CAF50')
+                    d.text((60, 150), t.upper()[:30], fill='white') # Big Title (Approx)
+                    d.text((60, 300), c[:200], fill='#babbbe') # Content
+                    d.text((950, 560), "@TopperGPT Pro", fill='#4CAF50')
                     
                     buf = io.BytesIO()
                     img.save(buf, format="PNG")
                     return buf.getvalue()
 
-                # 3. DOWNLOAD & SHARE BUTTONS
-                img_bytes = create_card_img(title, content)
-                col_dl, col_wa = st.columns(2)
-                with col_dl:
-                    st.download_button(f"📥 Download Card {i+1}", img_bytes, f"Card_{i+1}.png", "image/png")
-                with col_wa:
-                    whatsapp_url = f"https://wa.me/?text=Check this {title} Flashcard from TopperGPT!"
-                    st.markdown(f'<a href="{whatsapp_url}" target="_blank"><button style="width:100%; border-radius:5px; background:#25D366; border:none; color:white; padding:5px;">📲 Share</button></a>', unsafe_allow_html=True)
-                
-                st.markdown("<br>", unsafe_allow_html=True)
+                # Action Buttons (Mobile Optimized)
+                card_img = create_hd_card(title, content, i)
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    st.download_button(f"📥 Download Card {i+1} (HD)", card_img, f"Topper_Card_{i+1}.png", "image/png", use_container_width=True)
+                with col_btn2:
+                    st.markdown(f"""
+                    <a href="https://wa.me/?text=Check this {title} Revision Card from TopperGPT!" target="_blank" style="text-decoration:none;">
+                        <div style="background:#25D366; color:white; text-align:center; padding:10px; border-radius:10px; font-weight:bold;">📲 Share on WhatsApp</div>
+                    </a>
+                    """, unsafe_allow_html=True)
+                st.markdown("<br><br>", unsafe_allow_html=True)
 
             except: continue
 
-        if st.button("🗑️ Clear Deck"):
+        if st.button("🗑️ Clear Cinematic Deck"):
             st.session_state.flash_cards_list = None
             st.rerun()
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
