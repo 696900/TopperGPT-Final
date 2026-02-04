@@ -472,15 +472,14 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: CINEMATIC VISUAL FLASHCARDS ---
+# --- TAB 5: CINEMATIC VISUAL FLASHCARDS (FIXED UI) ---
 with tab5:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎬 Cinematic Revision Deck</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Big Fonts • Concept Mask • HD Export</p>", unsafe_allow_html=True)
     
     if "flash_cards_list" not in st.session_state:
         st.session_state.flash_cards_list = None
 
-    t_input = st.text_input("Enter Topic for Cinematic Cards:", placeholder="e.g. 'Quantum Physics', 'Data Structures'", key="rev_v3")
+    t_input = st.text_input("Enter Topic for Cinematic Cards:", placeholder="e.g. 'Quantum Physics'", key="rev_v4")
     
     if st.button("🎨 Build Cinematic Deck") and t_input:
         if st.session_state.user_data['credits'] >= 2:
@@ -489,7 +488,7 @@ with tab5:
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[
-                            {"role": "system", "content": "Engineering Professor mode. Create 10 cards. Each line: BOLD TITLE | One Powerful Definition. Maximum precision."},
+                            {"role": "system", "content": "Engineering Professor mode. Create 10 cards. Format: TITLE | One Powerful Definition. Maximum precision."},
                             {"role": "user", "content": f"Topic: {t_input}"}
                         ]
                     )
@@ -499,17 +498,17 @@ with tab5:
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-    # --- THE CINEMATIC UI ---
+    # --- THE CINEMATIC UI (FIXED HTML RENDER) ---
     if st.session_state.get("flash_cards_list"):
         st.divider()
         
         for i, card in enumerate(st.session_state.flash_cards_list):
             try:
                 title, content = card.split("|", 1)
-                title, content = title.strip(), content.strip()
+                title, content = title.strip().replace("**", ""), content.strip().replace("**", "")
                 
-                # Visual CSS Mask Effect (Bada font piche, clean text aage)
-                st.markdown(f"""
+                # Visual CSS Mask Effect - Fixed to render properly
+                card_html = f"""
                 <div style="position: relative; background: #1a1c23; padding: 30px; border-radius: 20px; 
                             margin-bottom: 25px; border: 1px solid #30363d; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
                     
@@ -521,42 +520,42 @@ with tab5:
                     <div style="position: relative; z-index: 1;">
                         <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px; margin: 0;">TOPPERGPT CARD {i+1}</p>
                         <h2 style="color: white; font-size: 2.2rem; margin: 10px 0; font-weight: 800; line-height: 1.1;">{title}</h2>
-                        <p style="font-size: 1.1rem; color: #babbbe; line-height: 1.5; font-weight: 400; max-width: 90%;">{content}</p>
+                        <p style="font-size: 1.1rem; color: #babbbe; line-height: 1.5; font-weight: 400;">{content}</p>
                         <hr style="border-color: rgba(76, 175, 80, 0.2); margin: 20px 0;">
                         <p style="font-size: 0.7rem; color: #4CAF50; text-align: right; font-weight: bold; margin:0;">@TOPPERGPT PRO • OFFICIAL RESEARCH</p>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
+                """
+                # This ensures the HTML is interpreted by the browser, not shown as text
+                st.markdown(card_html, unsafe_allow_html=True)
 
-                # --- HD IMAGE EXPORT LOGIC ---
+                # --- HD IMAGE EXPORT (With Watermark) ---
                 def create_hd_card(t, c, idx):
-                    # Bada canvas for high quality
                     img = Image.new('RGB', (1200, 630), color='#1a1c23')
                     d = ImageDraw.Draw(img)
-                    
-                    # Manual "Watermark & Design"
-                    d.rectangle([0, 0, 20, 630], fill='#4CAF50') # Left Accent
-                    d.text((60, 60), f"CARD {idx+1} | TOPPERGPT PRO", fill='#4CAF50')
-                    d.text((60, 150), t.upper()[:30], fill='white') # Big Title (Approx)
-                    d.text((60, 300), c[:200], fill='#babbbe') # Content
+                    d.rectangle([0, 0, 25, 630], fill='#4CAF50')
+                    d.text((80, 80), f"CARD {idx+1} | TOPPERGPT PRO", fill='#4CAF50')
+                    # Title
+                    d.text((80, 180), t.upper(), fill='white')
+                    # Wrap content logic placeholder
+                    d.text((80, 320), c[:180] + "...", fill='#babbbe')
                     d.text((950, 560), "@TopperGPT Pro", fill='#4CAF50')
                     
                     buf = io.BytesIO()
                     img.save(buf, format="PNG")
                     return buf.getvalue()
 
-                # Action Buttons (Mobile Optimized)
+                # Action Buttons
                 card_img = create_hd_card(title, content, i)
-                col_btn1, col_btn2 = st.columns(2)
-                with col_btn1:
-                    st.download_button(f"📥 Download Card {i+1} (HD)", card_img, f"Topper_Card_{i+1}.png", "image/png", use_container_width=True)
-                with col_btn2:
+                col_dl, col_wa = st.columns(2)
+                with col_dl:
+                    st.download_button(f"📥 HD Download {i+1}", card_img, f"Card_{i+1}.png", "image/png", use_container_width=True)
+                with col_wa:
                     st.markdown(f"""
                     <a href="https://wa.me/?text=Check this {title} Revision Card from TopperGPT!" target="_blank" style="text-decoration:none;">
-                        <div style="background:#25D366; color:white; text-align:center; padding:10px; border-radius:10px; font-weight:bold;">📲 Share on WhatsApp</div>
+                        <div style="background:#25D366; color:white; text-align:center; padding:10px; border-radius:10px; font-weight:bold;">📲 Share Card</div>
                     </a>
                     """, unsafe_allow_html=True)
-                st.markdown("<br><br>", unsafe_allow_html=True)
 
             except: continue
 
