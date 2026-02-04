@@ -471,60 +471,69 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: FLASHCARDS (TEXT-BASED SPEED VERSION) ---
+# --- TAB 5: VISUAL FLASHCARDS (REVISION PRO VERSION) ---
 with tab5:
-    st.subheader("🃏 Engineering Flashcard Generator")
-    st.info("💡 Tip: Jo bhi topic likhoge (e.g. 'Thermodynamics Laws' ya 'Python Lists'), AI uspar cards bana dega.")
-    st.warning("💳 Total Cost: **2 Credits** (Super Saver)")
+    st.subheader("🃏 Engineering Visual Flashcards")
+    st.markdown("""
+    <p style='color: #8b949e; font-size: 0.9rem;'>
+    Enter a topic to get 10 structured cards for quick exam revision.
+    </p>
+    """, unsafe_allow_html=True)
+    st.warning("💳 Revision Cost: **2 Credits**")
 
-    # Persistent State for Flashcards
     if "flash_cards_list" not in st.session_state:
         st.session_state.flash_cards_list = None
 
-    # Topic Input
-    topic_input = st.text_input("Enter Topic Name:", placeholder="e.g. Computer Networks OSI Model")
+    t_input = st.text_input("Revision Topic:", placeholder="e.g. 'Operating Systems', 'Thermodynamics'", key="rev_input_v1")
     
-    if st.button("🚀 Generate Flashcards"):
-        if not topic_input:
+    if st.button("🚀 Build Study Deck"):
+        if not t_input:
             st.error("Bhai pehle topic toh likh!")
         elif st.session_state.user_data['credits'] >= 2:
-            with st.spinner(f"AI is preparing cards for: {topic_input}..."):
+            with st.spinner(f"AI is designing cards for {t_input}..."):
                 try:
-                    # Using existing groq_client (Fastest Model: Llama 3.3 70B)
-                    completion = groq_client.chat.completions.create(
+                    # Using verified groq_client
+                    res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[
-                            {"role": "system", "content": "You are an engineering expert. Create exactly 10 high-quality flashcards. Format each line exactly as: Question | Answer"},
-                            {"role": "user", "content": f"Generate 10 flashcards for the topic: {topic_input}"}
-                        ],
-                        temperature=0.6
+                            {"role": "system", "content": "You are an Engineering Examiner. Create 10 flashcards for revision. Format: Concept Name | Simplified Explanation (under 30 words)."},
+                            {"role": "user", "content": f"Generate revision cards for: {t_input}"}
+                        ]
                     )
                     
-                    raw_content = completion.choices[0].message.content
-                    # Split lines and filter only valid cards
-                    st.session_state.flash_cards_list = [c for c in raw_content.split("\n") if "|" in c]
-                    
-                    # Deduct only 2 credits
+                    raw = res.choices[0].message.content
+                    st.session_state.flash_cards_list = [c for c in raw.split("\n") if "|" in c]
                     st.session_state.user_data['credits'] -= 2
-                    st.success(f"Deduct 2 Credits! Topic: {topic_input}")
+                    st.success("Deck Ready!")
                     st.rerun()
-                    
                 except Exception as e:
-                    st.error(f"Error: {e}")
-        else:
-            st.error("Low Balance! Sidebar se top-up karo.")
+                    st.error(f"Logic Error: {e}")
 
-    # DISPLAY CARDS
+    # --- THE VISUAL DISPLAY ---
     if st.session_state.get("flash_cards_list"):
         st.divider()
-        st.write(f"📝 **Generated Cards:**")
-        for i, line in enumerate(st.session_state.flash_cards_list):
+        col1, col2 = st.columns(2)
+        
+        for i, card in enumerate(st.session_state.flash_cards_list):
             try:
-                q, a = line.split("|", 1)
-                with st.expander(f"📌 Card {i+1}: {q.strip()}"):
-                    st.success(f"**Ans:** {a.strip()}")
-            except:
-                continue
+                title, content = card.split("|", 1)
+                target_col = col1 if i % 2 == 0 else col2
+                
+                with target_col:
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(145deg, #1e2530, #161b22); 
+                                padding: 20px; border-radius: 15px; border-left: 5px solid #4CAF50; 
+                                margin-bottom: 15px; min-height: 150px; box-shadow: 2px 2px 10px rgba(0,0,0,0.3);">
+                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.8rem; margin: 0;">CONCEPT CARD {i+1}</p>
+                        <h4 style="color: white; margin: 5px 0 10px 0;">{title.strip()}</h4>
+                        <p style="color: #8b949e; font-size: 0.9rem; line-height: 1.4;">{content.strip()}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            except: continue
+
+        if st.button("🗑️ Clear Deck"):
+            st.session_state.flash_cards_list = None
+            st.rerun()
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
 # --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
 with tab6:
