@@ -340,39 +340,30 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (MODEL-HUNTER EDITION) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (MEMORY STABLE) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
     
-    st.warning("💳 Evaluation Cost: **5 Credits**")
+    # Memory initialized
+    if "eval_result" not in st.session_state:
+        st.session_state.eval_result = None
 
-    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_model_hunter")
+    st.warning("💳 Evaluation Cost: **5 Credits**")
+    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_v14")
 
     if st.button("🔍 Start Cinematic Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Moderator is hunting for a stable engine..."):
+            with st.spinner("TopperGPT is analyzing your handwriting..."):
                 try:
-                    # MODEL HUNTER LOGIC (Fixes all 404 errors)
-                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                    
-                    # Try to find the best available flash model
-                    target_model = None
-                    for m in ["models/gemini-1.5-flash", "models/gemini-1.5-flash-latest", "models/gemini-pro-vision"]:
-                        if m in available_models:
-                            target_model = m
-                            break
-                    
-                    if not target_model:
-                        target_model = available_models[0] # Fallback to first working model
-                    
-                    model = genai.GenerativeModel(target_model)
+                    # Direct Model Call (Most Stable for Cloud)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     img_bytes = ans_photo.getvalue()
                     
                     eval_prompt = """
                     Act as a strict University Moderator. Scan the image:
                     1. Detect 'Question'.
-                    2. Grade 'Handwritten Answer' technically out of 10.
-                    3. Output: Q: [Question] | SCORE: [X/10] | GOOD: [Pros] | MISSING: [Gaps] | TIP: [Advice]
+                    2. Grade 'Handwritten Answer' out of 10.
+                    3. Format exactly: Q: [Question] | SCORE: [X/10] | GOOD: [Pros] | MISSING: [Gaps] | TIP: [Advice]
                     """
                     
                     response = model.generate_content([
@@ -380,63 +371,67 @@ with tab3:
                         eval_prompt
                     ])
                     
-                    res_text = response.text
+                    # Saving to session state so it doesn't disappear
+                    st.session_state.eval_result = response.text
                     st.session_state.user_data['credits'] -= 5
-                    st.divider()
-
-                    # CINEMATIC UI DISPLAY
-                    parts = res_text.split("|")
-                    q_val = parts[0].replace("Q:", "").strip() if len(parts) > 0 else "Question Detected"
-                    score_val = parts[1].replace("SCORE:", "").strip() if len(parts) > 1 else "7/10"
-                    
-                    # 1. Question Box
-                    st.markdown(f"""
-                    <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
-                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">BOARD QUESTION SCAN</p>
-                        <h3 style="color: white; font-size: 1.6rem; margin: 10px 0;">{q_val}</h3>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    # 2. Score & Feedback
-                    c1, c2 = st.columns([1, 2])
-                    with c1:
-                        st.markdown(f"""
-                        <div style="background: #1e3c72; padding: 35px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
-                            <p style="color: white; font-size: 0.8rem; margin:0;">GRADE</p>
-                            <h1 style="color: white; font-size: 3.5rem; margin:0; font-weight: 900;">{score_val}</h1>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    with c2:
-                        st.markdown(f"""
-                        <div style="background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; height: 100%;">
-                            <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem;">✅ STRENGTHS</p>
-                            <p style="color: #babbbe; font-size: 0.95rem;">{parts[2].replace("GOOD:", "").strip() if len(parts) > 2 else "Analyzed."}</p>
-                            <p style="color: #ff4b4b; font-weight: bold; margin-top: 15px;">❌ GAPS</p>
-                            <p style="color: #babbbe; font-size: 0.95rem;">{parts[3].replace("MISSING:", "").strip() if len(parts) > 3 else "Keywords missing."}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-
-                    # 3. Tip Box
-                    tip_val = parts[4].replace("TIP:", "").strip() if len(parts) > 4 else "Add more diagrams."
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
-                                margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76, 175, 80, 0.04); z-index:0;">TIP</div>
-                        <div style="position: relative; z-index: 1;">
-                            <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 TOPPER'S ADVICE</p>
-                            <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600;">{tip_val}</p>
-                            <p style="text-align: right; color: #4CAF50; font-size: 0.7rem; margin-top: 25px;">@TOPPERGPT</p>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    st.balloons()
-                    st.rerun()
-
                 except Exception as e:
                     st.error(f"Moderator Error: {e}")
-                    st.info("Bhai, last step: 'Manage App' mein jaake 'Reboot App' kar do.")
         else:
             st.error("Insufficient Credits!")
+
+    # --- DISPLAY LOGIC (STAYS ON SCREEN) ---
+    if st.session_state.get("eval_result"):
+        res_text = st.session_state.eval_result
+        st.divider()
+        
+        try:
+            parts = res_text.split("|")
+            q_val = parts[0].replace("Q:", "").strip() if len(parts) > 0 else "Question Detected"
+            score_val = parts[1].replace("SCORE:", "").strip() if len(parts) > 1 else "N/A"
+            
+            # 1. Question Box
+            st.markdown(f"""
+            <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
+                <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">MODERATOR VISION SCAN</p>
+                <h3 style="color: white; font-size: 1.6rem; margin: 10px 0;">{q_val}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # 2. Score & Feedback
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                st.markdown(f"""
+                <div style="background: #1e3c72; padding: 35px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
+                    <p style="color: white; font-size: 0.8rem; margin:0;">GRADE</p>
+                    <h1 style="color: white; font-size: 3.5rem; margin:0; font-weight: 900;">{score_val}</h1>
+                </div>
+                """, unsafe_allow_html=True)
+            with c2:
+                st.markdown(f"""
+                <div style="background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; height: 100%;">
+                    <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem;">✅ STRENGTHS</p>
+                    <p style="color: #babbbe; font-size: 0.95rem;">{parts[2].replace("GOOD:", "").strip() if len(parts) > 2 else "Analyzed."}</p>
+                    <p style="color: #ff4b4b; font-weight: bold; margin-top: 15px;">❌ GAPS</p>
+                    <p style="color: #babbbe; font-size: 0.95rem;">{parts[3].replace("MISSING:", "").strip() if len(parts) > 3 else "Keywords missing."}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # 3. Topper Tip
+            tip_val = parts[4].replace("TIP:", "").strip() if len(parts) > 4 else "Add more technical diagrams."
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
+                        margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76, 175, 80, 0.04); z-index:0;">TIP</div>
+                <div style="position: relative; z-index: 1;">
+                    <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 TOPPER'S ADVICE</p>
+                    <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600;">{tip_val}</p>
+                    <p style="text-align: right; color: #4CAF50; font-size: 0.7rem; margin-top: 25px;">@TOPPERGPT</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.balloons()
+        except Exception as parse_error:
+            st.write(res_text) # Fallback if formatting fails
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
 with tab4:
     st.subheader("🧠 Concept MindMap & Summary")
