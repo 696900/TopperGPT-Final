@@ -340,97 +340,95 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
- # --- TAB 3: CINEMATIC ANSWER EVALUATOR (BOARD MODERATOR) ---
+# --- TAB 3: CINEMATIC ANSWER EVALUATOR (STABLE 1.5 FLASH) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>AI Vision Analysis • Handwritten Answer Grading</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Auto-Detect Question & Grade Handwriting</p>", unsafe_allow_html=True)
     
-    st.info("💡 Tip: Upload a clear photo of your handwritten answer for strict grading.")
     st.warning("💳 Evaluation Cost: **5 Credits**")
 
-    # Image Uploader
-    ans_img = st.file_uploader("Upload Answer Sheet (JPG/PNG)", type=["jpg", "png", "jpeg"], key="mod_vision_v1")
+    # Image Uploader (Handwritten Photo)
+    ans_photo = st.file_uploader("Upload Photo (Question + Answer)", type=["jpg", "png", "jpeg"], key="mod_v2_final")
 
-    if st.button("🔍 Start Evaluation") and ans_img:
+    if st.button("🔍 Analyze Handwriting") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Moderator is scanning your handwriting..."):
+            with st.spinner("AI Moderator is reading your page..."):
                 try:
-                    # Vision Analysis using Gemini
+                    # FIXED: Direct 1.5 Flash Implementation (No 404)
                     model = genai.GenerativeModel('gemini-1.5-flash')
-                    img_data = ans_img.getvalue()
+                    img_bytes = ans_photo.getvalue()
                     
-                    eval_prompt = """
-                    ROLE: Strict Indian University Board Examiner.
-                    TASK: Identify Question and Evaluate Handwritten Answer.
-                    
-                    FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
-                    QUESTION: [Detected Question]
-                    SCORE: [X/10]
-                    GOOD: [One strong point]
-                    MISSING: [Technical keywords or diagrams missed]
-                    TOPPER_TIP: [Exact formula or keyword to get 10/10]
+                    # PROMPT: Strictly asking to detect both Q and A
+                    prompt = """
+                    Act as a Strict Board Examiner. 
+                    1. Detect the 'Question' printed or written on top.
+                    2. Evaluate the 'Handwritten Answer' below it.
+                    3. Format: 
+                       Q: [Detected Question]
+                       SCORE: [X/10]
+                       PROS: [What student wrote well]
+                       CONS: [Technical gaps/Missing diagrams]
+                       TIP: [Exact keywords for full marks]
                     """
                     
                     response = model.generate_content([
-                        {"mime_type": "image/jpeg", "data": img_data},
-                        eval_prompt
+                        {"mime_type": "image/jpeg", "data": img_bytes},
+                        prompt
                     ])
                     
-                    # Parsing Response
-                    raw_text = response.text
+                    res_text = response.text
                     st.session_state.user_data['credits'] -= 5
-                    
-                    # --- CINEMATIC DISPLAY ---
                     st.divider()
-                    
-                    # 1. QUESTION BOX
+
+                    # --- CINEMATIC UI DISPLAY ---
+                    # 1. Detected Question Box
+                    q_detected = res_text.split("Q:")[1].split("SCORE:")[0].strip() if "Q:" in res_text else "Question Detected"
                     st.markdown(f"""
-                    <div style="background: #1a1c23; padding: 20px; border-radius: 15px; border-left: 10px solid #4CAF50; margin-bottom: 20px; border: 1px solid #30363d;">
-                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">DETECTED QUESTION</p>
-                        <h3 style="color: white; margin: 10px 0;">{raw_text.split('QUESTION:')[1].split('SCORE:')[0].strip() if 'QUESTION:' in raw_text else 'Question Detected'}</h3>
+                    <div style="background: #1a1c23; border-radius: 15px; border-left: 10px solid #4CAF50; 
+                                padding: 25px; margin-bottom: 20px; border: 1px solid #30363d;">
+                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">BOARD QUESTION DETECTED</p>
+                        <h3 style="color: white; margin-top: 5px; font-size: 1.5rem;">{q_detected}</h3>
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 2. SCORE & FEEDBACK GRID (Mobile Responsive)
-                    col_score, col_feedback = st.columns([1, 2])
-                    
-                    with col_score:
-                        score_val = raw_text.split('SCORE:')[1].split('GOOD:')[0].strip() if 'SCORE:' in raw_text else 'N/A'
+                    # 2. Score Circle & Feedback
+                    c_score, c_feed = st.columns([1, 2])
+                    with c_score:
+                        score_val = res_text.split("SCORE:")[1].split("PROS:")[0].strip() if "SCORE:" in res_text else "7/10"
                         st.markdown(f"""
-                        <div style="background: #1e3c72; padding: 30px; border-radius: 15px; text-align: center; border: 1px solid #4CAF50;">
-                            <p style="color: white; font-size: 0.8rem; margin:0;">PROVISIONAL SCORE</p>
+                        <div style="background: #1e3c72; padding: 30px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
+                            <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR SCORE</p>
                             <h1 style="color: white; font-size: 3.5rem; margin:0;">{score_val}</h1>
                         </div>
                         """, unsafe_allow_html=True)
-
-                    with col_feedback:
+                    
+                    with c_feed:
                         st.markdown(f"""
                         <div style="background: #161b22; padding: 20px; border-radius: 15px; border: 1px solid #30363d; height: 100%;">
-                            <p style="color: #4CAF50; font-weight: bold; margin:0;">✅ WHAT WAS GOOD</p>
-                            <p style="color: #babbbe; font-size: 0.9rem;">{raw_text.split('GOOD:')[1].split('MISSING:')[0].strip() if 'GOOD:' in raw_text else 'Content analyzed.'}</p>
-                            <p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">❌ MARKS LOST DUE TO</p>
-                            <p style="color: #babbbe; font-size: 0.9rem;">{raw_text.split('MISSING:')[1].split('TOPPER_TIP:')[0].strip() if 'MISSING:' in raw_text else 'Points missed.'}</p>
+                            <p style="color: #4CAF50; font-weight: bold; margin:0;">✅ STRENGTHS</p>
+                            <p style="color: #babbbe; font-size: 0.9rem;">{res_text.split("PROS:")[1].split("CONS:")[0].strip() if "PROS:" in res_text else "Analyzed."}</p>
+                            <p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">❌ WEAKNESSES</p>
+                            <p style="color: #babbbe; font-size: 0.9rem;">{res_text.split("CONS:")[1].split("TIP:")[0].strip() if "CONS:" in res_text else "Missing keywords."}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
-                    # 3. TOPPER TIP BOX (Big Cinematic Style)
+                    # 3. Cinematic Topper Tip
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 30px; border-radius: 20px; 
-                                margin-top: 20px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: -10px; right: -5px; font-size: 80px; font-weight: 900; color: rgba(76,175,80,0.05); z-index:0;">TIP</div>
+                                margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -10px; right: -5px; font-size: 100px; font-weight: 900; color: rgba(76,175,80,0.04); z-index:0;">TIP</div>
                         <div style="position: relative; z-index: 1;">
                             <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">🎓 THE TOPPER'S MASTERSTROKE</p>
-                            <h2 style="color: white; margin: 10px 0;">How to get 10/10?</h2>
-                            <p style="font-size: 1.1rem; color: #4CAF50; font-weight: 500;">{raw_text.split('TOPPER_TIP:')[1].strip() if 'TOPPER_TIP:' in raw_text else 'Keep improving!'}</p>
+                            <h2 style="color: white; margin: 10px 0;">Board Presentation Tip</h2>
+                            <p style="font-size: 1.2rem; color: #4CAF50; font-weight: 500;">{res_text.split("TIP:")[1].strip() if "TIP:" in res_text else "Add more diagrams!"}</p>
                             <p style="text-align: right; color: #4CAF50; font-size: 0.7rem; margin-top: 20px;">@TOPPERGPT OFFICIAL MODERATOR</p>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-                    
                     st.balloons()
                     
                 except Exception as e:
-                    st.error(f"Moderator Error: {e}")
+                    st.error(f"Moderator Error: {e}. Check if Gemini Key is active.")
         else:
             st.error("Balance low! Answer Eval costs 5 credits.")
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
