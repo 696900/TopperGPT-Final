@@ -473,30 +473,26 @@ with tab4:
             st.session_state.final_summary = None
             st.rerun()
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: MOBILE-OPTIMIZED CINEMATIC HD DECK ---
+# --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
 with tab5:
     st.markdown("<h3 style='text-align: center; color: #4CAF50;'>🎬 Cinematic Revision Deck</h3>", unsafe_allow_html=True)
     
-    # Simple Mobile Hint
-    st.markdown("<p style='text-align: center; font-size: 0.8rem; color: #8b949e;'>Download & Share for best quality</p>", unsafe_allow_html=True)
-
     if "flash_cards_list" not in st.session_state:
         st.session_state.flash_cards_list = None
 
-    t_input = st.text_input("Revision Topic:", placeholder="e.g. 'Nuclear Fusion'", key="rev_v7_final")
+    t_input = st.text_input("Enter Topic for Revision:", placeholder="e.g. 'Transformer Working'", key="rev_v8_final")
     
-    if st.button("🚀 Build HD Deck") and t_input:
+    if st.button("🚀 Build Deck") and t_input:
         if st.session_state.user_data['credits'] >= 2:
-            with st.spinner("Rendering High-Impact Visuals..."):
+            with st.spinner("AI is crafting visual cards..."):
                 try:
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[
-                            {"role": "system", "content": "Engineering Professor mode. Create 10 precise flashcards. Format: TITLE | Simple Definition. Max 15 words."},
+                            {"role": "system", "content": "Engineering Professor mode. Create 10 precise flashcards. Format: TITLE | One line definition. Max 15 words. NO bold stars."},
                             {"role": "user", "content": f"Topic: {t_input}"}
                         ]
                     )
-                    # Cleaning markers that break rendering
                     clean_res = res.choices[0].message.content.replace("**", "").replace("*", "")
                     st.session_state.flash_cards_list = [c for c in clean_res.split("\n") if "|" in c]
                     st.session_state.user_data['credits'] -= 2
@@ -504,7 +500,7 @@ with tab5:
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-    # --- THE VISUAL ENGINE ---
+    # --- THE VISUAL DISPLAY ---
     if st.session_state.get("flash_cards_list"):
         st.divider()
         
@@ -513,47 +509,42 @@ with tab5:
                 title, content = card.split("|", 1)
                 title, content = title.strip().upper(), content.strip()
                 
-                # MOBILE OPTIMIZED UI (Bigger Fonts, Responsive Padding)
+                # 1. LIVE SCREEN UI (Mobile Optimized)
                 st.markdown(f"""
                 <div style="background: #1a1c23; border-radius: 15px; border-left: 10px solid #4CAF50; 
                             padding: 25px; margin-bottom: 20px; position: relative; overflow: hidden; border: 1px solid #30363d;">
-                    <div style="position: absolute; top: -10px; right: -5px; font-size: 80px; font-weight: 900; color: rgba(76,175,80,0.03); z-index:0;">{title[:3]}</div>
+                    <div style="position: absolute; top: -10px; right: -5px; font-size: 100px; font-weight: 900; color: rgba(76,175,80,0.03); z-index:0;">{title[:3]}</div>
                     <div style="position: relative; z-index: 1;">
-                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">TOPPERGPT PRO • {i+1}</p>
-                        <h2 style="color: white; font-size: 1.8rem; margin: 10px 0; font-weight: 800; line-height: 1.1;">{title}</h2>
-                        <p style="font-size: 1rem; color: #babbbe; line-height: 1.4;">{content}</p>
-                        <p style="text-align: right; color: #4CAF50; font-size: 0.6rem; margin-top: 15px;">@TOPPERGPT PRO</p>
+                        <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">TOPPERGPT • CARD {i+1}</p>
+                        <h2 style="color: white; font-size: 2rem; margin: 10px 0; font-weight: 800; line-height: 1.1;">{title}</h2>
+                        <p style="font-size: 1.1rem; color: #babbbe; line-height: 1.4; font-weight: 400;">{content}</p>
+                        <p style="text-align: right; color: #4CAF50; font-weight: bold; font-size: 0.7rem; margin-top: 20px;">@TOPPERGPT</p>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
 
-                # HD IMAGE GENERATION (Correct Aspect Ratio for Mobile Sharing)
-                def create_shareable_card(t, c, idx):
+                # 2. HD IMAGE GENERATION (Correct Resolution)
+                def create_hd_card(t, c, idx):
                     W, H = 1000, 600
                     img = Image.new('RGB', (W, H), color='#1a1c23')
                     d = ImageDraw.Draw(img)
-                    
-                    # Design Elements
-                    d.rectangle([0, 0, 30, H], fill='#4CAF50')
-                    d.text((60, 50), f"TOPPERGPT PRO | CARD {idx+1}", fill='#4CAF50')
-                    d.text((60, 130), t[:25], fill='white')
-                    
-                    # Text wrapping for clarity
+                    d.rectangle([0, 0, 30, H], fill='#4CAF50') 
+                    d.text((60, 60), f"TOPPERGPT | CARD {idx+1}", fill='#4CAF50')
+                    d.text((60, 140), t[:25], fill='white')
                     wrapped = textwrap.fill(c, width=40)
-                    d.multiline_text((60, 250), wrapped, fill='#babbbe', spacing=8)
-                    d.text((800, 540), "@TopperGPT Pro", fill='#4CAF50')
-                    
+                    d.multiline_text((60, 260), wrapped, fill='#babbbe', spacing=10)
+                    d.text((800, 540), "@TopperGPT", fill='#4CAF50')
                     buf = io.BytesIO()
                     img.save(buf, format="PNG")
                     return buf.getvalue()
 
                 # Action Buttons
-                card_img = create_shareable_card(title, content, i)
+                card_img = create_hd_card(title, content, i)
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.download_button(f"📥 Download {i+1}", card_img, f"Topper_Card_{i+1}.png", "image/png", use_container_width=True)
+                    st.download_button(f"📥 Download HD {i+1}", card_img, f"TopperCard_{i+1}.png", "image/png", use_container_width=True)
                 with c2:
-                    wa_url = f"https://wa.me/?text=Bhai ye dekh {title} ka revision card TopperGPT se! Download karke status par laga le."
+                    wa_url = f"https://wa.me/?text=Bhai ye dekh {title} ka revision card! Pehle download kar fir status par laga le."
                     st.markdown(f'<a href="{wa_url}" target="_blank" style="text-decoration:none;"><div style="background:#25D366; color:white; text-align:center; padding:10px; border-radius:10px; font-weight:bold; font-size: 0.9rem;">📲 Share on WA</div></a>', unsafe_allow_html=True)
                 
                 st.markdown("<br>", unsafe_allow_html=True)
