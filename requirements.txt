@@ -13,3 +13,4 @@ streamlit-mermaid
 PyMuPDF
 requests
 Pillow
+google-generativeai==0.8.3

@@ -340,31 +340,27 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR STABLE) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (ULTRA STABLE) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Official Grading Engine • Stable Production Build</p>", unsafe_allow_html=True)
     
     st.warning("💳 Evaluation Cost: **5 Credits**")
 
-    # Photo Uploader
-    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_v12_final_stable")
+    ans_photo = st.file_uploader("Upload Handwritten Page", type=["jpg", "png", "jpeg"], key="mod_ultra_stable")
 
     if st.button("🔍 Start Cinematic Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("TopperGPT Moderator is scanning your response..."):
+            with st.spinner("Moderator is scanning your response..."):
                 try:
-                    # STEP 1: Using the direct model name (Fixes 404)
-                    # Note: Do not use 'models/' prefix or 'v1beta' path
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # Sabse stable model call (Fixes 404)
+                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
                     img_bytes = ans_photo.getvalue()
                     
-                    # STEP 2: Strict University Marking Prompt
                     eval_prompt = """
                     Act as a strict University Moderator. Scan the image:
                     1. Identify the 'Question'.
                     2. Evaluate the 'Handwritten Answer' technically.
-                    3. Output format: Q: [Question] | SCORE: [X/10] | GOOD: [Strengths] | MISSING: [Technical gaps] | TIP: [Strategic advice]
+                    3. Output format: Q: [Question] | SCORE: [X/10] | GOOD: [Strengths] | MISSING: [Gaps] | TIP: [Advice]
                     """
                     
                     response = model.generate_content([
@@ -376,7 +372,7 @@ with tab3:
                     st.session_state.user_data['credits'] -= 5
                     st.divider()
 
-                    # --- THE CINEMATIC UI ---
+                    # CINEMATIC UI
                     parts = res_text.split("|")
                     q_val = parts[0].replace("Q:", "").strip() if len(parts) > 0 else "Question Detected"
                     score_val = parts[1].replace("SCORE:", "").strip() if len(parts) > 1 else "7/10"
@@ -389,12 +385,12 @@ with tab3:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 2. Score & Feedback Grid
+                    # 2. Score Circle
                     c1, c2 = st.columns([1, 2])
                     with c1:
                         st.markdown(f"""
                         <div style="background: #1e3c72; padding: 35px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
-                            <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR GRADE</p>
+                            <p style="color: white; font-size: 0.8rem; margin:0;">GRADE</p>
                             <h1 style="color: white; font-size: 3.5rem; margin:0; font-weight: 900;">{score_val}</h1>
                         </div>
                         """, unsafe_allow_html=True)
@@ -403,21 +399,20 @@ with tab3:
                         st.markdown(f"""
                         <div style="background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; height: 100%;">
                             <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem;">✅ STRENGTHS</p>
-                            <p style="color: #babbbe; font-size: 0.95rem;">{parts[2].replace("GOOD:", "").strip() if len(parts) > 2 else "Content detected."}</p>
+                            <p style="color: #babbbe; font-size: 0.95rem;">{parts[2].replace("GOOD:", "").strip() if len(parts) > 2 else "Analyzed."}</p>
                             <p style="color: #ff4b4b; font-weight: bold; margin-top: 15px;">❌ MARKS LOST</p>
                             <p style="color: #babbbe; font-size: 0.95rem;">{parts[3].replace("MISSING:", "").strip() if len(parts) > 3 else "Technical gaps."}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
-                    # 3. Cinematic Masterstroke Tip
-                    tip_val = parts[4].replace("TIP:", "").strip() if len(parts) > 4 else "Focus on diagrams."
+                    # 3. Tip Box
+                    tip_val = parts[4].replace("TIP:", "").strip() if len(parts) > 4 else "Add diagrams."
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
                                 margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
                         <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76, 175, 80, 0.04); z-index:0;">TIP</div>
                         <div style="position: relative; z-index: 1;">
-                            <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 THE TOPPER'S MASTERSTROKE</p>
-                            <h2 style="color: white; margin: 10px 0;">Strategic Advice</h2>
+                            <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 TOPPER'S ADVICE</p>
                             <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600;">{tip_val}</p>
                             <p style="text-align: right; color: #4CAF50; font-size: 0.7rem; margin-top: 25px;">@TOPPERGPT</p>
                         </div>
@@ -427,11 +422,10 @@ with tab3:
                     st.rerun()
 
                 except Exception as e:
-                    # Enhanced error reporting to catch key issues
                     st.error(f"Moderator Error: {e}")
-                    st.info("Bhai, agar error persist kare toh dashboard ke 'Secrets' mein GEMINI_API_KEY check kar.")
+                    st.info("Bhai, agar error persist kare toh 'Manage App' mein jaake 'Reboot App' kar do.")
         else:
-            st.error("Balance low! Sidebar se top-up karo.")
+            st.error("Balance low!")
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
 with tab4:
     st.subheader("🧠 Concept MindMap & Summary")
