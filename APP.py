@@ -342,7 +342,7 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (HYBRID STABLE) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR BULLETPROOF) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
     
@@ -351,56 +351,49 @@ with tab3:
 
     st.warning("💳 Evaluation Cost: **5 Credits**")
     
-    # Dual Input Strategy
-    ans_photo = st.file_uploader("Upload Answer Photo (Recommended)", type=["jpg", "png", "jpeg"], key="mod_hybrid_v105")
-    
-    st.markdown("<p style='text-align: center; color: #8b949e;'>— OR —</p>", unsafe_allow_html=True)
-    manual_text = st.text_area("Paste Answer Text (If photo fails)", placeholder="Type or paste your answer here...", key="manual_ans_v1")
+    # Simple & Clean Input
+    ans_file = st.file_uploader("Upload Answer (Image/PDF)", type=["jpg", "png", "jpeg", "pdf"], key="mod_final_v100")
 
-    if st.button("🚀 Start Professional Evaluation"):
+    if st.button("🚀 Start Professional Evaluation") and ans_file:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("TopperGPT Engine is processing..."):
-                try:
-                    # SCENARIO A: PHOTO UPLOADED
-                    if ans_photo:
-                        encoded_img = base64.b64encode(ans_photo.getvalue()).decode('utf-8')
+            placeholder = st.empty()
+            placeholder.info("⏳ Connecting to TopperGPT Stable Engine...")
+            
+            try:
+                # STEP 1: Using the most stable Llama 3.2 Vision on Groq
+                encoded_img = base64.b64encode(ans_file.getvalue()).decode('utf-8')
+                
+                # Auto-Retry Logic (3 Times)
+                for attempt in range(3):
+                    try:
                         chat_completion = groq_client.chat.completions.create(
                             model="llama-3.2-90b-vision-preview",
                             messages=[{
                                 "role": "user",
                                 "content": [
-                                    {"type": "text", "text": "Grade this answer out of 10. Return ONLY JSON: {'q': '...', 'marks': '...', 'pros': '...', 'cons': '...', 'tip': '...'}"},
+                                    {"type": "text", "text": "Strict Board Examiner Mode. Identify the question and grade the answer out of 10. Return ONLY JSON: {'q': '...', 'marks': '...', 'pros': '...', 'cons': '...', 'tip': '...'}"},
                                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_img}"}}
                                 ]
                             }],
-                            response_format={"type": "json_object"}
+                            response_format={"type": "json_object"},
+                            timeout=30.0 # Strict timeout
                         )
                         raw_content = chat_completion.choices[0].message.content
                         st.session_state.mod_result = json.loads(raw_content)
                         st.session_state.user_data['credits'] -= 5
-                    
-                    # SCENARIO B: MANUAL TEXT (IF PHOTO FAILS)
-                    elif manual_text:
-                        chat_completion = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[{"role": "user", "content": f"Grade this answer technically out of 10. Answer: {manual_text}. Return ONLY JSON: {{'q': '...', 'marks': '...', 'pros': '...', 'cons': '...', 'tip': '...'}}"}],
-                            response_format={"type": "json_object"}
-                        )
-                        st.session_state.mod_result = json.loads(chat_completion.choices[0].message.content)
-                        st.session_state.user_data['credits'] -= 5
-                    else:
-                        st.error("Bhai, kam se kam photo ya text toh dalo!")
+                        placeholder.success("✅ Evaluation Complete!")
+                        break # Success!
+                    except Exception as e:
+                        if attempt < 2:
+                            placeholder.warning(f"⚠️ Engine busy (Attempt {attempt+1}/3). Retrying...")
+                            time.sleep(2) # Wait before retry
+                        else:
+                            raise e # Give up after 3 tries
 
-                except Exception as e:
-                    # FINAL FALLBACK (GEMINI TEXT ONLY)
-                    try:
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        prompt = f"Grade this answer out of 10: {manual_text if manual_text else 'Analyze attached content'}. Return JSON."
-                        response = model.generate_content(prompt)
-                        st.session_state.mod_result = json.loads(response.text.replace("```json", "").replace("```", "").strip())
-                        st.session_state.user_data['credits'] -= 5
-                    except:
-                        st.error("Engine Overloaded! Please try with a smaller image or paste text.")
+            except Exception as outer_e:
+                st.error(f"Engine Overloaded! Bhai, Streamlit ke 'Manage App' mein jaake 'Reboot App' kar do, ye API sync issue hai.")
+        else:
+            st.error("Insufficient Credits!")
 
     # --- THE CINEMATIC UI ---
     if st.session_state.get("mod_result"):
@@ -411,16 +404,16 @@ with tab3:
         st.markdown(f"""
         <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
             <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">MODERATOR SCAN</p>
-            <h3 style="color: white; font-size: 1.6rem; margin: 10px 0;">{res.get('q', 'Question Detected')}</h3>
+            <h3 style="color: white; font-size: 1.5rem; margin: 10px 0;">{res.get('q', 'Question Detected')}</h3>
         </div>
         """, unsafe_allow_html=True)
 
-        # 2. Score & Feedback Grid
+        # 2. Score & Feedback
         c1, c2 = st.columns([1, 2])
         with c1:
             st.markdown(f"""
             <div style="background: #1e3c72; padding: 35px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
-                <p style="color: white; font-size: 0.8rem; margin:0;">GRADE</p>
+                <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR GRADE</p>
                 <h1 style="color: white; font-size: 3.5rem; margin:0; font-weight: 900;">{res.get('marks', 'N/A')}</h1>
             </div>
             """, unsafe_allow_html=True)
@@ -438,7 +431,7 @@ with tab3:
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
                     margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76,175,80,0.04); z-index:0;">TIP</div>
+            <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76, 175, 80, 0.04); z-index:0;">TIP</div>
             <div style="position: relative; z-index: 1;">
                 <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 THE TOPPER'S MASTERSTROKE</p>
                 <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600;">{res.get('tip')}</p>
