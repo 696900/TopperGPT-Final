@@ -342,7 +342,7 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (ULTRA STABLE PRODUCTION) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (SDK STABLE BUILD) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
     
@@ -351,63 +351,53 @@ with tab3:
 
     st.warning("💳 Evaluation Cost: **5 Credits**")
     
-    ans_photo = st.file_uploader("Upload Handwritten Answer Photo", type=["jpg", "png", "jpeg"], key="mod_ultra_stable_v100")
+    ans_photo = st.file_uploader("Upload Handwritten Answer Photo", type=["jpg", "png", "jpeg"], key="mod_sdk_v101")
 
     if st.button("🚀 Start Professional Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
             with st.spinner("TopperGPT Stable Engine is scanning your response..."):
                 try:
-                    # STEP 1: Using the Production-Ready Gemini 1.5 Flash (Bypasses v1beta)
-                    # We use the direct model object without 'models/' prefix to avoid 404
-                    model = genai.GenerativeModel('gemini-1.5-flash') 
+                    # STEP 1: Using Groq SDK (The most stable way in your app)
+                    encoded_img = base64.b64encode(ans_photo.getvalue()).decode('utf-8')
                     
-                    img_bytes = ans_photo.getvalue()
+                    # Using Llama 3.2 90B Vision via SDK
+                    chat_completion = groq_client.chat.completions.create(
+                        model="llama-3.2-90b-vision-preview",
+                        messages=[{
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Identify Question and Grade handwritten Answer out of 10. Return ONLY JSON: {'q': 'Question', 'marks': 'X/10', 'pros': '...', 'cons': '...', 'tip': '...'}"},
+                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_img}"}}
+                            ]
+                        }],
+                        response_format={"type": "json_object"},
+                        temperature=0.1
+                    )
                     
-                    # PROMPT: Strict JSON structure to ensure UI stability
-                    eval_prompt = """
-                    You are a strict Board Moderator. 
-                    1. Detect the Question and Answer from this image.
-                    2. Evaluate based on technical accuracy out of 10.
-                    3. Return ONLY a valid JSON:
-                    {"q": "The Question", "marks": "X/10", "pros": "What's good", "cons": "Gaps", "tip": "Topper Tip"}
-                    """
-                    
-                    # Sending content with explicit mime_type for better OCR
-                    response = model.generate_content([
-                        {"mime_type": "image/jpeg", "data": img_bytes},
-                        eval_prompt
-                    ])
-                    
-                    # STEP 2: Safe JSON Cleaning
-                    raw_text = response.text.replace("```json", "").replace("```", "").strip()
-                    st.session_state.mod_result = json.loads(raw_text)
+                    # Safe Extraction
+                    raw_content = chat_completion.choices[0].message.content
+                    st.session_state.mod_result = json.loads(raw_content)
                     st.session_state.user_data['credits'] -= 5
                     
                 except Exception as e:
-                    # FINAL FALLBACK: Groq with Llama 3.2 90B (Standard API)
+                    # STEP 2: Fallback to Gemini 1.5 Flash (Direct Object Call)
                     try:
-                        G_KEY = st.secrets["GROQ_API_KEY"]
-                        encoded_img = base64.b64encode(ans_photo.getvalue()).decode('utf-8')
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        img_bytes = ans_photo.getvalue()
+                        prompt = "Identify Question and Grade Answer. Return JSON: {'q':'...','marks':'...','pros':'...','cons':'...','tip':'...'}"
                         
-                        g_response = requests.post(
-                            url="https://api.groq.com/openai/v1/chat/completions",
-                            headers={"Authorization": f"Bearer {G_KEY}"},
-                            json={
-                                "model": "llama-3.2-90b-vision-preview",
-                                "messages": [{"role": "user", "content": [
-                                    {"type": "text", "text": "Return JSON: {'q':'...','marks':'...','pros':'...','cons':'...','tip':'...'}"},
-                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_img}"}}
-                                ]}],
-                                "response_format": {"type": "json_object"}
-                            }
-                        )
-                        st.session_state.mod_result = json.loads(g_response.json()['choices'][0]['message']['content'])
+                        response = model.generate_content([
+                            {"mime_type": "image/jpeg", "data": img_bytes},
+                            prompt
+                        ])
+                        
+                        clean_json = response.text.replace("```json", "").replace("```", "").strip()
+                        st.session_state.mod_result = json.loads(clean_json)
                         st.session_state.user_data['credits'] -= 5
                     except Exception as e2:
-                        st.error(f"Engine Error: {e2}")
-                        st.info("Bhai, photo saaf khicho aur check karo ki Internet/API Key sahi hai.")
+                        st.error(f"Engine Error: AI engines are currently busy. Please try a clearer photo.")
 
-    # --- THE CINEMATIC UI (PROFESSIONAL DISPLAY) ---
+    # --- THE CINEMATIC UI (TOPPER STYLE) ---
     if st.session_state.get("mod_result"):
         res = st.session_state.mod_result
         st.divider()
