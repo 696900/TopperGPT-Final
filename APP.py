@@ -342,44 +342,42 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (BULLETPROOF GROQ) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (PROFESSIONAL MULTI-ENGINE) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>TopperGPT Official Evaluation Engine</p>", unsafe_allow_html=True)
     
     if "mod_result" not in st.session_state:
         st.session_state.mod_result = None
 
     st.warning("💳 Evaluation Cost: **5 Credits**")
     
-    ans_photo = st.file_uploader("Upload Handwritten Answer Photo", type=["jpg", "png", "jpeg"], key="mod_groq_final_fix")
+    ans_photo = st.file_uploader("Upload Handwritten Answer Photo", type=["jpg", "png", "jpeg"], key="mod_pro_final")
 
-    if st.button("🚀 Start Cinematic Evaluation") and ans_photo:
+    if st.button("🚀 Start Professional Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Moderator is scanning your response..."):
+            with st.spinner("TopperGPT Engine is scanning your response..."):
                 try:
+                    # STEP 1: Using Groq's Newest Active Vision Model
                     G_KEY = st.secrets["GROQ_API_KEY"]
                     encoded_img = base64.b64encode(ans_photo.getvalue()).decode('utf-8')
                     
-                    # STEP: Using the more stable 11B Vision model
                     response = requests.post(
                         url="https://api.groq.com/openai/v1/chat/completions",
                         headers={"Authorization": f"Bearer {G_KEY}"},
                         json={
-                            "model": "llama-3.2-11b-vision-preview",
+                            "model": "llama-3.2-90b-vision-preview", # LATEST ACTIVE MODEL
                             "messages": [{
                                 "role": "user",
                                 "content": [
-                                    {"type": "text", "text": "Identify Question and Grade handwritten Answer out of 10. Format MUST be JSON: {'q': 'Question', 'marks': 'X/10', 'pros': '...', 'cons': '...', 'tip': '...'}"},
+                                    {"type": "text", "text": "Strict Examiner Mode. Scan the handwritten image, detect the question, and grade the answer out of 10 based on technical accuracy. Return ONLY JSON: {'q': 'Question detected', 'marks': 'X/10', 'pros': '...', 'cons': '...', 'tip': '...'}"},
                                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_img}"}}
                                 ]
                             }],
-                            "temperature": 0.1, # Low temperature for more accuracy
-                            "response_format": {"type": "json_object"}
+                            "response_format": {"type": "json_object"},
+                            "temperature": 0.1
                         }
                     )
                     
-                    # Safe Extraction Logic
                     res_data = response.json()
                     
                     if 'choices' in res_data:
@@ -387,11 +385,19 @@ with tab3:
                         st.session_state.mod_result = json.loads(raw_content)
                         st.session_state.user_data['credits'] -= 5
                     else:
-                        st.error(f"AI Safety Triggered or Error: {res_data.get('error', {}).get('message', 'Unknown Error')}")
-                        st.info("Bhai, photo thodi saaf khich kar upload karo.")
+                        # FALLBACK: Try Gemini 1.5 Flash if Groq Fails
+                        st.info("🔄 Groq busy, switching to Gemini Backup...")
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        img_bytes = ans_photo.getvalue()
+                        prompt = "Strict Moderator Mode. Scan and evaluate. Return JSON: {'q': '...', 'marks': '...', 'pros': '...', 'cons': '...', 'tip': '...'}"
+                        gen_res = model.generate_content([{"mime_type": "image/jpeg", "data": img_bytes}, prompt])
+                        clean_json = gen_res.text.replace("```json", "").replace("```", "").strip()
+                        st.session_state.mod_result = json.loads(clean_json)
+                        st.session_state.user_data['credits'] -= 5
                     
                 except Exception as e:
-                    st.error(f"Moderator Error: {e}")
+                    st.error(f"Engine Error: {e}")
+                    st.info("Bhai, photo saaf khich kar upload karo aur API keys check karo.")
         else:
             st.error("Insufficient Credits!")
 
@@ -400,11 +406,11 @@ with tab3:
         res = st.session_state.mod_result
         st.divider()
         
-        # 1. Question Box
+        # 1. Detected Question Box
         st.markdown(f"""
         <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
             <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">BOARD MODERATOR SCAN</p>
-            <h3 style="color: white; font-size: 1.5rem; margin: 10px 0;">{res.get('q', 'Detected Question')}</h3>
+            <h3 style="color: white; font-size: 1.5rem; margin: 10px 0;">{res.get('q', 'Question Detected')}</h3>
         </div>
         """, unsafe_allow_html=True)
 
