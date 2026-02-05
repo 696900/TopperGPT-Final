@@ -342,7 +342,7 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (PROFESSIONAL MULTI-ENGINE) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (ULTRA STABLE PRODUCTION) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
     
@@ -351,66 +351,72 @@ with tab3:
 
     st.warning("💳 Evaluation Cost: **5 Credits**")
     
-    ans_photo = st.file_uploader("Upload Handwritten Answer Photo", type=["jpg", "png", "jpeg"], key="mod_pro_final")
+    ans_photo = st.file_uploader("Upload Handwritten Answer Photo", type=["jpg", "png", "jpeg"], key="mod_ultra_stable_v100")
 
     if st.button("🚀 Start Professional Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("TopperGPT Engine is scanning your response..."):
+            with st.spinner("TopperGPT Stable Engine is scanning your response..."):
                 try:
-                    # STEP 1: Using Groq's Newest Active Vision Model
-                    G_KEY = st.secrets["GROQ_API_KEY"]
-                    encoded_img = base64.b64encode(ans_photo.getvalue()).decode('utf-8')
+                    # STEP 1: Using the Production-Ready Gemini 1.5 Flash (Bypasses v1beta)
+                    # We use the direct model object without 'models/' prefix to avoid 404
+                    model = genai.GenerativeModel('gemini-1.5-flash') 
                     
-                    response = requests.post(
-                        url="https://api.groq.com/openai/v1/chat/completions",
-                        headers={"Authorization": f"Bearer {G_KEY}"},
-                        json={
-                            "model": "llama-3.2-90b-vision-preview", # LATEST ACTIVE MODEL
-                            "messages": [{
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": "Strict Examiner Mode. Scan the handwritten image, detect the question, and grade the answer out of 10 based on technical accuracy. Return ONLY JSON: {'q': 'Question detected', 'marks': 'X/10', 'pros': '...', 'cons': '...', 'tip': '...'}"},
-                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_img}"}}
-                                ]
-                            }],
-                            "response_format": {"type": "json_object"},
-                            "temperature": 0.1
-                        }
-                    )
+                    img_bytes = ans_photo.getvalue()
                     
-                    res_data = response.json()
+                    # PROMPT: Strict JSON structure to ensure UI stability
+                    eval_prompt = """
+                    You are a strict Board Moderator. 
+                    1. Detect the Question and Answer from this image.
+                    2. Evaluate based on technical accuracy out of 10.
+                    3. Return ONLY a valid JSON:
+                    {"q": "The Question", "marks": "X/10", "pros": "What's good", "cons": "Gaps", "tip": "Topper Tip"}
+                    """
                     
-                    if 'choices' in res_data:
-                        raw_content = res_data['choices'][0]['message']['content']
-                        st.session_state.mod_result = json.loads(raw_content)
-                        st.session_state.user_data['credits'] -= 5
-                    else:
-                        # FALLBACK: Try Gemini 1.5 Flash if Groq Fails
-                        st.info("🔄 Groq busy, switching to Gemini Backup...")
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        img_bytes = ans_photo.getvalue()
-                        prompt = "Strict Moderator Mode. Scan and evaluate. Return JSON: {'q': '...', 'marks': '...', 'pros': '...', 'cons': '...', 'tip': '...'}"
-                        gen_res = model.generate_content([{"mime_type": "image/jpeg", "data": img_bytes}, prompt])
-                        clean_json = gen_res.text.replace("```json", "").replace("```", "").strip()
-                        st.session_state.mod_result = json.loads(clean_json)
-                        st.session_state.user_data['credits'] -= 5
+                    # Sending content with explicit mime_type for better OCR
+                    response = model.generate_content([
+                        {"mime_type": "image/jpeg", "data": img_bytes},
+                        eval_prompt
+                    ])
+                    
+                    # STEP 2: Safe JSON Cleaning
+                    raw_text = response.text.replace("```json", "").replace("```", "").strip()
+                    st.session_state.mod_result = json.loads(raw_text)
+                    st.session_state.user_data['credits'] -= 5
                     
                 except Exception as e:
-                    st.error(f"Engine Error: {e}")
-                    st.info("Bhai, photo saaf khich kar upload karo aur API keys check karo.")
-        else:
-            st.error("Insufficient Credits!")
+                    # FINAL FALLBACK: Groq with Llama 3.2 90B (Standard API)
+                    try:
+                        G_KEY = st.secrets["GROQ_API_KEY"]
+                        encoded_img = base64.b64encode(ans_photo.getvalue()).decode('utf-8')
+                        
+                        g_response = requests.post(
+                            url="https://api.groq.com/openai/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {G_KEY}"},
+                            json={
+                                "model": "llama-3.2-90b-vision-preview",
+                                "messages": [{"role": "user", "content": [
+                                    {"type": "text", "text": "Return JSON: {'q':'...','marks':'...','pros':'...','cons':'...','tip':'...'}"},
+                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_img}"}}
+                                ]}],
+                                "response_format": {"type": "json_object"}
+                            }
+                        )
+                        st.session_state.mod_result = json.loads(g_response.json()['choices'][0]['message']['content'])
+                        st.session_state.user_data['credits'] -= 5
+                    except Exception as e2:
+                        st.error(f"Engine Error: {e2}")
+                        st.info("Bhai, photo saaf khicho aur check karo ki Internet/API Key sahi hai.")
 
-    # --- THE CINEMATIC UI ---
+    # --- THE CINEMATIC UI (PROFESSIONAL DISPLAY) ---
     if st.session_state.get("mod_result"):
         res = st.session_state.mod_result
         st.divider()
         
-        # 1. Detected Question Box
+        # 1. Question Box
         st.markdown(f"""
         <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
             <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">BOARD MODERATOR SCAN</p>
-            <h3 style="color: white; font-size: 1.5rem; margin: 10px 0;">{res.get('q', 'Question Detected')}</h3>
+            <h3 style="color: white; font-size: 1.5rem; margin: 10px 0;">{res.get('q', 'Detected Question')}</h3>
         </div>
         """, unsafe_allow_html=True)
 
@@ -419,7 +425,7 @@ with tab3:
         with c1:
             st.markdown(f"""
             <div style="background: #1e3c72; padding: 35px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
-                <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR GRADE</p>
+                <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR SCORE</p>
                 <h1 style="color: white; font-size: 3.5rem; margin:0; font-weight: 900;">{res.get('marks', 'N/A')}</h1>
             </div>
             """, unsafe_allow_html=True)
@@ -440,7 +446,7 @@ with tab3:
             <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76, 175, 80, 0.04); z-index:0;">TIP</div>
             <div style="position: relative; z-index: 1;">
                 <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 THE TOPPER'S MASTERSTROKE</p>
-                <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600; line-height: 1.3;">{res.get('tip', 'Focus on presentation.')}</p>
+                <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600;">{res.get('tip', 'Follow topper strategy.')}</p>
                 <p style="text-align: right; color: #4CAF50; font-size: 0.7rem; margin-top: 25px;">@TOPPERGPT</p>
             </div>
         </div>
