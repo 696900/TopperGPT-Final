@@ -15,7 +15,7 @@ import base64
 import json
 import fitz
 import textwrap
-
+import PyPDF2
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -243,104 +243,81 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-    # --- TAB 2: UNIVERSAL SYLLABUS TRACKER (AI TABLE EXTRACTION) ---
+# --- TAB 2: AI SYLLABUS ARCHITECT (STABLE BUILD) ---
 with tab2:
-        st.markdown('<h3 style="text-align: center;">📋 TopperGPT Universal Tracker</h3>', unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 AI Syllabus Tracker</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'>Upload Syllabus PDF to Auto-Generate Tracker</p>", unsafe_allow_html=True)
+
+    if 'master_syllabus' not in st.session_state:
+        st.session_state.master_syllabus = {}
+
+    # 1. PDF UPLOADER
+    uploaded_syllabus = st.file_uploader("Upload University Syllabus PDF", type="pdf", key="syllabus_pdf_pro")
+
+    if uploaded_syllabus and st.button("🚀 Analyze & Generate Tracker"):
+        with st.spinner("TopperGPT is architecting your syllabus tree..."):
+            try:
+                # PDF Text Extraction
+                reader = PyPDF2.PdfReader(uploaded_syllabus)
+                raw_text = ""
+                for page in reader.pages[:5]: # Taking first 5 pages for context
+                    raw_text += page.extract_text()
+
+                # Groq API for Structure Extraction
+                # Model: Llama 3.3 70B (Fastest for Text Parsing)
+                chat_completion = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{
+                        "role": "user",
+                        "content": f"""Extract the syllabus structure from this text. 
+                        Return ONLY a JSON object exactly like this:
+                        {{
+                          "Semester 1": {{
+                             "Subject Name": {{
+                                "Chapter 1": ["Topic 1", "Topic 2"],
+                                "Chapter 2": ["Topic 1"]
+                             }}
+                          }}
+                        }}
+                        Text: {raw_text[:8000]}"""
+                    }],
+                    response_format={"type": "json_object"}
+                )
+                
+                # Save to State
+                st.session_state.master_syllabus = json.loads(chat_completion.choices[0].message.content)
+                st.success("Syllabus Tree Generated Successfully!")
+            except Exception as e:
+                st.error(f"Extraction Error: {e}")
+
+    # --- THE INTERACTIVE TRACKER UI ---
+    if st.session_state.master_syllabus:
+        st.divider()
+        for sem, subjects in st.session_state.master_syllabus.items():
+            with st.expander(f"📅 {sem.upper()}", expanded=True):
+                for sub_name, chapters in subjects.items():
+                    st.markdown(f"#### 📘 {sub_name}")
+                    
+                    for chap_name, topics in chapters.items():
+                        # Chapter Level Checkbox (Visual only)
+                        st.markdown(f"**{chap_name}**")
+                        
+                        # Topics with dynamic status
+                        for topic in topics:
+                            t_key = f"{sem}_{sub_name}_{chap_name}_{topic}"
+                            col_t, col_s = st.columns([4, 1])
+                            
+                            is_done = col_t.checkbox(topic, key=t_key)
+                            if is_done:
+                                col_s.markdown("✅")
+                            else:
+                                col_s.markdown("⏳")
+                    st.divider()
         
-        # Semester Selector
-        t_sem = st.selectbox(
-            "Bhai, pehle Semester select karle:", 
-            ["Select Semester", "Semester I", "Semester II"],
-            key="v30_sem_selector"
-        )
-        
-        syll_up = st.file_uploader("Upload Your Syllabus PDF", type=["pdf"], key="v30_syll_ai")
-        
-        if syll_up:
-            if st.button("🚀 Analyze & Generate Tracker", use_container_width=True):
-                if t_sem == "Select Semester":
-                    st.warning("Bhai, pehle Semester toh select karle!")
-                else:
-                    with st.spinner(f"AI is strictly extracting {t_sem} Theory Modules..."):
-                        try:
-                            with pdfplumber.open(io.BytesIO(syll_up.read())) as pdf:
-                                # Focusing on first 60 pages to find theory content
-                                raw_text = "\n".join([p.extract_text() for p in pdf.pages[:60] if p.extract_text()])
-                            
-                            # Strict AI Prompt to avoid generic chapter names
-                            prompt = f"""
-                            Task: Extract Engineering Theory Subjects and Modules for {t_sem}.
-                            Rules:
-                            1. IGNORE all Lab, Workshop, and Tutorial subjects.
-                            2. Find the 'Detailed Contents' or 'Syllabus' table for each subject.
-                            3. EXTRACT the exact Module titles from the PDF (e.g., if it says 'Lasers', do not write 'Optics').
-                            4. Each subject MUST have exactly 6 modules.
-                            5. Do NOT include generic headers like 'Subject Name'.
-                            
-                            Format: {t_sem} | Subject Name | Title 1, Title 2, Title 3, Title 4, Title 5, Title 6
-                            PDF Text Content: {raw_text[:20000]}
-                            """
-                            
-                            res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                            
-                            dynamic_data = {}
-                            for line in res.choices[0].message.content.split("\n"):
-                                if "|" in line and t_sem.upper() in line.upper():
-                                    parts = line.split("|")
-                                    if len(parts) >= 3:
-                                        s_name = parts[1].strip()
-                                        # Strict Filter for generic headers and labs
-                                        if any(x in s_name.lower() for x in ["subject name", "lab", "workshop", "tutorial"]):
-                                            continue
-                                        m_list = [m.strip() for m in parts[2].split(",") if len(m) > 3][:6]
-                                        if len(m_list) >= 3:
-                                            dynamic_data[s_name] = m_list
-
-                            st.session_state.tracker_data = dynamic_data
-                            st.session_state.active_sem = t_sem
-                            st.session_state.done_topics = [] 
-                            st.success(f"✅ {t_sem} Theory Tracker Ready!")
-                        except Exception as e:
-                            st.error(f"Error: {e}. Tokens might be exhausted again!")
-
-        # --- PROGRESS DASHBOARD ---
-        if st.session_state.get("tracker_data"):
-            t_data = st.session_state.tracker_data
-            all_keys = [f"{st.session_state.active_sem}_{s}_{m}".replace(" ","_") for s, ms in t_data.items() for m in ms]
-            valid_done = len([d for d in st.session_state.get("done_topics", []) if d in all_keys])
-            prog = int((valid_done / len(all_keys)) * 100) if all_keys else 0
-
-            # Sleek Compact Mastery Card
-            st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 12px; border-radius: 12px; color: white; border: 1px solid #4CAF50; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <b style="font-size: 16px; color: #4CAF50;">🚀 TopperGPT</b>
-                        <b style="font-size: 22px;">{prog}%</b>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.2); height: 5px; border-radius: 10px; margin: 8px 0;">
-                        <div style="background: #4CAF50; height: 5px; border-radius: 10px; width: {prog}%;"></div>
-                    </div>
-                    <p style="margin: 0; font-size: 11px; opacity: 0.8;">{st.session_state.active_sem} Theory Mastery</p>
-                </div>
-            """, unsafe_allow_html=True)
-
-            # Branded Share Button
-            share_msg = f"*TopperGPT Report*%0A🔥 Mera *{prog}%* {st.session_state.active_sem} theory syllabus khatam!%0A🚀 Tu bhi track kar apna status!"
-            st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank" style="text-decoration:none;"><button style="background-color:#25D366; color:white; width:100%; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-bottom:15px;">📲 Share Mastery with TopperGPT Watermark</button></a>', unsafe_allow_html=True)
-
-            st.divider()
-            
-            # --- THE TRACKER LIST ---
-            for subject, modules in t_data.items():
-                with st.expander(f"📚 {subject}"):
-                    for m in modules:
-                        u_key = f"{st.session_state.active_sem}_{subject}_{m}".replace(" ", "_")
-                        if st.checkbox(m, key=u_key, value=(u_key in st.session_state.done_topics)):
-                            if u_key not in st.session_state.done_topics:
-                                st.session_state.done_topics.append(u_key); st.rerun()
-                        else:
-                            if u_key in st.session_state.done_topics:
-                                st.session_state.done_topics.remove(u_key); st.rerun()
+        # Progress Calculation
+        st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT SYLLABUS ENGINE</p>", unsafe_allow_html=True)
+    else:
+        st.info("Bhai, PDF upload karo taaki main Semester-wise topics nikaal saku.")    
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
