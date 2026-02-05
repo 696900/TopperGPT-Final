@@ -243,88 +243,102 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: AI SYLLABUS ARCHITECT (STABLE & PERSISTENT) ---
+# --- TAB 2: AI SYLLABUS ARCHITECT (PRECISION BUILD) ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 Pro Syllabus Tracker</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 AI Syllabus Tracker Pro</h2>", unsafe_allow_html=True)
     
-    # 1. INITIALIZE DATA STRUCTURE (Persistence Logic)
+    # Persistent State
     if 'master_syllabus' not in st.session_state:
         st.session_state.master_syllabus = {}
     if 'tracker_status' not in st.session_state:
         st.session_state.tracker_status = {}
 
-    # 2. PDF UPLOADER
-    uploaded_syllabus = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syll_pro_v5")
+    # PDF Uploader
+    uploaded_syllabus = st.file_uploader("Upload Syllabus PDF (NEP 2020 Supported)", type="pdf", key="syll_precision_v1")
 
     if uploaded_syllabus and st.button("🚀 Architect Syllabus Tree"):
-        with st.spinner("TopperGPT is deep-scanning the PDF..."):
+        with st.spinner("TopperGPT is deep-scanning for Semester Hierarchy..."):
             try:
                 reader = PyPDF2.PdfReader(uploaded_syllabus)
-                raw_text = ""
-                for page in reader.pages:
-                    raw_text += page.extract_text()
+                # Hum ab zyada pages scan karenge accurate result ke liye
+                full_text = ""
+                for page in reader.pages[:10]: 
+                    full_text += page.extract_text()
 
-                # Using Groq Llama 3.3 for high-accuracy hierarchy
+                # High Precision Prompt
                 completion = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[{
                         "role": "user",
-                        "content": f"Extract the complete syllabus hierarchy: Semesters -> Subjects -> Chapters -> Topics. Return ONLY JSON: {{'Semester 1': {{'Subject Name': {{'Chapter 1': ['Topic 1', 'Topic 2']}}}}}}. Text: {raw_text[:12000]}"
+                        "content": f"""Analyze this University Syllabus. Extract a hierarchical structure.
+                        RULES:
+                        1. Group by Semester.
+                        2. Identify each Subject.
+                        3. List Chapters/Units under each Subject.
+                        4. List specific Topics under each Chapter.
+                        
+                        Return ONLY JSON:
+                        {{
+                          "Semester 1": {{
+                            "Subject Name": {{
+                              "Unit 1: Name": ["Topic A", "Topic B"]
+                            }}
+                          }}
+                        }}
+                        Text Context: {full_text[:15000]}"""
                     }],
                     response_format={"type": "json_object"}
                 )
                 
-                st.session_state.master_syllabus = json.loads(completion.choices[0].message.content)
-                st.success("Syllabus Tree Architected!")
+                new_data = json.loads(completion.choices[0].message.content)
+                if new_data:
+                    st.session_state.master_syllabus = new_data
+                    st.success("Syllabus Tree Updated with NEP Accuracy!")
             except Exception as e:
-                st.error(f"AI Error: {e}")
+                st.error(f"Syllabus Scan Error: {e}")
 
-    # --- 3. PROGRESS CALCULATION ---
+    # --- TRACKER & PROGRESS UI ---
     if st.session_state.master_syllabus:
-        total_topics = 0
-        completed_topics = 0
-        
-        # Calculate totals for Progress Bar
+        # Progress Calculation Logic
+        all_topics = []
         for sem, subs in st.session_state.master_syllabus.items():
             for sub, chaps in subs.items():
                 for chap, topics in chaps.items():
                     for t in topics:
-                        total_topics += 1
-                        t_key = f"{sem}_{sub}_{chap}_{t}"
-                        if st.session_state.tracker_status.get(t_key, False):
-                            completed_topics += 1
+                        all_topics.append(f"{sem}_{sub}_{chap}_{t}")
         
-        progress = (completed_topics / total_topics) if total_topics > 0 else 0
-        
-        # --- CINEMATIC PROGRESS BAR ---
+        total = len(all_topics)
+        done = sum(1 for t in all_topics if st.session_state.tracker_status.get(t, False))
+        progress = (done / total) if total > 0 else 0
+
+        # Cinematic Progress UI
         st.markdown(f"""
-        <div style="background: #1a1c23; padding: 20px; border-radius: 15px; border: 1px solid #30363d; margin-bottom: 20px;">
-            <p style="color: #4CAF50; font-weight: bold; margin: 0;">Overall Completion: {int(progress*100)}%</p>
+        <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border: 1px solid #4CAF50; margin-bottom: 25px; text-align: center;">
+            <h2 style="color: #4CAF50; margin: 0;">{int(progress*100)}% Complete</h2>
+            <p style="color: #8b949e; font-size: 0.8rem;">{done} of {total} Topics Mastered</p>
             <div style="background: #30363d; border-radius: 10px; height: 12px; margin-top: 10px;">
                 <div style="background: linear-gradient(90deg, #4CAF50, #8BC34A); width: {progress*100}%; height: 100%; border-radius: 10px;"></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        # --- 4. DISPLAY TREE (PERSISTENT CHECKBOXES) ---
+        # Hierarchical Display
         for sem, subs in st.session_state.master_syllabus.items():
-            with st.expander(f"📅 {sem.upper()}", expanded=True):
+            with st.expander(f"📅 {sem.upper()}"):
                 for sub, chaps in subs.items():
-                    st.markdown(f"### 📘 {sub}")
+                    st.markdown(f"#### 📘 {sub}")
                     for chap, topics in chaps.items():
                         st.markdown(f"**{chap}**")
+                        # Topic Grid
                         for t in topics:
                             t_key = f"{sem}_{sub}_{chap}_{t}"
-                            # Persistent Checkbox Logic
-                            is_checked = st.checkbox(t, key=t_key, value=st.session_state.tracker_status.get(t_key, False))
-                            # Update status in state immediately
-                            st.session_state.tracker_status[t_key] = is_checked
-
-        if st.button("🧹 Clear All Progress"):
+                            # Value persists because it's tied to session_state
+                            checked = st.checkbox(t, key=t_key, value=st.session_state.tracker_status.get(t_key, False))
+                            st.session_state.tracker_status[t_key] = checked
+        
+        if st.button("🧹 Reset All Tracking"):
             st.session_state.tracker_status = {}
             st.rerun()
-            
-    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT TRACKER PRO</p>", unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
