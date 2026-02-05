@@ -243,81 +243,49 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: AI SYLLABUS ARCHITECT (STABLE BUILD) ---
+# --- TAB 2: AI SYLLABUS ARCHITECT (STABLE) ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 AI Syllabus Tracker</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'>Upload Syllabus PDF to Auto-Generate Tracker</p>", unsafe_allow_html=True)
-
+    
     if 'master_syllabus' not in st.session_state:
         st.session_state.master_syllabus = {}
 
-    # 1. PDF UPLOADER
-    uploaded_syllabus = st.file_uploader("Upload University Syllabus PDF", type="pdf", key="syllabus_pdf_pro")
+    uploaded_syllabus = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syll_v3")
 
-    if uploaded_syllabus and st.button("🚀 Analyze & Generate Tracker"):
-        with st.spinner("TopperGPT is architecting your syllabus tree..."):
+    if uploaded_syllabus and st.button("🚀 Generate Syllabus Tree"):
+        with st.spinner("Extracting Semester-wise Chapters..."):
             try:
-                # PDF Text Extraction
+                # 1. Extraction using PyPDF2
                 reader = PyPDF2.PdfReader(uploaded_syllabus)
                 raw_text = ""
-                for page in reader.pages[:5]: # Taking first 5 pages for context
+                for page in reader.pages[:3]: # Initial pages are enough for structure
                     raw_text += page.extract_text()
 
-                # Groq API for Structure Extraction
-                # Model: Llama 3.3 70B (Fastest for Text Parsing)
-                chat_completion = groq_client.chat.completions.create(
+                # 2. Parsing via Groq (Stable SDK)
+                completion = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[{
                         "role": "user",
-                        "content": f"""Extract the syllabus structure from this text. 
-                        Return ONLY a JSON object exactly like this:
-                        {{
-                          "Semester 1": {{
-                             "Subject Name": {{
-                                "Chapter 1": ["Topic 1", "Topic 2"],
-                                "Chapter 2": ["Topic 1"]
-                             }}
-                          }}
-                        }}
-                        Text: {raw_text[:8000]}"""
+                        "content": f"Extract Hierarchy (Sem > Subject > Chapter > Topics) from this text. Return ONLY JSON: {{'Sem 1': {{'Subject': {{'Chapter': ['Topic1']}}}}}}. Text: {raw_text[:5000]}"
                     }],
                     response_format={"type": "json_object"}
                 )
                 
-                # Save to State
-                st.session_state.master_syllabus = json.loads(chat_completion.choices[0].message.content)
-                st.success("Syllabus Tree Generated Successfully!")
+                st.session_state.master_syllabus = json.loads(completion.choices[0].message.content)
+                st.success("Syllabus Tree Ready!")
             except Exception as e:
-                st.error(f"Extraction Error: {e}")
+                st.error(f"Processing Error: {e}")
 
-    # --- THE INTERACTIVE TRACKER UI ---
+    # --- DISPLAY TREE ---
     if st.session_state.master_syllabus:
-        st.divider()
-        for sem, subjects in st.session_state.master_syllabus.items():
+        for sem, subs in st.session_state.master_syllabus.items():
             with st.expander(f"📅 {sem.upper()}", expanded=True):
-                for sub_name, chapters in subjects.items():
-                    st.markdown(f"#### 📘 {sub_name}")
-                    
-                    for chap_name, topics in chapters.items():
-                        # Chapter Level Checkbox (Visual only)
-                        st.markdown(f"**{chap_name}**")
-                        
-                        # Topics with dynamic status
-                        for topic in topics:
-                            t_key = f"{sem}_{sub_name}_{chap_name}_{topic}"
-                            col_t, col_s = st.columns([4, 1])
-                            
-                            is_done = col_t.checkbox(topic, key=t_key)
-                            if is_done:
-                                col_s.markdown("✅")
-                            else:
-                                col_s.markdown("⏳")
-                    st.divider()
-        
-        # Progress Calculation
-        st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT SYLLABUS ENGINE</p>", unsafe_allow_html=True)
-    else:
-        st.info("Bhai, PDF upload karo taaki main Semester-wise topics nikaal saku.")    
+                for sub, chaps in subs.items():
+                    st.markdown(f"#### 📘 {sub}")
+                    for chap, topics in chaps.items():
+                        st.write(f"**{chap}**")
+                        for t in topics:
+                            st.checkbox(t, key=f"{sem}_{sub}_{chap}_{t}")  
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
