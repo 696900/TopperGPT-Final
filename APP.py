@@ -341,63 +341,66 @@ with tab2:
                             if u_key in st.session_state.done_topics:
                                 st.session_state.done_topics.remove(u_key); st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (ULTRA STABLE) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (STABLE GROQ ENGINE) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Powered by Groq Ultra-Stable Vision Engine</p>", unsafe_allow_html=True)
     
-    if "final_eval" not in st.session_state:
-        st.session_state.final_eval = None
+    if "mod_result" not in st.session_state:
+        st.session_state.mod_result = None
 
     st.warning("💳 Evaluation Cost: **5 Credits**")
     
-    # File Uploader
-    ans_file = st.file_uploader("Upload Answer Photo/PDF", type=["jpg", "png", "jpeg", "pdf"], key="mod_stable_v21")
+    # 1. Image Uploader
+    ans_photo = st.file_uploader("Upload Answer Photo (Handwritten)", type=["jpg", "png", "jpeg"], key="mod_groq_v1")
 
-    if st.button("🔍 Start Cinematic Evaluation") and ans_file:
+    if st.button("🚀 Start Cinematic Evaluation") and ans_photo:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("TopperGPT Moderator is scanning your response..."):
+            with st.spinner("TopperGPT Engine is scanning your handwriting..."):
                 try:
-                    # Sabse stable version call
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # STEP 1: Using Groq API Key from your Secrets
+                    G_KEY = st.secrets["GROQ_API_KEY"]
+                    encoded_img = base64.b64encode(ans_photo.getvalue()).decode('utf-8')
                     
-                    file_data = ans_file.getvalue()
-                    mime = "application/pdf" if ans_file.name.endswith(".pdf") else "image/jpeg"
+                    # STEP 2: Groq Vision API Call (Stable Production Endpoint)
+                    # No 404 models/v1beta issues here!
+                    response = requests.post(
+                        url="https://api.groq.com/openai/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {G_KEY}"},
+                        json={
+                            "model": "llama-3.2-90b-vision-preview",
+                            "messages": [{
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": "Act as a strict Indian Board Examiner. Scan the image, detect the question and evaluate the handwritten answer technically out of 10. Return ONLY JSON: {'q': 'Question', 'marks': 'X/10', 'pros': 'Strengths', 'cons': 'Gaps', 'tip': 'Advice'}"},
+                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_img}"}}
+                                ]
+                            }],
+                            "response_format": {"type": "json_object"}
+                        }
+                    )
                     
-                    eval_prompt = """
-                    Act as a strict Examiner. Scan the file and return ONLY a JSON object:
-                    {
-                      "q": "Detected Question",
-                      "marks": "X/10",
-                      "pros": "Strengths",
-                      "cons": "Missing keywords/gaps",
-                      "tip": "Topper strategy for full marks"
-                    }
-                    """
-                    
-                    response = model.generate_content([
-                        {"mime_type": mime, "data": file_data},
-                        eval_prompt
-                    ])
-                    
-                    clean_res = response.text.replace("```json", "").replace("```", "").strip()
-                    st.session_state.final_eval = json.loads(clean_res)
+                    # STEP 3: State Save
+                    res_json = response.json()
+                    st.session_state.mod_result = json.loads(res_json['choices'][0]['message']['content'])
                     st.session_state.user_data['credits'] -= 5
                     
                 except Exception as e:
                     st.error(f"Moderator Error: {e}")
+                    st.info("Bhai, ensure 'GROQ_API_KEY' is present in your Streamlit Secrets.")
         else:
-            st.error("Balance low!")
+            st.error("Insufficient Credits!")
 
-    # --- THE CINEMATIC UI ---
-    if st.session_state.get("final_eval"):
-        res = st.session_state.final_eval
+    # --- THE CINEMATIC UI (TOPPER STYLE) ---
+    if st.session_state.get("mod_result"):
+        res = st.session_state.mod_result
         st.divider()
         
         # 1. Question Box
         st.markdown(f"""
         <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border-left: 12px solid #4CAF50; border: 1px solid #30363d;">
-            <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">BOARD QUESTION SCAN</p>
-            <h3 style="color: white; font-size: 1.5rem; margin: 10px 0;">{res.get('q')}</h3>
+            <p style="color: #4CAF50; font-weight: bold; font-size: 0.7rem; letter-spacing: 2px;">BOARD MODERATOR SCAN</p>
+            <h3 style="color: white; font-size: 1.5rem; margin: 10px 0;">{res.get('q', 'Question Detected')}</h3>
         </div>
         """, unsafe_allow_html=True)
 
@@ -405,18 +408,18 @@ with tab3:
         c1, c2 = st.columns([1, 2])
         with c1:
             st.markdown(f"""
-            <div style="background: #1e3c72; padding: 40px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
-                <p style="color: white; font-size: 0.8rem; margin:0;">GRADE</p>
-                <h1 style="color: white; font-size: 3.8rem; margin:0; font-weight: 900;">{res.get('marks')}</h1>
+            <div style="background: #1e3c72; padding: 35px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
+                <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR GRADE</p>
+                <h1 style="color: white; font-size: 3.5rem; margin:0; font-weight: 900;">{res.get('marks', '7/10')}</h1>
             </div>
             """, unsafe_allow_html=True)
         with c2:
             st.markdown(f"""
             <div style="background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; height: 100%;">
                 <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem;">✅ STRENGTHS</p>
-                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('pros')}</p>
+                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('pros', 'Analyzing...')}</p>
                 <p style="color: #ff4b4b; font-weight: bold; margin-top: 15px;">❌ MARKS LOST</p>
-                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('cons')}</p>
+                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('cons', 'Checking gaps...')}</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -427,7 +430,7 @@ with tab3:
             <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76, 175, 80, 0.04); z-index:0;">TIP</div>
             <div style="position: relative; z-index: 1;">
                 <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 THE TOPPER'S MASTERSTROKE</p>
-                <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600;">{res.get('tip')}</p>
+                <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600;">{res.get('tip', 'Follow topper strategy.')}</p>
                 <p style="text-align: right; color: #4CAF50; font-size: 0.7rem; margin-top: 25px;">@TOPPERGPT</p>
             </div>
         </div>
