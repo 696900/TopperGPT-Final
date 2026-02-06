@@ -243,99 +243,83 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: FULL-BRANCH SYLLABUS ARCHITECT (ZERO-SKIP BUILD) ---
+# --- TAB 2: PRO SYLLABUS ARCHITECT (ZERO-JSON-ERROR BUILD) ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 Pro Syllabus Architect</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'>All Subjects • All Modules • All Topics</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 AI Syllabus Architect</h2>", unsafe_allow_html=True)
     
-    if 'master_syllabus' not in st.session_state:
-        st.session_state.master_syllabus = {}
-    if 'tracker_status' not in st.session_state:
-        st.session_state.tracker_status = {}
+    # Persistent States
+    if 'raw_pdf_text' not in st.session_state: st.session_state.raw_pdf_text = ""
+    if 'subject_list' not in st.session_state: st.session_state.subject_list = []
+    if 'active_subject_data' not in st.session_state: st.session_state.active_subject_data = {}
+    if 'tracker_status' not in st.session_state: st.session_state.tracker_status = {}
 
-    uploaded_syllabus = st.file_uploader("Upload Full Syllabus PDF", type="pdf", key="syll_full_scan_v1")
+    # 1. UPLOADER
+    uploaded_syllabus = st.file_uploader("Upload University Syllabus PDF", type="pdf", key="syll_v100")
 
-    if uploaded_syllabus and st.button("🚀 Run Full Branch Analysis"):
-        with st.spinner("TopperGPT is indexing all subjects (Maths, Physics, Chem, Mechanics)..."):
-            try:
-                reader = PyPDF2.PdfReader(uploaded_syllabus)
-                # Scanning more pages (up to 30) for full branch coverage
-                full_text = ""
-                for page in reader.pages[:30]: 
-                    full_text += page.extract_text()
+    if uploaded_syllabus and st.button("🔍 Scan All Subjects"):
+        with st.spinner("Extracting Subject List..."):
+            reader = PyPDF2.PdfReader(uploaded_syllabus)
+            text = "".join([p.extract_text() for p in reader.pages[:15]])
+            st.session_state.raw_pdf_text = text
+            
+            # Get only the names of subjects first to avoid JSON overflow
+            completion = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": f"List only the Subject Names found in this engineering syllabus as a JSON list: ['Sub1', 'Sub2']. Text: {text[:5000]}"}],
+                response_format={"type": "json_object"}
+            )
+            data = json.loads(completion.choices[0].message.content)
+            st.session_state.subject_list = list(data.values())[0] if data else []
+            st.success(f"Found {len(st.session_state.subject_list)} Subjects!")
 
-                # ULTRA-COMPREHENSIVE PROMPT
+    # 2. SUBJECT SELECTION & DEEP SCAN
+    if st.session_state.subject_list:
+        selected_sub = st.selectbox("🎯 Select Subject for Deep Tracking", st.session_state.subject_list)
+        
+        if st.button(f"🚀 Architect {selected_sub} Tree"):
+            with st.spinner(f"Deep Scanning modules for {selected_sub}..."):
+                # Focus AI only on the selected subject to get 100% depth
                 completion = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[{
-                        "role": "user",
-                        "content": f"""Act as a University Registrar. Extract the ENTIRE syllabus hierarchy for ALL subjects.
-                        
-                        CRITICAL INSTRUCTION:
-                        1. Capture EVERY Subject (e.g., Applied Maths, Applied Physics, Applied Chemistry, Engineering Mechanics).
-                        2. For EACH subject, extract EVERY Module/Unit.
-                        3. For EACH Module, list EVERY sub-topic from the 'Detailed Contents' column.
-                        
-                        Return ONLY JSON:
-                        {{
-                          "Semester Name": {{
-                            "Subject Name": {{
-                              "Module XX: Name": ["Detailed Topic 1", "Detailed Topic 2"]
-                            }}
-                          }}
-                        }}
-                        Text Context: {full_text[:25000]}"""
-                    }],
+                    messages=[{"role": "user", "content": f"""
+                    From the text, extract EVERY Module and EVERY sub-topic for the subject '{selected_sub}'.
+                    Include Module numbers (e.g. Module 01) and all technical bullet points.
+                    Return ONLY JSON: {{"Modules": {{"Module Name": ["Topic 1", "Topic 2"]}}}}
+                    Text: {st.session_state.raw_pdf_text}"""}],
                     response_format={"type": "json_object"}
                 )
-                
-                st.session_state.master_syllabus = json.loads(completion.choices[0].message.content)
-                st.success("Full Syllabus Tree Architected!")
-            except Exception as e:
-                st.error(f"Syllabus Scan Error: {e}")
+                st.session_state.active_subject_data[selected_sub] = json.loads(completion.choices[0].message.content).get("Modules", {})
+                st.balloons()
 
-    # --- TRACKER UI ---
-    if st.session_state.master_syllabus:
-        # Progress Calculation
-        all_keys = []
-        for sem, subs in st.session_state.master_syllabus.items():
-            for sub, chaps in subs.items():
-                for chap, topics in chaps.items():
-                    for t in topics:
-                        all_keys.append(f"{sem}_{sub}_{chap}_{t}")
-        
-        total = len(all_keys)
-        done = sum(1 for k in all_keys if st.session_state.tracker_status.get(k, False))
-        progress = (done / total) if total > 0 else 0
-
-        st.markdown(f"""
-        <div style="background: #1a1c23; padding: 25px; border-radius: 20px; border: 1px solid #4CAF50; margin-bottom: 25px; text-align: center;">
-            <h2 style="color: #4CAF50; margin: 0;">{int(progress*100)}% Mastered</h2>
-            <p style="color: #8b949e; font-size: 0.9rem;">{done} of {total} Topics Finished</p>
-            <div style="background: #30363d; border-radius: 10px; height: 12px; margin-top: 15px;">
-                <div style="background: linear-gradient(90deg, #4CAF50, #8BC34A); width: {progress*100}%; height: 100%; border-radius: 10px;"></div>
+    # 3. DISPLAY & PROGRESS
+    if st.session_state.active_subject_data:
+        st.divider()
+        for sub, modules in st.session_state.active_subject_data.items():
+            st.markdown(f"### 📘 {sub} Progress")
+            
+            # Progress Calc for this subject
+            all_t = [t for mod in modules.values() for t in mod]
+            done = sum(1 for t in all_t if st.session_state.tracker_status.get(f"{sub}_{t}", False))
+            prog = (done/len(all_t)) if all_t else 0
+            
+            st.markdown(f"""
+            <div style="background: #1a1c23; padding: 15px; border-radius: 15px; border: 1px solid #4CAF50; margin-bottom: 20px;">
+                <p style="color: #4CAF50; font-weight: bold; margin:0;">{int(prog*100)}% Mastered</p>
+                <div style="background: #30363d; border-radius: 10px; height: 10px; margin-top: 8px;">
+                    <div style="background: #4CAF50; width: {prog*100}%; height: 100%; border-radius: 10px;"></div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
-        # Hierarchical Display
-        for sem, subs in st.session_state.master_syllabus.items():
-            with st.expander(f"📅 {sem.upper()}", expanded=True):
-                for sub_name, modules in subs.items():
-                    st.markdown(f"### 📘 {sub_name}")
-                    for mod_name, topics in modules.items():
-                        st.markdown(f"**📂 {mod_name}**")
-                        for t in topics:
-                            t_key = f"{sem}_{sub_name}_{mod_name}_{t}"
-                            checked = st.checkbox(t, key=t_key, value=st.session_state.tracker_status.get(t_key, False))
-                            st.session_state.tracker_status[t_key] = checked
-                    st.divider()
-        
-        if st.button("🗑️ Reset All Tracking"):
-            st.session_state.tracker_status = {}
-            st.rerun()
+            for mod_name, topics in modules.items():
+                with st.expander(f"📂 {mod_name}", expanded=True):
+                    for t in topics:
+                        t_key = f"{sub}_{t}"
+                        checked = st.checkbox(t, key=t_key, value=st.session_state.tracker_status.get(t_key, False))
+                        st.session_state.tracker_status[t_key] = checked
+            st.markdown("---")
 
-    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT SYLLABUS ARCHITECT V4</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT SYLLABUS ENGINE V5</p>", unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
