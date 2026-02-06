@@ -16,6 +16,7 @@ import json
 import fitz
 import textwrap
 import PyPDF2
+import hashlib
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -243,76 +244,76 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: PRECISION SYLLABUS ARCHITECT (ANTI-HALLUCINATION BUILD) ---
+# --- TAB 2: IMMORTAL SYLLABUS ARCHITECT (ANTI-CRASH BUILD) ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 Pro Syllabus Architect</h2>", unsafe_allow_html=True)
     
+    # Initialize all states safely
     if 'pdf_pages' not in st.session_state: st.session_state.pdf_pages = []
     if 'sub_page_map' not in st.session_state: st.session_state.sub_page_map = {}
     if 'active_subject_data' not in st.session_state: st.session_state.active_subject_data = {}
     if 'tracker_status' not in st.session_state: st.session_state.tracker_status = {}
 
     # 1. SMART UPLOADER
-    uploaded_syllabus = st.file_uploader("Upload University Syllabus PDF", type="pdf", key="syll_final_pro")
+    uploaded_syllabus = st.file_uploader("Upload University Syllabus PDF", type="pdf", key="syll_final_pro_v7")
 
-    if uploaded_syllabus and st.button("🔍 Map Entire Syllabus"):
-        with st.spinner("Mapping Subject Locations..."):
-            reader = PyPDF2.PdfReader(uploaded_syllabus)
-            pages_text = [p.extract_text() for p in reader.pages]
-            st.session_state.pdf_pages = pages_text
-            
-            # Identify which subject is on which page to prevent mixing Maths/Physics
-            combined_context = ""
-            for i, p in enumerate(pages_text[:20]): # Scan first 20 pages for index
-                combined_context += f"[PAGE {i}]: {p[:300]}...\n"
+    if uploaded_syllabus and st.button("🔍 Map Entire Syllabus Index"):
+        with st.spinner("Mapping Subject Start Pages..."):
+            try:
+                reader = PyPDF2.PdfReader(uploaded_syllabus)
+                st.session_state.pdf_pages = [p.extract_text() for p in reader.pages]
                 
-            completion = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": f"Analyze this index. Identify Subject Names and their starting PAGE numbers. Return ONLY JSON: {{'Subject Name': PageNumber}}. Context: {combined_context}"}],
-                response_format={"type": "json_object"}
-            )
-            st.session_state.sub_page_map = json.loads(completion.choices[0].message.content)
-            st.success(f"Successfully mapped {len(st.session_state.sub_page_map)} Subjects!")
-
-    # 2. TARGETED EXTRACTION
-    if st.session_state.sub_page_map:
-        selected_sub = st.selectbox("🎯 Select Subject for Deep Tracking", list(st.session_state.sub_page_map.keys()))
-        
-        if st.button(f"🚀 Architect {selected_sub} Tree"):
-            start_pg = st.session_state.sub_page_map[selected_sub]
-            # Scan 3 pages from the start of the subject for maximum depth
-            target_text = "".join(st.session_state.pdf_pages[start_pg : start_pg + 4])
-            
-            with st.spinner(f"Extracting technical modules for {selected_sub}..."):
-                completion = groq_client.chat.completions.create(
+                # Scan only index-likely pages (first 25)
+                idx_context = ""
+                for i, p in enumerate(st.session_state.pdf_pages[:25]):
+                    idx_context += f"[P{i}]: {p[:200]}...\n"
+                
+                # Precise Index Mapping to stop Physics/Maths mixing
+                res = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": f"""
-                    From the provided text for '{selected_sub}', extract EVERY Module and technical sub-topic.
-                    CRITICAL: Do NOT include topics from other subjects. 
-                    Focus ONLY on the 'Detailed Contents' of {selected_sub}.
-                    Return ONLY JSON: {{"Modules": {{"Module Name": ["Detailed Topic 1", "Topic 2"]}}}}
-                    Text: {target_text}"""}],
+                    messages=[{"role": "user", "content": f"Identify Subject Names and their starting PAGE numbers. Return ONLY JSON: {{'Subject Name': PageNumber}}. Text: {idx_context}"}],
                     response_format={"type": "json_object"}
                 )
-                st.session_state.active_subject_data[selected_sub] = json.loads(completion.choices[0].message.content).get("Modules", {})
-                st.balloons()
+                st.session_state.sub_page_map = json.loads(res.choices[0].message.content)
+                st.success(f"Mapped {len(st.session_state.sub_page_map)} Subjects!")
+            except Exception as e:
+                st.error(f"Mapping Error: {e}")
 
-    # 3. DISPLAY & PROGRESS (Persistent)
+    # 2. TARGETED EXTRACTION (No Hallucinations)
+    if st.session_state.sub_page_map:
+        selected_sub = st.selectbox("🎯 Select Subject to Track", list(st.session_state.sub_page_map.keys()))
+        
+        if st.button(f"🚀 Deep Architect {selected_sub}"):
+            with st.spinner(f"Scanning ONLY {selected_sub} pages..."):
+                start_pg = st.session_state.sub_page_map[selected_sub]
+                # Isolated scan: Only look at 4 pages belonging to this subject
+                isolated_text = "".join(st.session_state.pdf_pages[start_pg : start_pg + 4])
+                
+                try:
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": f"Extract ALL Modules and sub-topics for ONLY '{selected_sub}'. Do NOT include other subjects. Return JSON: {{'Modules': {{'Mod Name': ['Topic1', 'Topic2']}}}}. Text: {isolated_text}"}],
+                        response_format={"type": "json_object"}
+                    )
+                    st.session_state.active_subject_data[selected_sub] = json.loads(res.choices[0].message.content).get("Modules", {})
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"Extraction Error: {e}")
+
+    # 3. THE TRACKER UI (Zero-Duplicate Key Logic)
     if st.session_state.active_subject_data:
         st.divider()
         for sub, modules in st.session_state.active_subject_data.items():
-            st.markdown(f"### 📘 {sub} Detailed Tracker")
-            
-            # Calc Progress
-            all_t = [t for mod in modules.values() for t in mod]
-            done = sum(1 for t in all_t if st.session_state.tracker_status.get(f"{sub}_{t}", False))
-            prog = (done/len(all_t)) if all_t else 0
+            # Subject Progress Header
+            all_topics = [t for m in modules.values() for t in m]
+            done = sum(1 for t in all_topics if st.session_state.tracker_status.get(hashlib.md5(f"{sub}_{t}".encode()).hexdigest(), False))
+            prog = (done/len(all_topics)) if all_topics else 0
             
             st.markdown(f"""
-            <div style="background: #1a1c23; padding: 20px; border-radius: 20px; border: 1px solid #4CAF50; margin-bottom: 25px;">
-                <p style="color: #4CAF50; font-weight: bold; font-size: 1.1rem; margin:0;">{int(prog*100)}% Syllabus Mastered</p>
-                <div style="background: #30363d; border-radius: 10px; height: 12px; margin-top: 10px;">
-                    <div style="background: linear-gradient(90deg, #4CAF50, #8BC34A); width: {prog*100}%; height: 100%; border-radius: 10px;"></div>
+            <div style="background: #1a1c23; padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; margin-bottom: 20px;">
+                <p style="color: #4CAF50; font-weight: bold; margin:0;">{sub} Completion: {int(prog*100)}%</p>
+                <div style="background: #30363d; border-radius: 10px; height: 10px; margin-top: 10px;">
+                    <div style="background: #4CAF50; width: {prog*100}%; height: 100%; border-radius: 10px;"></div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -320,12 +321,21 @@ with tab2:
             for mod_name, topics in modules.items():
                 with st.expander(f"📂 {mod_name}", expanded=True):
                     for t in topics:
-                        t_key = f"{sub}_{t}"
-                        checked = st.checkbox(t, key=t_key, value=st.session_state.tracker_status.get(t_key, False))
-                        st.session_state.tracker_status[t_key] = checked
-            st.markdown("---")
+                        # CRITICAL FIX: Generate unique MD5 Hash for every topic to prevent Duplicate Key Error
+                        t_hash = hashlib.md5(f"{sub}_{mod_name}_{t}".encode()).hexdigest()
+                        
+                        checked = st.checkbox(
+                            t, 
+                            key=t_hash, 
+                            value=st.session_state.tracker_status.get(t_hash, False)
+                        )
+                        st.session_state.tracker_status[t_hash] = checked
+        
+        if st.button("🧹 Reset Progress"):
+            st.session_state.tracker_status = {}
+            st.rerun()
 
-    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT PRECISION ENGINE V6</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT SYLLABUS ENGINE V7</p>", unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
