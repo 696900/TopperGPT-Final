@@ -17,3 +17,4 @@ llama-index
 llama-index-llms-groq
 llama-index-embeddings-huggingface
 faiss-cpu
+Pillow

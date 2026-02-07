@@ -247,67 +247,71 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: PRO RAG SYLLABUS ARCHITECT (ZERO-JSON-ERROR BUILD) ---
+# --- TAB 2: PRECISION RAG SYLLABUS ARCHITECT ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 AI Syllabus Architect (RAG)</h2>", unsafe_allow_html=True)
     
     # Initialize Persistent States
     if 'rag_index' not in st.session_state: st.session_state.rag_index = None
-    if 'subjects' not in st.session_state: st.session_state.subjects = []
+    if 'subjects_by_sem' not in st.session_state: st.session_state.subjects_by_sem = {}
     if 'syllabus_tree' not in st.session_state: st.session_state.syllabus_tree = {}
     if 'tracker_status' not in st.session_state: st.session_state.tracker_status = {}
 
-    up_pdf = st.file_uploader("Upload Full Syllabus PDF", type="pdf", key="rag_architect_final_v20")
+    up_pdf = st.file_uploader("Upload Engineering Syllabus PDF", type="pdf", key="rag_architect_final_v30")
 
-    if up_pdf and st.button("🚀 Index & List All Subjects"):
-        with st.spinner("RAG Engine mapping your syllabus..."):
+    if up_pdf and st.button("🚀 Index & Map Semesters"):
+        with st.spinner("RAG Engine mapping your syllabus structure..."):
             try:
-                # 1. Parsing & Indexing (No PyPDF2 error)
+                # 1. Parsing with PyMuPDF (Zero PyPDF2 errors)
                 pdf_bytes = up_pdf.read()
                 doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                 documents = [Document(text=page.get_text()) for page in doc]
+                
+                # 2. Vector Indexing
                 embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
                 st.session_state.rag_index = VectorStoreIndex.from_documents(documents, embed_model=embed_model)
                 
-                # 2. Extract Subject List (Isolated)
+                # 3. Semester-wise Subject Mapping
                 llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                 qe = st.session_state.rag_index.as_query_engine(llm=llm)
-                res = qe.query("List all unique engineering subjects from this syllabus. Return ONLY JSON list: {'subjects': ['Subject 1', 'Subject 2']}")
+                res = qe.query("List all unique subjects divided by Semester. Return ONLY JSON like this: {'Sem 1': ['SubjectA', 'SubjectB'], 'Sem 2': ['SubjectC']}")
                 
-                clean_res = res.response.strip().replace("```json", "").replace("```", "")
-                st.session_state.subjects = json.loads(clean_res).get('subjects', [])
-                st.success(f"Indexed {len(st.session_state.subjects)} Subjects!")
+                # Cleaning the AI response for valid JSON
+                clean_json = res.response.strip().replace("```json", "").replace("```", "")
+                st.session_state.subjects_by_sem = json.loads(clean_json)
+                st.success("Syllabus Indexed! Choose a Semester below.")
             except Exception as e:
                 st.error(f"Sync Error: {e}")
 
-    # 3. SELECT SUBJECT & DEEP SCAN (Isolated to prevent mix-up)
-    if st.session_state.get('subjects'):
-        selected_sub = st.selectbox("🎯 Select Subject for Deep Tracking", st.session_state.subjects)
+    # 4. SEMESTER & SUBJECT SELECTION
+    if st.session_state.subjects_by_sem:
+        selected_sem = st.selectbox("📅 Select Semester", list(st.session_state.subjects_by_sem.keys()))
+        subjects_in_sem = st.session_state.subjects_by_sem[selected_sem]
+        selected_sub = st.selectbox(f"🎯 Select Subject from {selected_sem}", subjects_in_sem)
         
-        if st.button(f"🚀 Architect {selected_sub} Tree"):
-            with st.spinner(f"Analyzing {selected_sub} Modules..."):
+        if st.button(f"Architect {selected_sub} Tree"):
+            with st.spinner(f"Retrieving deep topics for {selected_sub}..."):
                 try:
                     qe = st.session_state.rag_index.as_query_engine(llm=LlamaGroq(model="llama-3.3-70b-versatile"))
-                    # Specific prompt to prevent Physics/Maths mixing
-                    prompt = f"Focus ONLY on '{selected_sub}'. Extract all Modules and their technical sub-topics. Return ONLY JSON: {{'Modules': {{'Module Name': ['Topic 1', 'Topic 2']}}}}"
+                    # Specific isolated prompt to stop Physics/Maths mixing
+                    prompt = f"Extract all Modules and technical topics for ONLY '{selected_sub}'. Return ONLY JSON: {{'Modules': {{'Mod Name': ['Topic1', 'Topic2']}}}}"
                     response = qe.query(prompt)
                     
                     clean_tree = response.response.strip().replace("```json", "").replace("```", "")
                     st.session_state.syllabus_tree[selected_sub] = json.loads(clean_tree).get("Modules", {})
                     st.balloons()
                 except Exception as e:
-                    st.error(f"JSON Parse Error: Try a different subject or re-scan.")
+                    st.error(f"Extraction Error: {e}")
 
-        # 4. TRACKER UI (Unique ID Hashing to prevent Duplicate Key Error)
+        # 5. UI DISPLAY (With Zero-Crash Unique Keys)
         if selected_sub in st.session_state.syllabus_tree:
             modules = st.session_state.syllabus_tree[selected_sub]
-            st.markdown(f"### 📘 {selected_sub} Progress")
-            
+            st.markdown(f"### 📘 {selected_sub} Detail Tracker")
             for mod_name, topics in modules.items():
                 with st.expander(f"📂 {mod_name}", expanded=True):
                     for t in topics:
-                        # UNIQUE KEY: MD5 hashing ensures no duplicate key crash
-                        u_key = hashlib.md5(f"{selected_sub}_{mod_name}_{t}".encode()).hexdigest()
+                        # UNIQUE HASHING: Prevents DuplicateElementKey Error
+                        u_key = hashlib.md5(f"{selected_sem}_{selected_sub}_{mod_name}_{t}".encode()).hexdigest()
                         
                         checked = st.checkbox(t, key=u_key, value=st.session_state.tracker_status.get(u_key, False))
                         st.session_state.tracker_status[u_key] = checked
