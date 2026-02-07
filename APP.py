@@ -16,10 +16,7 @@ import json
 import fitz  # This is PyMuPDF (much more stable)
 import textwrap
 import hashlib
-import os
-from llama_index.core import Document, VectorStoreIndex
-from llama_index.llms.groq import Groq as LlamaGroq
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding  
+import os 
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
