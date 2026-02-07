@@ -247,59 +247,92 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: RAG SYLLABUS ARCHITECT ---
+# --- TAB 2: RAG SYLLABUS ARCHITECT (ULTRA-STABLE) ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 RAG Syllabus Tracker</h2>", unsafe_allow_html=True)
     
-    # Initialize Persistent States
+    # Initialize Persistent States Safely
     if 'rag_index' not in st.session_state: st.session_state.rag_index = None
     if 'syllabus_tree' not in st.session_state: st.session_state.syllabus_tree = {}
     if 'progress_map' not in st.session_state: st.session_state.progress_map = {}
+    if 'subjects' not in st.session_state: st.session_state.subjects = []
 
-    uploaded_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="rag_architect_v1")
+    uploaded_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="rag_architect_final")
 
-    if uploaded_pdf and st.button("🚀 Index & Architect"):
+    if uploaded_pdf and st.button("🚀 Index & Extract All Subjects"):
         with st.spinner("RAG Engine is mapping your syllabus..."):
             try:
                 # 1. Parsing & Indexing
                 doc = fitz.open(stream=uploaded_pdf.read(), filetype="pdf")
                 documents = [Document(text=page.get_text()) for page in doc]
+                # Using a lighter embedding for faster response on Streamlit Cloud
                 embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
                 st.session_state.rag_index = VectorStoreIndex.from_documents(documents, embed_model=embed_model)
                 
                 # 2. Extract Subject List
                 llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                 query_engine = st.session_state.rag_index.as_query_engine(llm=llm)
-                res = query_engine.query("List all unique subject names found in this syllabus. Return ONLY a JSON list: ['Sub1', 'Sub2']")
+                res = query_engine.query("List all unique engineering subject names found in this syllabus. Return ONLY a JSON list like this: {'subjects': ['Subject1', 'Subject2']}")
                 
-                # Clean JSON string
-                raw_res = res.response.strip().replace("```json", "").replace("```", "")
-                st.session_state.subjects = json.loads(raw_res)
-                st.success(f"Indexed {len(st.session_state.subjects)} Subjects!")
+                # Robust JSON Repair Logic
+                raw_res = res.response.strip()
+                if "{" in raw_res:
+                    raw_res = raw_res[raw_res.find("{"):raw_res.rfind("}")+1]
+                
+                parsed_res = json.loads(raw_res)
+                st.session_state.subjects = parsed_res.get('subjects', [])
+                st.success(f"Successfully Indexed {len(st.session_state.subjects)} Subjects!")
             except Exception as e:
                 st.error(f"Indexing Error: {e}")
 
     # 3. SELECT SUBJECT & DEEP SCAN
-    if st.session_state.get('subjects'):
+    if st.session_state.subjects:
         selected_sub = st.selectbox("🎯 Target Subject", st.session_state.subjects)
         
-        if st.button(f"Extract {selected_sub} Modules"):
-            with st.spinner(f"Retrieving deep topics for {selected_sub}..."):
-                llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                query_engine = st.session_state.rag_index.as_query_engine(llm=llm)
-                prompt = f"Extract all Modules and technical topics for '{selected_sub}'. Return ONLY JSON: {{'Modules': {{'Mod Name': ['Topic1', 'Topic2']}}}}"
-                response = query_engine.query(prompt)
-                
-                raw_data = response.response.strip().replace("```json", "").replace("```", "")
-                st.session_state.syllabus_tree[selected_sub] = json.loads(raw_data).get("Modules", {})
+        if st.button(f"Architect {selected_sub} Tree"):
+            with st.spinner(f"Retrieving deep modules for {selected_sub}..."):
+                try:
+                    llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+                    query_engine = st.session_state.rag_index.as_query_engine(llm=llm)
+                    prompt = f"Extract all Modules and technical topics for the subject '{selected_sub}'. Return ONLY JSON: {{'Modules': {{'Module Name': ['Topic 1', 'Topic 2']}}}}"
+                    response = query_engine.query(prompt)
+                    
+                    raw_data = response.response.strip()
+                    if "{" in raw_data:
+                        raw_data = raw_data[raw_data.find("{"):raw_data.rfind("}")+1]
+                    
+                    st.session_state.syllabus_tree[selected_sub] = json.loads(raw_data).get("Modules", {})
+                    st.toast(f"Structure for {selected_sub} Loaded!")
+                except Exception as e:
+                    st.error(f"Extraction Error: {e}")
 
-        # 4. TRACKER UI (With Unique Hashing)
+        # --- 4. TRACKER UI & PROGRESS ANALYTICS ---
         if selected_sub in st.session_state.syllabus_tree:
             modules = st.session_state.syllabus_tree[selected_sub]
+            
+            # Progress Calculation
+            all_topics = [t for mod in modules.values() for t in mod]
+            total_topics = len(all_topics)
+            done_topics = sum(1 for t in all_topics if st.session_state.progress_map.get(hashlib.md5(f"{selected_sub}_{t}".encode()).hexdigest(), False))
+            
+            progress_val = (done_topics / total_topics) if total_topics > 0 else 0
+            
+            # Cinematic Progress Dashboard
+            st.markdown(f"""
+            <div style="background: #1a1c23; padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; margin: 20px 0;">
+                <p style="color: #4CAF50; font-weight: bold; margin: 0; font-size: 1.1rem;">Overall Mastery: {int(progress_val*100)}%</p>
+                <div style="background: #30363d; border-radius: 10px; height: 12px; margin-top: 10px;">
+                    <div style="background: linear-gradient(90deg, #4CAF50, #8BC34A); width: {progress_val*100}%; height: 100%; border-radius: 10px;"></div>
+                </div>
+                <p style="color: #8b949e; font-size: 0.8rem; margin-top: 10px;">{done_topics} of {total_topics} Topics Completed</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Display Modules
             for mod_name, topics in modules.items():
                 with st.expander(f"📂 {mod_name}", expanded=True):
                     for t in topics:
-                        # CRITICAL: Unique Key Hashing to prevent DuplicateElementKey error
+                        # MD5 Hashing to prevent DuplicateElementKey Error
                         u_key = hashlib.md5(f"{selected_sub}_{mod_name}_{t}".encode()).hexdigest()
                         
                         checked = st.checkbox(
@@ -307,7 +340,12 @@ with tab2:
                             key=u_key, 
                             value=st.session_state.progress_map.get(u_key, False)
                         )
-                        st.session_state.progress_map[u_key] = checked
+                        # Save state immediately
+                        if checked != st.session_state.progress_map.get(u_key, False):
+                            st.session_state.progress_map[u_key] = checked
+                            st.rerun() # Refresh to update progress bar
+
+    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT RAG-ENGINE V2</p>", unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
