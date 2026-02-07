@@ -247,7 +247,7 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: PRO RAG SYLLABUS ARCHITECT ---
+# --- TAB 2: RAG SYLLABUS ARCHITECT (ZERO-CRASH) ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 AI Syllabus Architect (RAG)</h2>", unsafe_allow_html=True)
     
@@ -255,12 +255,12 @@ with tab2:
     if 'syllabus_tree' not in st.session_state: st.session_state.syllabus_tree = {}
     if 'tracker_status' not in st.session_state: st.session_state.tracker_status = {}
 
-    up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="rag_architect_final")
+    up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="rag_architect_final_v10")
 
     if up_pdf and st.button("🚀 Index & Architect"):
         with st.spinner("RAG Engine mapping your syllabus..."):
             try:
-                # 1. Parsing & Indexing
+                # 1. Parsing & Indexing (Using PyMuPDF instead of problematic PyPDF2)
                 doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
                 docs = [Document(text=page.get_text()) for page in doc]
                 embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -286,13 +286,13 @@ with tab2:
                 response = qe.query(prompt)
                 st.session_state.syllabus_tree[sel_sub] = json.loads(response.response.strip().replace("```json", "").replace("```", "")).get("Modules", {})
 
-        # 4. TRACKER UI (Zero-Duplicate Key Logic)
+        # 4. TRACKER UI (Unique ID Hashing to prevent Duplicate Key Error)
         if sel_sub in st.session_state.syllabus_tree:
             modules = st.session_state.syllabus_tree[sel_sub]
             for mod_name, topics in modules.items():
                 with st.expander(f"📂 {mod_name}", expanded=True):
                     for t in topics:
-                        # UNIQUE HASHING: Prevents DuplicateElementKey Error
+                        # CRITICAL: Har topic ke liye unique hash taaki app Duplicate Key se na phate
                         u_key = hashlib.md5(f"{sel_sub}_{mod_name}_{t}".encode()).hexdigest()
                         st.session_state.tracker_status[u_key] = st.checkbox(t, key=u_key, value=st.session_state.tracker_status.get(u_key, False))
     # --- TAB 3: ANSWER EVALUATOR ---
