@@ -18,9 +18,7 @@ import textwrap
 import PyPDF2
 import hashlib
 import os
-from llama_index.core import Document, VectorStoreIndex
-from llama_index.llms.groq import Groq as LlamaGroq
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
@@ -247,24 +245,28 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: RAG SYLLABUS ARCHITECT (ZERO-CRASH) ---
+# --- TAB 2: RAG SYLLABUS ARCHITECT (STABLE BUILD) ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 AI Syllabus Architect (RAG)</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 AI Syllabus Architect</h2>", unsafe_allow_html=True)
     
+    # Initialize States
     if 'rag_index' not in st.session_state: st.session_state.rag_index = None
     if 'syllabus_tree' not in st.session_state: st.session_state.syllabus_tree = {}
     if 'tracker_status' not in st.session_state: st.session_state.tracker_status = {}
 
-    up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="rag_architect_final_v10")
+    up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="rag_architect_final_v11")
 
     if up_pdf and st.button("🚀 Index & Architect"):
         with st.spinner("RAG Engine mapping your syllabus..."):
             try:
-                # 1. Parsing & Indexing (Using PyMuPDF instead of problematic PyPDF2)
-                doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
-                docs = [Document(text=page.get_text()) for page in doc]
+                # 1. Parsing & Indexing (Using PyMuPDF for zero errors)
+                # We read the PDF bytes directly
+                pdf_bytes = up_pdf.read()
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                
+                documents = [Document(text=page.get_text()) for page in doc]
                 embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
-                st.session_state.rag_index = VectorStoreIndex.from_documents(docs, embed_model=embed_model)
+                st.session_state.rag_index = VectorStoreIndex.from_documents(documents, embed_model=embed_model)
                 
                 # 2. Extract Subject List
                 llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
@@ -281,10 +283,13 @@ with tab2:
         
         if st.button(f"Architect {sel_sub} Tree"):
             with st.spinner(f"Retrieving deep topics..."):
-                qe = st.session_state.rag_index.as_query_engine(llm=LlamaGroq(model="llama-3.3-70b-versatile"))
-                prompt = f"Extract all Modules for '{sel_sub}'. Return ONLY JSON: {{'Modules': {{'Mod Name': ['Topic1', 'Topic2']}}}}"
-                response = qe.query(prompt)
-                st.session_state.syllabus_tree[sel_sub] = json.loads(response.response.strip().replace("```json", "").replace("```", "")).get("Modules", {})
+                try:
+                    qe = st.session_state.rag_index.as_query_engine(llm=LlamaGroq(model="llama-3.3-70b-versatile"))
+                    prompt = f"Extract all Modules for '{sel_sub}'. Return ONLY JSON: {{'Modules': {{'Mod Name': ['Topic1', 'Topic2']}}}}"
+                    response = qe.query(prompt)
+                    st.session_state.syllabus_tree[sel_sub] = json.loads(response.response.strip().replace("```json", "").replace("```", "")).get("Modules", {})
+                except Exception as e:
+                    st.error(f"Extraction Error: {e}")
 
         # 4. TRACKER UI (Unique ID Hashing to prevent Duplicate Key Error)
         if sel_sub in st.session_state.syllabus_tree:
@@ -292,7 +297,7 @@ with tab2:
             for mod_name, topics in modules.items():
                 with st.expander(f"📂 {mod_name}", expanded=True):
                     for t in topics:
-                        # CRITICAL: Har topic ke liye unique hash taaki app Duplicate Key se na phate
+                        # Har topic ke liye unique MD5 hash taaki app crash na ho
                         u_key = hashlib.md5(f"{sel_sub}_{mod_name}_{t}".encode()).hexdigest()
                         st.session_state.tracker_status[u_key] = st.checkbox(t, key=u_key, value=st.session_state.tracker_status.get(u_key, False))
     # --- TAB 3: ANSWER EVALUATOR ---
