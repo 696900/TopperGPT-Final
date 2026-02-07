@@ -245,7 +245,7 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: RAG SYLLABUS ARCHITECT (STABLE BUILD) ---
+# --- TAB 2: RAG SYLLABUS ARCHITECT (STABLE & ZERO-ERROR) ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 AI Syllabus Architect</h2>", unsafe_allow_html=True)
     
@@ -254,52 +254,66 @@ with tab2:
     if 'syllabus_tree' not in st.session_state: st.session_state.syllabus_tree = {}
     if 'tracker_status' not in st.session_state: st.session_state.tracker_status = {}
 
-    up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="rag_architect_final_v11")
+    up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="rag_architect_final_v12")
 
     if up_pdf and st.button("🚀 Index & Architect"):
         with st.spinner("RAG Engine mapping your syllabus..."):
             try:
-                # 1. Parsing & Indexing (Using PyMuPDF for zero errors)
-                # We read the PDF bytes directly
+                # 1. Parsing with PyMuPDF (fitz) - Faster and more reliable
                 pdf_bytes = up_pdf.read()
                 doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                 
+                # Convert PDF pages to LlamaIndex Documents
                 documents = [Document(text=page.get_text()) for page in doc]
+                
+                # 2. Vector Indexing
                 embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
                 st.session_state.rag_index = VectorStoreIndex.from_documents(documents, embed_model=embed_model)
                 
-                # 2. Extract Subject List
+                # 3. Extract Subject List via RAG
                 llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                 qe = st.session_state.rag_index.as_query_engine(llm=llm)
-                res = qe.query("List all unique subjects. Return ONLY JSON list: ['Sub1', 'Sub2']")
-                st.session_state.subjects = json.loads(res.response.strip().replace("```json", "").replace("```", ""))
+                res = qe.query("List all unique engineering subjects. Return ONLY a JSON list: ['Maths', 'Physics']")
+                
+                # Safe JSON cleaning
+                clean_json = res.response.strip().replace("```json", "").replace("```", "")
+                st.session_state.subjects = json.loads(clean_json)
                 st.success(f"Indexed {len(st.session_state.subjects)} Subjects!")
             except Exception as e:
-                st.error(f"Indexing Error: {e}")
+                st.error(f"Sync Error: {e}")
 
-    # 3. SELECT SUBJECT & DEEP SCAN
+    # 4. SUBJECT EXTRACTION & TRACKER
     if st.session_state.get('subjects'):
-        sel_sub = st.selectbox("🎯 Target Subject", st.session_state.subjects)
+        sel_sub = st.selectbox("🎯 Select Subject", st.session_state.subjects)
         
-        if st.button(f"Architect {sel_sub} Tree"):
-            with st.spinner(f"Retrieving deep topics..."):
+        if st.button(f"Extract {sel_sub} Structure"):
+            with st.spinner(f"Analyzing {sel_sub}..."):
                 try:
                     qe = st.session_state.rag_index.as_query_engine(llm=LlamaGroq(model="llama-3.3-70b-versatile"))
-                    prompt = f"Extract all Modules for '{sel_sub}'. Return ONLY JSON: {{'Modules': {{'Mod Name': ['Topic1', 'Topic2']}}}}"
+                    # RAG ensures we only get modules for the selected subject
+                    prompt = f"Extract all Modules & technical topics for '{sel_sub}'. Return ONLY JSON: {{'Modules': {{'Mod Name': ['Topic1', 'Topic2']}}}}"
                     response = qe.query(prompt)
-                    st.session_state.syllabus_tree[sel_sub] = json.loads(response.response.strip().replace("```json", "").replace("```", "")).get("Modules", {})
+                    
+                    clean_tree = response.response.strip().replace("```json", "").replace("```", "")
+                    st.session_state.syllabus_tree[sel_sub] = json.loads(clean_tree).get("Modules", {})
                 except Exception as e:
                     st.error(f"Extraction Error: {e}")
 
-        # 4. TRACKER UI (Unique ID Hashing to prevent Duplicate Key Error)
+        # 5. UI DISPLAY (With MD5 Unique Hashing)
         if sel_sub in st.session_state.syllabus_tree:
             modules = st.session_state.syllabus_tree[sel_sub]
             for mod_name, topics in modules.items():
                 with st.expander(f"📂 {mod_name}", expanded=True):
                     for t in topics:
-                        # Har topic ke liye unique MD5 hash taaki app crash na ho
+                        # UNIQUE KEY: Prevents DuplicateElementKey Error
                         u_key = hashlib.md5(f"{sel_sub}_{mod_name}_{t}".encode()).hexdigest()
-                        st.session_state.tracker_status[u_key] = st.checkbox(t, key=u_key, value=st.session_state.tracker_status.get(u_key, False))
+                        
+                        checked = st.checkbox(
+                            t, 
+                            key=u_key, 
+                            value=st.session_state.tracker_status.get(u_key, False)
+                        )
+                        st.session_state.tracker_status[u_key] = checked
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
