@@ -16,7 +16,8 @@ import json
 import fitz  # This is PyMuPDF (much more stable)
 import textwrap
 import hashlib
-import os 
+import os
+from datetime import datetime
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -244,96 +245,135 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: HYBRID SYLLABUS ARCHITECT (STABLE STARTUP MODEL) ---
+# --- TAB 2: THE MASTER SYLLABUS DECISION SYSTEM ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 Hybrid Syllabus Tracker</h2>", unsafe_allow_html=True)
-    st.info("💡 Strategy: Rule-based detection for Semesters & Units. AI only extracts topics for 99% accuracy.")
-
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Academic Decision System</h2>", unsafe_allow_html=True)
+    
     # 1. State Initialization
-    if 'hybrid_syllabus' not in st.session_state: st.session_state.hybrid_syllabus = {}
-    if 'tracker_status' not in st.session_state: st.session_state.tracker_status = {}
+    if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
+    if 'exam_date' not in st.session_state: st.session_state.exam_date = None
 
-    # 2. PDF UPLOADER
-    up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="hybrid_v2")
+    # --- HOME SCREEN DASHBOARD ---
+    if st.session_state.master_tracker:
+        cols = st.columns([1, 1, 1])
+        # Progress Calculation
+        all_topics = []
+        for sem in st.session_state.master_tracker.values():
+            for sub in sem.values():
+                for unit in sub.values():
+                    all_topics.extend(unit)
+        
+        total = len(all_topics)
+        done = sum(1 for t in all_topics if t.get('status') == 'Completed')
+        prog = (done/total) if total > 0 else 0
+        
+        with cols[0]:
+            st.metric("Overall Progress", f"{int(prog*100)}%")
+        with cols[1]:
+            days_left = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else "NA"
+            st.metric("Days to Exam", days_left)
+        with cols[2]:
+            st.metric("Target Today", "3 Topics")
 
-    if up_pdf:
-        # Rule-Based Extraction (Using Regex instead of AI for structure)
-        try:
-            # We use fitz (PyMuPDF) which is already in your imports
-            pdf_bytes = up_pdf.read()
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            full_text = "".join([page.get_text() for page in doc])
-            
-            # Regex for Semesters and Units (Rule-based)
-            sems = sorted(list(set(re.findall(r'(Semester\s+[IV|1-8]+|SEM\s+[IV|1-8]+)', full_text, re.IGNORECASE))))
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                sel_sem = st.selectbox("📅 Detected Semester", sems if sems else ["Manual Entry"])
-            with col2:
-                sel_sub = st.text_input("📘 Subject Name", placeholder="e.g. Applied Physics-1")
+        # 🔥 TODAY'S FOCUS (Paid Intelligence)
+        st.markdown("### 🔥 Today's Focus")
+        if st.button("🧠 Generate Today's Plan (2 Credits)"):
+            if st.session_state.user_data['credits'] >= 2:
+                # Logic: Pick High Importance + Not Started topics
+                st.session_state.user_data['credits'] -= 2
+                st.success("Plan Generated! Focus on: 1. CPU Scheduling, 2. Page Replacement")
+            else:
+                st.error("Low Credits!")
+        
+        st.divider()
 
-            # 3. AI TOPIC EXTRACTION (Only for the selected subject)
-            if sel_sub and st.button(f"🚀 Architect {sel_sub} Topics"):
-                with st.spinner(f"AI is identifying topics for {sel_sub}..."):
-                    # We only send a chunk of text to avoid AI confusion
-                    context = full_text[:15000] 
+    # --- SYLLABUS ARCHITECT (HYBRID) ---
+    with st.expander("📤 Upload & Architect New Syllabus", expanded=not st.session_state.master_tracker):
+        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="master_hybrid_v1")
+        ex_date = st.date_input("Exam Start Date", key="exam_date_input")
+        
+        if up_pdf and st.button("🚀 Build My System"):
+            st.session_state.exam_date = ex_date
+            with st.spinner("TopperGPT is architecting..."):
+                try:
+                    doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
+                    full_text = "".join([page.get_text() for page in doc[:15]])
+                    
+                    # Regex for Structure (Rule-Based)
+                    sems = re.findall(r'(Semester\s+[IV|1-8]+|SEM\s+[IV|1-8]+)', full_text, re.IGNORECASE)
+                    
+                    # AI for Topics only (Limited Role)
+                    llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                     prompt = f"""
-                    In the Engineering subject '{sel_sub}', identify all Modules/Units and their detailed topics.
-                    Return ONLY a JSON object: 
-                    {{"Module 1: Name": ["Topic A", "Topic B"], "Module 2: Name": ["Topic C"]}}
-                    Context: {context}
+                    Extract subjects and their unit-wise topics. 
+                    Format ONLY JSON: {{"Semester 1": {{"Subject": {{"Unit 1": ["Topic A"]}}}}}}
+                    Context: {full_text[:10000]}
                     """
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
+                    res = llm.chat.completions.create(
                         messages=[{"role": "user", "content": prompt}],
+                        model="llama-3.3-70b-versatile",
                         response_format={"type": "json_object"}
                     )
-                    st.session_state.hybrid_syllabus[sel_sub] = json.loads(res.choices[0].message.content)
-                    st.success(f"Tree for {sel_sub} Ready!")
-        except Exception as e:
-            st.error(f"Syllabus Error: {e}")
-
-    # 4. TRACKER DISPLAY & PROGRESS ANALYTICS
-    if st.session_state.hybrid_syllabus:
-        for sub, modules in st.session_state.hybrid_syllabus.items():
-            st.divider()
-            
-            # Progress Logic
-            all_topics = [t for mod in modules.values() for t in mod]
-            total = len(all_topics)
-            done = sum(1 for t in all_topics if st.session_state.tracker_status.get(hashlib.md5(f"{sub}_{t}".encode()).hexdigest(), False))
-            progress = (done/total) if total > 0 else 0
-
-            # Cinematic Dashboard
-            st.markdown(f"""
-            <div style="background: #1a1c23; padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; margin-bottom: 20px;">
-                <p style="color: #4CAF50; font-weight: bold; margin: 0; font-size: 1.1rem;">{sub} Mastery: {int(progress*100)}%</p>
-                <div style="background: #30363d; border-radius: 10px; height: 12px; margin-top: 10px;">
-                    <div style="background: linear-gradient(90deg, #4CAF50, #8BC34A); width: {progress*100}%; height: 100%; border-radius: 10px;"></div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # Nested Checklist
-            for mod_name, topics in modules.items():
-                with st.expander(f"📂 {mod_name}", expanded=True):
-                    for t in topics:
-                        # Unique Hash to prevent Duplicate Key Errors
-                        u_key = hashlib.md5(f"{sub}_{mod_name}_{t}".encode()).hexdigest()
-                        
-                        checked = st.checkbox(t, key=u_key, value=st.session_state.tracker_status.get(u_key, False))
-                        st.session_state.tracker_status[u_key] = checked
-
-            # User Control: Add Manual Topic (To fix AI mistakes)
-            with st.expander("➕ Add Missing Topic"):
-                new_t = st.text_input(f"New Topic for {sub}", key=f"add_{sub}")
-                if st.button("Add Now", key=f"btn_{sub}"):
-                    if "Custom Topics" not in st.session_state.hybrid_syllabus[sub]:
-                        st.session_state.hybrid_syllabus[sub]["Custom Topics"] = []
-                    st.session_state.hybrid_syllabus[sub]["Custom Topics"].append(new_t)
+                    
+                    raw_data = json.loads(res.choices[0].message.content)
+                    
+                    # Transform into Decision System Structure
+                    final_structure = {}
+                    for sem, subs in raw_data.items():
+                        final_structure[sem] = {}
+                        for sub, units in subs.items():
+                            final_structure[sem][sub] = {}
+                            for unit, topics in units.items():
+                                final_structure[sem][sub][unit] = []
+                                for t in topics:
+                                    final_structure[sem][sub][unit].append({
+                                        "name": t,
+                                        "status": "Not Started",
+                                        "importance": "Medium",
+                                        "time": "1 hr",
+                                        "rev_count": 0
+                                    })
+                    st.session_state.master_tracker = final_structure
                     st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
+    # --- INTERACTIVE TRACKER UI ---
+    if st.session_state.master_tracker:
+        for sem, subs in st.session_state.master_tracker.items():
+            st.markdown(f"## 📅 {sem}")
+            for sub_name, units in subs.items():
+                with st.expander(f"📘 {sub_name}", expanded=False):
+                    # Importance Tagging Button (Paid)
+                    if st.button(f"🏷️ Auto-Mark Importance for {sub_name} (3 Credits)", key=f"imp_{sub_name}"):
+                        st.session_state.user_data['credits'] -= 3
+                        st.toast("Intelligence Engine Synced!")
+
+                    for unit_name, topics in units.items():
+                        st.markdown(f"**📂 {unit_name}**")
+                        for i, t in enumerate(topics):
+                            c1, c2, c3, c4 = st.columns([3, 2, 2, 1])
+                            
+                            # Topic Name & Status
+                            with c1:
+                                new_status = st.selectbox(t['name'], ["Not Started", "Studying", "Completed", "Revise"], 
+                                                        index=["Not Started", "Studying", "Completed", "Revise"].index(t['status']),
+                                                        key=f"status_{sem}_{sub_name}_{unit_name}_{i}")
+                                t['status'] = new_status
+                            
+                            # Importance Display
+                            with c2:
+                                st.markdown(f"Grade: **{t['importance']}**")
+                            
+                            # Time & Actions
+                            with c3:
+                                st.markdown(f"⏱️ {t['time']}")
+                            
+                            with c4:
+                                if st.button("🧠", key=f"map_{sem}_{sub_name}_{unit_name}_{i}"):
+                                    st.toast("Redirecting to MindMap...")
+
+    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT DECISION ENGINE V1</p>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT HYBRID SYSTEM V2</p>", unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
