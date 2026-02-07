@@ -17,6 +17,11 @@ import fitz
 import textwrap
 import PyPDF2
 import hashlib
+import os
+from llama_index.core import Document, VectorStoreIndex, StorageContext
+from llama_index.core.node_parser import SimpleNodeParser
+from llama_index.llms.groq import Groq
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding 
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -244,76 +249,82 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: IMMORTAL SYLLABUS ARCHITECT (ANTI-CRASH BUILD) ---
+# --- TAB 2: RAG-BASED SYLLABUS ARCHITECT ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 Pro Syllabus Architect</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 RAG Syllabus Tracker</h2>", unsafe_allow_html=True)
     
-    # Initialize all states safely
-    if 'pdf_pages' not in st.session_state: st.session_state.pdf_pages = []
-    if 'sub_page_map' not in st.session_state: st.session_state.sub_page_map = {}
-    if 'active_subject_data' not in st.session_state: st.session_state.active_subject_data = {}
+    # Persistent Session States
+    if 'index' not in st.session_state: st.session_state.index = None
+    if 'syllabus_tree' not in st.session_state: st.session_state.syllabus_tree = {}
     if 'tracker_status' not in st.session_state: st.session_state.tracker_status = {}
 
-    # 1. SMART UPLOADER
-    uploaded_syllabus = st.file_uploader("Upload University Syllabus PDF", type="pdf", key="syll_final_pro_v7")
+    # 1. SETUP LLAMAINdex WITH GROQ
+    embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    llm = Groq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
 
-    if uploaded_syllabus and st.button("🔍 Map Entire Syllabus Index"):
-        with st.spinner("Mapping Subject Start Pages..."):
+    # 2. PDF UPLOADER & INDEXING
+    uploaded_file = st.file_uploader("Upload Syllabus PDF", type="pdf", key="rag_syll_v1")
+
+    if uploaded_file and st.button("🚀 Index & Analyze Syllabus"):
+        with st.spinner("Creating Vector Index (RAG)..."):
             try:
-                reader = PyPDF2.PdfReader(uploaded_syllabus)
-                st.session_state.pdf_pages = [p.extract_text() for p in reader.pages]
+                # Save PDF temporarily to read
+                with open("temp_syll.pdf", "wb") as f:
+                    f.write(uploaded_file.getvalue())
                 
-                # Scan only index-likely pages (first 25)
-                idx_context = ""
-                for i, p in enumerate(st.session_state.pdf_pages[:25]):
-                    idx_context += f"[P{i}]: {p[:200]}...\n"
+                # Load and Chunk
+                doc = fitz.open("temp_syll.pdf")
+                documents = [Document(text=page.get_text()) for page in doc]
                 
-                # Precise Index Mapping to stop Physics/Maths mixing
-                res = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": f"Identify Subject Names and their starting PAGE numbers. Return ONLY JSON: {{'Subject Name': PageNumber}}. Text: {idx_context}"}],
-                    response_format={"type": "json_object"}
+                # Create Vector Store Index (The "Brain")
+                st.session_state.index = VectorStoreIndex.from_documents(
+                    documents, embed_model=embed_model
                 )
-                st.session_state.sub_page_map = json.loads(res.choices[0].message.content)
-                st.success(f"Mapped {len(st.session_state.sub_page_map)} Subjects!")
-            except Exception as e:
-                st.error(f"Mapping Error: {e}")
-
-    # 2. TARGETED EXTRACTION (No Hallucinations)
-    if st.session_state.sub_page_map:
-        selected_sub = st.selectbox("🎯 Select Subject to Track", list(st.session_state.sub_page_map.keys()))
-        
-        if st.button(f"🚀 Deep Architect {selected_sub}"):
-            with st.spinner(f"Scanning ONLY {selected_sub} pages..."):
-                start_pg = st.session_state.sub_page_map[selected_sub]
-                # Isolated scan: Only look at 4 pages belonging to this subject
-                isolated_text = "".join(st.session_state.pdf_pages[start_pg : start_pg + 4])
                 
-                try:
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": f"Extract ALL Modules and sub-topics for ONLY '{selected_sub}'. Do NOT include other subjects. Return JSON: {{'Modules': {{'Mod Name': ['Topic1', 'Topic2']}}}}. Text: {isolated_text}"}],
-                        response_format={"type": "json_object"}
-                    )
-                    st.session_state.active_subject_data[selected_sub] = json.loads(res.choices[0].message.content).get("Modules", {})
-                    st.balloons()
-                except Exception as e:
-                    st.error(f"Extraction Error: {e}")
+                # Extract Subject List using RAG
+                query_engine = st.session_state.index.as_query_engine(llm=llm)
+                response = query_engine.query("List all engineering subjects mentioned in this syllabus. Return ONLY a JSON list: ['Subject1', 'Subject2']")
+                
+                # Clean and parse subject list
+                raw_res = response.response.replace("```json", "").replace("```", "").strip()
+                st.session_state.subjects = json.loads(raw_res)
+                st.success(f"Indexed {len(st.session_state.subjects)} Subjects successfully!")
+            except Exception as e:
+                st.error(f"Indexing Error: {e}")
 
-    # 3. THE TRACKER UI (Zero-Duplicate Key Logic)
-    if st.session_state.active_subject_data:
+    # 3. SUBJECT-WISE DEEP EXTRACTION
+    if st.session_state.get('subjects'):
+        selected_sub = st.selectbox("🎯 Target Subject", st.session_state.subjects)
+        
+        if st.button(f"Architect {selected_sub}"):
+            with st.spinner(f"Retrieving modules for {selected_sub}..."):
+                query_engine = st.session_state.index.as_query_engine(llm=llm)
+                # RAG ensures only this subject's data is pulled
+                prompt = f"""
+                Focus ONLY on the subject '{selected_sub}'. 
+                Extract all Modules/Units and their detailed sub-topics.
+                Return ONLY JSON: {{"Modules": {{"Module Name": ["Topic 1", "Topic 2"]}}}}
+                """
+                response = query_engine.query(prompt)
+                raw_data = response.response.replace("```json", "").replace("```", "").strip()
+                st.session_state.syllabus_tree[selected_sub] = json.loads(raw_data).get("Modules", {})
+                st.balloons()
+
+    # 4. CINEMATIC TRACKER UI
+    if st.session_state.syllabus_tree:
         st.divider()
-        for sub, modules in st.session_state.active_subject_data.items():
-            # Subject Progress Header
-            all_topics = [t for m in modules.values() for t in m]
-            done = sum(1 for t in all_topics if st.session_state.tracker_status.get(hashlib.md5(f"{sub}_{t}".encode()).hexdigest(), False))
-            prog = (done/len(all_topics)) if all_topics else 0
+        for sub, modules in st.session_state.syllabus_tree.items():
+            # Progress Logic
+            all_topics = [t for mod in modules.values() for t in mod]
+            done = sum(1 for t in all_topics if st.session_state.tracker_status.get(f"{sub}_{t}", False))
+            progress = (done/len(all_topics)) if all_topics else 0
             
+            # Progress Bar UI
             st.markdown(f"""
             <div style="background: #1a1c23; padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; margin-bottom: 20px;">
-                <p style="color: #4CAF50; font-weight: bold; margin:0;">{sub} Completion: {int(prog*100)}%</p>
+                <p style="color: #4CAF50; font-weight: bold; margin:0;">{sub} Mastery: {int(progress*100)}%</p>
                 <div style="background: #30363d; border-radius: 10px; height: 10px; margin-top: 10px;">
-                    <div style="background: #4CAF50; width: {prog*100}%; height: 100%; border-radius: 10px;"></div>
+                    <div style="background: #4CAF50; width: {progress*100}%; height: 100%; border-radius: 10px;"></div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -321,21 +332,9 @@ with tab2:
             for mod_name, topics in modules.items():
                 with st.expander(f"📂 {mod_name}", expanded=True):
                     for t in topics:
-                        # CRITICAL FIX: Generate unique MD5 Hash for every topic to prevent Duplicate Key Error
-                        t_hash = hashlib.md5(f"{sub}_{mod_name}_{t}".encode()).hexdigest()
-                        
-                        checked = st.checkbox(
-                            t, 
-                            key=t_hash, 
-                            value=st.session_state.tracker_status.get(t_hash, False)
-                        )
-                        st.session_state.tracker_status[t_hash] = checked
-        
-        if st.button("🧹 Reset Progress"):
-            st.session_state.tracker_status = {}
-            st.rerun()
-
-    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT SYLLABUS ENGINE V7</p>", unsafe_allow_html=True)
+                        t_key = f"{sub}_{t}"
+                        checked = st.checkbox(t, key=t_key, value=st.session_state.tracker_status.get(t_key, False))
+                        st.session_state.tracker_status[t_key] = checked
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
