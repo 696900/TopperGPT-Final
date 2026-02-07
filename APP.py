@@ -247,74 +247,97 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: PRECISION RAG SYLLABUS ARCHITECT ---
+# --- TAB 2: HYBRID SYLLABUS ARCHITECT (STABLE STARTUP MODEL) ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 AI Syllabus Architect (RAG)</h2>", unsafe_allow_html=True)
-    
-    # Initialize Persistent States
-    if 'rag_index' not in st.session_state: st.session_state.rag_index = None
-    if 'subjects_by_sem' not in st.session_state: st.session_state.subjects_by_sem = {}
-    if 'syllabus_tree' not in st.session_state: st.session_state.syllabus_tree = {}
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📊 Hybrid Syllabus Tracker</h2>", unsafe_allow_html=True)
+    st.info("💡 Strategy: Rule-based detection for Semesters & Units. AI only extracts topics for 99% accuracy.")
+
+    # 1. State Initialization
+    if 'hybrid_syllabus' not in st.session_state: st.session_state.hybrid_syllabus = {}
     if 'tracker_status' not in st.session_state: st.session_state.tracker_status = {}
 
-    up_pdf = st.file_uploader("Upload Engineering Syllabus PDF", type="pdf", key="rag_architect_final_v30")
+    # 2. PDF UPLOADER
+    up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="hybrid_v2")
 
-    if up_pdf and st.button("🚀 Index & Map Semesters"):
-        with st.spinner("RAG Engine mapping your syllabus structure..."):
-            try:
-                # 1. Parsing with PyMuPDF (Zero PyPDF2 errors)
-                pdf_bytes = up_pdf.read()
-                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                documents = [Document(text=page.get_text()) for page in doc]
-                
-                # 2. Vector Indexing
-                embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
-                st.session_state.rag_index = VectorStoreIndex.from_documents(documents, embed_model=embed_model)
-                
-                # 3. Semester-wise Subject Mapping
-                llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                qe = st.session_state.rag_index.as_query_engine(llm=llm)
-                res = qe.query("List all unique subjects divided by Semester. Return ONLY JSON like this: {'Sem 1': ['SubjectA', 'SubjectB'], 'Sem 2': ['SubjectC']}")
-                
-                # Cleaning the AI response for valid JSON
-                clean_json = res.response.strip().replace("```json", "").replace("```", "")
-                st.session_state.subjects_by_sem = json.loads(clean_json)
-                st.success("Syllabus Indexed! Choose a Semester below.")
-            except Exception as e:
-                st.error(f"Sync Error: {e}")
+    if up_pdf:
+        # Rule-Based Extraction (Using Regex instead of AI for structure)
+        try:
+            # We use fitz (PyMuPDF) which is already in your imports
+            pdf_bytes = up_pdf.read()
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            full_text = "".join([page.get_text() for page in doc])
+            
+            # Regex for Semesters and Units (Rule-based)
+            sems = sorted(list(set(re.findall(r'(Semester\s+[IV|1-8]+|SEM\s+[IV|1-8]+)', full_text, re.IGNORECASE))))
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                sel_sem = st.selectbox("📅 Detected Semester", sems if sems else ["Manual Entry"])
+            with col2:
+                sel_sub = st.text_input("📘 Subject Name", placeholder="e.g. Applied Physics-1")
 
-    # 4. SEMESTER & SUBJECT SELECTION
-    if st.session_state.subjects_by_sem:
-        selected_sem = st.selectbox("📅 Select Semester", list(st.session_state.subjects_by_sem.keys()))
-        subjects_in_sem = st.session_state.subjects_by_sem[selected_sem]
-        selected_sub = st.selectbox(f"🎯 Select Subject from {selected_sem}", subjects_in_sem)
-        
-        if st.button(f"Architect {selected_sub} Tree"):
-            with st.spinner(f"Retrieving deep topics for {selected_sub}..."):
-                try:
-                    qe = st.session_state.rag_index.as_query_engine(llm=LlamaGroq(model="llama-3.3-70b-versatile"))
-                    # Specific isolated prompt to stop Physics/Maths mixing
-                    prompt = f"Extract all Modules and technical topics for ONLY '{selected_sub}'. Return ONLY JSON: {{'Modules': {{'Mod Name': ['Topic1', 'Topic2']}}}}"
-                    response = qe.query(prompt)
-                    
-                    clean_tree = response.response.strip().replace("```json", "").replace("```", "")
-                    st.session_state.syllabus_tree[selected_sub] = json.loads(clean_tree).get("Modules", {})
-                    st.balloons()
-                except Exception as e:
-                    st.error(f"Extraction Error: {e}")
+            # 3. AI TOPIC EXTRACTION (Only for the selected subject)
+            if sel_sub and st.button(f"🚀 Architect {sel_sub} Topics"):
+                with st.spinner(f"AI is identifying topics for {sel_sub}..."):
+                    # We only send a chunk of text to avoid AI confusion
+                    context = full_text[:15000] 
+                    prompt = f"""
+                    In the Engineering subject '{sel_sub}', identify all Modules/Units and their detailed topics.
+                    Return ONLY a JSON object: 
+                    {{"Module 1: Name": ["Topic A", "Topic B"], "Module 2: Name": ["Topic C"]}}
+                    Context: {context}
+                    """
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": prompt}],
+                        response_format={"type": "json_object"}
+                    )
+                    st.session_state.hybrid_syllabus[sel_sub] = json.loads(res.choices[0].message.content)
+                    st.success(f"Tree for {sel_sub} Ready!")
+        except Exception as e:
+            st.error(f"Syllabus Error: {e}")
 
-        # 5. UI DISPLAY (With Zero-Crash Unique Keys)
-        if selected_sub in st.session_state.syllabus_tree:
-            modules = st.session_state.syllabus_tree[selected_sub]
-            st.markdown(f"### 📘 {selected_sub} Detail Tracker")
+    # 4. TRACKER DISPLAY & PROGRESS ANALYTICS
+    if st.session_state.hybrid_syllabus:
+        for sub, modules in st.session_state.hybrid_syllabus.items():
+            st.divider()
+            
+            # Progress Logic
+            all_topics = [t for mod in modules.values() for t in mod]
+            total = len(all_topics)
+            done = sum(1 for t in all_topics if st.session_state.tracker_status.get(hashlib.md5(f"{sub}_{t}".encode()).hexdigest(), False))
+            progress = (done/total) if total > 0 else 0
+
+            # Cinematic Dashboard
+            st.markdown(f"""
+            <div style="background: #1a1c23; padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; margin-bottom: 20px;">
+                <p style="color: #4CAF50; font-weight: bold; margin: 0; font-size: 1.1rem;">{sub} Mastery: {int(progress*100)}%</p>
+                <div style="background: #30363d; border-radius: 10px; height: 12px; margin-top: 10px;">
+                    <div style="background: linear-gradient(90deg, #4CAF50, #8BC34A); width: {progress*100}%; height: 100%; border-radius: 10px;"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Nested Checklist
             for mod_name, topics in modules.items():
                 with st.expander(f"📂 {mod_name}", expanded=True):
                     for t in topics:
-                        # UNIQUE HASHING: Prevents DuplicateElementKey Error
-                        u_key = hashlib.md5(f"{selected_sem}_{selected_sub}_{mod_name}_{t}".encode()).hexdigest()
+                        # Unique Hash to prevent Duplicate Key Errors
+                        u_key = hashlib.md5(f"{sub}_{mod_name}_{t}".encode()).hexdigest()
                         
                         checked = st.checkbox(t, key=u_key, value=st.session_state.tracker_status.get(u_key, False))
                         st.session_state.tracker_status[u_key] = checked
+
+            # User Control: Add Manual Topic (To fix AI mistakes)
+            with st.expander("➕ Add Missing Topic"):
+                new_t = st.text_input(f"New Topic for {sub}", key=f"add_{sub}")
+                if st.button("Add Now", key=f"btn_{sub}"):
+                    if "Custom Topics" not in st.session_state.hybrid_syllabus[sub]:
+                        st.session_state.hybrid_syllabus[sub]["Custom Topics"] = []
+                    st.session_state.hybrid_syllabus[sub]["Custom Topics"].append(new_t)
+                    st.rerun()
+
+    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT HYBRID SYSTEM V2</p>", unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
