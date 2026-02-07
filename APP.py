@@ -18,11 +18,9 @@ import textwrap
 import PyPDF2
 import hashlib
 import os
-from llama_index.core import Document, VectorStoreIndex, StorageContext
-from llama_index.core.node_parser import SimpleNodeParser
-from llama_index.llms.groq import Groq
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding 
-
+from llama_index.core import Document, VectorStoreIndex
+from llama_index.llms.groq import Groq as LlamaGroq
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
