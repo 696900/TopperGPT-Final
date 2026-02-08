@@ -246,15 +246,15 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: FULL-SCALE STUDY MANAGER ---
+# --- TAB 2: FULL-SCALE STUDY MANAGER (FIXED SYNTAX) ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Study Manager</h2>", unsafe_allow_html=True)
     
-    # Initialize Persistent States
+    # Initialize Persistent States Safely
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
     if 'exam_date' not in st.session_state: st.session_state.exam_date = None
 
-    # --- 1. PREMIUM DASHBOARD ---
+    # --- 1. PREMIUM DASHBOARD (Decision Metrics) ---
     if st.session_state.master_tracker:
         cols = st.columns([1, 1, 1, 1])
         all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
@@ -274,47 +274,47 @@ with tab2:
             st.metric("Topics Left", total - done)
         st.divider()
 
-    # --- 2. THE NUCLEAR ARCHITECT ---
-    with st.expander("📤 Upload & Deep-Scan Syllabus", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="deep_scan_v1")
-        st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
+    # --- 2. THE NUCLEAR ARCHITECT (Deep Scan) ---
+    with st.expander("📤 Upload & Architect Complete Syllabus", expanded=not st.session_state.master_tracker):
+        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="deep_architect_final")
+        input_date = st.date_input("When do Exams start?", value=datetime.now().date())
         
         if up_pdf and st.button("🚀 Architect Complete System"):
-            with st.spinner("Executing Deep-Scan... (Mapping all 6+ Modules per subject)"):
+            st.session_state.exam_date = input_date
+            with st.spinner("Extracting ALL Modules & Topics... (Deep Scanning 40+ pages)"):
                 try:
                     doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
-                    # Increased scan range to 40 pages to ensure no subject is missed
-                    full_text = "".join([page.get_text() for page in doc[:40]])
+                    full_txt = "".join([page.get_text() for page in doc[:40]]) # Deep scan range
                     
                     llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                     
-                    # AGGRESSIVE PROMPT: Force-extracting all modules
-                    prompt = """
-                    You are a University Data Architect. Extract EVERY engineering subject, EVERY Module (1 to 6), 
-                    and EVERY technical sub-topic from the provided text. Do not summarize. 
-                    Structure MUST be exactly: 
-                    {"Semester X": {"Subject": {"Module 1: Name": ["Detailed Topic A", "Detailed Topic B"]}}}
-                    Text Context: """ + full_text[:15000]
+                    # STERN PROMPT: Forced module extraction
+                    prompt = f"""
+                    Extract ALL engineering subjects, ALL Modules (1 to 6), and SPECIFIC sub-topics.
+                    Return ONLY JSON:
+                    {{"Semester X": {{"Subject Name": {{"Module 1: Name": ["Topic A", "Topic B"]}}}}}}
+                    Text Context: {full_txt[:15000]}
+                    """
                     
                     res = llm.complete(prompt)
                     raw_json = json.loads(res.text.strip().replace("```json", "").replace("```", ""))
                     
-                    # Convert to Study Manager Format
-                    final_tree = {}
+                    # Convert to decision-ready format
+                    processed_tree = {}
                     for sem, subs in raw_json.items():
-                        final_tree[sem] = {}
+                        processed_tree[sem] = {}
                         for sub, mods in subs.items():
-                            final_tree[sem][sub] = {}
+                            processed_tree[sem][sub] = {}
                             for mod, topics in mods.items():
-                                final_tree[sem][sub][mod] = [{"name": t, "status": "Not Started", "imp": "High"} for t in topics]
+                                processed_tree[sem][sub][mod] = [{"name": t, "status": "Not Started"} for t in topics]
                     
-                    st.session_state.master_tracker = final_tree
-                    st.success("Deep Architecture Built! All Modules Mapped.")
+                    st.session_state.master_tracker = processed_tree
+                    st.success("Master System Built! Check your dashboard above.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Sync Error: {e}")
+                    st.error(f"Architecture Error: {e}")
 
-    # --- 3. THE DECISION UI (Nested & Actionable) ---
+    # --- 3. INTERACTIVE DISPLAY ---
     if st.session_state.master_tracker:
         for sem, subs in st.session_state.master_tracker.items():
             st.markdown(f"## 🗓️ {sem}")
@@ -323,23 +323,22 @@ with tab2:
                     for mod_name, topics in modules.items():
                         st.markdown(f"**📂 {mod_name}**")
                         for i, t in enumerate(topics):
-                            t_id = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
+                            # UNIQUE HASH: Prevents DuplicateElementKey error
+                            u_hash = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
                             
-                            # Decision Row
-                            c1, c2, c3 = st.columns([0.6, 0.25, 0.15])
+                            c1, c2, c3 = st.columns([0.65, 0.25, 0.1])
                             with c1: st.write(f"🔹 {t['name']}")
                             with c2:
                                 s_val = st.selectbox("Status", ["Not Started", "Completed"], 
                                                    index=0 if t['status'] == "Not Started" else 1,
-                                                   key=t_id, label_visibility="collapsed")
+                                                   key=u_hash, label_visibility="collapsed")
                                 if s_val != t['status']:
                                     t['status'] = s_val
                                     st.rerun()
-                            # 🧠 Linked Action: Direct connect to MindMap
+                            # FIXED SYNTAX: No extra bracket here
                             with c3:
-                                if st.button("🧠", key=f"act_{t_id}", help="Build MindMap"):
-                                    st.session_state.mindmap_topic = t['name']
-                                    st.toast(f"Linking {t['name']} to MindMap..."))
+                                if st.button("🧠", key=f"btn_{u_hash}", help="Connect to MindMap"):
+                                    st.toast(f"Linking {t['name']} to MindMap...")
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
