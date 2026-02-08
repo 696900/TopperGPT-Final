@@ -246,20 +246,19 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: THE MASTER SYLLABUS DECISION SYSTEM ---
+# --- TAB 2: FULL SCALE ACADEMIC ARCHITECT ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Academic Decision System</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Decision System</h2>", unsafe_allow_html=True)
     
-    # Initialize States
-    if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
-    if 'exam_date' not in st.session_state: st.session_state.exam_date = None
-
-    # --- 1. DASHBOARD (Date Selection ke baad ye dikhega) ---
+    # 1. Dashboard Metrics (Only if data exists)
     if st.session_state.master_tracker:
         cols = st.columns([1, 1, 1])
+        all_topics = []
+        for sem_data in st.session_state.master_tracker.values():
+            for sub_data in sem_data.values():
+                for unit_data in sub_data.values():
+                    all_topics.extend(unit_data)
         
-        # Logic for Progress & Countdown
-        all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for unit in sub.values() for t in unit]
         total = len(all_topics)
         done = sum(1 for t in all_topics if t.get('status') == 'Completed')
         prog = (done/total) if total > 0 else 0
@@ -267,67 +266,77 @@ with tab2:
         with cols[0]:
             st.metric("Overall Mastery", f"{int(prog*100)}%")
         with cols[1]:
-            # Countdown Logic
             if st.session_state.exam_date:
                 days_left = (st.session_state.exam_date - datetime.now().date()).days
                 st.metric("Days to Exam", f"{max(0, days_left)} ⏳")
-            else:
-                st.metric("Days to Exam", "Not Set")
         with cols[2]:
-            # Pacing Logic
-            remaining = total - done
-            daily_target = (remaining // max(1, days_left)) if st.session_state.exam_date and days_left > 0 else "N/A"
-            st.metric("Daily Target", f"{daily_target} Topics")
-
+            st.metric("Total Topics", total)
         st.divider()
 
-    # --- 2. ARCHITECT (PDF Upload & Date Input) ---
-    with st.expander("📤 Upload & Architect New Syllabus", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="master_decision_v5")
-        # Exam Date yahan select hoti hai
-        st.session_state.exam_date = st.date_input("When do your Exams start?", value=datetime.now().date())
+    # 2. Architect Section
+    with st.expander("📤 Upload & Architect Full Syllabus", expanded=not st.session_state.master_tracker):
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="master_full_v1")
+        st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
         
-        if up_pdf and st.button("🚀 Build My Decision System"):
-            with st.spinner("TopperGPT is architecting your path..."):
+        if up_pdf and st.button("🚀 Architect Complete System"):
+            with st.spinner("Extracting ALL Subjects & Topics..."):
                 try:
-                    # Isolated PDF Text Extraction
+                    # Reading PDF
                     doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
-                    full_text = "".join([page.get_text() for page in doc[:15]])
+                    full_text = "".join([page.get_text() for page in doc[:20]]) 
                     
-                    # Using LlamaGroq for Topic Extraction
                     llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                    prompt = f"Extract Subjects & Topics. Return ONLY JSON: {{'Sem 1': {{'Subject': {{'Unit 1': ['Topic A']}}}}}}. Text: {full_text[:8000]}"
                     
-                    res = llm.complete(prompt) # Using LlamaIndex's .complete() method
-                    raw_data = json.loads(res.text.strip().replace("```json", "").replace("```", ""))
+                    # PROMPT: Strict instructions to get ALL nested details
+                    prompt = """
+                    Extract ALL engineering subjects, modules, and SPECIFIC sub-topics from the text.
+                    Return ONLY a JSON object with this EXACT structure:
+                    {"Sem X": {"Subject Name": {"Module 1": ["Specific Topic 1", "Specific Topic 2"]}}}
+                    Text Context: """ + full_text[:12000]
                     
-                    # Convert to our Decision Structure
-                    processed = {}
-                    for sem, subs in raw_data.items():
-                        processed[sem] = {}
-                        for sub, units in subs.items():
-                            processed[sem][sub] = {}
-                            for unit, topics in units.items():
-                                processed[sem][sub][unit] = [{"name": t, "status": "Not Started", "importance": "High"} for t in topics]
+                    res = llm.complete(prompt)
+                    raw_json = json.loads(res.text.strip().replace("```json", "").replace("```", ""))
                     
-                    st.session_state.master_tracker = processed
-                    st.success("Decision System Built! Check your Dashboard above.")
+                    # Mapping to decision system format
+                    final_tree = {}
+                    for sem, subs in raw_json.items():
+                        final_tree[sem] = {}
+                        for sub, mods in subs.items():
+                            final_tree[sem][sub] = {}
+                            for mod, topics in mods.items():
+                                final_tree[sem][sub][mod] = [
+                                    {"name": t, "status": "Not Started", "importance": "High"} 
+                                    for t in topics
+                                ]
+                    
+                    st.session_state.master_tracker = final_tree
+                    st.success("Syllabus Architecture Complete!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Logic Error: {e}")
+                    st.error(f"Architecture Failure: {e}")
 
-    # --- 3. TRACKER DISPLAY ---
+    # 3. Interactive Display (Full Hierarchy)
     if st.session_state.master_tracker:
         for sem, subs in st.session_state.master_tracker.items():
-            st.markdown(f"### 📅 {sem}")
-            for sub_name, units in subs.items():
-                with st.expander(f"📘 {sub_name}"):
-                    for unit_name, topics in units.items():
-                        st.markdown(f"**📂 {unit_name}**")
+            st.markdown(f"## 🗓️ {sem}")
+            for sub_name, modules in subs.items():
+                with st.expander(f"📘 {sub_name}", expanded=False):
+                    for mod_name, topics in modules.items():
+                        st.markdown(f"**📂 {mod_name}**")
                         for i, t in enumerate(topics):
-                            u_key = hashlib.md5(f"{sub_name}_{unit_name}_{t['name']}".encode()).hexdigest()
-                            t['status'] = st.selectbox(f"Status for {t['name']}", ["Not Started", "Completed"], 
-                                                     key=u_key, label_visibility="collapsed")
+                            t_key = hashlib.md5(f"{sem}_{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
+                            
+                            c1, c2 = st.columns([0.7, 0.3])
+                            with c1:
+                                st.write(f"🔹 {t['name']}")
+                            with c2:
+                                # Status Dropdown (Addictive progress tracking)
+                                new_status = st.selectbox("Status", ["Not Started", "Completed"], 
+                                                        index=0 if t['status'] == "Not Started" else 1,
+                                                        key=t_key, label_visibility="collapsed")
+                                if new_status != t['status']:
+                                    t['status'] = new_status
+                                    st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
