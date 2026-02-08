@@ -18,6 +18,7 @@ import textwrap
 import hashlib
 import os
 from datetime import datetime
+from llama_index.llms.groq import Groq as LlamaGroq # Ye 'as LlamaGroq' zaroori hai
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -249,132 +250,84 @@ with tab1:
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Academic Decision System</h2>", unsafe_allow_html=True)
     
-    # 1. State Initialization
+    # Initialize States
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
     if 'exam_date' not in st.session_state: st.session_state.exam_date = None
 
-    # --- HOME SCREEN DASHBOARD ---
+    # --- 1. DASHBOARD (Date Selection ke baad ye dikhega) ---
     if st.session_state.master_tracker:
         cols = st.columns([1, 1, 1])
-        # Progress Calculation
-        all_topics = []
-        for sem in st.session_state.master_tracker.values():
-            for sub in sem.values():
-                for unit in sub.values():
-                    all_topics.extend(unit)
         
+        # Logic for Progress & Countdown
+        all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for unit in sub.values() for t in unit]
         total = len(all_topics)
         done = sum(1 for t in all_topics if t.get('status') == 'Completed')
         prog = (done/total) if total > 0 else 0
         
         with cols[0]:
-            st.metric("Overall Progress", f"{int(prog*100)}%")
+            st.metric("Overall Mastery", f"{int(prog*100)}%")
         with cols[1]:
-            days_left = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else "NA"
-            st.metric("Days to Exam", days_left)
-        with cols[2]:
-            st.metric("Target Today", "3 Topics")
-
-        # 🔥 TODAY'S FOCUS (Paid Intelligence)
-        st.markdown("### 🔥 Today's Focus")
-        if st.button("🧠 Generate Today's Plan (2 Credits)"):
-            if st.session_state.user_data['credits'] >= 2:
-                # Logic: Pick High Importance + Not Started topics
-                st.session_state.user_data['credits'] -= 2
-                st.success("Plan Generated! Focus on: 1. CPU Scheduling, 2. Page Replacement")
+            # Countdown Logic
+            if st.session_state.exam_date:
+                days_left = (st.session_state.exam_date - datetime.now().date()).days
+                st.metric("Days to Exam", f"{max(0, days_left)} ⏳")
             else:
-                st.error("Low Credits!")
-        
+                st.metric("Days to Exam", "Not Set")
+        with cols[2]:
+            # Pacing Logic
+            remaining = total - done
+            daily_target = (remaining // max(1, days_left)) if st.session_state.exam_date and days_left > 0 else "N/A"
+            st.metric("Daily Target", f"{daily_target} Topics")
+
         st.divider()
 
-    # --- SYLLABUS ARCHITECT (HYBRID) ---
+    # --- 2. ARCHITECT (PDF Upload & Date Input) ---
     with st.expander("📤 Upload & Architect New Syllabus", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="master_hybrid_v1")
-        ex_date = st.date_input("Exam Start Date", key="exam_date_input")
+        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="master_decision_v5")
+        # Exam Date yahan select hoti hai
+        st.session_state.exam_date = st.date_input("When do your Exams start?", value=datetime.now().date())
         
-        if up_pdf and st.button("🚀 Build My System"):
-            st.session_state.exam_date = ex_date
-            with st.spinner("TopperGPT is architecting..."):
+        if up_pdf and st.button("🚀 Build My Decision System"):
+            with st.spinner("TopperGPT is architecting your path..."):
                 try:
+                    # Isolated PDF Text Extraction
                     doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
                     full_text = "".join([page.get_text() for page in doc[:15]])
                     
-                    # Regex for Structure (Rule-Based)
-                    sems = re.findall(r'(Semester\s+[IV|1-8]+|SEM\s+[IV|1-8]+)', full_text, re.IGNORECASE)
-                    
-                    # AI for Topics only (Limited Role)
+                    # Using LlamaGroq for Topic Extraction
                     llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                    prompt = f"""
-                    Extract subjects and their unit-wise topics. 
-                    Format ONLY JSON: {{"Semester 1": {{"Subject": {{"Unit 1": ["Topic A"]}}}}}}
-                    Context: {full_text[:10000]}
-                    """
-                    res = llm.chat.completions.create(
-                        messages=[{"role": "user", "content": prompt}],
-                        model="llama-3.3-70b-versatile",
-                        response_format={"type": "json_object"}
-                    )
+                    prompt = f"Extract Subjects & Topics. Return ONLY JSON: {{'Sem 1': {{'Subject': {{'Unit 1': ['Topic A']}}}}}}. Text: {full_text[:8000]}"
                     
-                    raw_data = json.loads(res.choices[0].message.content)
+                    res = llm.complete(prompt) # Using LlamaIndex's .complete() method
+                    raw_data = json.loads(res.text.strip().replace("```json", "").replace("```", ""))
                     
-                    # Transform into Decision System Structure
-                    final_structure = {}
+                    # Convert to our Decision Structure
+                    processed = {}
                     for sem, subs in raw_data.items():
-                        final_structure[sem] = {}
+                        processed[sem] = {}
                         for sub, units in subs.items():
-                            final_structure[sem][sub] = {}
+                            processed[sem][sub] = {}
                             for unit, topics in units.items():
-                                final_structure[sem][sub][unit] = []
-                                for t in topics:
-                                    final_structure[sem][sub][unit].append({
-                                        "name": t,
-                                        "status": "Not Started",
-                                        "importance": "Medium",
-                                        "time": "1 hr",
-                                        "rev_count": 0
-                                    })
-                    st.session_state.master_tracker = final_structure
+                                processed[sem][sub][unit] = [{"name": t, "status": "Not Started", "importance": "High"} for t in topics]
+                    
+                    st.session_state.master_tracker = processed
+                    st.success("Decision System Built! Check your Dashboard above.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Logic Error: {e}")
 
-    # --- INTERACTIVE TRACKER UI ---
+    # --- 3. TRACKER DISPLAY ---
     if st.session_state.master_tracker:
         for sem, subs in st.session_state.master_tracker.items():
-            st.markdown(f"## 📅 {sem}")
+            st.markdown(f"### 📅 {sem}")
             for sub_name, units in subs.items():
-                with st.expander(f"📘 {sub_name}", expanded=False):
-                    # Importance Tagging Button (Paid)
-                    if st.button(f"🏷️ Auto-Mark Importance for {sub_name} (3 Credits)", key=f"imp_{sub_name}"):
-                        st.session_state.user_data['credits'] -= 3
-                        st.toast("Intelligence Engine Synced!")
-
+                with st.expander(f"📘 {sub_name}"):
                     for unit_name, topics in units.items():
                         st.markdown(f"**📂 {unit_name}**")
                         for i, t in enumerate(topics):
-                            c1, c2, c3, c4 = st.columns([3, 2, 2, 1])
-                            
-                            # Topic Name & Status
-                            with c1:
-                                new_status = st.selectbox(t['name'], ["Not Started", "Studying", "Completed", "Revise"], 
-                                                        index=["Not Started", "Studying", "Completed", "Revise"].index(t['status']),
-                                                        key=f"status_{sem}_{sub_name}_{unit_name}_{i}")
-                                t['status'] = new_status
-                            
-                            # Importance Display
-                            with c2:
-                                st.markdown(f"Grade: **{t['importance']}**")
-                            
-                            # Time & Actions
-                            with c3:
-                                st.markdown(f"⏱️ {t['time']}")
-                            
-                            with c4:
-                                if st.button("🧠", key=f"map_{sem}_{sub_name}_{unit_name}_{i}"):
-                                    st.toast("Redirecting to MindMap...")
-
-    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT DECISION ENGINE V1</p>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: right; color: #4CAF50; font-size: 0.7rem;'>@TOPPERGPT HYBRID SYSTEM V2</p>", unsafe_allow_html=True)
+                            u_key = hashlib.md5(f"{sub_name}_{unit_name}_{t['name']}".encode()).hexdigest()
+                            t['status'] = st.selectbox(f"Status for {t['name']}", ["Not Started", "Completed"], 
+                                                     key=u_key, label_visibility="collapsed")
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
