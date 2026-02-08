@@ -246,81 +246,85 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: PRECISION STUDY MANAGER (FIXED PHYSICS MIX-UP) ---
+# --- TAB 2: MASTER STUDY MANAGER (STABLE BUILD) ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Study Manager</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Academic Decision System</h2>", unsafe_allow_html=True)
     
+    # Initialize States
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
     if 'exam_date' not in st.session_state: st.session_state.exam_date = None
     if 'active_topic' not in st.session_state: st.session_state.active_topic = None
 
-    # --- 1. DASHBOARD ---
+    # 1. DASHBOARD METRICS
     if st.session_state.master_tracker:
-        cols = st.columns([1, 1, 1])
+        cols = st.columns([1, 1, 1, 1])
         all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
         total, done = len(all_topics), sum(1 for t in all_topics if t.get('status') == 'Completed')
-        prog = (done/total) if total > 0 else 0
         
-        with cols[0]: st.metric("Mastery", f"{int(prog*100)}%")
+        with cols[0]: st.metric("Overall Progress", f"{int((done/total)*100 if total > 0 else 0)}%")
         with cols[1]: 
             days = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else 0
-            st.metric("Exam in", f"{max(0, days)} Days")
+            st.metric("Exam Countdown", f"{max(0, days)} Days")
         with cols[2]:
-            st.metric("Target Today", f"{(total-done)//max(1, days)} Topics")
+            daily = (total - done) // max(1, days) if days > 0 else total
+            st.metric("Daily Target", f"{daily} Topics")
+        with cols[3]: st.metric("Total Topics", total)
         st.divider()
 
-    # --- 2. ISOLATED ARCHITECT (Fixes Physics/Mechanics mix) ---
-    with st.expander("📤 Upload & Deep-Scan Syllabus", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="deep_architect_v7")
+    # 2. THE MULTI-STAGE ARCHITECT (No more Mix-ups)
+    with st.expander("📤 Upload & Architect Full Syllabus", expanded=not st.session_state.master_tracker):
+        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="master_v100")
         st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
         
-        if up_pdf and st.button("🚀 Architect All Subjects"):
-            with st.spinner("Executing Strict Subject Isolation Scan..."):
+        if up_pdf and st.button("🚀 Architect Complete System"):
+            with st.spinner("Stage 1: Mapping Subjects and Semesters..."):
                 try:
-                    doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
+                    pdf_bytes = up_pdf.read()
+                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                     full_txt = "".join([page.get_text() for page in doc[:30]])
-                    
                     llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+
+                    # STAGE 1: Get only Subject List
+                    sub_res = llm.complete(f"Identify all Subjects and their Semesters. Return ONLY JSON: {{'Sem 1': ['Maths', 'Physics'], 'Sem 2': ['BEE']}}. Text: {full_txt[:10000]}")
+                    subject_map = json.loads(sub_res.text.strip().replace("```json", "").replace("```", ""))
                     
-                    # STRICT PROMPT: Stops subject mixing
-                    prompt = f"""
-                    Extract engineering subjects and their modules. 
-                    STRICT RULE: Applied Physics must ONLY contain Physics topics. 
-                    Do NOT include Engineering Mechanics topics under Physics.
-                    Return ONLY JSON: {{"Semester X": {{"Subject": {{"Module 1: Name": ["Topic A"]}}}}}}
-                    Text: {full_txt[:12000]}
-                    """
-                    res = llm.complete(prompt)
-                    raw_json = json.loads(res.text.strip().replace("```json", "").replace("```", ""))
+                    # STAGE 2: Iterative Deep Scan for each subject (Fixes image_a81181 mixup)
+                    master_tree = {}
+                    for sem, subs in subject_map.items():
+                        master_tree[sem] = {}
+                        for sub in subs:
+                            with st.status(f"Processing {sub} in {sem}...", expanded=False):
+                                # Focus prompt ensures 100% isolation
+                                prompt = f"Subject: {sub}. Extract ALL 6 Modules and detailed technical topics. DO NOT include other subjects. Return JSON: {{'Module 1': ['Topic A']}}. Context: {full_txt[:15000]}"
+                                res = llm.complete(prompt)
+                                master_tree[sem][sub] = {mod: [{"name": t, "status": "Not Started"} for t in topics] 
+                                                         for mod, topics in json.loads(res.text.strip().replace("```json", "").replace("```", "")).items()}
                     
-                    st.session_state.master_tracker = {
-                        sem: {sub: {mod: [{"name": t, "status": "Not Started"} for t in topics] 
-                        for mod, topics in mods.items()} for sub, mods in subs.items()} 
-                        for sem, subs in raw_json.items()
-                    }
+                    st.session_state.master_tracker = master_tree
+                    st.success("Full Academic Tracker Built Successfully!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Logic Error: {e}")
 
-    # --- 3. THE UI (With Active MindMap Link) ---
+    # 3. INTERACTIVE DASHBOARD (The Decision UI)
     if st.session_state.master_tracker:
         for sem, subs in st.session_state.master_tracker.items():
             st.markdown(f"## 🗓️ {sem}")
             for sub_name, modules in subs.items():
-                with st.expander(f"📘 {sub_name}"):
+                with st.expander(f"📘 {sub_name}", expanded=False):
                     for mod_name, topics in modules.items():
                         st.markdown(f"**📂 {mod_name}**")
                         for i, t in enumerate(topics):
-                            u_key = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
-                            c1, c2, c3 = st.columns([0.6, 0.25, 0.15])
+                            u_hash = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
+                            c1, c2, c3 = st.columns([0.65, 0.25, 0.1])
                             with c1: st.write(f"🔹 {t['name']}")
                             with c2:
-                                s = st.selectbox("S", ["Not Started", "Completed"], key=u_key, 
+                                s = st.selectbox("S", ["Not Started", "Completed"], key=u_hash, 
                                                index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
                                 if s != t['status']: t['status'] = s; st.rerun()
-                            # FIXED LINKING: Transfers topic to MindMap tab
                             with c3:
-                                if st.button("🧠", key=f"mm_{u_key}"):
+                                # FIXED BRAIN SYNC (image_a79cdd fix)
+                                if st.button("🧠", key=f"mm_sync_{u_hash}"):
                                     st.session_state.active_topic = t['name']
                                     st.toast(f"Brain Sync: {t['name']} sent to MindMap!")
     # --- TAB 3: ANSWER EVALUATOR ---
