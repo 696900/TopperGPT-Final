@@ -246,96 +246,111 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: FULL SCALE ACADEMIC ARCHITECT ---
+# --- TAB 2: MASTER SYLLABUS DECISION SYSTEM (FIXED BUILD) ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Decision System</h2>", unsafe_allow_html=True)
     
-    # 1. Dashboard Metrics (Only if data exists)
+    # CRITICAL FIX: Initialize master_tracker immediately to prevent AttributeError
+    if 'master_tracker' not in st.session_state: 
+        st.session_state.master_tracker = {}
+    if 'exam_date' not in st.session_state: 
+        st.session_state.exam_date = None
+
+    # 1. TOP METRICS (Only if data exists)
     if st.session_state.master_tracker:
         cols = st.columns([1, 1, 1])
-        all_topics = []
+        all_topics_flat = []
         for sem_data in st.session_state.master_tracker.values():
             for sub_data in sem_data.values():
                 for unit_data in sub_data.values():
-                    all_topics.extend(unit_data)
+                    all_topics_flat.extend(unit_data)
         
-        total = len(all_topics)
-        done = sum(1 for t in all_topics if t.get('status') == 'Completed')
-        prog = (done/total) if total > 0 else 0
+        total_t = len(all_topics_flat)
+        done_t = sum(1 for t in all_topics_flat if t.get('status') == 'Completed')
+        prog_percent = (done_t / total_t) if total_t > 0 else 0
         
         with cols[0]:
-            st.metric("Overall Mastery", f"{int(prog*100)}%")
+            st.metric("Overall Mastery", f"{int(prog_percent*100)}%")
         with cols[1]:
             if st.session_state.exam_date:
                 days_left = (st.session_state.exam_date - datetime.now().date()).days
                 st.metric("Days to Exam", f"{max(0, days_left)} ⏳")
         with cols[2]:
-            st.metric("Total Topics", total)
+            # PACING: Roz kitne topics padhne hain
+            rem = total_t - done_t
+            daily = (rem // max(1, days_left)) if st.session_state.exam_date and days_left > 0 else total_t
+            st.metric("Daily Target", f"{daily} Topics")
         st.divider()
 
-    # 2. Architect Section
+    # 2. UPLOADER & ARCHITECT
     with st.expander("📤 Upload & Architect Full Syllabus", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="master_full_v1")
-        st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
+        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="master_full_v2")
+        # Date Selection logic
+        input_date = st.date_input("When do Exams start?", value=datetime.now().date())
         
         if up_pdf and st.button("🚀 Architect Complete System"):
-            with st.spinner("Extracting ALL Subjects & Topics..."):
+            st.session_state.exam_date = input_date
+            with st.spinner("Extracting ALL Subjects & Deep Topics..."):
                 try:
-                    # Reading PDF
+                    # Reading PDF text
                     doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
-                    full_text = "".join([page.get_text() for page in doc[:20]]) 
+                    full_txt = "".join([page.get_text() for page in doc[:25]]) # Scan more pages for full subjects
                     
                     llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                     
-                    # PROMPT: Strict instructions to get ALL nested details
-                    prompt = """
-                    Extract ALL engineering subjects, modules, and SPECIFIC sub-topics from the text.
-                    Return ONLY a JSON object with this EXACT structure:
-                    {"Sem X": {"Subject Name": {"Module 1": ["Specific Topic 1", "Specific Topic 2"]}}}
-                    Text Context: """ + full_text[:12000]
+                    # STERN PROMPT: No shortcuts, extract full nested topics
+                    prompt = f"""
+                    Extract ALL engineering subjects, modules, and SPECIFIC technical sub-topics.
+                    Do NOT just give unit names. We need the granular topics inside.
+                    Return ONLY JSON:
+                    {{"Semester X": {{"Subject Name": {{"Module 1: Name": ["Topic A", "Topic B", "Topic C"]}}}}}}
+                    Text Context: {full_txt[:12000]}
+                    """
                     
                     res = llm.complete(prompt)
                     raw_json = json.loads(res.text.strip().replace("```json", "").replace("```", ""))
                     
-                    # Mapping to decision system format
-                    final_tree = {}
+                    # Convert to decision-ready format
+                    processed_tree = {}
                     for sem, subs in raw_json.items():
-                        final_tree[sem] = {}
+                        processed_tree[sem] = {}
                         for sub, mods in subs.items():
-                            final_tree[sem][sub] = {}
+                            processed_tree[sem][sub] = {}
                             for mod, topics in mods.items():
-                                final_tree[sem][sub][mod] = [
+                                processed_tree[sem][sub][mod] = [
                                     {"name": t, "status": "Not Started", "importance": "High"} 
                                     for t in topics
                                 ]
                     
-                    st.session_state.master_tracker = final_tree
-                    st.success("Syllabus Architecture Complete!")
+                    st.session_state.master_tracker = processed_tree
+                    st.success("Master System Built! Scroll down to see your subjects.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Architecture Failure: {e}")
+                    st.error(f"Architecture Error: {e}")
 
-    # 3. Interactive Display (Full Hierarchy)
+    # 3. INTERACTIVE DASHBOARD (Nested Display)
     if st.session_state.master_tracker:
-        for sem, subs in st.session_state.master_tracker.items():
-            st.markdown(f"## 🗓️ {sem}")
-            for sub_name, modules in subs.items():
+        for sem_key, subjects in st.session_state.master_tracker.items():
+            st.markdown(f"## 🗓️ {sem_key}")
+            for sub_name, modules in subjects.items():
+                # Display Each Subject properly
                 with st.expander(f"📘 {sub_name}", expanded=False):
                     for mod_name, topics in modules.items():
                         st.markdown(f"**📂 {mod_name}**")
-                        for i, t in enumerate(topics):
-                            t_key = hashlib.md5(f"{sem}_{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
+                        for i, topic_obj in enumerate(topics):
+                            # Unique Hashing to prevent DuplicateElementKey crash
+                            u_hash = hashlib.md5(f"{sem_key}_{sub_name}_{mod_name}_{topic_obj['name']}".encode()).hexdigest()
                             
-                            c1, c2 = st.columns([0.7, 0.3])
-                            with c1:
-                                st.write(f"🔹 {t['name']}")
-                            with c2:
-                                # Status Dropdown (Addictive progress tracking)
-                                new_status = st.selectbox("Status", ["Not Started", "Completed"], 
-                                                        index=0 if t['status'] == "Not Started" else 1,
-                                                        key=t_key, label_visibility="collapsed")
-                                if new_status != t['status']:
-                                    t['status'] = new_status
+                            col_t, col_s = st.columns([0.7, 0.3])
+                            with col_t:
+                                st.write(f"🔹 {topic_obj['name']}")
+                            with col_s:
+                                # Progress Toggle
+                                current_idx = 0 if topic_obj['status'] == "Not Started" else 1
+                                status_val = st.selectbox("Status", ["Not Started", "Completed"], 
+                                                        index=current_idx, key=u_hash, label_visibility="collapsed")
+                                if status_val != topic_obj['status']:
+                                    topic_obj['status'] = status_val
                                     st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
