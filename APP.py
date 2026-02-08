@@ -246,7 +246,7 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: MASTER STUDY MANAGER ---
-# --- TAB 2: PRO SEMESTER & ELECTIVE MANAGER ---
+# --- TAB 2: SEMESTER & ELECTIVE DECISION ENGINE ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Decision System</h2>", unsafe_allow_html=True)
     
@@ -257,22 +257,19 @@ with tab2:
 
     # 1. DASHBOARD METRICS
     if st.session_state.master_tracker:
-        cols = st.columns([1, 1, 1, 1])
+        cols = st.columns([1, 1, 1])
         all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
         total, done = len(all_topics), sum(1 for t in all_topics if t.get('status') == 'Completed')
         with cols[0]: st.metric("Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
         with cols[1]: 
             days = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else 0
             st.metric("Exam Countdown", f"{max(0, days)} Days")
-        with cols[2]:
-            daily = (total - done) // max(1, days) if days > 0 else total
-            st.metric("Daily Goal", f"{daily} Topics")
-        with cols[3]: st.metric("Total Topics", total)
+        with cols[2]: st.metric("Theory Topics", total)
         st.divider()
 
     # 2. TARGETED ARCHITECT
     with st.expander("📤 Build Your Semester Dashboard", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="final_architect_v10")
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="final_v11")
         
         c1, c2 = st.columns(2)
         with c1:
@@ -280,35 +277,35 @@ with tab2:
         with c2:
             st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
         
-        # STEP 1: FAST SCAN FOR SUBJECTS
+        # STEP 1: FAST SCAN FOR THEORY SUBJECTS ONLY
         if up_pdf and st.button("🔍 Step 1: Scan Theory Subjects"):
             with st.spinner("Filtering Theory Subjects... (Ignoring Labs)"):
                 try:
                     pdf_bytes = up_pdf.read()
                     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                     full_txt = "".join([page.get_text() for page in doc[:40]])
-                    # Using 8b model for fast, low-limit scanning
-                    llm_fast = LlamaGroq(model="llama3-8b-8192", api_key=st.secrets["GROQ_API_KEY"])
+                    # UPDATED MODEL: llama-3.1-8b-instant (Fixed image_b45ae8 error)
+                    llm_fast = LlamaGroq(model="llama-3.1-8b-instant", api_key=st.secrets["GROQ_API_KEY"])
 
-                    prompt = f"Identify all MAIN THEORY subjects for '{target_sem}'. IGNORE all Labs, Workshops, and Practicals. Return ONLY JSON: {{'subjects': ['Maths', 'Elective Physics']}}. Context: {full_txt[:8000]}"
+                    prompt = f"Identify only MAIN THEORY subjects for '{target_sem}'. IGNORE all Labs, Workshops, and Practicals. Return ONLY JSON: {{'subjects': ['Maths', 'Elective Physics']}}. Text: {full_txt[:8000]}"
                     res = llm_fast.complete(prompt)
                     st.session_state.temp_subjects = json.loads(res.text.strip().replace("```json", "").replace("```", "")).get("subjects", [])
                     st.success(f"Found {len(st.session_state.temp_subjects)} Theory Subjects!")
                 except Exception as e: st.error(f"Scan Error: {e}")
 
-        # STEP 2: ELECTIVE HANDLING & DEEP ARCHITECT
+        # STEP 2: ELECTIVE HANDLING & DEEP SCAN
         if st.session_state.temp_subjects:
-            st.markdown("### 🛠️ Customize Your Subjects")
+            st.markdown("### 🛠️ Choose Your Electives")
             final_sub_list = []
             for s in st.session_state.temp_subjects:
                 if "Elective" in s or "Choice" in s:
-                    # Choice dropdown for Electives
-                    u_choice = st.text_input(f"Which option for '{s}'?", placeholder="e.g. Engineering Materials", key=f"elective_{s}")
-                    if u_choice: final_sub_list.append(f"{s}: {u_choice}")
+                    # User input for Elective path
+                    choice = st.text_input(f"Which path for '{s}'?", placeholder="e.g. Engineering Materials", key=f"el_{s}")
+                    if choice: final_sub_list.append(f"{s}: {choice}")
                 else:
                     final_sub_list.append(s)
             
-            if st.button("🚀 Step 2: Finalize My Dashboard"):
+            if st.button("🚀 Step 2: Finalize My Tracker"):
                 with st.spinner("Building isolated modules..."):
                     try:
                         llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
@@ -317,18 +314,18 @@ with tab2:
                         
                         master_tree = {target_sem: {}}
                         for sub in final_sub_list:
-                            with st.status(f"Processing {sub}...", expanded=False):
-                                # Strict isolation to fix Physics/Mechanics mix-up
-                                prompt = f"Focus ONLY on '{sub}'. Extract ALL Modules (1-6) and technical topics. NO LABS. Return ONLY JSON: {{'Mod 1': ['Topic A']}}. Context: {full_txt[:15000]}"
+                            with st.status(f"Architecting {sub}...", expanded=False):
+                                # Focus prompt ensures 100% theory topics, NO LABS
+                                prompt = f"Focus ONLY on '{sub}'. Extract ALL 6 Theory Modules and topics. NO LABS. Return ONLY JSON: {{'Module 1': ['Topic A']}}. Context: {full_txt[:15000]}"
                                 res = llm_main.complete(prompt)
                                 master_tree[target_sem][sub] = {mod: [{"name": t, "status": "Not Started"} for t in topics] 
                                                                  for mod, topics in json.loads(res.text.strip().replace("```json", "").replace("```", "")).items()}
                         
                         st.session_state.master_tracker = master_tree
                         st.session_state.temp_subjects = []
-                        st.success("Dashboard Built!")
+                        st.success("Dashboard Built Successfully!")
                         st.rerun()
-                    except Exception as e: st.error(f"Rate Limit or Logic Error: {e}")
+                    except Exception as e: st.error(f"Processing Error: {e}")
 
     # 3. INTERACTIVE TRACKER UI
     if st.session_state.master_tracker:
@@ -337,7 +334,7 @@ with tab2:
             for sub_name, modules in subs.items():
                 with st.expander(f"📘 {sub_name}"):
                     for mod_name, topics in modules.items():
-                        # Extra safeguard against Labs
+                        # Final filter against Labs/Practicals
                         if any(x in mod_name.lower() for x in ["lab", "practical", "workshop"]): continue
                         
                         st.markdown(f"**📂 {mod_name}**")
@@ -350,10 +347,9 @@ with tab2:
                                                index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
                                 if s != t['status']: t['status'] = s; st.rerun()
                             with c3:
-                                # MindMap Sync
-                                if st.button("🧠", key=f"sync_mm_{u_hash}"):
+                                if st.button("🧠", key=f"mm_{u_hash}"):
                                     st.session_state.active_topic = t['name']
-                                    st.toast(f"Link: {t['name']} sent to MindMap!")
+                                    st.toast(f"Linked {t['name']} to MindMap!")
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
