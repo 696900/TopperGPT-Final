@@ -246,112 +246,100 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: MASTER SYLLABUS DECISION SYSTEM (FIXED BUILD) ---
+# --- TAB 2: FULL-SCALE STUDY MANAGER ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Decision System</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Study Manager</h2>", unsafe_allow_html=True)
     
-    # CRITICAL FIX: Initialize master_tracker immediately to prevent AttributeError
-    if 'master_tracker' not in st.session_state: 
-        st.session_state.master_tracker = {}
-    if 'exam_date' not in st.session_state: 
-        st.session_state.exam_date = None
+    # Initialize Persistent States
+    if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
+    if 'exam_date' not in st.session_state: st.session_state.exam_date = None
 
-    # 1. TOP METRICS (Only if data exists)
+    # --- 1. PREMIUM DASHBOARD ---
     if st.session_state.master_tracker:
-        cols = st.columns([1, 1, 1])
-        all_topics_flat = []
-        for sem_data in st.session_state.master_tracker.values():
-            for sub_data in sem_data.values():
-                for unit_data in sub_data.values():
-                    all_topics_flat.extend(unit_data)
+        cols = st.columns([1, 1, 1, 1])
+        all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
         
-        total_t = len(all_topics_flat)
-        done_t = sum(1 for t in all_topics_flat if t.get('status') == 'Completed')
-        prog_percent = (done_t / total_t) if total_t > 0 else 0
+        total = len(all_topics)
+        done = sum(1 for t in all_topics if t.get('status') == 'Completed')
+        prog = (done/total) if total > 0 else 0
         
-        with cols[0]:
-            st.metric("Overall Mastery", f"{int(prog_percent*100)}%")
-        with cols[1]:
-            if st.session_state.exam_date:
-                days_left = (st.session_state.exam_date - datetime.now().date()).days
-                st.metric("Days to Exam", f"{max(0, days_left)} ⏳")
+        with cols[0]: st.metric("Overall Mastery", f"{int(prog*100)}%")
+        with cols[1]: 
+            days = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else 0
+            st.metric("Exam Countdown", f"{max(0, days)} Days")
         with cols[2]:
-            # PACING: Roz kitne topics padhne hain
-            rem = total_t - done_t
-            daily = (rem // max(1, days_left)) if st.session_state.exam_date and days_left > 0 else total_t
-            st.metric("Daily Target", f"{daily} Topics")
+            daily = (total - done) // max(1, days) if days > 0 else total
+            st.metric("Daily Goal", f"{daily} Topics")
+        with cols[3]:
+            st.metric("Topics Left", total - done)
         st.divider()
 
-    # 2. UPLOADER & ARCHITECT
-    with st.expander("📤 Upload & Architect Full Syllabus", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="master_full_v2")
-        # Date Selection logic
-        input_date = st.date_input("When do Exams start?", value=datetime.now().date())
+    # --- 2. THE NUCLEAR ARCHITECT ---
+    with st.expander("📤 Upload & Deep-Scan Syllabus", expanded=not st.session_state.master_tracker):
+        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="deep_scan_v1")
+        st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
         
         if up_pdf and st.button("🚀 Architect Complete System"):
-            st.session_state.exam_date = input_date
-            with st.spinner("Extracting ALL Subjects & Deep Topics..."):
+            with st.spinner("Executing Deep-Scan... (Mapping all 6+ Modules per subject)"):
                 try:
-                    # Reading PDF text
                     doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
-                    full_txt = "".join([page.get_text() for page in doc[:25]]) # Scan more pages for full subjects
+                    # Increased scan range to 40 pages to ensure no subject is missed
+                    full_text = "".join([page.get_text() for page in doc[:40]])
                     
                     llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                     
-                    # STERN PROMPT: No shortcuts, extract full nested topics
-                    prompt = f"""
-                    Extract ALL engineering subjects, modules, and SPECIFIC technical sub-topics.
-                    Do NOT just give unit names. We need the granular topics inside.
-                    Return ONLY JSON:
-                    {{"Semester X": {{"Subject Name": {{"Module 1: Name": ["Topic A", "Topic B", "Topic C"]}}}}}}
-                    Text Context: {full_txt[:12000]}
-                    """
+                    # AGGRESSIVE PROMPT: Force-extracting all modules
+                    prompt = """
+                    You are a University Data Architect. Extract EVERY engineering subject, EVERY Module (1 to 6), 
+                    and EVERY technical sub-topic from the provided text. Do not summarize. 
+                    Structure MUST be exactly: 
+                    {"Semester X": {"Subject": {"Module 1: Name": ["Detailed Topic A", "Detailed Topic B"]}}}
+                    Text Context: """ + full_text[:15000]
                     
                     res = llm.complete(prompt)
                     raw_json = json.loads(res.text.strip().replace("```json", "").replace("```", ""))
                     
-                    # Convert to decision-ready format
-                    processed_tree = {}
+                    # Convert to Study Manager Format
+                    final_tree = {}
                     for sem, subs in raw_json.items():
-                        processed_tree[sem] = {}
+                        final_tree[sem] = {}
                         for sub, mods in subs.items():
-                            processed_tree[sem][sub] = {}
+                            final_tree[sem][sub] = {}
                             for mod, topics in mods.items():
-                                processed_tree[sem][sub][mod] = [
-                                    {"name": t, "status": "Not Started", "importance": "High"} 
-                                    for t in topics
-                                ]
+                                final_tree[sem][sub][mod] = [{"name": t, "status": "Not Started", "imp": "High"} for t in topics]
                     
-                    st.session_state.master_tracker = processed_tree
-                    st.success("Master System Built! Scroll down to see your subjects.")
+                    st.session_state.master_tracker = final_tree
+                    st.success("Deep Architecture Built! All Modules Mapped.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Architecture Error: {e}")
+                    st.error(f"Sync Error: {e}")
 
-    # 3. INTERACTIVE DASHBOARD (Nested Display)
+    # --- 3. THE DECISION UI (Nested & Actionable) ---
     if st.session_state.master_tracker:
-        for sem_key, subjects in st.session_state.master_tracker.items():
-            st.markdown(f"## 🗓️ {sem_key}")
-            for sub_name, modules in subjects.items():
-                # Display Each Subject properly
+        for sem, subs in st.session_state.master_tracker.items():
+            st.markdown(f"## 🗓️ {sem}")
+            for sub_name, modules in subs.items():
                 with st.expander(f"📘 {sub_name}", expanded=False):
                     for mod_name, topics in modules.items():
                         st.markdown(f"**📂 {mod_name}**")
-                        for i, topic_obj in enumerate(topics):
-                            # Unique Hashing to prevent DuplicateElementKey crash
-                            u_hash = hashlib.md5(f"{sem_key}_{sub_name}_{mod_name}_{topic_obj['name']}".encode()).hexdigest()
+                        for i, t in enumerate(topics):
+                            t_id = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
                             
-                            col_t, col_s = st.columns([0.7, 0.3])
-                            with col_t:
-                                st.write(f"🔹 {topic_obj['name']}")
-                            with col_s:
-                                # Progress Toggle
-                                current_idx = 0 if topic_obj['status'] == "Not Started" else 1
-                                status_val = st.selectbox("Status", ["Not Started", "Completed"], 
-                                                        index=current_idx, key=u_hash, label_visibility="collapsed")
-                                if status_val != topic_obj['status']:
-                                    topic_obj['status'] = status_val
+                            # Decision Row
+                            c1, c2, c3 = st.columns([0.6, 0.25, 0.15])
+                            with c1: st.write(f"🔹 {t['name']}")
+                            with c2:
+                                s_val = st.selectbox("Status", ["Not Started", "Completed"], 
+                                                   index=0 if t['status'] == "Not Started" else 1,
+                                                   key=t_id, label_visibility="collapsed")
+                                if s_val != t['status']:
+                                    t['status'] = s_val
                                     st.rerun()
+                            # 🧠 Linked Action: Direct connect to MindMap
+                            with c3:
+                                if st.button("🧠", key=f"act_{t_id}", help="Build MindMap"):
+                                    st.session_state.mindmap_topic = t['name']
+                                    st.toast(f"Linking {t['name']} to MindMap..."))
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
