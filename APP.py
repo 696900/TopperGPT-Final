@@ -20,27 +20,25 @@ import os
 from datetime import datetime
 from llama_index.llms.groq import Groq as LlamaGroq # Ye 'as LlamaGroq' zaroori hai
 
-# --- PASTE HERE (Imports ke thik niche) ---
-def get_clean_json(raw_text):
+# --- GLOBAL UTILITY FUNCTIONS (Must be at the top) ---
+def get_clean_json_v2(raw_text):
     try:
-        # AI ke extra text ko saaf karke sirf JSON nikalta hai
+        # Extract everything between { and } to prevent Char 1 error
         match = re.search(r'\{.*\}', raw_text, re.DOTALL)
         if match:
             return json.loads(match.group(0))
         return json.loads(raw_text)
     except:
         return {}
-    
+
 def get_semester_text_v2(doc, target_sem):
     sem_text = ""
-    # Pure PDF mein semester keyword dhoondna
     for page in doc:
         text = page.get_text()
         if target_sem.lower() in text.lower():
             sem_text += text
-        if len(sem_text) > 18000: # AI ki limit ke hisab se safe buffer
-            break
-    return sem_text    
+        if len(sem_text) > 18000: break
+    return sem_text  
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -268,11 +266,10 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: MASTER STUDY MANAGER ---
-# --- START TAB 2 ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Decision System</h2>", unsafe_allow_html=True)
     
-    # Persistent States Initialize
+    # Persistent States
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
     if 'exam_date' not in st.session_state: st.session_state.exam_date = None
     if 'temp_subjects' not in st.session_state: st.session_state.temp_subjects = []
@@ -283,7 +280,6 @@ with tab2:
         cols = st.columns([1, 1, 1, 1])
         all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
         total, done = len(all_topics), sum(1 for t in all_topics if t.get('status') == 'Completed')
-        
         with cols[0]: st.metric("Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
         with cols[1]: 
             days = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else 0
@@ -294,9 +290,9 @@ with tab2:
         with cols[3]: st.metric("Theory Topics", total)
         st.divider()
 
-    # 2. TARGETED ARCHITECT (The Engine)
+    # 2. TARGETED ARCHITECT
     with st.expander("📤 Build Your Semester Dashboard", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="master_final_assembly")
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="master_final_assembly_v2")
         
         c1, c2 = st.columns(2)
         with c1:
@@ -312,19 +308,19 @@ with tab2:
                     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                     relevant_txt = get_semester_text_v2(doc, target_sem)
                     
-                    if not relevant_txt: # Fallback agar keyword na mile
-                        relevant_txt = "".join([page.get_text() for page in doc[:40]])
+                    if not relevant_txt: relevant_txt = "".join([page.get_text() for page in doc[:40]])
 
                     llm_fast = LlamaGroq(model="llama-3.1-8b-instant", api_key=st.secrets["GROQ_API_KEY"])
                     prompt = f"Find only Main Theory subjects for '{target_sem}'. IGNORE Labs, Workshops, and Practicals. Return ONLY JSON: {{'subjects': ['Maths', 'Physics']}}. Text: {relevant_txt[:12000]}"
                     
                     res = llm_fast.complete(prompt)
+                    # FIX: Now using get_clean_json_v2 properly
                     st.session_state.temp_subjects = get_clean_json_v2(res.text).get("subjects", [])
                     
                     if st.session_state.temp_subjects:
                         st.success(f"Found {len(st.session_state.temp_subjects)} Theory Subjects!")
                     else:
-                        st.error("AI couldn't find subjects. Ensure PDF has text (not just images).")
+                        st.error("AI couldn't find subjects. Check PDF text.")
                 except Exception as e: st.error(f"Scan Error: {e}")
 
         # --- STEP 2: ELECTIVE CHOICE & DEEP SCAN ---
@@ -339,7 +335,7 @@ with tab2:
                     final_sub_list.append(s)
             
             if st.button("🚀 Step 2: Finalize My Dashboard"):
-                with st.spinner("Building isolated modules... (This avoids Subject Mixing)"):
+                with st.spinner("Building isolated modules..."):
                     try:
                         llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
@@ -348,7 +344,7 @@ with tab2:
                         master_tree = {target_sem: {}}
                         for sub in final_sub_list:
                             with st.status(f"Architecting {sub}...", expanded=False):
-                                prompt = f"Subject: {sub}. Extract ALL 6 Theory Modules and topics. STRICTLY IGNORE LABS. Return ONLY JSON: {{'Module 1': ['Topic A']}}. Context: {relevant_txt[:15000]}"
+                                prompt = f"Subject: {sub}. Extract ALL 6 Theory Modules and topics. NO LABS. Return ONLY JSON: {{'Module 1': ['Topic A']}}. Context: {relevant_txt[:15000]}"
                                 res = llm_main.complete(prompt)
                                 sub_data = get_clean_json_v2(res.text)
                                 if sub_data:
@@ -368,9 +364,7 @@ with tab2:
             for sub_name, modules in subs.items():
                 with st.expander(f"📘 {sub_name}"):
                     for mod_name, topics in modules.items():
-                        # Final Filter for Labs/Practicals
                         if any(x in mod_name.lower() for x in ["lab", "practical", "workshop", "viva"]): continue
-                        
                         st.markdown(f"**📂 {mod_name}**")
                         for i, t in enumerate(topics):
                             u_hash = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
