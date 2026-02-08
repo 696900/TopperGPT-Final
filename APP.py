@@ -246,7 +246,7 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: MASTER STUDY MANAGER ---
-# --- TAB 2: PRO STUDY MANAGER (ELECTIVE SELECTION BUILD) ---
+# --- TAB 2: PRO SEMESTER & ELECTIVE MANAGER ---
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Decision System</h2>", unsafe_allow_html=True)
     
@@ -257,19 +257,22 @@ with tab2:
 
     # 1. DASHBOARD METRICS
     if st.session_state.master_tracker:
-        cols = st.columns([1, 1, 1])
+        cols = st.columns([1, 1, 1, 1])
         all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
         total, done = len(all_topics), sum(1 for t in all_topics if t.get('status') == 'Completed')
         with cols[0]: st.metric("Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
         with cols[1]: 
             days = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else 0
             st.metric("Exam Countdown", f"{max(0, days)} Days")
-        with cols[2]: st.metric("Theory Topics", total)
+        with cols[2]:
+            daily = (total - done) // max(1, days) if days > 0 else total
+            st.metric("Daily Goal", f"{daily} Topics")
+        with cols[3]: st.metric("Total Topics", total)
         st.divider()
 
-    # 2. TARGETED ARCHITECT (Sem-Wise + Elective Handling)
+    # 2. TARGETED ARCHITECT
     with st.expander("📤 Build Your Semester Dashboard", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="pro_architect_v1")
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="final_architect_v10")
         
         c1, c2 = st.columns(2)
         with c1:
@@ -277,62 +280,65 @@ with tab2:
         with c2:
             st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
         
-        # STAGE 1: IDENTIFY SUBJECTS (Theory Only, No Labs)
+        # STEP 1: FAST SCAN FOR SUBJECTS
         if up_pdf and st.button("🔍 Step 1: Scan Theory Subjects"):
             with st.spinner("Filtering Theory Subjects... (Ignoring Labs)"):
                 try:
                     pdf_bytes = up_pdf.read()
                     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                     full_txt = "".join([page.get_text() for page in doc[:40]])
-                    llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+                    # Using 8b model for fast, low-limit scanning
+                    llm_fast = LlamaGroq(model="llama3-8b-8192", api_key=st.secrets["GROQ_API_KEY"])
 
-                    prompt = f"Find all Main Theory subjects for '{target_sem}'. IGNORE all Labs, Workshops, and Practical titles. Return ONLY JSON: {{'subjects': ['Maths', 'Elective Chemistry']}}. Context: {full_txt[:10000]}"
-                    res = llm.complete(prompt)
+                    prompt = f"Identify all MAIN THEORY subjects for '{target_sem}'. IGNORE all Labs, Workshops, and Practicals. Return ONLY JSON: {{'subjects': ['Maths', 'Elective Physics']}}. Context: {full_txt[:8000]}"
+                    res = llm_fast.complete(prompt)
                     st.session_state.temp_subjects = json.loads(res.text.strip().replace("```json", "").replace("```", "")).get("subjects", [])
+                    st.success(f"Found {len(st.session_state.temp_subjects)} Theory Subjects!")
                 except Exception as e: st.error(f"Scan Error: {e}")
 
-        # STAGE 2: ELECTIVE CHOICE & FINAL BUILD
+        # STEP 2: ELECTIVE HANDLING & DEEP ARCHITECT
         if st.session_state.temp_subjects:
-            st.write("---")
+            st.markdown("### 🛠️ Customize Your Subjects")
             final_sub_list = []
             for s in st.session_state.temp_subjects:
-                if "Elective" in s:
-                    # User Choice for Electives
-                    choice = st.text_input(f"❓ Which choice for '{s}'? (e.g., Engineering Materials)", key=f"choice_{s}")
-                    if choice: final_sub_list.append(f"{s}: {choice}")
+                if "Elective" in s or "Choice" in s:
+                    # Choice dropdown for Electives
+                    u_choice = st.text_input(f"Which option for '{s}'?", placeholder="e.g. Engineering Materials", key=f"elective_{s}")
+                    if u_choice: final_sub_list.append(f"{s}: {u_choice}")
                 else:
                     final_sub_list.append(s)
             
-            if st.button("🚀 Step 2: Architect My Full Dashboard"):
-                with st.spinner("Building isolated modules for your choices..."):
+            if st.button("🚀 Step 2: Finalize My Dashboard"):
+                with st.spinner("Building isolated modules..."):
                     try:
-                        llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+                        llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
                         full_txt = "".join([page.get_text() for page in doc[:40]])
                         
                         master_tree = {target_sem: {}}
                         for sub in final_sub_list:
                             with st.status(f"Processing {sub}...", expanded=False):
-                                prompt = f"Subject: {sub}. Extract ALL 6 Theory Modules and topics. NO LABS. Return JSON: {{'Module 1': ['Topic A']}}. Context: {full_txt[:15000]}"
-                                res = llm.complete(prompt)
+                                # Strict isolation to fix Physics/Mechanics mix-up
+                                prompt = f"Focus ONLY on '{sub}'. Extract ALL Modules (1-6) and technical topics. NO LABS. Return ONLY JSON: {{'Mod 1': ['Topic A']}}. Context: {full_txt[:15000]}"
+                                res = llm_main.complete(prompt)
                                 master_tree[target_sem][sub] = {mod: [{"name": t, "status": "Not Started"} for t in topics] 
                                                                  for mod, topics in json.loads(res.text.strip().replace("```json", "").replace("```", "")).items()}
                         
                         st.session_state.master_tracker = master_tree
-                        st.session_state.temp_subjects = [] # Clear temp
-                        st.success("Dashboard Built Successfully!")
+                        st.session_state.temp_subjects = []
+                        st.success("Dashboard Built!")
                         st.rerun()
-                    except Exception as e: st.error(f"Logic Error: {e}")
+                    except Exception as e: st.error(f"Rate Limit or Logic Error: {e}")
 
-    # 3. THE DISPLAY UI (Interactive & Actionable)
+    # 3. INTERACTIVE TRACKER UI
     if st.session_state.master_tracker:
         for sem, subs in st.session_state.master_tracker.items():
             st.markdown(f"## 🗓️ {sem}")
             for sub_name, modules in subs.items():
-                with st.expander(f"📘 {sub_name}", expanded=False):
+                with st.expander(f"📘 {sub_name}"):
                     for mod_name, topics in modules.items():
-                        # Filter out any "Lab" modules that AI might have slipped in
-                        if "Lab" in mod_name or "Practical" in mod_name: continue 
+                        # Extra safeguard against Labs
+                        if any(x in mod_name.lower() for x in ["lab", "practical", "workshop"]): continue
                         
                         st.markdown(f"**📂 {mod_name}**")
                         for i, t in enumerate(topics):
@@ -344,9 +350,10 @@ with tab2:
                                                index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
                                 if s != t['status']: t['status'] = s; st.rerun()
                             with c3:
-                                if st.button("🧠", key=f"mm_{u_hash}"):
+                                # MindMap Sync
+                                if st.button("🧠", key=f"sync_mm_{u_hash}"):
                                     st.session_state.active_topic = t['name']
-                                    st.toast(f"Sync: {t['name']} sent to MindMap!")
+                                    st.toast(f"Link: {t['name']} sent to MindMap!")
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
