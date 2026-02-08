@@ -246,99 +246,83 @@ with tab1:
         else:
             st.error("Insufficient Credits!")
     # --- TAB 2: SYLLABUS MAGIC ---
-# --- TAB 2: FULL-SCALE STUDY MANAGER (FIXED SYNTAX) ---
+# --- TAB 2: PRECISION STUDY MANAGER (FIXED PHYSICS MIX-UP) ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Study Manager</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Study Manager</h2>", unsafe_allow_html=True)
     
-    # Initialize Persistent States Safely
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
     if 'exam_date' not in st.session_state: st.session_state.exam_date = None
+    if 'active_topic' not in st.session_state: st.session_state.active_topic = None
 
-    # --- 1. PREMIUM DASHBOARD (Decision Metrics) ---
+    # --- 1. DASHBOARD ---
     if st.session_state.master_tracker:
-        cols = st.columns([1, 1, 1, 1])
+        cols = st.columns([1, 1, 1])
         all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
-        
-        total = len(all_topics)
-        done = sum(1 for t in all_topics if t.get('status') == 'Completed')
+        total, done = len(all_topics), sum(1 for t in all_topics if t.get('status') == 'Completed')
         prog = (done/total) if total > 0 else 0
         
-        with cols[0]: st.metric("Overall Mastery", f"{int(prog*100)}%")
+        with cols[0]: st.metric("Mastery", f"{int(prog*100)}%")
         with cols[1]: 
             days = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else 0
-            st.metric("Exam Countdown", f"{max(0, days)} Days")
+            st.metric("Exam in", f"{max(0, days)} Days")
         with cols[2]:
-            daily = (total - done) // max(1, days) if days > 0 else total
-            st.metric("Daily Goal", f"{daily} Topics")
-        with cols[3]:
-            st.metric("Topics Left", total - done)
+            st.metric("Target Today", f"{(total-done)//max(1, days)} Topics")
         st.divider()
 
-    # --- 2. THE NUCLEAR ARCHITECT (Deep Scan) ---
-    with st.expander("📤 Upload & Architect Complete Syllabus", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="deep_architect_final")
-        input_date = st.date_input("When do Exams start?", value=datetime.now().date())
+    # --- 2. ISOLATED ARCHITECT (Fixes Physics/Mechanics mix) ---
+    with st.expander("📤 Upload & Deep-Scan Syllabus", expanded=not st.session_state.master_tracker):
+        up_pdf = st.file_uploader("Upload University PDF", type="pdf", key="deep_architect_v7")
+        st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
         
-        if up_pdf and st.button("🚀 Architect Complete System"):
-            st.session_state.exam_date = input_date
-            with st.spinner("Extracting ALL Modules & Topics... (Deep Scanning 40+ pages)"):
+        if up_pdf and st.button("🚀 Architect All Subjects"):
+            with st.spinner("Executing Strict Subject Isolation Scan..."):
                 try:
                     doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
-                    full_txt = "".join([page.get_text() for page in doc[:40]]) # Deep scan range
+                    full_txt = "".join([page.get_text() for page in doc[:30]])
                     
                     llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                     
-                    # STERN PROMPT: Forced module extraction
+                    # STRICT PROMPT: Stops subject mixing
                     prompt = f"""
-                    Extract ALL engineering subjects, ALL Modules (1 to 6), and SPECIFIC sub-topics.
-                    Return ONLY JSON:
-                    {{"Semester X": {{"Subject Name": {{"Module 1: Name": ["Topic A", "Topic B"]}}}}}}
-                    Text Context: {full_txt[:15000]}
+                    Extract engineering subjects and their modules. 
+                    STRICT RULE: Applied Physics must ONLY contain Physics topics. 
+                    Do NOT include Engineering Mechanics topics under Physics.
+                    Return ONLY JSON: {{"Semester X": {{"Subject": {{"Module 1: Name": ["Topic A"]}}}}}}
+                    Text: {full_txt[:12000]}
                     """
-                    
                     res = llm.complete(prompt)
                     raw_json = json.loads(res.text.strip().replace("```json", "").replace("```", ""))
                     
-                    # Convert to decision-ready format
-                    processed_tree = {}
-                    for sem, subs in raw_json.items():
-                        processed_tree[sem] = {}
-                        for sub, mods in subs.items():
-                            processed_tree[sem][sub] = {}
-                            for mod, topics in mods.items():
-                                processed_tree[sem][sub][mod] = [{"name": t, "status": "Not Started"} for t in topics]
-                    
-                    st.session_state.master_tracker = processed_tree
-                    st.success("Master System Built! Check your dashboard above.")
+                    st.session_state.master_tracker = {
+                        sem: {sub: {mod: [{"name": t, "status": "Not Started"} for t in topics] 
+                        for mod, topics in mods.items()} for sub, mods in subs.items()} 
+                        for sem, subs in raw_json.items()
+                    }
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Architecture Error: {e}")
+                    st.error(f"Logic Error: {e}")
 
-    # --- 3. INTERACTIVE DISPLAY ---
+    # --- 3. THE UI (With Active MindMap Link) ---
     if st.session_state.master_tracker:
         for sem, subs in st.session_state.master_tracker.items():
             st.markdown(f"## 🗓️ {sem}")
             for sub_name, modules in subs.items():
-                with st.expander(f"📘 {sub_name}", expanded=False):
+                with st.expander(f"📘 {sub_name}"):
                     for mod_name, topics in modules.items():
                         st.markdown(f"**📂 {mod_name}**")
                         for i, t in enumerate(topics):
-                            # UNIQUE HASH: Prevents DuplicateElementKey error
-                            u_hash = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
-                            
-                            c1, c2, c3 = st.columns([0.65, 0.25, 0.1])
+                            u_key = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
+                            c1, c2, c3 = st.columns([0.6, 0.25, 0.15])
                             with c1: st.write(f"🔹 {t['name']}")
                             with c2:
-                                s_val = st.selectbox("Status", ["Not Started", "Completed"], 
-                                                   index=0 if t['status'] == "Not Started" else 1,
-                                                   key=u_hash, label_visibility="collapsed")
-                                if s_val != t['status']:
-                                    t['status'] = s_val
-                                    st.rerun()
-                            # FIXED SYNTAX: No extra bracket here
+                                s = st.selectbox("S", ["Not Started", "Completed"], key=u_key, 
+                                               index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
+                                if s != t['status']: t['status'] = s; st.rerun()
+                            # FIXED LINKING: Transfers topic to MindMap tab
                             with c3:
-                                if st.button("🧠", key=f"btn_{u_hash}", help="Connect to MindMap"):
-                                    st.toast(f"Linking {t['name']} to MindMap...")
+                                if st.button("🧠", key=f"mm_{u_key}"):
+                                    st.session_state.active_topic = t['name']
+                                    st.toast(f"Brain Sync: {t['name']} sent to MindMap!")
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
