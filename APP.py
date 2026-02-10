@@ -451,48 +451,44 @@ with tab3:
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept MindMap Architect</h2>", unsafe_allow_html=True)
     
-    # User Balance Display
-    st.markdown(f"**💰 Current Balance:** `{st.session_state.user_credits}` Credits")
-
+    # Data receiving logic from other tabs
     incoming_topic = st.session_state.get('active_topic', "")
     
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
         mm_input = st.text_input("Enter Concept for MindMap:", value=incoming_topic, key="mm_input_final")
     with col_opt:
+        # User decide karega ki PDF ka data use karna hai ya general AI knowledge
         use_pdf = st.checkbox("Use PDF Context", value=True if st.session_state.get('current_index') else False)
 
-    # Dynamic Pricing Logic
+    # Dynamic Pricing based on your rules
     cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
 
-    if st.button(f"🚀 Generate MindMap ({cost} Credits)"):
+    if st.button(f"🚀 Generate Sexy MindMap ({cost} Credits)"):
         if mm_input:
-            if check_credits(cost):
-                with st.spinner(f"Processing... Deducting {cost} credits"):
+            # CHECKING MAIN SIDEBAR CREDITS
+            if st.session_state.get('user_credits', 0) >= cost:
+                with st.spinner(f"Architecting... Deducting {cost} from your main balance"):
                     try:
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         
                         context_data = ""
                         if use_pdf and st.session_state.get('current_index'):
+                            # RAG context for deep engineering data
                             query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            pdf_res = query_engine.query(f"Explain core components and sub-topics of {mm_input}. IGNORE credits, marks.")
-                            context_data = f"Strictly use this syllabus data: {pdf_res.response}"
+                            pdf_res = query_engine.query(f"Extract key components for {mm_input}. Ignore credits/marks.")
+                            context_data = f"PDF Context: {pdf_res.response}"
 
-                        mm_prompt = f"""
-                        Create a Mermaid.js mindmap for: '{mm_input}'.
-                        {context_data}
-                        STRICT RULES:
-                        1. Return ONLY the mermaid code block.
-                        2. Focus on: Definitions, Formulas, Components.
-                        3. Structure: root(({mm_input})) -> Topic -> Subtopic.
-                        """
+                        # MindMap Logic
+                        mm_prompt = f"Create a Mermaid.js mindmap for: '{mm_input}'. {context_data} Rules: Only code block, root(({mm_input})), focus on formulas/components."
                         
                         response = llm.complete(mm_prompt)
                         mm_code = response.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # --- 💰 DEDUCT CREDITS ONLY ON SUCCESS ---
+                        # --- 💰 DEDUCTING FROM MAIN WALLET ---
                         st.session_state.user_credits -= cost
                         
+                        # Rendering the Sexy Graph
                         import streamlit.components.v1 as components
                         html_code = f"""
                         <div class="mermaid" style="display: flex; justify-content: center; background: white; padding: 20px; border-radius: 10px;">
@@ -500,21 +496,19 @@ with tab4:
                         </div>
                         <script type="module">
                             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                            mermaid.initialize({{ startOnLoad: true, theme: 'neutral' }});
+                            mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
                         </script>
                         """
                         components.html(html_code, height=600, scrolling=True)
-                        st.toast(f"Credits Used: {cost}. Remaining: {st.session_state.user_credits}")
+                        st.toast(f"Used {cost} Credits! New Balance: {st.session_state.user_credits}")
+                        st.rerun() # Refresh sidebar balance
                         
                     except Exception as e:
                         st.error(f"Generation Error: {e}")
             else:
-                st.error(f"❌ Low Credits! You need {cost} credits, but you only have {st.session_state.user_credits}.")
+                st.error(f"❌ Bhai, wallet mein credits kam hain! Need {cost} but you have {st.session_state.user_credits}.")
         else:
             st.warning("Bhai, pehle koi topic toh dalo!")
-
-    st.divider()
-    st.caption("💡 Tip: PDF context mindmaps zyada accurate hote hain par unke 8 credits lagte hain.")
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
 with tab5:
