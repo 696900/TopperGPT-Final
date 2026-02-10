@@ -22,9 +22,6 @@ from llama_index.core import VectorStoreIndex, Document, Settings
 from llama_index.llms.groq import Groq as LlamaGroq
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-# --- SETTINGS (Top of the app) ---
-from llama_index.embeddings.gemini import GeminiEmbedding
-Settings.embed_model = GeminiEmbedding(model_name="models/embedding-001", api_key=st.secrets["GOOGLE_API_KEY"]))
 # --- GLOBAL UTILITY: Laser Focus Search ---
 def get_subject_specific_text(doc, sub_name):
     sub_text = ""
