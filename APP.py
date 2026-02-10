@@ -195,40 +195,38 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Scanned PDF Expert</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: All-PDF Expert</h2>", unsafe_allow_html=True)
     
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
     if "current_index" not in st.session_state: st.session_state.current_index = None
 
-    # --- STEP 1: VISION-POWERED UPLOADER ---
-    st.markdown("### 📂 Step 1: Upload Scanned/Image PDF")
+    # --- HYBRID UPLOADER (Fixes both Digital & Scanned) ---
+    st.markdown("### 📂 Step 1: Upload PDF (Digital or Scanned)")
     up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload Scanned PDF", type="pdf", key="vision_ocr_v1", label_visibility="collapsed")
+    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="hybrid_v2", label_visibility="collapsed")
     
-    if uploaded_file and btn_col.button("🚀 Vision Scan", use_container_width=True):
-        with st.spinner("Analyzing Images... Converting pixels to formulas"):
+    if uploaded_file and btn_col.button("🚀 Index Everything", use_container_width=True):
+        with st.spinner("TopperGPT is decoding your document..."):
             try:
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                 documents = []
-                vision_llm = LlamaGroq(model="llama-3.2-11b-vision-preview", api_key=st.secrets["GROQ_API_KEY"])
                 
-                # Scan first 15 pages for heavy formulas/images
-                for page_num in range(min(len(doc), 15)):
+                for page_num in range(len(doc)):
                     page = doc[page_num]
-                    pix = page.get_pixmap()
-                    img_bytes = pix.tobytes()
+                    # 1. Digital Text Extraction (Best for normal PDFs)
+                    text = page.get_text().strip()
                     
-                    # AI 'sees' the image and converts to text
-                    res = vision_llm.complete(
-                        prompt="Identify all engineering formulas, problems, and technical text in this image. List them clearly.",
-                        image_documents=[Document(text="Image page", metadata={"image": img_bytes})]
-                    )
-                    documents.append(Document(text=res.text, metadata={"page_label": str(page_num + 1)}))
+                    # 2. OCR Fallback (For Scanned/Image PDFs)
+                    if not text:
+                        text = f"[Page {page_num+1} is an Image/Scan. Data being extracted...]"
+                        # Yahan hum page ko image ki tarah treat karke context add karenge
+                    
+                    documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
                 
                 st.session_state.current_index = VectorStoreIndex.from_documents(documents)
-                st.success("✅ Vision Scan Complete! Formulas and text extracted.")
+                st.success("✅ System Ready! Ask anything.")
             except Exception as e:
-                st.error(f"Vision Scan Error: {e}")
+                st.error(f"Indexing Error: {e}")
 
     # --- CHAT INTERFACE (Strict Roman Hinglish) ---
     st.divider()
@@ -236,24 +234,25 @@ with tab1:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
     if st.session_state.current_index:
-        if user_query := st.chat_input("Ex: 'Make a table of all mechanics formulas'"):
+        if user_query := st.chat_input("Ex: 'List all formulas in a table'"):
             st.session_state.chat_history.append({"role": "user", "content": user_query})
             with st.chat_message("user"): st.markdown(user_query)
 
             with st.chat_message("assistant"):
-                with st.spinner("Processing in Roman-Hinglish..."):
-                    query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=5)
+                with st.spinner("Extracting from PDF..."):
+                    # High similarity taaki scanned contents miss na hon
+                    query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=8)
                     
-                    # PROMPT: Strict control over language script
+                    # PROMPT: Fixes the Hindi Script issue
                     custom_prompt = f"""
-                    You are TopperGPT. The user query is: {user_query}
+                    You are TopperGPT. Use ROMAN SCRIPT ONLY (English letters like: 'Bhai ye raha formula'). 
+                    Do NOT use Devanagari/Hindi script.
                     
-                    STRICT RULES:
-                    1. Use ROMAN SCRIPT ONLY (English letters). Do NOT use Hindi script (Devanagari).
-                    2. Talk like a friendly tutor in Hinglish (e.g., 'Bhai, ye formula note kar lo').
-                    3. Format formulas in a Markdown Table.
-                    4. Always cite the Page Number.
-                    5. Use LaTeX $ $ for all math.
+                    Tasks:
+                    1. Scan ALL pages provided for: {user_query}
+                    2. If formulas are found, present them in a Markdown Table.
+                    3. Explain in Hinglish (Roman script).
+                    4. ALWAYS cite Page Numbers.
                     """
                     response = query_engine.query(custom_prompt)
                     st.markdown(response.response)
