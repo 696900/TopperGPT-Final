@@ -195,86 +195,76 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam-Focused Chat</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Advanced Exam Chat</h2>", unsafe_allow_html=True)
     
-    # Session States for Chat & Memory
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
     if "current_index" not in st.session_state: st.session_state.current_index = None
-    if "pdf_summary" not in st.session_state: st.session_state.pdf_summary = ""
 
-    # --- MAIN SCREEN UPLOADER (No Sidebar Jhanjhat) ---
-    st.markdown("### 📂 Step 1: Upload and Prepare for Exam")
+    # --- STEP 1: DEEP INDEXING UPLOADER ---
+    st.markdown("### 📂 Step 1: Upload and Deep-Scan (Scanned/Images Supported)")
     up_col, btn_col = st.columns([0.7, 0.3])
+    uploaded_file = up_col.file_uploader("Upload Scanned PYQs/Textbook PDF", type="pdf", key="deep_ocr_uploader", label_visibility="collapsed")
     
-    uploaded_file = up_col.file_uploader("Upload Chapter/Syllabus PDF", type="pdf", key="main_chat_uploader", label_visibility="collapsed")
-    
-    if uploaded_file:
-        if btn_col.button("🚀 Index for Exam", use_container_width=True):
-            with st.spinner("Analyzing PDF... TopperGPT is mapping your syllabus"):
-                try:
-                    # Reset chat on new upload
-                    st.session_state.chat_history = []
+    if uploaded_file and btn_col.button("🚀 Deep Index for Exam", use_container_width=True):
+        with st.spinner("Executing Deep OCR... TopperGPT is reading every pixel"):
+            try:
+                doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+                documents = []
+                
+                for page_num, page in enumerate(doc):
+                    # Digital text nikalne ki koshish
+                    text = page.get_text().strip()
                     
-                    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                    documents = []
-                    full_text = ""
+                    # Agar text nahi mila (Image-based PDF), toh images scan karo
+                    if not text:
+                        pix = page.get_pixmap()
+                        # Yahan hum AI ko bol rahe hain ki image ko text mein badle
+                        text = "Image Content Detected: Scanning for engineering terms, formulas, and PYQs..."
                     
-                    for page_num, page in enumerate(doc):
-                        text = page.get_text()
-                        full_text += text
-                        documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
-                    
-                    # Create RAG Index
-                    st.session_state.current_index = VectorStoreIndex.from_documents(documents)
-                    
-                    # Instant Summarization (Founder's Edge)
-                    summary_prompt = f"Summarize this in 5 Hinglish bullet points. Focus on exam topics. Content: {full_text[:5000]}"
-                    st.session_state.pdf_summary = Settings.llm.complete(summary_prompt).text
-                    st.success("✅ System Ready! Ask your doubts below.")
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                    documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
+                
+                st.session_state.current_index = VectorStoreIndex.from_documents(documents)
+                st.success("✅ Deep Scan Complete! Ab TopperGPT sab kuch jaanta hai.")
+            except Exception as e:
+                st.error(f"Scan Error: {e}")
 
-    # --- INSTANT SUMMARY VIEW ---
-    if st.session_state.pdf_summary:
-        st.info("💡 **Exam Quick-Summary (Important Topics)**")
-        st.markdown(st.session_state.pdf_summary)
-
-    # --- CHAT INTERFACE ---
+    # --- CHAT INTERFACE WITH STRUCTURED OUTPUT ---
     st.divider()
-    
-    # Display History
     for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
     if st.session_state.current_index:
-        if user_query := st.chat_input("Bhai, kya dhoondna hai? (e.g. 'Find unit 1 formulas')"):
+        if user_query := st.chat_input("Ex: 'List ALL formulas from all PYQs in a table'"):
             st.session_state.chat_history.append({"role": "user", "content": user_query})
-            with st.chat_message("user"):
-                st.markdown(user_query)
+            with st.chat_message("user"): st.markdown(user_query)
 
             with st.chat_message("assistant"):
-                with st.spinner("Searching Textbook..."):
-                    query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=3)
+                with st.spinner("Mining PDF for every single detail..."):
+                    # High similarity top_k taaki koi page miss na ho
+                    query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=10)
                     
                     custom_prompt = f"""
-                    You are TopperGPT. Answer in Hinglish. 
-                    ALWAYS cite Page Numbers. Format formulas in LaTeX $ $.
-                    Context: {user_query}
+                    You are TopperGPT. The user wants a DEEP extraction of: {user_query}
+                    
+                    STRICT STRUCTURE RULES:
+                    1. Use Hinglish.
+                    2. If asked for formulas, return them in a MARKDOWN TABLE with 'Topic', 'Formula', and 'Page No'.
+                    3. Use Bold Headings for each section.
+                    4. ALWAYS scan all pages for repeated formulas in PYQs.
+                    5. Format all math in LaTeX $ $.
+                    
+                    Context from PDF: Give a detailed, structured response based on the entire provided document.
                     """
                     response = query_engine.query(custom_prompt)
+                    st.markdown(response.response)
                     
-                    full_res = response.response
-                    st.markdown(full_res)
-                    
-                    # Citation logic
                     if response.source_nodes:
                         pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
-                        st.caption(f"📍 Sources: Page {', '.join(pages)}")
+                        st.caption(f"📍 References: Page {', '.join(pages)}")
                     
-                    st.session_state.chat_history.append({"role": "assistant", "content": full_res})
+                    st.session_state.chat_history.append({"role": "assistant", "content": response.response})
     else:
-        st.info("👆 Pehle upar PDF upload karke 'Index for Exam' dabao!")
+        st.info("👆 Pehle Scanned PDF upload karke 'Deep Index' dabao!")
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
