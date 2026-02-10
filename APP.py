@@ -38,7 +38,7 @@ def get_semester_text_v2(doc, target_sem):
         if target_sem.lower() in text.lower():
             sem_text += text
         if len(sem_text) > 18000: break
-    return sem_text  
+    return sem_text
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -265,7 +265,7 @@ with tab1:
                     st.error("AI service is busy.")
         else:
             st.error("Insufficient Credits!")
-    # --- TAB 2: MASTER STUDY MANAGER ---
+    
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Decision System</h2>", unsafe_allow_html=True)
     
@@ -377,7 +377,7 @@ with tab2:
                             with c3:
                                 if st.button("🧠", key=f"mm_btn_{u_hash}"):
                                     st.session_state.active_topic = t['name']
-                                    st.toast(f"Brain Sync: {t['name']} sent to MindMap!")
+                                    st.toast(f"Brain Sync: {t['name']} sent to MindMap!")    
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
