@@ -18,7 +18,13 @@ import textwrap
 import hashlib
 import os
 from datetime import datetime
-from llama_index.llms.groq import Groq as LlamaGroq # Ye 'as LlamaGroq' zaroori hai
+from llama_index.core import VectorStoreIndex, Document, Settings
+from llama_index.llms.groq import Groq as LlamaGroq
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+# --- SETTINGS (Top of the app) ---
+Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
 
 # --- GLOBAL UTILITY: Laser Focus Search ---
 def get_subject_specific_text(doc, sub_name):
@@ -188,80 +194,98 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART NOTE ANALYSIS (LOCAL SYNC - NO 404 ERROR) ---
 with tab1:
-    st.subheader("📚 Smart Note Analysis")
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam-Focused Chat</h2>", unsafe_allow_html=True)
     
-    # Professional English Header
-    st.markdown("""
-    <div style="background-color: #1e2530; padding: 15px; border-radius: 10px; border: 1px solid #4CAF50; margin-bottom: 20px;">
-        <p style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">💳 Service & Pricing Policy:</p>
-        <ul style="color: #ffffff; font-size: 13px; line-height: 1.5;">
-            <li><b>3 Credits:</b> To Sync and Analyze any Document (Text-based PDF).</li>
-            <li><b>Free Access:</b> First <b>3 Questions</b> are FREE per document sync.</li>
-            <li><b>1 Credit:</b> Charged per question starting from the 4th interaction.</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
+    # Session States for Chat & Memory
+    if "chat_history" not in st.session_state: st.session_state.chat_history = []
+    if "current_index" not in st.session_state: st.session_state.current_index = None
+    if "pdf_summary" not in st.session_state: st.session_state.pdf_summary = ""
 
-    if "pdf_content" not in st.session_state: st.session_state.pdf_content = ""
-    if "current_file" not in st.session_state: st.session_state.current_file = None
-    if "ques_count" not in st.session_state: st.session_state.ques_count = 0
+    # 1. SIDEBAR / TOP SECTION: PDF UPLOADER
+    with st.sidebar:
+        st.header("📂 Knowledge Base")
+        uploaded_file = st.file_uploader("Upload Chapter/Syllabus PDF", type="pdf", key="chat_uploader")
+        
+        if uploaded_file and st.button("🚀 Index for Exam"):
+            with st.spinner("Analyzing PDF... Creating Exam Map"):
+                doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+                documents = []
+                full_text = ""
+                
+                for page_num, page in enumerate(doc):
+                    text = page.get_text()
+                    full_text += text
+                    # Har page ka metadata store kar rahe hain taaki "Cite the Page" kaam kare
+                    documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
+                
+                st.session_state.current_index = VectorStoreIndex.from_documents(documents)
+                
+                # Instant Summarization (Founder's Edge)
+                summary_prompt = f"Summarize this engineering content in 5 short, bullet points. Focus on what is most likely to be asked in exams. Use Hinglish. Content: {full_text[:5000]}"
+                st.session_state.pdf_summary = Settings.llm.complete(summary_prompt).text
+                st.success("PDF Loaded!")
 
-    up_notes = st.file_uploader("Upload Notes (PDF Only)", type=["pdf"], key="no_cloud_sync_v5")
-    
-    if up_notes and st.session_state.current_file != up_notes.name:
-        if st.session_state.user_data['credits'] >= 3:
-            with st.spinner("Syncing locally... (Bypassing Gemini Cloud)"):
-                try:
-                    # LOCAL EXTRACTION (No API Call = No 404)
-                    reader = PdfReader(io.BytesIO(up_notes.read()))
-                    raw_text = ""
-                    for page in reader.pages[:50]: # First 50 pages
-                        raw_text += (page.extract_text() or "") + "\n"
-                    
-                    if len(raw_text.strip()) > 100:
-                        st.session_state.pdf_content = raw_text
-                        st.session_state.current_file = up_notes.name
-                        st.session_state.ques_count = 0
-                        st.session_state.user_data['credits'] -= 3
-                        st.success(f"✅ '{up_notes.name}' Synced Locally!")
-                        st.rerun()
-                    else:
-                        st.error("Text extraction failed. This PDF seems to be a scanned image.")
-                        st.info("Bhai, scanned PDF ke liye Cloud OCR chahiye hoga. Tab tak text-based PDF try kar.")
-                except Exception as e:
-                    st.error(f"Sync Error: {e}")
-        else:
-            st.error("Insufficient Credits!")
+    # 2. INSTANT SUMMARY VIEW
+    if st.session_state.pdf_summary:
+        with st.expander("✨ Exam Quick-Summary (Important Topics)", expanded=True):
+            st.markdown(st.session_state.pdf_summary)
 
+    # 3. CHAT INTERFACE (With Citation & Hinglish)
     st.divider()
     
-    # 3. HYBRID CHAT (Using Groq - 100% Stable)
-    ui_chat = st.chat_input("Ask Professor GPT anything...")
-    
-    if ui_chat:
-        cost = 1 if (st.session_state.pdf_content and st.session_state.ques_count >= 3) else 0
-        if st.session_state.user_data['credits'] >= cost:
-            with st.spinner("Professor GPT is thinking..."):
-                # We use Groq (Llama 3.3) which is working perfectly for you
-                context = st.session_state.pdf_content[:15000] if st.session_state.pdf_content else "General knowledge."
-                prompt = f"Role: Expert Engineering Professor. Context: {context}\n\nStudent Question: {ui_chat}"
+    # Display Chat History
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    if st.session_state.current_index:
+        if user_query := st.chat_input("Ask: 'Explain Unit 2 in Hinglish' or 'Find formulas'"):
+            # Add User Query
+            st.session_state.chat_history.append({"role": "user", "content": user_query})
+            with st.chat_message("user"):
+                st.markdown(user_query)
+
+            # Generate Response
+            with st.chat_message("assistant"):
+                # Secret Sauce: Force AI to cite page numbers and use Hinglish
+                query_engine = st.session_state.current_index.as_query_engine(
+                    similarity_top_k=3,
+                    response_mode="compact"
+                )
                 
-                try:
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", 
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    st.session_state.user_data['credits'] -= cost
-                    if st.session_state.pdf_content: st.session_state.ques_count += 1
-                    st.markdown(f"**Professor GPT:**\n\n{res.choices[0].message.content}")
-                except Exception as e:
-                    st.error("AI service is busy.")
-        else:
-            st.error("Insufficient Credits!")
-    
+                custom_prompt = f"""
+                You are TopperGPT, a helpful engineering tutor. 
+                Answer the user query based ONLY on the provided PDF context.
+                RULES:
+                1. Use 'Hinglish' (Mix of Hindi and English) for better understanding.
+                2. ALWAYS mention the Page Number(s) from where you got the info.
+                3. If it's a formula, wrap it in LaTeX $ $.
+                4. If the answer is not in the PDF, say "Bhai, ye is PDF mein nahi hai."
+                User Query: {user_query}
+                """
+                
+                response = query_engine.query(custom_prompt)
+                
+                # Display and Save Response
+                full_res = response.response
+                st.markdown(full_res)
+                
+                # Cite sources at the bottom
+                if response.source_nodes:
+                    pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
+                    st.caption(f"📍 Sources: Page {', '.join(pages)}")
+                
+                st.session_state.chat_history.append({"role": "assistant", "content": full_res})
+    else:
+        st.warning("👈 Pehle PDF upload karke 'Index for Exam' dabao, tabhi chat chalu hogi!")
+
+    # Shareable Notes (Business Mindset)
+    if st.session_state.chat_history:
+        if st.button("📥 Export Chat as Study Notes"):
+            # Yahan hum simple text file export de sakte hain abhi ke liye
+            chat_text = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.chat_history])
+            st.download_button("Download Notes", chat_text, file_name="TopperGPT_Notes.txt")
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
