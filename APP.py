@@ -23,9 +23,8 @@ from llama_index.llms.groq import Groq as LlamaGroq
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 # --- SETTINGS (Top of the app) ---
-Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
-Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-
+from llama_index.embeddings.gemini import GeminiEmbedding
+Settings.embed_model = GeminiEmbedding(model_name="models/embedding-001", api_key=st.secrets["GOOGLE_API_KEY"]))
 # --- GLOBAL UTILITY: Laser Focus Search ---
 def get_subject_specific_text(doc, sub_name):
     sub_text = ""
@@ -451,46 +450,46 @@ with tab3:
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept MindMap Architect</h2>", unsafe_allow_html=True)
     
-    # Data receiving logic from other tabs
+    # 💰 WALLET SYNC: Sidebar balance use karo
+    current_bal = st.session_state.get('user_credits', 0)
+    st.markdown(f"**💰 Wallet Balance:** `{current_bal}` Credits")
+
     incoming_topic = st.session_state.get('active_topic', "")
-    
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Enter Concept for MindMap:", value=incoming_topic, key="mm_input_final")
+        mm_input = st.text_input("Concept:", value=incoming_topic, key="mm_final")
     with col_opt:
-        # User decide karega ki PDF ka data use karna hai ya general AI knowledge
-        use_pdf = st.checkbox("Use PDF Context", value=True if st.session_state.get('current_index') else False)
+        use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
-    # Dynamic Pricing based on your rules
+    # Dynamic Pricing Logic
     cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
 
-    if st.button(f"🚀 Generate Sexy MindMap ({cost} Credits)"):
+    if st.button(f"🚀 Build Sexy MindMap ({cost} Credits)"):
         if mm_input:
-            # CHECKING MAIN SIDEBAR CREDITS
-            if st.session_state.get('user_credits', 0) >= cost:
-                with st.spinner(f"Architecting... Deducting {cost} from your main balance"):
+            if current_bal >= cost:
+                with st.spinner("Decoding PDF & Pixels..."):
                     try:
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         
-                        context_data = ""
+                        # --- OCR/PDF CONTEXT FIX ---
+                        context = ""
                         if use_pdf and st.session_state.get('current_index'):
-                            # RAG context for deep engineering data
-                            query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            pdf_res = query_engine.query(f"Extract key components for {mm_input}. Ignore credits/marks.")
-                            context_data = f"PDF Context: {pdf_res.response}"
+                            qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
+                            # Deep search taaki scanned images ka data mile
+                            context = qe.query(f"Extract all technical sub-topics and formulas for {mm_input}.").response
 
-                        # MindMap Logic
-                        mm_prompt = f"Create a Mermaid.js mindmap for: '{mm_input}'. {context_data} Rules: Only code block, root(({mm_input})), focus on formulas/components."
+                        # MindMap Prompt
+                        prompt = f"Create a Mermaid.js mindmap for: '{mm_input}'. Context: {context}. Rules: Only code block, root(({mm_input})), Roman script only."
                         
-                        response = llm.complete(mm_prompt)
-                        mm_code = response.text.replace("```mermaid", "").replace("```", "").strip()
+                        res = llm.complete(prompt)
+                        mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # --- 💰 DEDUCTING FROM MAIN WALLET ---
+                        # 💰 DEDUCT FROM MAIN SIDEBAR BAL
                         st.session_state.user_credits -= cost
                         
-                        # Rendering the Sexy Graph
+                        # Display sexy graph
                         import streamlit.components.v1 as components
-                        html_code = f"""
+                        html = f"""
                         <div class="mermaid" style="display: flex; justify-content: center; background: white; padding: 20px; border-radius: 10px;">
                         {mm_code}
                         </div>
@@ -499,16 +498,13 @@ with tab4:
                             mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
                         </script>
                         """
-                        components.html(html_code, height=600, scrolling=True)
-                        st.toast(f"Used {cost} Credits! New Balance: {st.session_state.user_credits}")
-                        st.rerun() # Refresh sidebar balance
+                        components.html(html, height=600)
+                        st.rerun() # To update sidebar credit UI
                         
                     except Exception as e:
-                        st.error(f"Generation Error: {e}")
+                        st.error(f"Error: {e}")
             else:
-                st.error(f"❌ Bhai, wallet mein credits kam hain! Need {cost} but you have {st.session_state.user_credits}.")
-        else:
-            st.warning("Bhai, pehle koi topic toh dalo!")
+                st.error(f"Bhai wallet khali hai! Need {cost} credits.")
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
 with tab5:
