@@ -202,90 +202,79 @@ with tab1:
     if "current_index" not in st.session_state: st.session_state.current_index = None
     if "pdf_summary" not in st.session_state: st.session_state.pdf_summary = ""
 
-    # 1. SIDEBAR / TOP SECTION: PDF UPLOADER
-    with st.sidebar:
-        st.header("📂 Knowledge Base")
-        uploaded_file = st.file_uploader("Upload Chapter/Syllabus PDF", type="pdf", key="chat_uploader")
-        
-        if uploaded_file and st.button("🚀 Index for Exam"):
-            with st.spinner("Analyzing PDF... Creating Exam Map"):
-                doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                documents = []
-                full_text = ""
-                
-                for page_num, page in enumerate(doc):
-                    text = page.get_text()
-                    full_text += text
-                    # Har page ka metadata store kar rahe hain taaki "Cite the Page" kaam kare
-                    documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
-                
-                st.session_state.current_index = VectorStoreIndex.from_documents(documents)
-                
-                # Instant Summarization (Founder's Edge)
-                summary_prompt = f"Summarize this engineering content in 5 short, bullet points. Focus on what is most likely to be asked in exams. Use Hinglish. Content: {full_text[:5000]}"
-                st.session_state.pdf_summary = Settings.llm.complete(summary_prompt).text
-                st.success("PDF Loaded!")
+    # --- MAIN SCREEN UPLOADER (No Sidebar Jhanjhat) ---
+    st.markdown("### 📂 Step 1: Upload and Prepare for Exam")
+    up_col, btn_col = st.columns([0.7, 0.3])
+    
+    uploaded_file = up_col.file_uploader("Upload Chapter/Syllabus PDF", type="pdf", key="main_chat_uploader", label_visibility="collapsed")
+    
+    if uploaded_file:
+        if btn_col.button("🚀 Index for Exam", use_container_width=True):
+            with st.spinner("Analyzing PDF... TopperGPT is mapping your syllabus"):
+                try:
+                    # Reset chat on new upload
+                    st.session_state.chat_history = []
+                    
+                    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+                    documents = []
+                    full_text = ""
+                    
+                    for page_num, page in enumerate(doc):
+                        text = page.get_text()
+                        full_text += text
+                        documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
+                    
+                    # Create RAG Index
+                    st.session_state.current_index = VectorStoreIndex.from_documents(documents)
+                    
+                    # Instant Summarization (Founder's Edge)
+                    summary_prompt = f"Summarize this in 5 Hinglish bullet points. Focus on exam topics. Content: {full_text[:5000]}"
+                    st.session_state.pdf_summary = Settings.llm.complete(summary_prompt).text
+                    st.success("✅ System Ready! Ask your doubts below.")
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
-    # 2. INSTANT SUMMARY VIEW
+    # --- INSTANT SUMMARY VIEW ---
     if st.session_state.pdf_summary:
-        with st.expander("✨ Exam Quick-Summary (Important Topics)", expanded=True):
-            st.markdown(st.session_state.pdf_summary)
+        st.info("💡 **Exam Quick-Summary (Important Topics)**")
+        st.markdown(st.session_state.pdf_summary)
 
-    # 3. CHAT INTERFACE (With Citation & Hinglish)
+    # --- CHAT INTERFACE ---
     st.divider()
     
-    # Display Chat History
+    # Display History
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
     if st.session_state.current_index:
-        if user_query := st.chat_input("Ask: 'Explain Unit 2 in Hinglish' or 'Find formulas'"):
-            # Add User Query
+        if user_query := st.chat_input("Bhai, kya dhoondna hai? (e.g. 'Find unit 1 formulas')"):
             st.session_state.chat_history.append({"role": "user", "content": user_query})
             with st.chat_message("user"):
                 st.markdown(user_query)
 
-            # Generate Response
             with st.chat_message("assistant"):
-                # Secret Sauce: Force AI to cite page numbers and use Hinglish
-                query_engine = st.session_state.current_index.as_query_engine(
-                    similarity_top_k=3,
-                    response_mode="compact"
-                )
-                
-                custom_prompt = f"""
-                You are TopperGPT, a helpful engineering tutor. 
-                Answer the user query based ONLY on the provided PDF context.
-                RULES:
-                1. Use 'Hinglish' (Mix of Hindi and English) for better understanding.
-                2. ALWAYS mention the Page Number(s) from where you got the info.
-                3. If it's a formula, wrap it in LaTeX $ $.
-                4. If the answer is not in the PDF, say "Bhai, ye is PDF mein nahi hai."
-                User Query: {user_query}
-                """
-                
-                response = query_engine.query(custom_prompt)
-                
-                # Display and Save Response
-                full_res = response.response
-                st.markdown(full_res)
-                
-                # Cite sources at the bottom
-                if response.source_nodes:
-                    pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
-                    st.caption(f"📍 Sources: Page {', '.join(pages)}")
-                
-                st.session_state.chat_history.append({"role": "assistant", "content": full_res})
+                with st.spinner("Searching Textbook..."):
+                    query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=3)
+                    
+                    custom_prompt = f"""
+                    You are TopperGPT. Answer in Hinglish. 
+                    ALWAYS cite Page Numbers. Format formulas in LaTeX $ $.
+                    Context: {user_query}
+                    """
+                    response = query_engine.query(custom_prompt)
+                    
+                    full_res = response.response
+                    st.markdown(full_res)
+                    
+                    # Citation logic
+                    if response.source_nodes:
+                        pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
+                        st.caption(f"📍 Sources: Page {', '.join(pages)}")
+                    
+                    st.session_state.chat_history.append({"role": "assistant", "content": full_res})
     else:
-        st.warning("👈 Pehle PDF upload karke 'Index for Exam' dabao, tabhi chat chalu hogi!")
-
-    # Shareable Notes (Business Mindset)
-    if st.session_state.chat_history:
-        if st.button("📥 Export Chat as Study Notes"):
-            # Yahan hum simple text file export de sakte hain abhi ke liye
-            chat_text = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.chat_history])
-            st.download_button("Download Notes", chat_text, file_name="TopperGPT_Notes.txt")
+        st.info("👆 Pehle upar PDF upload karke 'Index for Exam' dabao!")
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
