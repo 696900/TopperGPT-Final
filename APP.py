@@ -20,30 +20,21 @@ import os
 from datetime import datetime
 from llama_index.llms.groq import Groq as LlamaGroq # Ye 'as LlamaGroq' zaroori hai
 
-# --- UPGRADED GLOBAL UTILITY FUNCTIONS ---
-def get_clean_json_v2(raw_text):
-    try:
-        match = re.search(r'\{.*\}', raw_text, re.DOTALL)
-        if match:
-            return json.loads(match.group(0))
-        return json.loads(raw_text)
-    except:
-        return {}
-
-def get_semester_text_v2(doc, target_sem):
-    sem_text = ""
-    # Strategy: Find pages that mention the Semester AND "Scheme" or "Syllabus"
+# --- GLOBAL UTILITY: Laser Focus Search ---
+def get_subject_specific_text(doc, sub_name):
+    sub_text = ""
+    start_found = False
     for page in doc:
         text = page.get_text()
-        # Clean target_sem for better matching (e.g., "Semester I" -> "Semester I")
-        if target_sem.lower() in text.lower():
-            sem_text += text
-        if len(sem_text) > 25000: break # Increased buffer
-    
-    # Fallback: Agar keyword nahi mila, toh first 25 pages uthao (Index pages)
-    if not sem_text:
-        sem_text = "".join([page.get_text() for page in doc[:25]])
-    return sem_text
+        # Agar subject ka naam mil jaye toh wahan se reading shuru karo
+        if sub_name.lower() in text.lower():
+            start_found = True
+        
+        if start_found:
+            sub_text += text
+            # Sirf 4-5 pages uthao, taaki doosra subject na ghuse
+            if len(sub_text) > 12000: break 
+    return sub_text
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
@@ -272,98 +263,73 @@ with tab1:
             st.error("Insufficient Credits!")
     
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Master Syllabus Decision System</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
-    # Persistent States
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
     if 'exam_date' not in st.session_state: st.session_state.exam_date = None
     if 'temp_subjects' not in st.session_state: st.session_state.temp_subjects = []
-    if 'active_topic' not in st.session_state: st.session_state.active_topic = ""
 
-    # 1. DASHBOARD METRICS
+    # 1. DASHBOARD
     if st.session_state.master_tracker:
-        cols = st.columns([1, 1, 1, 1])
-        all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
-        total, done = len(all_topics), sum(1 for t in all_topics if t.get('status') == 'Completed')
-        with cols[0]: st.metric("Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
+        cols = st.columns([1, 1, 1])
+        all_t = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
+        total, done = len(all_t), sum(1 for t in all_t if t.get('status') == 'Completed')
+        with cols[0]: st.metric("Overall Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
         with cols[1]: 
             days = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else 0
-            st.metric("Countdown", f"{max(0, days)} Days")
-        with cols[2]:
-            daily = (total - done) // max(1, days) if days > 0 and (total-done)>0 else "Done"
-            st.metric("Daily Target", f"{daily} Topics")
-        with cols[3]: st.metric("Theory Topics", total)
+            st.metric("Exam Countdown", f"{max(0, days)} Days")
+        with cols[2]: st.metric("Theory Topics", total)
         st.divider()
 
-    # 2. TARGETED ARCHITECT
-    with st.expander("📤 Build Your Semester Dashboard", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="master_final_assembly_v3")
+    # 2. LASER ARCHITECT
+    with st.expander("📤 Build Clean Semester Dashboard", expanded=not st.session_state.master_tracker):
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="laser_v1")
         
         c1, c2 = st.columns(2)
         with c1:
-            # Added more Sem variations to help AI
-            target_sem = st.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V", "Semester VI"])
+            target_sem = st.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV"])
         with c2:
             st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
         
-        # --- STEP 1: SCAN FOR THEORY SUBJECTS ---
-        if up_pdf and st.button("🔍 Step 1: Scan Theory Subjects"):
-            with st.spinner(f"Locating {target_sem}... This might take a moment."):
+        # STEP 1: SCAN FOR SUBJECTS
+        if up_pdf and st.button("🔍 Step 1: Detect Subjects"):
+            with st.spinner("Finding Theory Subjects..."):
                 try:
                     pdf_bytes = up_pdf.read()
                     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                    # Sirf Semester specific text dhoondo
                     relevant_txt = get_semester_text_v2(doc, target_sem)
-
+                    
                     llm_fast = LlamaGroq(model="llama-3.1-8b-instant", api_key=st.secrets["GROQ_API_KEY"])
-                    
-                    # More descriptive prompt for the 8b model
-                    prompt = f"""
-                    You are an Engineering Syllabus Expert. 
-                    From the text below, list ONLY the main Theory Subjects for '{target_sem}'.
-                    STRICT RULES:
-                    - IGNORE Labs, Practicals, and Workshops.
-                    - IGNORE Non-credit courses.
-                    - Provide Subject Names only.
-                    Return ONLY a JSON: {{"subjects": ["Maths", "Physics"]}}
-                    
-                    Text: {relevant_txt[:15000]}
-                    """
-                    
+                    prompt = f"List MAIN THEORY subjects for '{target_sem}'. IGNORE Labs. Return JSON: {{'subjects': ['Maths', 'Physics']}}. Text: {relevant_txt[:8000]}"
                     res = llm_fast.complete(prompt)
                     st.session_state.temp_subjects = get_clean_json_v2(res.text).get("subjects", [])
-                    
-                    if st.session_state.temp_subjects:
-                        st.success(f"Found {len(st.session_state.temp_subjects)} Theory Subjects!")
-                    else:
-                        st.error("AI couldn't find subjects. Try Selecting a different Semester name format or re-upload.")
+                    st.success(f"Detected: {st.session_state.temp_subjects}")
                 except Exception as e: st.error(f"Scan Error: {e}")
 
-        # --- STEP 2: ELECTIVE CHOICE & DEEP SCAN ---
+        # STEP 2: ISOLATED BUILDING (Fixes image_01c753 mixup)
         if st.session_state.temp_subjects:
-            st.markdown("### 🛠️ Step 2: Finalize Subjects")
-            final_sub_list = []
+            st.markdown("---")
+            final_list = []
             for s in st.session_state.temp_subjects:
-                if any(x in s.lower() for x in ["elective", "choice", "group", "optional"]):
-                    choice = st.text_input(f"Which elective for '{s}'?", placeholder="Enter your choice name...", key=f"el_choice_{s}")
-                    if choice: final_sub_list.append(f"{s}: {choice}")
-                else:
-                    # Allow user to delete labs if AI made a mistake
-                    col_s, col_d = st.columns([0.8, 0.2])
-                    col_s.write(f"✅ {s}")
-                    if not col_d.checkbox("Skip", key=f"skip_{s}"):
-                        final_sub_list.append(s)
+                if any(x in s.lower() for x in ["elective", "choice"]):
+                    choice = st.text_input(f"Path for '{s}'?", key=f"el_laser_{s}")
+                    if choice: final_list.append(f"{s}: {choice}")
+                else: final_list.append(s)
             
-            if st.button("🚀 Step 3: Architect Dashboard"):
-                with st.spinner("Deep scanning modules for selected subjects..."):
+            if st.button("🚀 Step 2: Architect Clean Dashboard"):
+                with st.spinner("Building isolated subject trees..."):
                     try:
                         llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
-                        relevant_txt = get_semester_text_v2(doc, target_sem)
                         
                         master_tree = {target_sem: {}}
-                        for sub in final_sub_list:
-                            with st.status(f"Mapping Modules for {sub}...", expanded=False):
-                                prompt = f"Subject: {sub}. Extract all Theory Modules and their topics. IGNORE LABS. Return ONLY JSON: {{'Module 1': ['Topic A', 'Topic B']}}. Context: {relevant_txt[:18000]}"
+                        for sub in final_list:
+                            with st.status(f"Scanning {sub} ONLY...", expanded=False):
+                                # LASER FOCUS: Sirf is subject ka text nikalo
+                                sub_context = get_subject_specific_text(doc, sub.split(':')[0])
+                                
+                                prompt = f"Focus ONLY on '{sub}'. Extract 6 Modules and topics. NO MIXING. Return JSON: {{'Mod 1': ['Topic A']}}. Text: {sub_context[:12000]}"
                                 res = llm_main.complete(prompt)
                                 sub_data = get_clean_json_v2(res.text)
                                 if sub_data:
@@ -372,33 +338,25 @@ with tab2:
                         
                         st.session_state.master_tracker = master_tree
                         st.session_state.temp_subjects = []
-                        st.success("Dashboard Built Successfully!")
+                        st.success("Clean Dashboard Built!")
                         st.rerun()
-                    except Exception as e: st.error(f"Processing Error: {e}")
+                    except Exception as e: st.error(f"Error: {e}")
 
-    # --- 3. INTERACTIVE DASHBOARD UI ---
+    # 3. INTERACTIVE UI
     if st.session_state.master_tracker:
         for sem, subs in st.session_state.master_tracker.items():
-            st.markdown(f"## 🗓️ {sem}")
             for sub_name, modules in subs.items():
-                with st.expander(f"📘 {sub_name}", expanded=False):
+                with st.expander(f"📘 {sub_name}"):
                     for mod_name, topics in modules.items():
-                        if any(x in mod_name.lower() for x in ["lab", "practical", "workshop", "viva"]): continue
                         st.markdown(f"**📂 {mod_name}**")
                         for i, t in enumerate(topics):
                             u_hash = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
-                            c1, c2, c3 = st.columns([0.65, 0.25, 0.1])
+                            c1, c2 = st.columns([0.7, 0.3])
                             with c1: st.write(f"🔹 {t['name']}")
                             with c2:
                                 s = st.selectbox("S", ["Not Started", "Completed"], key=u_hash, 
                                                index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
-                                if s != t['status']: 
-                                    t['status'] = s
-                                    st.rerun()
-                            with c3:
-                                if st.button("🧠", key=f"mm_btn_{u_hash}"):
-                                    st.session_state.active_topic = t['name']
-                                    st.toast(f"Brain Sync: {t['name']} sent to MindMap!")  
+                                if s != t['status']: t['status'] = s; st.rerun()  
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
