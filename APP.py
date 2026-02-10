@@ -20,10 +20,9 @@ import os
 from datetime import datetime
 from llama_index.llms.groq import Groq as LlamaGroq # Ye 'as LlamaGroq' zaroori hai
 
-# --- GLOBAL UTILITY FUNCTIONS (Must be at the top) ---
+# --- UPGRADED GLOBAL UTILITY FUNCTIONS ---
 def get_clean_json_v2(raw_text):
     try:
-        # Extract everything between { and } to prevent Char 1 error
         match = re.search(r'\{.*\}', raw_text, re.DOTALL)
         if match:
             return json.loads(match.group(0))
@@ -33,11 +32,17 @@ def get_clean_json_v2(raw_text):
 
 def get_semester_text_v2(doc, target_sem):
     sem_text = ""
+    # Strategy: Find pages that mention the Semester AND "Scheme" or "Syllabus"
     for page in doc:
         text = page.get_text()
+        # Clean target_sem for better matching (e.g., "Semester I" -> "Semester I")
         if target_sem.lower() in text.lower():
             sem_text += text
-        if len(sem_text) > 18000: break
+        if len(sem_text) > 25000: break # Increased buffer
+    
+    # Fallback: Agar keyword nahi mila, toh first 25 pages uthao (Index pages)
+    if not sem_text:
+        sem_text = "".join([page.get_text() for page in doc[:25]])
     return sem_text
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
@@ -285,66 +290,80 @@ with tab2:
             days = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else 0
             st.metric("Countdown", f"{max(0, days)} Days")
         with cols[2]:
-            daily = (total - done) // max(1, days) if days > 0 else total
+            daily = (total - done) // max(1, days) if days > 0 and (total-done)>0 else "Done"
             st.metric("Daily Target", f"{daily} Topics")
         with cols[3]: st.metric("Theory Topics", total)
         st.divider()
 
     # 2. TARGETED ARCHITECT
     with st.expander("📤 Build Your Semester Dashboard", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="master_final_assembly_v2")
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="master_final_assembly_v3")
         
         c1, c2 = st.columns(2)
         with c1:
-            target_sem = st.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V"])
+            # Added more Sem variations to help AI
+            target_sem = st.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V", "Semester VI"])
         with c2:
             st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
         
         # --- STEP 1: SCAN FOR THEORY SUBJECTS ---
         if up_pdf and st.button("🔍 Step 1: Scan Theory Subjects"):
-            with st.spinner(f"Locating {target_sem} and filtering subjects..."):
+            with st.spinner(f"Locating {target_sem}... This might take a moment."):
                 try:
                     pdf_bytes = up_pdf.read()
                     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                     relevant_txt = get_semester_text_v2(doc, target_sem)
-                    
-                    if not relevant_txt: relevant_txt = "".join([page.get_text() for page in doc[:40]])
 
                     llm_fast = LlamaGroq(model="llama-3.1-8b-instant", api_key=st.secrets["GROQ_API_KEY"])
-                    prompt = f"Find only Main Theory subjects for '{target_sem}'. IGNORE Labs, Workshops, and Practicals. Return ONLY JSON: {{'subjects': ['Maths', 'Physics']}}. Text: {relevant_txt[:12000]}"
+                    
+                    # More descriptive prompt for the 8b model
+                    prompt = f"""
+                    You are an Engineering Syllabus Expert. 
+                    From the text below, list ONLY the main Theory Subjects for '{target_sem}'.
+                    STRICT RULES:
+                    - IGNORE Labs, Practicals, and Workshops.
+                    - IGNORE Non-credit courses.
+                    - Provide Subject Names only.
+                    Return ONLY a JSON: {{"subjects": ["Maths", "Physics"]}}
+                    
+                    Text: {relevant_txt[:15000]}
+                    """
                     
                     res = llm_fast.complete(prompt)
-                    # FIX: Now using get_clean_json_v2 properly
                     st.session_state.temp_subjects = get_clean_json_v2(res.text).get("subjects", [])
                     
                     if st.session_state.temp_subjects:
                         st.success(f"Found {len(st.session_state.temp_subjects)} Theory Subjects!")
                     else:
-                        st.error("AI couldn't find subjects. Check PDF text.")
+                        st.error("AI couldn't find subjects. Try Selecting a different Semester name format or re-upload.")
                 except Exception as e: st.error(f"Scan Error: {e}")
 
         # --- STEP 2: ELECTIVE CHOICE & DEEP SCAN ---
         if st.session_state.temp_subjects:
-            st.markdown("### 🛠️ Choose Your Path")
+            st.markdown("### 🛠️ Step 2: Finalize Subjects")
             final_sub_list = []
             for s in st.session_state.temp_subjects:
-                if any(x in s.lower() for x in ["elective", "choice", "group"]):
-                    choice = st.text_input(f"Which elective for '{s}'?", placeholder="e.g. Computational Chemistry", key=f"el_choice_{s}")
+                if any(x in s.lower() for x in ["elective", "choice", "group", "optional"]):
+                    choice = st.text_input(f"Which elective for '{s}'?", placeholder="Enter your choice name...", key=f"el_choice_{s}")
                     if choice: final_sub_list.append(f"{s}: {choice}")
                 else:
-                    final_sub_list.append(s)
+                    # Allow user to delete labs if AI made a mistake
+                    col_s, col_d = st.columns([0.8, 0.2])
+                    col_s.write(f"✅ {s}")
+                    if not col_d.checkbox("Skip", key=f"skip_{s}"):
+                        final_sub_list.append(s)
             
-            if st.button("🚀 Step 2: Finalize My Dashboard"):
-                with st.spinner("Building isolated modules..."):
+            if st.button("🚀 Step 3: Architect Dashboard"):
+                with st.spinner("Deep scanning modules for selected subjects..."):
                     try:
                         llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
-                        relevant_txt = get_semester_text_v2(doc, target_sem) or "".join([page.get_text() for page in doc[:40]])
+                        relevant_txt = get_semester_text_v2(doc, target_sem)
                         
                         master_tree = {target_sem: {}}
                         for sub in final_sub_list:
-                            with st.status(f"Architecting {sub}...", expanded=False):
-                                prompt = f"Subject: {sub}. Extract ALL 6 Theory Modules and topics. NO LABS. Return ONLY JSON: {{'Module 1': ['Topic A']}}. Context: {relevant_txt[:15000]}"
+                            with st.status(f"Mapping Modules for {sub}...", expanded=False):
+                                prompt = f"Subject: {sub}. Extract all Theory Modules and their topics. IGNORE LABS. Return ONLY JSON: {{'Module 1': ['Topic A', 'Topic B']}}. Context: {relevant_txt[:18000]}"
                                 res = llm_main.complete(prompt)
                                 sub_data = get_clean_json_v2(res.text)
                                 if sub_data:
@@ -353,7 +372,7 @@ with tab2:
                         
                         st.session_state.master_tracker = master_tree
                         st.session_state.temp_subjects = []
-                        st.success("Full Semester Dashboard Built!")
+                        st.success("Dashboard Built Successfully!")
                         st.rerun()
                     except Exception as e: st.error(f"Processing Error: {e}")
 
@@ -362,7 +381,7 @@ with tab2:
         for sem, subs in st.session_state.master_tracker.items():
             st.markdown(f"## 🗓️ {sem}")
             for sub_name, modules in subs.items():
-                with st.expander(f"📘 {sub_name}"):
+                with st.expander(f"📘 {sub_name}", expanded=False):
                     for mod_name, topics in modules.items():
                         if any(x in mod_name.lower() for x in ["lab", "practical", "workshop", "viva"]): continue
                         st.markdown(f"**📂 {mod_name}**")
@@ -373,11 +392,13 @@ with tab2:
                             with c2:
                                 s = st.selectbox("S", ["Not Started", "Completed"], key=u_hash, 
                                                index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
-                                if s != t['status']: t['status'] = s; st.rerun()
+                                if s != t['status']: 
+                                    t['status'] = s
+                                    st.rerun()
                             with c3:
                                 if st.button("🧠", key=f"mm_btn_{u_hash}"):
                                     st.session_state.active_topic = t['name']
-                                    st.toast(f"Brain Sync: {t['name']} sent to MindMap!")    
+                                    st.toast(f"Brain Sync: {t['name']} sent to MindMap!")  
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
