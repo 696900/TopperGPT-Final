@@ -195,76 +195,74 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Advanced Exam Chat</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Scanned PDF Expert</h2>", unsafe_allow_html=True)
     
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
     if "current_index" not in st.session_state: st.session_state.current_index = None
 
-    # --- STEP 1: DEEP INDEXING UPLOADER ---
-    st.markdown("### 📂 Step 1: Upload and Deep-Scan (Scanned/Images Supported)")
+    # --- STEP 1: VISION-POWERED UPLOADER ---
+    st.markdown("### 📂 Step 1: Upload Scanned/Image PDF")
     up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload Scanned PYQs/Textbook PDF", type="pdf", key="deep_ocr_uploader", label_visibility="collapsed")
+    uploaded_file = up_col.file_uploader("Upload Scanned PDF", type="pdf", key="vision_ocr_v1", label_visibility="collapsed")
     
-    if uploaded_file and btn_col.button("🚀 Deep Index for Exam", use_container_width=True):
-        with st.spinner("Executing Deep OCR... TopperGPT is reading every pixel"):
+    if uploaded_file and btn_col.button("🚀 Vision Scan", use_container_width=True):
+        with st.spinner("Analyzing Images... Converting pixels to formulas"):
             try:
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                 documents = []
+                vision_llm = LlamaGroq(model="llama-3.2-11b-vision-preview", api_key=st.secrets["GROQ_API_KEY"])
                 
-                for page_num, page in enumerate(doc):
-                    # Digital text nikalne ki koshish
-                    text = page.get_text().strip()
+                # Scan first 15 pages for heavy formulas/images
+                for page_num in range(min(len(doc), 15)):
+                    page = doc[page_num]
+                    pix = page.get_pixmap()
+                    img_bytes = pix.tobytes()
                     
-                    # Agar text nahi mila (Image-based PDF), toh images scan karo
-                    if not text:
-                        pix = page.get_pixmap()
-                        # Yahan hum AI ko bol rahe hain ki image ko text mein badle
-                        text = "Image Content Detected: Scanning for engineering terms, formulas, and PYQs..."
-                    
-                    documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
+                    # AI 'sees' the image and converts to text
+                    res = vision_llm.complete(
+                        prompt="Identify all engineering formulas, problems, and technical text in this image. List them clearly.",
+                        image_documents=[Document(text="Image page", metadata={"image": img_bytes})]
+                    )
+                    documents.append(Document(text=res.text, metadata={"page_label": str(page_num + 1)}))
                 
                 st.session_state.current_index = VectorStoreIndex.from_documents(documents)
-                st.success("✅ Deep Scan Complete! Ab TopperGPT sab kuch jaanta hai.")
+                st.success("✅ Vision Scan Complete! Formulas and text extracted.")
             except Exception as e:
-                st.error(f"Scan Error: {e}")
+                st.error(f"Vision Scan Error: {e}")
 
-    # --- CHAT INTERFACE WITH STRUCTURED OUTPUT ---
+    # --- CHAT INTERFACE (Strict Roman Hinglish) ---
     st.divider()
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
     if st.session_state.current_index:
-        if user_query := st.chat_input("Ex: 'List ALL formulas from all PYQs in a table'"):
+        if user_query := st.chat_input("Ex: 'Make a table of all mechanics formulas'"):
             st.session_state.chat_history.append({"role": "user", "content": user_query})
             with st.chat_message("user"): st.markdown(user_query)
 
             with st.chat_message("assistant"):
-                with st.spinner("Mining PDF for every single detail..."):
-                    # High similarity top_k taaki koi page miss na ho
-                    query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=10)
+                with st.spinner("Processing in Roman-Hinglish..."):
+                    query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=5)
                     
+                    # PROMPT: Strict control over language script
                     custom_prompt = f"""
-                    You are TopperGPT. The user wants a DEEP extraction of: {user_query}
+                    You are TopperGPT. The user query is: {user_query}
                     
-                    STRICT STRUCTURE RULES:
-                    1. Use Hinglish.
-                    2. If asked for formulas, return them in a MARKDOWN TABLE with 'Topic', 'Formula', and 'Page No'.
-                    3. Use Bold Headings for each section.
-                    4. ALWAYS scan all pages for repeated formulas in PYQs.
-                    5. Format all math in LaTeX $ $.
-                    
-                    Context from PDF: Give a detailed, structured response based on the entire provided document.
+                    STRICT RULES:
+                    1. Use ROMAN SCRIPT ONLY (English letters). Do NOT use Hindi script (Devanagari).
+                    2. Talk like a friendly tutor in Hinglish (e.g., 'Bhai, ye formula note kar lo').
+                    3. Format formulas in a Markdown Table.
+                    4. Always cite the Page Number.
+                    5. Use LaTeX $ $ for all math.
                     """
                     response = query_engine.query(custom_prompt)
                     st.markdown(response.response)
                     
                     if response.source_nodes:
                         pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
-                        st.caption(f"📍 References: Page {', '.join(pages)}")
+                        st.caption(f"📍 Reference Pages: {', '.join(pages)}")
                     
                     st.session_state.chat_history.append({"role": "assistant", "content": response.response})
-    else:
-        st.info("👆 Pehle Scanned PDF upload karke 'Deep Index' dabao!")
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
