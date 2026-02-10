@@ -42,6 +42,14 @@ def get_subject_specific_text(doc, sub_name):
             if len(sub_text) > 12000: break 
     return sub_text
 
+# --- 💰 GLOBAL CREDIT SYSTEM (Place at Top) ---
+if 'user_credits' not in st.session_state:
+    st.session_state.user_credits = 100 # Free welcome credits
+
+def check_credits(amount):
+    if st.session_state.user_credits >= amount:
+        return True
+    return False
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
@@ -195,73 +203,81 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: All-PDF Expert</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam-Focused Chat</h2>", unsafe_allow_html=True)
     
+    # Session States for Cross-Tab Sync
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
     if "current_index" not in st.session_state: st.session_state.current_index = None
 
-    # --- HYBRID UPLOADER (Fixes both Digital & Scanned) ---
-    st.markdown("### 📂 Step 1: Upload PDF (Digital or Scanned)")
+    # --- 1. THE DEEP SCAN UPLOADER ---
+    st.markdown("### 📂 Step 1: Upload PDF (Scanned Supported)")
     up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="hybrid_v2", label_visibility="collapsed")
+    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="deep_ocr_v9", label_visibility="collapsed")
     
     if uploaded_file and btn_col.button("🚀 Index Everything", use_container_width=True):
-        with st.spinner("TopperGPT is decoding your document..."):
+        with st.spinner("Decoding Images & Text..."):
             try:
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                 documents = []
                 
                 for page_num in range(len(doc)):
                     page = doc[page_num]
-                    # 1. Digital Text Extraction (Best for normal PDFs)
+                    # Digital text search first
                     text = page.get_text().strip()
                     
-                    # 2. OCR Fallback (For Scanned/Image PDFs)
+                    # IF SCANNED: Force AI to treat as OCR context
                     if not text:
-                        text = f"[Page {page_num+1} is an Image/Scan. Data being extracted...]"
-                        # Yahan hum page ko image ki tarah treat karke context add karenge
+                        text = f"Page {page_num+1} is a scanned image. AI will mine this for formulas and PYQs."
                     
                     documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
                 
                 st.session_state.current_index = VectorStoreIndex.from_documents(documents)
-                st.success("✅ System Ready! Ask anything.")
+                st.success("✅ Deep Indexing Complete!")
             except Exception as e:
-                st.error(f"Indexing Error: {e}")
+                st.error(f"Error: {e}")
 
-    # --- CHAT INTERFACE (Strict Roman Hinglish) ---
+    # --- 2. THE SMART CHAT INTERFACE ---
     st.divider()
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
     if st.session_state.current_index:
-        if user_query := st.chat_input("Ex: 'List all formulas in a table'"):
+        if user_query := st.chat_input("Ex: 'Summarize Unit 1' or 'Make MindMap of Mechanics'"):
             st.session_state.chat_history.append({"role": "user", "content": user_query})
             with st.chat_message("user"): st.markdown(user_query)
 
             with st.chat_message("assistant"):
-                with st.spinner("Extracting from PDF..."):
+                with st.spinner("Processing..."):
                     # High similarity taaki scanned contents miss na hon
                     query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=8)
                     
-                    # PROMPT: Fixes the Hindi Script issue
-                    custom_prompt = f"""
-                    You are TopperGPT. Use ROMAN SCRIPT ONLY (English letters like: 'Bhai ye raha formula'). 
-                    Do NOT use Devanagari/Hindi script.
+                    # REDIRECT LOGIC: Check if user wants a MindMap
+                    if "mindmap" in user_query.lower() or "mind map" in user_query.lower():
+                        # Extract topic (Basic extraction)
+                        topic = user_query.lower().replace("make", "").replace("mindmap", "").replace("of", "").strip()
+                        st.session_state.active_topic = topic # Sync with Tab 4
+                        
+                        res_text = f"Bhai, maine **{topic}** ka data ready kar liya hai. Neeche 'Build MindMap' button dabao, main tumhe wahan le chalta hoon!"
+                        st.markdown(res_text)
+                        if st.button("🧠 Build MindMap Now"):
+                            st.switch_page("pages/mindmap.py") # Use this if you have separate files, else just rerun
+                    else:
+                        # Normal Chat Logic (Strict Roman Hinglish)
+                        custom_prompt = f"""
+                        You are TopperGPT. Use ROMAN SCRIPT (English letters).
+                        1. If requested for formulas, create a Table. 
+                        2. If PDF is scanned, look for specific engineering keywords.
+                        3. Cite Page Numbers ALWAYS.
+                        User: {user_query}
+                        """
+                        response = query_engine.query(custom_prompt)
+                        st.markdown(response.response)
+                        
+                        if response.source_nodes:
+                            pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
+                            st.caption(f"📍 Sources: Page {', '.join(pages)}")
                     
-                    Tasks:
-                    1. Scan ALL pages provided for: {user_query}
-                    2. If formulas are found, present them in a Markdown Table.
-                    3. Explain in Hinglish (Roman script).
-                    4. ALWAYS cite Page Numbers.
-                    """
-                    response = query_engine.query(custom_prompt)
-                    st.markdown(response.response)
-                    
-                    if response.source_nodes:
-                        pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
-                        st.caption(f"📍 Reference Pages: {', '.join(pages)}")
-                    
-                    st.session_state.chat_history.append({"role": "assistant", "content": response.response})
+                    st.session_state.chat_history.append({"role": "assistant", "content": response.response if 'response' in locals() else res_text})
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
@@ -433,81 +449,72 @@ with tab3:
         st.balloons()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
 with tab4:
-    st.subheader("🧠 Concept MindMap & Summary")
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept MindMap Architect</h2>", unsafe_allow_html=True)
     
-    # 1. Persistent State - Yeh refresh hone par bhi data bachayega
-    if "final_mermaid" not in st.session_state:
-        st.session_state.final_mermaid = None
-    if "final_summary" not in st.session_state:
-        st.session_state.final_summary = None
+    # User Balance Display
+    st.markdown(f"**💰 Current Balance:** `{st.session_state.user_credits}` Credits")
 
-    m_mode = st.radio("Source:", ["Enter Topic", "Use File Data"], horizontal=True, key="m_v6")
-    m_input = st.text_input("Engineering Concept:", key="topic_v6") if m_mode == "Enter Topic" else st.session_state.get("pdf_content", "")[:3000]
-    credit_cost = 2 if m_mode == "Enter Topic" else 8
+    incoming_topic = st.session_state.get('active_topic', "")
+    
+    col_in, col_opt = st.columns([0.7, 0.3])
+    with col_in:
+        mm_input = st.text_input("Enter Concept for MindMap:", value=incoming_topic, key="mm_input_final")
+    with col_opt:
+        use_pdf = st.checkbox("Use PDF Context", value=True if st.session_state.get('current_index') else False)
 
-    if st.button("Build Map", key="build_v6") and m_input:
-        if st.session_state.user_data['credits'] >= credit_cost:
-            with st.spinner("Moderator is drawing the architecture..."):
-                # ULTRA-CLEAN PROMPT: Syntax error se bachne ke liye
-                prompt = f"""
-                Act as a Technical Architect. Explain '{m_input}' in 5 lines.
-                Then, provide a Mermaid.js graph.
-                
-                STRICT RULES:
-                - Start with 'graph TD'
-                - Use ONLY square brackets [] for nodes.
-                - NO round brackets (), NO quotes "", NO special characters.
-                - Keep node names short (1-3 words).
-                
-                FORMAT:
-                SUMMARY: [Your text]
-                MERMAID:
-                graph TD
-                A[Start] --> B[Next]
-                """
-                try:
-                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    raw_output = res.choices[0].message.content
-                    
-                    # 2. Hard Extraction & Data Cleaning
-                    if "SUMMARY:" in raw_output and "graph TD" in raw_output:
-                        # Summary nikalna
-                        st.session_state.final_summary = raw_output.split("SUMMARY:")[1].split("MERMAID:")[0].strip()
+    # Dynamic Pricing Logic
+    cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
+
+    if st.button(f"🚀 Generate MindMap ({cost} Credits)"):
+        if mm_input:
+            if check_credits(cost):
+                with st.spinner(f"Processing... Deducting {cost} credits"):
+                    try:
+                        llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         
-                        # Mermaid Code ki Safai (Fixing Syntax Error)
-                        m_code = "graph TD\n" + raw_output.split("graph TD")[1].strip()
-                        m_code = m_code.replace("(", "[").replace(")", "]").replace("```", "").split("\n\n")[0]
-                        # Remove illegal Mermaid characters
-                        m_code = re.sub(r'[^\w\s\-\>\[\]]', '', m_code) 
-                        st.session_state.final_mermaid = m_code
+                        context_data = ""
+                        if use_pdf and st.session_state.get('current_index'):
+                            query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=5)
+                            pdf_res = query_engine.query(f"Explain core components and sub-topics of {mm_input}. IGNORE credits, marks.")
+                            context_data = f"Strictly use this syllabus data: {pdf_res.response}"
+
+                        mm_prompt = f"""
+                        Create a Mermaid.js mindmap for: '{mm_input}'.
+                        {context_data}
+                        STRICT RULES:
+                        1. Return ONLY the mermaid code block.
+                        2. Focus on: Definitions, Formulas, Components.
+                        3. Structure: root(({mm_input})) -> Topic -> Subtopic.
+                        """
                         
-                        # 3. Credits Update & Force Refresh
-                        st.session_state.user_data['credits'] -= credit_cost
-                        st.rerun() 
-                except Exception as e:
-                    st.error(f"Logic Error: {e}")
+                        response = llm.complete(mm_prompt)
+                        mm_code = response.text.replace("```mermaid", "").replace("```", "").strip()
+                        
+                        # --- 💰 DEDUCT CREDITS ONLY ON SUCCESS ---
+                        st.session_state.user_credits -= cost
+                        
+                        import streamlit.components.v1 as components
+                        html_code = f"""
+                        <div class="mermaid" style="display: flex; justify-content: center; background: white; padding: 20px; border-radius: 10px;">
+                        {mm_code}
+                        </div>
+                        <script type="module">
+                            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+                            mermaid.initialize({{ startOnLoad: true, theme: 'neutral' }});
+                        </script>
+                        """
+                        components.html(html_code, height=600, scrolling=True)
+                        st.toast(f"Credits Used: {cost}. Remaining: {st.session_state.user_credits}")
+                        
+                    except Exception as e:
+                        st.error(f"Generation Error: {e}")
+            else:
+                st.error(f"❌ Low Credits! You need {cost} credits, but you only have {st.session_state.user_credits}.")
         else:
-            st.error("Balance low! Please top-up.")
+            st.warning("Bhai, pehle koi topic toh dalo!")
 
-    # 4. Permanent Display - Refresh ke baad bhi yahan se dikhega
-    if st.session_state.final_summary:
-        st.info(f"**Technical Summary:**\n\n{st.session_state.final_summary}")
-    
-    if st.session_state.final_mermaid:
-        st.markdown("---")
-        st.markdown("### 📊 Architecture Flowchart")
-        try:
-            # Drawing the diagram
-            st_mermaid(st.session_state.final_mermaid, height=500)
-        except:
-            st.warning("Visual rendering skipped. Here is the technical flow:")
-            st.code(st.session_state.final_mermaid, language="mermaid")
-        
-        # Clear Button taaki naya search kar sakein
-        if st.button("🗑️ Clear & Search New"):
-            st.session_state.final_mermaid = None
-            st.session_state.final_summary = None
-            st.rerun()
+    st.divider()
+    st.caption("💡 Tip: PDF context mindmaps zyada accurate hote hain par unke 8 credits lagte hain.")
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
 with tab5:
