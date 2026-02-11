@@ -25,14 +25,14 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # 1. Sabse pehle check karte hain ki key mil rahi hai ya nahi
-if "GOOGLE_API_KEY" in st.secrets:
+#if "GOOGLE_API_KEY" in st.secrets:
     # Stable Gemini Embedding setup
-    Settings.embed_model = GeminiEmbedding(
-        model_name="models/embedding-001", 
-        api_key=st.secrets["GOOGLE_API_KEY"]
-    )
-else:
-    st.error("Bhai, Streamlit Secrets mein GOOGLE_API_KEY nahi mil rahi. Dashboard check kar!")
+ #   Settings.embed_model = GeminiEmbedding(
+  #      model_name="models/embedding-001", 
+  #      api_key=st.secrets["GOOGLE_API_KEY"]
+   # )
+#else:
+ #   st.error("Bhai, Streamlit Secrets mein GOOGLE_API_KEY nahi mil rahi. Dashboard check kar!")
 
 # --- GLOBAL UTILITY: Laser Focus Search ---
 def get_subject_specific_text(doc, sub_name):
@@ -456,79 +456,77 @@ with tab3:
         """, unsafe_allow_html=True)
         st.balloons()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
-# --- TAB 4: CONCEPT MINDMAP (NO ERROR BUILD + DOWNLOAD) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC: Sidebar credits (e.g. 13)
-    if "user_data" in st.session_state:
-        current_bal = st.session_state.user_data['credits']
-    else:
-        current_bal = 15
+    # 💰 WALLET SYNC: Master Balance
+    current_bal = st.session_state.user_data['credits']
 
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_stable_v10", placeholder="e.g. BJT")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_stable_v100", placeholder="e.g. BJT")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
-    # Cost Logic: 2 for general, 8 for PDF context
     cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
 
     if st.button(f"🚀 Build Mindmap ({cost} Credits)"):
         if mm_input:
             if current_bal >= cost:
-                with st.spinner("Mapping Pixels & Data..."):
+                with st.spinner("Mapping Data..."):
                     try:
-                        # Silently using Gemini Embedding (No more error boxes!)
+                        # Silent Background Processing
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                        
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            # Deep scan logic for image/scanned PDFs
-                            context_res = qe.query(f"Extract technical sub-topics for {mm_input}.")
+                            context_res = qe.query(f"Extract key components of {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        prompt = f"Create Mermaid.js mindmap code for: '{mm_input}'. {context} Rules: Root must be (({mm_input})), Roman script only."
-                        
+                        prompt = f"Create Mermaid.js mindmap code for: '{mm_input}'. {context} Rules: Root must be (({mm_input})), Roman only."
                         res = llm.complete(prompt)
                         mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # 💰 WALLET DEDUCTION
+                        # 💰 DEDUCT & REFRESH
                         st.session_state.user_data['credits'] -= cost
                         st.session_state.last_mm_code = mm_code
-                        st.toast(f"Used {cost} Credits! Remaining: {st.session_state.user_data['credits']}")
                         st.rerun() 
-                        
-                    except Exception as e:
-                        st.error(f"Logic Error: {e}")
-            else:
-                st.error(f"Bhai wallet khali hai! You have {current_bal} but need {cost}.")
-        else:
-            st.warning("Please enter a concept name.")
+                    except Exception as e: st.error(f"Logic Error: {e}")
+            else: st.error("Credits kam hain bhai!")
+        else: st.warning("Concept name dalo.")
 
-    # Graph Display & DOWNLOAD
-    if "last_mm_code" in st.session_state:
-        import streamlit.components.v1 as components
+    # Render & Image Download     if "last_mm_code" in st.session_state:
         st.markdown("### 📊 Your Architecture Flow")
+        st.info("💡 Tip: Mindmap ko image banane ke liye 'Save as Image' dabao.")
         
-        # UI for Download [Billionaire Mindset: Value to user]
-        c1, c2 = st.columns([0.8, 0.2])
-        with c2:
-            st.download_button("📥 Save Mindmap", st.session_state.last_mm_code, file_name=f"{mm_input}_Map.txt", use_container_width=True)
-
-        html = f"""
-        <div class="mermaid" style="display: flex; justify-content: center; background: white; padding: 20px; border-radius: 10px;">
-        {st.session_state.last_mm_code}
+        # This HTML includes a script to capture the mermaid div as a PNG
+        import streamlit.components.v1 as components
+        html_code = f"""
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <div id="capture" style="background: white; padding: 20px; border-radius: 10px; display: inline-block;">
+            <div class="mermaid">
+            {st.session_state.last_mm_code}
+            </div>
         </div>
+        <br><br>
+        <button onclick="downloadImage()" style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:bold;">
+            📸 Save as Image (PNG)
+        </button>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
+            window.downloadImage = function() {{
+                html2canvas(document.querySelector("#capture")).then(canvas => {{
+                    let link = document.createElement('a');
+                    link.download = 'TopperGPT_Mindmap.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                }});
+            }}
         </script>
         """
-        components.html(html, height=600, scrolling=True)
+        components.html(html_code, height=700, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
 with tab5:
