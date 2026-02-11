@@ -459,61 +459,56 @@ with tab3:
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # 💰 MAIN WALLET SYNC: Sidebar wala balance use ho raha hai
-    main_balance = st.session_state.get('user_credits', 0)
+    # 💰 WALLET SYNC: Sidebar balance (e.g. 15 credits)
+    current_bal = st.session_state.get('user_credits', 0)
+    st.markdown(f"**💰 Wallet Balance:** `{current_bal}` Credits")
 
-    # Receiving topic from other tabs
     incoming_topic = st.session_state.get('active_topic', "")
-    
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Concept:", value=incoming_topic, key="mm_final_v2", placeholder="e.g. Transformer")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_stable", placeholder="e.g. Transformer")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
-    # Dynamic Pricing Logic
+    # Pricing Logic
     cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
 
-    # UI fix: Button name is now professional
     if st.button(f"🚀 Build Mindmap ({cost} Credits)"):
         if mm_input:
-            if main_balance >= cost:
-                with st.spinner("Decoding PDF & Pixels..."):
+            if current_bal >= cost:
+                with st.spinner("Processing... Decoding PDF Context"):
                     try:
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         
+                        # PDF Data Extraction
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            # Deep search fix for scanned images
-                            context = qe.query(f"Extract all technical sub-topics and formulas for {mm_input}.").response
+                            context = qe.query(f"Extract key sub-topics and formulas for {mm_input}. Ignore credits.").response
 
                         prompt = f"Create a Mermaid.js mindmap for: '{mm_input}'. Context: {context}. Rules: Only code block, root(({mm_input})), Roman script only."
                         
                         res = llm.complete(prompt)
                         mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # 💰 DEDUCT FROM MAIN WALLET ONLY
+                        # 💰 DEDUCT FROM MAIN WALLET
                         st.session_state.user_credits -= cost
-                        
-                        # Save result in state so it persists after rerun
-                        st.session_state.last_mm_generated = mm_code
-                        st.toast(f"Used {cost} Credits! New Balance: {st.session_state.user_credits}")
+                        st.session_state.last_mm = mm_code
                         st.rerun() 
                         
                     except Exception as e:
                         st.error(f"Error: {e}")
             else:
-                st.error(f"Bhai wallet khali hai! You need {cost} credits, but have {main_balance}.")
+                st.error(f"Bhai balance kam hai! Need {cost} credits.")
         else:
-            st.warning("Bhai, pehle koi topic toh dalo!")
+            st.warning("Pehle concept ka naam toh dalo!")
 
-    # Displaying the generated Mindmap
-    if "last_mm_generated" in st.session_state:
+    # Graph Rendering
+    if "last_mm" in st.session_state:
         import streamlit.components.v1 as components
         html = f"""
         <div class="mermaid" style="display: flex; justify-content: center; background: white; padding: 20px; border-radius: 10px;">
-        {st.session_state.last_mm_generated}
+        {st.session_state.last_mm}
         </div>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
