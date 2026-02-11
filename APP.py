@@ -459,63 +459,65 @@ with tab3:
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # 💰 MAIN WALLET LINK: Jo sidebar mein dikh raha hai
-    if "user_data" not in st.session_state:
-        st.session_state.user_data = {'credits': 15} # Fallback agar initialize na ho
-    
-    current_wallet_bal = st.session_state.user_data['credits']
+    # 💰 WALLET SYNC: Seedha sidebar se balance uthao
+    if "user_data" in st.session_state:
+        current_bal = st.session_state.user_data['credits']
+    else:
+        current_bal = 15 # Default fallback
 
-    # Receiving topic from other tabs
+    # Receiving topic sync logic
     incoming_topic = st.session_state.get('active_topic', "")
     
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_v5", placeholder="e.g. Transformer")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_pro", placeholder="e.g. BJT")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
-    # Dynamic Pricing (Based on your request)
+    # Dynamic Pricing (2 for Text, 8 for PDF)
     cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
 
     if st.button(f"🚀 Build Mindmap ({cost} Credits)"):
         if mm_input:
-            # CHECK MAIN WALLET CREDITS
-            if st.session_state.user_data['credits'] >= cost:
-                with st.spinner("Decoding PDF Context..."):
+            if current_bal >= cost:
+                with st.spinner("Analyzing Concept..."):
                     try:
-                        # Ensure Gemini Embedding is working silently
+                        # Silently using Gemini Embedding behind the scenes
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            context_res = qe.query(f"Extract key sub-topics and formulas for {mm_input}.")
+                            # Deep scan for formulas & subtopics
+                            context_res = qe.query(f"List technical sub-topics for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        prompt = f"Create a Mermaid.js mindmap for: '{mm_input}'. {context} Rules: Only code block, root(({mm_input})), Roman script only."
+                        # Mindmap Instruction
+                        prompt = f"Create a Mermaid.js mindmap code for: '{mm_input}'. {context} Rules: Root node must be (({mm_input})), Roman letters only."
                         
                         res = llm.complete(prompt)
                         mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # 💰 DEDUCT FROM MAIN WALLET AND REFRESH
+                        # 💰 REAL WALLET DEDUCTION
                         st.session_state.user_data['credits'] -= cost
-                        st.session_state.last_mm = mm_code
+                        st.session_state.last_mm_code = mm_code
                         st.toast(f"Used {cost} Credits! Remaining: {st.session_state.user_data['credits']}")
-                        st.rerun() 
+                        st.rerun() # Refresh to update sidebar and clear any old error states
                         
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"Logic Error: {e}")
             else:
-                st.error(f"Bhai balance kam hai! Need {cost} credits but you have {current_wallet_bal}.")
+                st.error(f"Bhai balance kam hai! You have {current_bal} but need {cost}.")
         else:
-            st.warning("Pehle concept ka naam toh dalo!")
+            st.warning("Please enter a concept name.")
 
-    # Displaying the Graph
-    if "last_mm" in st.session_state:
+    # Graph Rendering Area
+    if "last_mm_code" in st.session_state:
         import streamlit.components.v1 as components
+        # Neutral theme for professional look
         html = f"""
         <div class="mermaid" style="display: flex; justify-content: center; background: white; padding: 20px; border-radius: 10px;">
-        {st.session_state.last_mm}
+        {st.session_state.last_mm_code}
         </div>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
