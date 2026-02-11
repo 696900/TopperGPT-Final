@@ -459,51 +459,58 @@ with tab3:
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC: Sidebar balance (e.g. 15 credits)
-    current_bal = st.session_state.get('user_credits', 0)
-    st.markdown(f"**💰 Wallet Balance:** `{current_bal}` Credits")
+    # 💰 MAIN WALLET LINK: Jo sidebar mein dikh raha hai
+    if "user_data" not in st.session_state:
+        st.session_state.user_data = {'credits': 15} # Fallback agar initialize na ho
+    
+    current_wallet_bal = st.session_state.user_data['credits']
 
+    # Receiving topic from other tabs
     incoming_topic = st.session_state.get('active_topic', "")
+    
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_stable", placeholder="e.g. Transformer")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_v5", placeholder="e.g. Transformer")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
-    # Pricing Logic
+    # Dynamic Pricing (Based on your request)
     cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
 
     if st.button(f"🚀 Build Mindmap ({cost} Credits)"):
         if mm_input:
-            if current_bal >= cost:
-                with st.spinner("Processing... Decoding PDF Context"):
+            # CHECK MAIN WALLET CREDITS
+            if st.session_state.user_data['credits'] >= cost:
+                with st.spinner("Decoding PDF Context..."):
                     try:
+                        # Ensure Gemini Embedding is working silently
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         
-                        # PDF Data Extraction
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            context = qe.query(f"Extract key sub-topics and formulas for {mm_input}. Ignore credits.").response
+                            context_res = qe.query(f"Extract key sub-topics and formulas for {mm_input}.")
+                            context = f"PDF Context: {context_res.response}"
 
-                        prompt = f"Create a Mermaid.js mindmap for: '{mm_input}'. Context: {context}. Rules: Only code block, root(({mm_input})), Roman script only."
+                        prompt = f"Create a Mermaid.js mindmap for: '{mm_input}'. {context} Rules: Only code block, root(({mm_input})), Roman script only."
                         
                         res = llm.complete(prompt)
                         mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # 💰 DEDUCT FROM MAIN WALLET
-                        st.session_state.user_credits -= cost
+                        # 💰 DEDUCT FROM MAIN WALLET AND REFRESH
+                        st.session_state.user_data['credits'] -= cost
                         st.session_state.last_mm = mm_code
+                        st.toast(f"Used {cost} Credits! Remaining: {st.session_state.user_data['credits']}")
                         st.rerun() 
                         
                     except Exception as e:
                         st.error(f"Error: {e}")
             else:
-                st.error(f"Bhai balance kam hai! Need {cost} credits.")
+                st.error(f"Bhai balance kam hai! Need {cost} credits but you have {current_wallet_bal}.")
         else:
             st.warning("Pehle concept ka naam toh dalo!")
 
-    # Graph Rendering
+    # Displaying the Graph
     if "last_mm" in st.session_state:
         import streamlit.components.v1 as components
         html = f"""
