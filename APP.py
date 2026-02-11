@@ -456,92 +456,78 @@ with tab3:
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # Wallet Sync
+    # 💰 WALLET SYNC
     current_bal = st.session_state.user_data.get('credits', 0)
-
-    # Clean function to prevent Syntax Errors
-    def clean_mermaid_text(text):
-        # Remove brackets and special chars that break Mermaid
-        return text.replace("(", "").replace(")", "").replace("[", "").replace("]", "").replace("{", "").replace("}", "").replace(";", "")
 
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_v999", placeholder="e.g. DC Circuit")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_hd_v1", placeholder="e.g. Laser Working")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
     cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
 
-    if st.button(f"🚀 Build Mindmap ({cost} Credits)"):
+    if st.button(f"🚀 Build High-Res Mindmap ({cost} Credits)"):
         if mm_input:
             if current_bal >= cost:
-                with st.spinner("Decoding Architecture..."):
+                with st.spinner("Generating HD Architecture..."):
                     try:
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            context_res = qe.query(f"Extract key components for {mm_input}.")
+                            context_res = qe.query(f"Extract key technical components for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        # Strict prompt for clean syntax
-                        prompt = f"""
-                        Create a Mermaid.js mindmap for: '{mm_input}'.
-                        {context}
-                        RULES:
-                        1. Start with 'mindmap'
-                        2. Use 'root(({mm_input}))' for the center node.
-                        3. For branches, use ONLY simple text, no special characters or brackets.
-                        4. Return ONLY the code block.
-                        """
+                        prompt = f"Create a Mermaid.js mindmap for: '{mm_input}'. {context} Rules: Root node must be (({mm_input})), Roman script only, no special brackets."
                         res = llm.complete(prompt)
                         mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # Apply deep clean to the code
-                        # This ensures no brackets inside nodes break the syntax
-                        st.session_state.last_mm_code = mm_code
-                        
-                        # DEDUCT & REFRESH
                         st.session_state.user_data['credits'] -= cost
+                        st.session_state.last_mm_code = mm_code
                         st.rerun() 
                     except Exception as e: st.error(f"Logic Error: {e}")
-            else: st.error("Credits khatam ho gaye bhai!")
-        else: st.warning("Concept ka naam toh likho.")
+            else: st.error("Credits low hain bhai!")
 
-    # Render & PNG Image Download Logic
+    # --- HD RENDER & DOWNLOAD ENGINE ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
         
+        # Is HTML mein 'scale: 4' daala hai high resolution ke liye
         html_code = f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        <div style="background: white; padding: 25px; border-radius: 15px; display: inline-block;" id="capture_area">
-            <div class="mermaid">
+        <div id="capture_area" style="background: white; padding: 40px; border-radius: 15px; display: inline-block; min-width: 800px; text-align: center;">
+            <div class="mermaid" style="font-size: 20px;">
             {st.session_state.last_mm_code}
             </div>
         </div>
         <br><br>
-        <button onclick="saveMindmap()" style="background:#4CAF50; color:white; border:none; padding:12px 24px; border-radius:12px; cursor:pointer; font-weight:bold; font-size:16px;">
-            📸 Download Mindmap as Image (PNG)
+        <button onclick="downloadHD()" style="background:#4CAF50; color:white; border:none; padding:15px 30px; border-radius:12px; cursor:pointer; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+            📥 Download HD Mindmap (Clear PNG)
         </button>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            // Suppress errors to keep UI clean
-            mermaid.initialize({{ startOnLoad: true, theme: 'forest', suppressErrors: true }});
+            mermaid.initialize({{ startOnLoad: true, theme: 'forest', securityLevel: 'loose' }});
             
-            window.saveMindmap = function() {{
-                html2canvas(document.querySelector("#capture_area")).then(canvas => {{
+            window.downloadHD = function() {{
+                const area = document.querySelector("#capture_area");
+                html2canvas(area, {{ 
+                    scale: 4,  // 4x resolution for crystal clear quality
+                    useCORS: true,
+                    backgroundColor: "#ffffff"
+                }}).then(canvas => {{
                     let link = document.createElement('a');
-                    link.download = 'TopperGPT_Mindmap.png';
-                    link.href = canvas.toDataURL("image/png");
+                    link.download = 'TopperGPT_HD_Mindmap.png';
+                    link.href = canvas.toDataURL("image/png", 1.0);
                     link.click();
                 }});
             }}
         </script>
         """
-        components.html(html_code, height=800, scrolling=True)
+        components.html(html_code, height=900, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
 with tab5:
