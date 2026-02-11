@@ -24,16 +24,13 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
-# 1. Sabse pehle check karte hain ki key mil rahi hai ya nahi
-#if "GOOGLE_API_KEY" in st.secrets:
-    # Stable Gemini Embedding setup
- #   Settings.embed_model = GeminiEmbedding(
-  #      model_name="models/embedding-001", 
-  #      api_key=st.secrets["GOOGLE_API_KEY"]
-   # )
-#else:
- #   st.error("Bhai, Streamlit Secrets mein GOOGLE_API_KEY nahi mil rahi. Dashboard check kar!")
-
+# --- SILENT AI SETUP (No more Red Error Boxes) ---
+if "GOOGLE_API_KEY" in st.secrets:
+    from llama_index.embeddings.gemini import GeminiEmbedding
+    Settings.embed_model = GeminiEmbedding(
+        model_name="models/embedding-001", 
+        api_key=st.secrets["GOOGLE_API_KEY"]
+    )
 # --- GLOBAL UTILITY: Laser Focus Search ---
 def get_subject_specific_text(doc, sub_name):
     sub_text = ""
@@ -459,13 +456,13 @@ with tab3:
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC: Master Balance
-    current_bal = st.session_state.user_data['credits']
+    # 💰 WALLET SYNC: Seedha sidebar se balance uthao
+    current_bal = st.session_state.user_data.get('credits', 0)
 
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_stable_v100", placeholder="e.g. BJT")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_v101", placeholder="e.g. DC Circuit")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -474,17 +471,17 @@ with tab4:
     if st.button(f"🚀 Build Mindmap ({cost} Credits)"):
         if mm_input:
             if current_bal >= cost:
-                with st.spinner("Mapping Data..."):
+                with st.spinner("Decoding Architecture..."):
                     try:
-                        # Silent Background Processing
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+                        
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            context_res = qe.query(f"Extract key components of {mm_input}.")
+                            context_res = qe.query(f"Extract key components for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        prompt = f"Create Mermaid.js mindmap code for: '{mm_input}'. {context} Rules: Root must be (({mm_input})), Roman only."
+                        prompt = f"Create Mermaid.js mindmap code for: '{mm_input}'. {context} Rules: Root must be (({mm_input})), Roman only, no bold."
                         res = llm.complete(prompt)
                         mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
@@ -493,40 +490,41 @@ with tab4:
                         st.session_state.last_mm_code = mm_code
                         st.rerun() 
                     except Exception as e: st.error(f"Logic Error: {e}")
-            else: st.error("Credits kam hain bhai!")
-        else: st.warning("Concept name dalo.")
+            else: st.error("Credits khatam ho gaye bhai!")
+        else: st.warning("Concept ka naam toh likho.")
 
-    # Render & Image Download     if "last_mm_code" in st.session_state:
-        st.markdown("### 📊 Your Architecture Flow")
-        st.info("💡 Tip: Mindmap ko image banane ke liye 'Save as Image' dabao.")
-        
-        # This HTML includes a script to capture the mermaid div as a PNG
+    # Render & PNG Image Download Logic
+    if "last_mm_code" in st.session_state:
+        st.markdown("---")
         import streamlit.components.v1 as components
+        
+        # HTML/JS for rendering and high-quality PNG export
         html_code = f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        <div id="capture" style="background: white; padding: 20px; border-radius: 10px; display: inline-block;">
+        <div style="background: white; padding: 25px; border-radius: 15px; display: inline-block;" id="capture_area">
             <div class="mermaid">
             {st.session_state.last_mm_code}
             </div>
         </div>
         <br><br>
-        <button onclick="downloadImage()" style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:bold;">
-            📸 Save as Image (PNG)
+        <button onclick="saveMindmap()" style="background:#4CAF50; color:white; border:none; padding:12px 24px; border-radius:12px; cursor:pointer; font-weight:bold; font-size:16px;">
+            📸 Download Mindmap as Image (PNG)
         </button>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
-            window.downloadImage = function() {{
-                html2canvas(document.querySelector("#capture")).then(canvas => {{
+            
+            window.saveMindmap = function() {{
+                html2canvas(document.querySelector("#capture_area")).then(canvas => {{
                     let link = document.createElement('a');
                     link.download = 'TopperGPT_Mindmap.png';
-                    link.href = canvas.toDataURL();
+                    link.href = canvas.toDataURL("image/png");
                     link.click();
                 }});
             }}
         </script>
         """
-        components.html(html_code, height=700, scrolling=True)
+        components.html(html_code, height=800, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
 with tab5:
