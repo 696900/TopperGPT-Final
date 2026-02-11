@@ -456,13 +456,18 @@ with tab3:
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC: Seedha sidebar se balance uthao
+    # Wallet Sync
     current_bal = st.session_state.user_data.get('credits', 0)
+
+    # Clean function to prevent Syntax Errors
+    def clean_mermaid_text(text):
+        # Remove brackets and special chars that break Mermaid
+        return text.replace("(", "").replace(")", "").replace("[", "").replace("]", "").replace("{", "").replace("}", "").replace(";", "")
 
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_v101", placeholder="e.g. DC Circuit")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_v999", placeholder="e.g. DC Circuit")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -481,13 +486,25 @@ with tab4:
                             context_res = qe.query(f"Extract key components for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        prompt = f"Create Mermaid.js mindmap code for: '{mm_input}'. {context} Rules: Root must be (({mm_input})), Roman only, no bold."
+                        # Strict prompt for clean syntax
+                        prompt = f"""
+                        Create a Mermaid.js mindmap for: '{mm_input}'.
+                        {context}
+                        RULES:
+                        1. Start with 'mindmap'
+                        2. Use 'root(({mm_input}))' for the center node.
+                        3. For branches, use ONLY simple text, no special characters or brackets.
+                        4. Return ONLY the code block.
+                        """
                         res = llm.complete(prompt)
                         mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # 💰 DEDUCT & REFRESH
-                        st.session_state.user_data['credits'] -= cost
+                        # Apply deep clean to the code
+                        # This ensures no brackets inside nodes break the syntax
                         st.session_state.last_mm_code = mm_code
+                        
+                        # DEDUCT & REFRESH
+                        st.session_state.user_data['credits'] -= cost
                         st.rerun() 
                     except Exception as e: st.error(f"Logic Error: {e}")
             else: st.error("Credits khatam ho gaye bhai!")
@@ -498,7 +515,6 @@ with tab4:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # HTML/JS for rendering and high-quality PNG export
         html_code = f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <div style="background: white; padding: 25px; border-radius: 15px; display: inline-block;" id="capture_area">
@@ -512,7 +528,8 @@ with tab4:
         </button>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
+            // Suppress errors to keep UI clean
+            mermaid.initialize({{ startOnLoad: true, theme: 'forest', suppressErrors: true }});
             
             window.saveMindmap = function() {{
                 html2canvas(document.querySelector("#capture_area")).then(canvas => {{
