@@ -456,65 +456,69 @@ with tab3:
         """, unsafe_allow_html=True)
         st.balloons()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
+# --- TAB 4: CONCEPT MINDMAP (NO ERROR BUILD + DOWNLOAD) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC: Seedha sidebar se balance uthao
+    # 💰 WALLET SYNC: Sidebar credits (e.g. 13)
     if "user_data" in st.session_state:
         current_bal = st.session_state.user_data['credits']
     else:
-        current_bal = 15 # Default fallback
+        current_bal = 15
 
-    # Receiving topic sync logic
     incoming_topic = st.session_state.get('active_topic', "")
-    
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_pro", placeholder="e.g. BJT")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_stable_v10", placeholder="e.g. BJT")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
-    # Dynamic Pricing (2 for Text, 8 for PDF)
+    # Cost Logic: 2 for general, 8 for PDF context
     cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
 
     if st.button(f"🚀 Build Mindmap ({cost} Credits)"):
         if mm_input:
             if current_bal >= cost:
-                with st.spinner("Analyzing Concept..."):
+                with st.spinner("Mapping Pixels & Data..."):
                     try:
-                        # Silently using Gemini Embedding behind the scenes
+                        # Silently using Gemini Embedding (No more error boxes!)
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            # Deep scan for formulas & subtopics
-                            context_res = qe.query(f"List technical sub-topics for {mm_input}.")
+                            # Deep scan logic for image/scanned PDFs
+                            context_res = qe.query(f"Extract technical sub-topics for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        # Mindmap Instruction
-                        prompt = f"Create a Mermaid.js mindmap code for: '{mm_input}'. {context} Rules: Root node must be (({mm_input})), Roman letters only."
+                        prompt = f"Create Mermaid.js mindmap code for: '{mm_input}'. {context} Rules: Root must be (({mm_input})), Roman script only."
                         
                         res = llm.complete(prompt)
                         mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # 💰 REAL WALLET DEDUCTION
+                        # 💰 WALLET DEDUCTION
                         st.session_state.user_data['credits'] -= cost
                         st.session_state.last_mm_code = mm_code
                         st.toast(f"Used {cost} Credits! Remaining: {st.session_state.user_data['credits']}")
-                        st.rerun() # Refresh to update sidebar and clear any old error states
+                        st.rerun() 
                         
                     except Exception as e:
                         st.error(f"Logic Error: {e}")
             else:
-                st.error(f"Bhai balance kam hai! You have {current_bal} but need {cost}.")
+                st.error(f"Bhai wallet khali hai! You have {current_bal} but need {cost}.")
         else:
             st.warning("Please enter a concept name.")
 
-    # Graph Rendering Area
+    # Graph Display & DOWNLOAD
     if "last_mm_code" in st.session_state:
         import streamlit.components.v1 as components
-        # Neutral theme for professional look
+        st.markdown("### 📊 Your Architecture Flow")
+        
+        # UI for Download [Billionaire Mindset: Value to user]
+        c1, c2 = st.columns([0.8, 0.2])
+        with c2:
+            st.download_button("📥 Save Mindmap", st.session_state.last_mm_code, file_name=f"{mm_input}_Map.txt", use_container_width=True)
+
         html = f"""
         <div class="mermaid" style="display: flex; justify-content: center; background: white; padding: 20px; border-radius: 10px;">
         {st.session_state.last_mm_code}
