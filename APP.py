@@ -21,6 +21,18 @@ from datetime import datetime
 from llama_index.core import VectorStoreIndex, Document, Settings
 from llama_index.llms.groq import Groq as LlamaGroq
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.embeddings.gemini import GeminiEmbedding
+from llama_index.core import Settings
+
+# 1. Sabse pehle check karte hain ki key mil rahi hai ya nahi
+if "GOOGLE_API_KEY" in st.secrets:
+    # Stable Gemini Embedding setup
+    Settings.embed_model = GeminiEmbedding(
+        model_name="models/embedding-001", 
+        api_key=st.secrets["GOOGLE_API_KEY"]
+    )
+else:
+    st.error("Bhai, Streamlit Secrets mein GOOGLE_API_KEY nahi mil rahi. Dashboard check kar!")
 
 # --- GLOBAL UTILITY: Laser Focus Search ---
 def get_subject_specific_text(doc, sub_name):
@@ -445,63 +457,70 @@ with tab3:
         st.balloons()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
 with tab4:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept MindMap Architect</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC: Sidebar balance use karo
-    current_bal = st.session_state.get('user_credits', 0)
-    st.markdown(f"**💰 Wallet Balance:** `{current_bal}` Credits")
+    # 💰 MAIN WALLET SYNC: Sidebar wala balance use ho raha hai
+    main_balance = st.session_state.get('user_credits', 0)
 
+    # Receiving topic from other tabs
     incoming_topic = st.session_state.get('active_topic', "")
+    
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Concept:", value=incoming_topic, key="mm_final")
+        mm_input = st.text_input("Concept:", value=incoming_topic, key="mm_final_v2", placeholder="e.g. Transformer")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
     # Dynamic Pricing Logic
     cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
 
-    if st.button(f"🚀 Build Sexy MindMap ({cost} Credits)"):
+    # UI fix: Button name is now professional
+    if st.button(f"🚀 Build Mindmap ({cost} Credits)"):
         if mm_input:
-            if current_bal >= cost:
+            if main_balance >= cost:
                 with st.spinner("Decoding PDF & Pixels..."):
                     try:
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         
-                        # --- OCR/PDF CONTEXT FIX ---
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            # Deep search taaki scanned images ka data mile
+                            # Deep search fix for scanned images
                             context = qe.query(f"Extract all technical sub-topics and formulas for {mm_input}.").response
 
-                        # MindMap Prompt
                         prompt = f"Create a Mermaid.js mindmap for: '{mm_input}'. Context: {context}. Rules: Only code block, root(({mm_input})), Roman script only."
                         
                         res = llm.complete(prompt)
                         mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # 💰 DEDUCT FROM MAIN SIDEBAR BAL
+                        # 💰 DEDUCT FROM MAIN WALLET ONLY
                         st.session_state.user_credits -= cost
                         
-                        # Display sexy graph
-                        import streamlit.components.v1 as components
-                        html = f"""
-                        <div class="mermaid" style="display: flex; justify-content: center; background: white; padding: 20px; border-radius: 10px;">
-                        {mm_code}
-                        </div>
-                        <script type="module">
-                            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                            mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
-                        </script>
-                        """
-                        components.html(html, height=600)
-                        st.rerun() # To update sidebar credit UI
+                        # Save result in state so it persists after rerun
+                        st.session_state.last_mm_generated = mm_code
+                        st.toast(f"Used {cost} Credits! New Balance: {st.session_state.user_credits}")
+                        st.rerun() 
                         
                     except Exception as e:
                         st.error(f"Error: {e}")
             else:
-                st.error(f"Bhai wallet khali hai! Need {cost} credits.")
+                st.error(f"Bhai wallet khali hai! You need {cost} credits, but have {main_balance}.")
+        else:
+            st.warning("Bhai, pehle koi topic toh dalo!")
+
+    # Displaying the generated Mindmap
+    if "last_mm_generated" in st.session_state:
+        import streamlit.components.v1 as components
+        html = f"""
+        <div class="mermaid" style="display: flex; justify-content: center; background: white; padding: 20px; border-radius: 10px;">
+        {st.session_state.last_mm_generated}
+        </div>
+        <script type="module">
+            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+            mermaid.initialize({{ startOnLoad: true, theme: 'forest' }});
+        </script>
+        """
+        components.html(html, height=600, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
 with tab5:
