@@ -26,25 +26,25 @@ from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 
-# 1. Fix for AttributeError
+# 1. Global Stability Initializations
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "current_index" not in st.session_state:
     st.session_state.current_index = None
 
-# 2. Fix for 404 Embedding Error
-# Screenshots ke mutabiq GOOGLE_API_KEY use kar rahe hain
-api_key_final = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+# 2. Key Matching & Variable Sync (Fixes NameError & 404 Error)
+# Hum 'api_key_to_use' name use karenge taaki niche wala code crash na ho
+api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
-if api_key_final:
+if api_key_to_use:
     from llama_index.embeddings.gemini import GeminiEmbedding
-    # 'models/text-embedding-004' is the most stable version now
+    # 'models/text-embedding-004' is the latest stable version
     Settings.embed_model = GeminiEmbedding(
         model_name="models/text-embedding-004", 
-        api_key=api_key_final
+        api_key=api_key_to_use
     )
     Settings.chunk_size = 700
-    genai.configure(api_key=api_key_final)
+    genai.configure(api_key=api_key_to_use)
 else:
     st.warning("⚠️ Dashboard Secrets mein Key missing hai bhai!")
 
@@ -53,11 +53,27 @@ if 'user_credits' not in st.session_state:
     st.session_state.user_credits = 100 
 
 def check_credits(amount):
-    if st.session_state.user_data and st.session_state.user_data.get('credits', 0) >= amount:
+    # Session state check to prevent AttributeError
+    if st.session_state.get('user_data') and st.session_state.user_data.get('credits', 0) >= amount:
         return True
     return False
 
+# --- GLOBAL UTILITY: Laser Focus Search ---
+def get_subject_specific_text(doc, sub_name):
+    sub_text = ""
+    start_found = False
+    for page in doc:
+        text = page.get_text()
+        if sub_name.lower() in text.lower():
+            start_found = True
+        if start_found:
+            sub_text += text
+            if len(sub_text) > 12000: break 
+    return sub_text
+
 # --- 1. CONFIGURATION & PRO DARK UI ---
+# Note: st.set_page_config must be the first streamlit command after imports
+# If you get an error here, move this to the very top line after imports.
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
 def apply_pro_theme():
@@ -95,10 +111,6 @@ if "GROQ_API_KEY" in st.secrets:
 else:
     st.error("GROQ_API_KEY missing in Secrets!")
 
-# Gemini setup using the same logic
-if api_key_to_use:
-    genai.configure(api_key=api_key_to_use)
-
 # --- 2. SESSION STATE & LOGIN ---
 if "user_data" not in st.session_state:
     st.session_state.user_data = None
@@ -131,7 +143,7 @@ def show_login_page():
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 3. SIDEBAR (STRICTLY NO CHANGES TO RAZORPAY) ---
+# --- 3. SIDEBAR (Razorpay Protected) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
