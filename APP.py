@@ -25,15 +25,21 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- SILENT AI SETUP (No more Red Error Boxes) ---
-# Isse OpenAI wala error hamesha ke liye khatam ho jayega
+# --- GLOBAL STABILITY INITIALIZATION ---
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [] # Fixes AttributeError
+
+# --- SILENT AI SETUP ---
 if "GOOGLE_API_KEY" in st.secrets:
+    from llama_index.embeddings.gemini import GeminiEmbedding
     Settings.embed_model = GeminiEmbedding(
         model_name="models/embedding-001", 
         api_key=st.secrets["GOOGLE_API_KEY"]
     )
-    # YE LINE SABSE IMPORTANT HAI (Force global default)
-    from llama_index.core import Settings
-    Settings.chunk_size = 512 # Chhota chunk size scanned PDF ke liye better hai
+    Settings.chunk_size = 512
+else:
+    # Agar key bhool gaya toh ye warn karega par crash nahi
+    st.warning("⚠️ Wallet connectivity issue: Please check Streamlit Secrets for GOOGLE_API_KEY.")
 # --- GLOBAL UTILITY: Laser Focus Search ---
 def get_subject_specific_text(doc, sub_name):
     sub_text = ""
@@ -49,9 +55,7 @@ def get_subject_specific_text(doc, sub_name):
             # Sirf 4-5 pages uthao, taaki doosra subject na ghuse
             if len(sub_text) > 12000: break 
     return sub_text
-# --- INITIALIZE CHAT HISTORY (Fix for AttributeError) ---
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+
 # --- 💰 GLOBAL CREDIT SYSTEM (Place at Top) ---
 if 'user_credits' not in st.session_state:
     st.session_state.user_credits = 100 # Free welcome credits
@@ -213,71 +217,97 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat Engine</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC
+    # 💰 WALLET SYNC: Sidebar credits se connect kiya hai
     if "user_data" in st.session_state:
         current_credits = st.session_state.user_data['credits']
     else:
-        current_credits = 15
+        current_credits = 15 # Default if not logged in
 
-    # --- 📂 STEP 1: UPLOADER ---
+    # --- 📂 STEP 1: DEEP INDEXING (Google Gemini Engine) ---
+    st.markdown("### 📂 Step 1: Upload Exam Material (PDF)")
     up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="chat_pdf_final_stable")
+    uploaded_file = up_col.file_uploader("Upload Chapter/PYQ PDF", type="pdf", key="chat_pdf_final_v100", label_visibility="collapsed")
     
-    if uploaded_file and btn_col.button("🚀 Index Everything", use_container_width=True):
-        with st.spinner("Decoding PDF... Force-loading Gemini Engine"):
-            try:
-                # Direct override to kill OpenAI error
-                from llama_index.embeddings.gemini import GeminiEmbedding
-                gemini_embed = GeminiEmbedding(model_name="models/embedding-001", api_key=st.secrets["GOOGLE_API_KEY"])
-                
-                doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                documents = []
-                for page_num, page in enumerate(doc):
-                    text = page.get_text().strip() or f"Scan data Page {page_num+1}"
-                    documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
-                
-                # Force Gemini globally
-                st.session_state.current_index = VectorStoreIndex.from_documents(
-                    documents, 
-                    embed_model=gemini_embed 
-                )
-                st.success("✅ PDF Ready! Chat history stabilized.")
-            except Exception as e:
-                st.error(f"Indexing Error: {e}")
+    if uploaded_file and btn_col.button("🚀 Index for Exam", use_container_width=True):
+        if "GOOGLE_API_KEY" in st.secrets:
+            with st.spinner("Decoding PDF... mapping technical concepts"):
+                try:
+                    # Force Gemini Embedding to kill OpenAI errors
+                    from llama_index.embeddings.gemini import GeminiEmbedding
+                    gemini_embed = GeminiEmbedding(model_name="models/embedding-001", api_key=st.secrets["GOOGLE_API_KEY"])
+                    
+                    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+                    documents = []
+                    for page_num, page in enumerate(doc):
+                        text = page.get_text().strip()
+                        # Scanned PDF handling logic
+                        if not text:
+                            text = f"Page {page_num+1} is a scan. Mining for engineering data..."
+                        documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
+                    
+                    # Create Index with Gemini 
+                    st.session_state.current_index = VectorStoreIndex.from_documents(
+                        documents, 
+                        embed_model=gemini_embed 
+                    )
+                    st.success("✅ System Ready! Ask your doubts in Hinglish.")
+                except Exception as e:
+                    st.error(f"Indexing Error: {e}")
+        else:
+            st.error("❌ Key Missing! Streamlit Dashboard > Secrets mein GOOGLE_API_KEY daal bhai.")
 
-    # --- 💬 STEP 2: CHAT INTERFACE (AttributeError Fix) ---
+    # --- 💬 STEP 2: CHAT INTERFACE (AttributeError Proof) ---
     st.divider()
     
-    # SAFE CHECK: Always ensure chat_history exists before loop
-    chat_list = st.session_state.get("chat_history", [])
-    
-    for msg in chat_list:
+    # Safe history retrieval
+    history = st.session_state.get("chat_history", [])
+    for msg in history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
     if st.session_state.get("current_index"):
-        if user_query := st.chat_input("Bhai, kya dhoondna hai?"):
+        if user_query := st.chat_input("Ex: 'Explain this concept in Hinglish' or 'List formulas'"):
+            # CHECK CREDITS (1 Credit per query)
             if current_credits >= 1:
-                # Add to history safely
+                # Add to history
+                if "chat_history" not in st.session_state:
+                    st.session_state.chat_history = []
+                
                 st.session_state.chat_history.append({"role": "user", "content": user_query})
                 with st.chat_message("user"):
                     st.markdown(user_query)
 
                 with st.chat_message("assistant"):
-                    with st.spinner("Searching PDF..."):
+                    with st.spinner("Searching Textbook..."):
+                        # Query Engine using Gemini
                         query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                        response = query_engine.query(f"Answer in Hinglish. Cite page numbers. Query: {user_query}")
+                        
+                        custom_prompt = f"""
+                        You are TopperGPT. Answer based ONLY on the PDF provided.
+                        1. Use Roman Script Hinglish (Mix of Hindi and English).
+                        2. Always cite Page Numbers.
+                        3. Format math in LaTeX $ $.
+                        Query: {user_query}
+                        """
+                        response = query_engine.query(custom_prompt)
                         
                         st.markdown(response.response)
                         
-                        # DEDUCT CREDIT & REFRESH
+                        # Citation logic
+                        if response.source_nodes:
+                            pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
+                            st.caption(f"📍 Reference: Page {', '.join(pages)}")
+                        
+                        # DEDUCT & REFRESH
                         st.session_state.user_data['credits'] -= 1
                         st.session_state.chat_history.append({"role": "assistant", "content": response.response})
                         st.rerun()
             else:
-                st.error("Bhai, balance khatam!")
+                st.error("❌ Low Credits! Please top-up from sidebar.")
+    else:
+        st.info("👆 Pehle upar PDF upload karke 'Index for Exam' dabao!")
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
