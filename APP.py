@@ -24,44 +24,29 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
-# --- SILENT AI SETUP (Billionaire Build: No Error Boxes) ---
+# --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 
-# 1. Global Stability: Chat history ko pehle hi initialize kar rahe hain
-# Isse wo loop wala AttributeError kabhi nahi aayega.
+# 1. Fix for AttributeError
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
-
 if "current_index" not in st.session_state:
     st.session_state.current_index = None
 
-# 2. Key Matching: Screenshots ke mutabiq GEMINI_API_KEY ya GOOGLE_API_KEY check kar rahe hain
-# Isse LlamaIndex ko force karenge ki wo OpenAI ke pass na jaye.
-api_key_to_use = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+# 2. Fix for 404 Embedding Error
+# Screenshots ke mutabiq GOOGLE_API_KEY use kar rahe hain
+api_key_final = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
-if api_key_to_use:
+if api_key_final:
     from llama_index.embeddings.gemini import GeminiEmbedding
-    # Global settings setup taaki pura app Gemini use kare
+    # 'models/text-embedding-004' is the most stable version now
     Settings.embed_model = GeminiEmbedding(
-        model_name="models/embedding-001", 
-        api_key=api_key_to_use
+        model_name="models/text-embedding-004", 
+        api_key=api_key_final
     )
-    Settings.chunk_size = 512
+    Settings.chunk_size = 700
+    genai.configure(api_key=api_key_final)
 else:
-    # Silent warning: Background mein rahegi, screen pe laal box nahi banegi
-    print("Warning: No AI Key found in Secrets. Chat might not work.")
-
-# --- GLOBAL UTILITY: Laser Focus Search ---
-def get_subject_specific_text(doc, sub_name):
-    sub_text = ""
-    start_found = False
-    for page in doc:
-        text = page.get_text()
-        if sub_name.lower() in text.lower():
-            start_found = True
-        if start_found:
-            sub_text += text
-            if len(sub_text) > 12000: break 
-    return sub_text
+    st.warning("⚠️ Dashboard Secrets mein Key missing hai bhai!")
 
 # --- 💰 GLOBAL CREDIT SYSTEM ---
 if 'user_credits' not in st.session_state:
@@ -216,34 +201,35 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat Engine</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC
-    current_credits = st.session_state.user_data['credits'] if "user_data" in st.session_state else 15
+    # 💰 WALLET SYNC: Master Sidebar balance check
+    current_credits = st.session_state.user_data.get('credits', 15) if st.session_state.user_data else 15
 
-    # --- 📂 STEP 1: DEEP INDEXING (Google Gemini Engine) ---
+    # --- 📂 STEP 1: DEEP INDEXING (Google Gemini Stable Engine) ---
     st.markdown("### 📂 Step 1: Upload Exam Material (PDF)")
     up_col, btn_col = st.columns([0.7, 0.3])
     uploaded_file = up_col.file_uploader("Upload Chapter/PYQ PDF", type="pdf", key="chat_pdf_final_v100", label_visibility="collapsed")
     
-    # Key check logic sync with your sidebar
+    # Key check logic: Bypassing potential 404 or Key errors
     api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
     if uploaded_file and btn_col.button("🚀 Index for Exam", use_container_width=True):
         if api_key_to_use:
             with st.spinner("Decoding PDF... mapping technical concepts"):
                 try:
-                    # Force Gemini Embedding 
+                    # Using the latest stable model to prevent 404 errors
                     from llama_index.embeddings.gemini import GeminiEmbedding
-                    gemini_embed = GeminiEmbedding(model_name="models/embedding-001", api_key=api_key_to_use)
+                    gemini_embed = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_to_use)
                     
                     doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                     documents = []
                     for page_num, page in enumerate(doc):
                         text = page.get_text().strip()
+                        # Handling scanned pages for engineering subjects
                         if not text:
-                            text = f"Page {page_num+1} is a scan. Mining for engineering data..."
+                            text = f"Page {page_num+1} is a scan. Content: Technical Diagram/Formula."
                         documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
                     
-                    # 🔥 CRITICAL FIX: Explicitly passing embed_model here kills OpenAI error
+                    # 🔥 CRITICAL: embed_model=gemini_embed kills the OpenAI requirement
                     st.session_state.current_index = VectorStoreIndex.from_documents(
                         documents, 
                         embed_model=gemini_embed 
@@ -254,10 +240,12 @@ with tab1:
         else:
             st.error("❌ Key Missing! Streamlit Dashboard > Secrets mein API key daal bhai.")
 
-    # --- 💬 STEP 2: CHAT INTERFACE ---
+    # --- 💬 STEP 2: CHAT INTERFACE (No-Crash Logic) ---
     st.divider()
     
-    # Safe history retrieval
+    # 
+    
+    # Safe history retrieval to prevent AttributeError
     history = st.session_state.get("chat_history", [])
     for msg in history:
         with st.chat_message(msg["role"]):
@@ -276,37 +264,37 @@ with tab1:
 
                 with st.chat_message("assistant"):
                     with st.spinner("Searching Textbook..."):
-                        # Use the same Gemini embed for the query engine
+                        # Force Gemini for query too
                         from llama_index.embeddings.gemini import GeminiEmbedding
-                        gemini_embed = GeminiEmbedding(model_name="models/embedding-001", api_key=api_key_to_use)
+                        gemini_embed = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_to_use)
                         
                         query_engine = st.session_state.current_index.as_query_engine(
                             similarity_top_k=5,
-                            embed_model=gemini_embed # Force Gemini for query too
+                            embed_model=gemini_embed 
                         )
                         
                         custom_prompt = f"""
-                        You are TopperGPT. Answer based ONLY on the PDF provided.
-                        1. Use Roman Script Hinglish (Mix of Hindi and English).
+                        You are TopperGPT. Answer using the provided PDF.
+                        1. Use Hinglish (Hindi + English) in Roman script.
                         2. Always cite Page Numbers.
-                        3. Format math in LaTeX $ $.
+                        3. Use LaTeX for math/formulas: $ $.
                         Query: {user_query}
                         """
                         response = query_engine.query(custom_prompt)
                         st.markdown(response.response)
                         
-                        if response.source_nodes:
+                        if hasattr(response, 'source_nodes') and response.source_nodes:
                             pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
                             st.caption(f"📍 Reference: Page {', '.join(pages)}")
                         
-                        # DEDUCT & REFRESH
+                        # 💰 DEDUCT & PERSIST
                         st.session_state.user_data['credits'] -= 1
                         st.session_state.chat_history.append({"role": "assistant", "content": response.response})
                         st.rerun()
             else:
-                st.error("❌ Low Credits! Please top-up from sidebar.")
+                st.error("❌ Low Credits! Top-up karle bhai.")
     else:
-        st.info("👆 Pehle upar PDF upload karke 'Index for Exam' dabao!")
+        st.info("👆 Pehle PDF upload karke 'Index for Exam' dabao!")
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
@@ -480,13 +468,13 @@ with tab3:
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC
-    current_bal = st.session_state.user_data.get('credits', 0)
+    # 💰 WALLET SYNC: Sidebar credits se link hai
+    current_bal = st.session_state.user_data.get('credits', 0) if st.session_state.user_data else 0
 
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_hd_v1", placeholder="e.g. Laser Working")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_stable_v10", placeholder="e.g. Laser Working")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -497,30 +485,44 @@ with tab4:
             if current_bal >= cost:
                 with st.spinner("Generating HD Architecture..."):
                     try:
+                        # GROQ LLM for fast code generation
                         llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
+                            # Using Gemini for technical context extraction
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
                             context_res = qe.query(f"Extract key technical components for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        prompt = f"Create a Mermaid.js mindmap for: '{mm_input}'. {context} Rules: Root node must be (({mm_input})), Roman script only, no special brackets."
+                        # Strict prompt to prevent Syntax Errors
+                        prompt = f"""
+                        Create a Mermaid.js mindmap for: '{mm_input}'.
+                        {context}
+                        Rules:
+                        1. Start code with 'mindmap'
+                        2. Root must be 'root(({mm_input}))'
+                        3. Use simple text for nodes. NO brackets () [] or special chars inside nodes.
+                        4. Return ONLY the Mermaid code block.
+                        """
                         res = llm.complete(prompt)
                         mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
+                        # 💰 DEDUCT & SAVE
                         st.session_state.user_data['credits'] -= cost
                         st.session_state.last_mm_code = mm_code
+                        st.toast(f"Success! {cost} Credits deducted.")
                         st.rerun() 
                     except Exception as e: st.error(f"Logic Error: {e}")
-            else: st.error("Credits low hain bhai!")
+            else: st.error("Credits low hain bhai! Sidebar se top-up kar.")
+        else: st.warning("Concept ka naam toh dalo!")
 
-    # --- HD RENDER & DOWNLOAD ENGINE ---
+    # --- HD RENDER & DOWNLOAD ENGINE (Scale 4) ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # Is HTML mein 'scale: 4' daala hai high resolution ke liye
+        # High resolution script with error suppression
         html_code = f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <div id="capture_area" style="background: white; padding: 40px; border-radius: 15px; display: inline-block; min-width: 800px; text-align: center;">
@@ -534,7 +536,8 @@ with tab4:
         </button>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({{ startOnLoad: true, theme: 'forest', securityLevel: 'loose' }});
+            // Suppress errors to keep UI clean even if syntax is tricky
+            mermaid.initialize({{ startOnLoad: true, theme: 'forest', securityLevel: 'loose', suppressErrors: true }});
             
             window.downloadHD = function() {{
                 const area = document.querySelector("#capture_area");
