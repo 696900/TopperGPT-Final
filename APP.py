@@ -25,12 +25,15 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- SILENT AI SETUP (No more Red Error Boxes) ---
+# Isse OpenAI wala error hamesha ke liye khatam ho jayega
 if "GOOGLE_API_KEY" in st.secrets:
-    from llama_index.embeddings.gemini import GeminiEmbedding
     Settings.embed_model = GeminiEmbedding(
         model_name="models/embedding-001", 
         api_key=st.secrets["GOOGLE_API_KEY"]
     )
+    # YE LINE SABSE IMPORTANT HAI (Force global default)
+    from llama_index.core import Settings
+    Settings.chunk_size = 512 # Chhota chunk size scanned PDF ke liye better hai
 # --- GLOBAL UTILITY: Laser Focus Search ---
 def get_subject_specific_text(doc, sub_name):
     sub_text = ""
@@ -208,81 +211,65 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam-Focused Chat</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat</h2>", unsafe_allow_html=True)
     
-    # Session States for Cross-Tab Sync
-    if "chat_history" not in st.session_state: st.session_state.chat_history = []
-    if "current_index" not in st.session_state: st.session_state.current_index = None
+    # 💰 WALLET SYNC
+    current_credits = st.session_state.user_data['credits']
 
-    # --- 1. THE DEEP SCAN UPLOADER ---
-    st.markdown("### 📂 Step 1: Upload PDF (Scanned Supported)")
+    # --- 📂 STEP 1: UPLOADER (STABLE INDEXING) ---
     up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="deep_ocr_v9", label_visibility="collapsed")
+    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="chat_pdf_vfinal")
     
     if uploaded_file and btn_col.button("🚀 Index Everything", use_container_width=True):
-        with st.spinner("Decoding Images & Text..."):
+        with st.spinner("Decoding PDF... Force-loading Gemini Engine"):
             try:
+                # Explicitly setting model again here to override OpenAI defaults
+                from llama_index.embeddings.gemini import GeminiEmbedding
+                gemini_embed = GeminiEmbedding(model_name="models/embedding-001", api_key=st.secrets["GOOGLE_API_KEY"])
+                
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                 documents = []
-                
-                for page_num in range(len(doc)):
-                    page = doc[page_num]
-                    # Digital text search first
-                    text = page.get_text().strip()
-                    
-                    # IF SCANNED: Force AI to treat as OCR context
-                    if not text:
-                        text = f"Page {page_num+1} is a scanned image. AI will mine this for formulas and PYQs."
-                    
+                for page_num, page in enumerate(doc):
+                    text = page.get_text().strip() or f"Scan data Page {page_num+1}"
                     documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
                 
-                st.session_state.current_index = VectorStoreIndex.from_documents(documents)
-                st.success("✅ Deep Indexing Complete!")
+                # Force Gemini as the embedding model for this index
+                st.session_state.current_index = VectorStoreIndex.from_documents(
+                    documents, 
+                    embed_model=gemini_embed 
+                )
+                st.success("✅ PDF Ready! OpenAI error bypassed.")
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Indexing Error: {e}")
 
-    # --- 2. THE SMART CHAT INTERFACE ---
+    # --- 💬 STEP 2: CHAT INTERFACE ---
     st.divider()
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
     if st.session_state.current_index:
-        if user_query := st.chat_input("Ex: 'Summarize Unit 1' or 'Make MindMap of Mechanics'"):
-            st.session_state.chat_history.append({"role": "user", "content": user_query})
-            with st.chat_message("user"): st.markdown(user_query)
+        if user_query := st.chat_input("Ask: 'Explain important formulas'"):
+            # CHECK CREDITS (1 Credit per query)
+            if current_credits >= 1:
+                st.session_state.chat_history.append({"role": "user", "content": user_query})
+                with st.chat_message("user"): st.markdown(user_query)
 
-            with st.chat_message("assistant"):
-                with st.spinner("Processing..."):
-                    # High similarity taaki scanned contents miss na hon
-                    query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=8)
-                    
-                    # REDIRECT LOGIC: Check if user wants a MindMap
-                    if "mindmap" in user_query.lower() or "mind map" in user_query.lower():
-                        # Extract topic (Basic extraction)
-                        topic = user_query.lower().replace("make", "").replace("mindmap", "").replace("of", "").strip()
-                        st.session_state.active_topic = topic # Sync with Tab 4
+                with st.chat_message("assistant"):
+                    with st.spinner("Searching PDF..."):
+                        # Use Gemini for query embedding too
+                        query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=5)
                         
-                        res_text = f"Bhai, maine **{topic}** ka data ready kar liya hai. Neeche 'Build MindMap' button dabao, main tumhe wahan le chalta hoon!"
-                        st.markdown(res_text)
-                        if st.button("🧠 Build MindMap Now"):
-                            st.switch_page("pages/mindmap.py") # Use this if you have separate files, else just rerun
-                    else:
-                        # Normal Chat Logic (Strict Roman Hinglish)
-                        custom_prompt = f"""
-                        You are TopperGPT. Use ROMAN SCRIPT (English letters).
-                        1. If requested for formulas, create a Table. 
-                        2. If PDF is scanned, look for specific engineering keywords.
-                        3. Cite Page Numbers ALWAYS.
-                        User: {user_query}
-                        """
-                        response = query_engine.query(custom_prompt)
+                        prompt = f"Answer in Hinglish. Cite page numbers. Query: {user_query}"
+                        response = query_engine.query(prompt)
+                        
                         st.markdown(response.response)
                         
-                        if response.source_nodes:
-                            pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
-                            st.caption(f"📍 Sources: Page {', '.join(pages)}")
-                    
-                    st.session_state.chat_history.append({"role": "assistant", "content": response.response if 'response' in locals() else res_text})
+                        # DEDUCT CREDIT
+                        st.session_state.user_data['credits'] -= 1
+                        st.session_state.chat_history.append({"role": "assistant", "content": response.response})
+                        st.rerun()
+            else:
+                st.error("Bhai, balance khatam! 1 Credit chahiye.")
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
