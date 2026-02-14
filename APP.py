@@ -24,46 +24,54 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
-# --- SILENT AI SETUP (No more Red Error Boxes) ---
-# --- GLOBAL STABILITY INITIALIZATION ---
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [] # Fixes AttributeError
+# --- SILENT AI SETUP (Billionaire Build: No Error Boxes) ---
 
-# --- SILENT AI SETUP ---
-if "GOOGLE_API_KEY" in st.secrets:
+# 1. Global Stability: Chat history ko pehle hi initialize kar rahe hain
+# Isse wo loop wala AttributeError kabhi nahi aayega.
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if "current_index" not in st.session_state:
+    st.session_state.current_index = None
+
+# 2. Key Matching: Screenshots ke mutabiq GEMINI_API_KEY ya GOOGLE_API_KEY check kar rahe hain
+# Isse LlamaIndex ko force karenge ki wo OpenAI ke pass na jaye.
+api_key_to_use = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+
+if api_key_to_use:
     from llama_index.embeddings.gemini import GeminiEmbedding
+    # Global settings setup taaki pura app Gemini use kare
     Settings.embed_model = GeminiEmbedding(
         model_name="models/embedding-001", 
-        api_key=st.secrets["GOOGLE_API_KEY"]
+        api_key=api_key_to_use
     )
     Settings.chunk_size = 512
 else:
-    # Agar key bhool gaya toh ye warn karega par crash nahi
-    st.warning("⚠️ Wallet connectivity issue: Please check Streamlit Secrets for GOOGLE_API_KEY.")
+    # Silent warning: Background mein rahegi, screen pe laal box nahi banegi
+    print("Warning: No AI Key found in Secrets. Chat might not work.")
+
 # --- GLOBAL UTILITY: Laser Focus Search ---
 def get_subject_specific_text(doc, sub_name):
     sub_text = ""
     start_found = False
     for page in doc:
         text = page.get_text()
-        # Agar subject ka naam mil jaye toh wahan se reading shuru karo
         if sub_name.lower() in text.lower():
             start_found = True
-        
         if start_found:
             sub_text += text
-            # Sirf 4-5 pages uthao, taaki doosra subject na ghuse
             if len(sub_text) > 12000: break 
     return sub_text
 
-# --- 💰 GLOBAL CREDIT SYSTEM (Place at Top) ---
+# --- 💰 GLOBAL CREDIT SYSTEM ---
 if 'user_credits' not in st.session_state:
-    st.session_state.user_credits = 100 # Free welcome credits
+    st.session_state.user_credits = 100 
 
 def check_credits(amount):
-    if st.session_state.user_credits >= amount:
+    if st.session_state.user_data and st.session_state.user_data.get('credits', 0) >= amount:
         return True
     return False
+
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
@@ -72,20 +80,17 @@ def apply_pro_theme():
         <style>
         .stApp { background-color: #0e1117 !important; color: #ffffff !important; }
         [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
-        
         .login-card {
             background: linear-gradient(145deg, #1e2530, #161b22);
             padding: 40px; border-radius: 25px; text-align: center;
             border: 1px solid #4CAF50; box-shadow: 0 20px 50px rgba(0,0,0,0.7);
             max-width: 450px; margin: auto;
         }
-
         .wallet-card {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             padding: 20px; border-radius: 15px; border: 1px solid #4CAF50;
             text-align: center; margin-bottom: 20px;
         }
-        
         .exam-special-tag {
             background: rgba(255, 75, 75, 0.15);
             color: #ff4b4b; border: 1px solid #ff4b4b;
@@ -105,9 +110,11 @@ if "GROQ_API_KEY" in st.secrets:
 else:
     st.error("GROQ_API_KEY missing in Secrets!")
 
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+# Gemini setup using the same logic
+if api_key_to_use:
+    genai.configure(api_key=api_key_to_use)
 
-# --- 2. SESSION STATE & LOGIN (THE HOOK) ---
+# --- 2. SESSION STATE & LOGIN ---
 if "user_data" not in st.session_state:
     st.session_state.user_data = None
 
@@ -125,7 +132,6 @@ def show_login_page():
         """, unsafe_allow_html=True)
         
         if st.button("🔴 Continue with Google Account", use_container_width=True):
-            # Format: TOP + Last 4 digits of timestamp (e.g., TOP9875)
             ref_code = "TOP" + str(int(time.time()))[-4:]
             st.session_state.user_data = {
                 "email": "verified.student@mu.edu", 
@@ -140,11 +146,10 @@ def show_login_page():
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 3. SIDEBAR (FIXED INTEGRATION & VALIDATION) ---
+# --- 3. SIDEBAR (STRICTLY NO CHANGES TO RAZORPAY) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
-    # Wallet Card
     st.markdown(f"""
         <div class="wallet-card">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
@@ -153,7 +158,6 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # Double Reward Referral System (Jugaad-Proof)
     with st.expander("🎁 Get FREE Credits (Double Reward)"):
         st.write("Dosto ko bhej, **Dono** ko 5-5 credits milenge!")
         st.code(st.session_state.user_data['referral_code'])
@@ -161,26 +165,20 @@ with st.sidebar:
         if not st.session_state.user_data.get('ref_claimed', False):
             st.divider()
             claim_code = st.text_input("Friend ka Referral Code?", placeholder="e.g. TOP1234")
-            
             if st.button("Claim My Bonus (+5)"):
                 clean_claim = claim_code.strip().upper() if claim_code else ""
-                
                 if not clean_claim:
                     st.warning("Pehle code toh daal bhai!")
                 elif clean_claim == st.session_state.user_data['referral_code']:
                     st.error("Shaane! Apna hi code daal ke credits badhayega? 😂")
-                # STRICT REGEX: Must be TOP followed by exactly 4 digits
                 elif not re.match(r"^TOP\d{4}$", clean_claim):
                     st.error("Invalid Code Format! Sahi code daal (e.g. TOP9875).")
-                    st.toast("Jugaad Blocked! 😂")
                 else:
-                    # Success Path
                     st.session_state.user_data['credits'] += 5
                     st.session_state.user_data['ref_claimed'] = True
                     st.session_state.user_data['tier'] = "Referred User"
                     st.balloons()
                     st.success("Success! +5 Credits added. 🔥")
-                    st.info("Note: Tere friend ko bhi +5 credits mil gaye hain!")
                     time.sleep(2)
                     st.rerun()
 
@@ -193,7 +191,6 @@ with st.sidebar:
         "Monthly Pro (350 Credits) @ ₹149"
     ])
     
-    # Razorpay Links
     base_link = "https://rzp.io/rzp/AWiyLxEi" 
     if "₹59" in plan_choice: base_link = "https://rzp.io/rzp/FmwE0Ms6" 
     elif "₹149" in plan_choice: base_link = "https://rzp.io/rzp/hXcR54E" 
@@ -219,35 +216,34 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat Engine</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC: Sidebar credits se connect kiya hai
-    if "user_data" in st.session_state:
-        current_credits = st.session_state.user_data['credits']
-    else:
-        current_credits = 15 # Default if not logged in
+    # 💰 WALLET SYNC
+    current_credits = st.session_state.user_data['credits'] if "user_data" in st.session_state else 15
 
     # --- 📂 STEP 1: DEEP INDEXING (Google Gemini Engine) ---
     st.markdown("### 📂 Step 1: Upload Exam Material (PDF)")
     up_col, btn_col = st.columns([0.7, 0.3])
     uploaded_file = up_col.file_uploader("Upload Chapter/PYQ PDF", type="pdf", key="chat_pdf_final_v100", label_visibility="collapsed")
     
+    # Key check logic sync with your sidebar
+    api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+
     if uploaded_file and btn_col.button("🚀 Index for Exam", use_container_width=True):
-        if "GOOGLE_API_KEY" in st.secrets:
+        if api_key_to_use:
             with st.spinner("Decoding PDF... mapping technical concepts"):
                 try:
-                    # Force Gemini Embedding to kill OpenAI errors
+                    # Force Gemini Embedding 
                     from llama_index.embeddings.gemini import GeminiEmbedding
-                    gemini_embed = GeminiEmbedding(model_name="models/embedding-001", api_key=st.secrets["GOOGLE_API_KEY"])
+                    gemini_embed = GeminiEmbedding(model_name="models/embedding-001", api_key=api_key_to_use)
                     
                     doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                     documents = []
                     for page_num, page in enumerate(doc):
                         text = page.get_text().strip()
-                        # Scanned PDF handling logic
                         if not text:
                             text = f"Page {page_num+1} is a scan. Mining for engineering data..."
                         documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
                     
-                    # Create Index with Gemini 
+                    # 🔥 CRITICAL FIX: Explicitly passing embed_model here kills OpenAI error
                     st.session_state.current_index = VectorStoreIndex.from_documents(
                         documents, 
                         embed_model=gemini_embed 
@@ -256,9 +252,9 @@ with tab1:
                 except Exception as e:
                     st.error(f"Indexing Error: {e}")
         else:
-            st.error("❌ Key Missing! Streamlit Dashboard > Secrets mein GOOGLE_API_KEY daal bhai.")
+            st.error("❌ Key Missing! Streamlit Dashboard > Secrets mein API key daal bhai.")
 
-    # --- 💬 STEP 2: CHAT INTERFACE (AttributeError Proof) ---
+    # --- 💬 STEP 2: CHAT INTERFACE ---
     st.divider()
     
     # Safe history retrieval
@@ -268,10 +264,9 @@ with tab1:
             st.markdown(msg["content"])
 
     if st.session_state.get("current_index"):
-        if user_query := st.chat_input("Ex: 'Explain this concept in Hinglish' or 'List formulas'"):
-            # CHECK CREDITS (1 Credit per query)
+        if user_query := st.chat_input("Ex: 'Explain this concept in Hinglish'"):
             if current_credits >= 1:
-                # Add to history
+                # Initialize history if missing
                 if "chat_history" not in st.session_state:
                     st.session_state.chat_history = []
                 
@@ -281,8 +276,14 @@ with tab1:
 
                 with st.chat_message("assistant"):
                     with st.spinner("Searching Textbook..."):
-                        # Query Engine using Gemini
-                        query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=5)
+                        # Use the same Gemini embed for the query engine
+                        from llama_index.embeddings.gemini import GeminiEmbedding
+                        gemini_embed = GeminiEmbedding(model_name="models/embedding-001", api_key=api_key_to_use)
+                        
+                        query_engine = st.session_state.current_index.as_query_engine(
+                            similarity_top_k=5,
+                            embed_model=gemini_embed # Force Gemini for query too
+                        )
                         
                         custom_prompt = f"""
                         You are TopperGPT. Answer based ONLY on the PDF provided.
@@ -292,10 +293,8 @@ with tab1:
                         Query: {user_query}
                         """
                         response = query_engine.query(custom_prompt)
-                        
                         st.markdown(response.response)
                         
-                        # Citation logic
                         if response.source_nodes:
                             pages = list(set([node.metadata['page_label'] for node in response.source_nodes]))
                             st.caption(f"📍 Reference: Page {', '.join(pages)}")
