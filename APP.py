@@ -49,7 +49,9 @@ def get_subject_specific_text(doc, sub_name):
             # Sirf 4-5 pages uthao, taaki doosra subject na ghuse
             if len(sub_text) > 12000: break 
     return sub_text
-
+# --- INITIALIZE CHAT HISTORY (Fix for AttributeError) ---
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 # --- 💰 GLOBAL CREDIT SYSTEM (Place at Top) ---
 if 'user_credits' not in st.session_state:
     st.session_state.user_credits = 100 # Free welcome credits
@@ -214,16 +216,19 @@ with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat</h2>", unsafe_allow_html=True)
     
     # 💰 WALLET SYNC
-    current_credits = st.session_state.user_data['credits']
+    if "user_data" in st.session_state:
+        current_credits = st.session_state.user_data['credits']
+    else:
+        current_credits = 15
 
-    # --- 📂 STEP 1: UPLOADER (STABLE INDEXING) ---
+    # --- 📂 STEP 1: UPLOADER ---
     up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="chat_pdf_vfinal")
+    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="chat_pdf_final_stable")
     
     if uploaded_file and btn_col.button("🚀 Index Everything", use_container_width=True):
         with st.spinner("Decoding PDF... Force-loading Gemini Engine"):
             try:
-                # Explicitly setting model again here to override OpenAI defaults
+                # Direct override to kill OpenAI error
                 from llama_index.embeddings.gemini import GeminiEmbedding
                 gemini_embed = GeminiEmbedding(model_name="models/embedding-001", api_key=st.secrets["GOOGLE_API_KEY"])
                 
@@ -233,43 +238,46 @@ with tab1:
                     text = page.get_text().strip() or f"Scan data Page {page_num+1}"
                     documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
                 
-                # Force Gemini as the embedding model for this index
+                # Force Gemini globally
                 st.session_state.current_index = VectorStoreIndex.from_documents(
                     documents, 
                     embed_model=gemini_embed 
                 )
-                st.success("✅ PDF Ready! OpenAI error bypassed.")
+                st.success("✅ PDF Ready! Chat history stabilized.")
             except Exception as e:
                 st.error(f"Indexing Error: {e}")
 
-    # --- 💬 STEP 2: CHAT INTERFACE ---
+    # --- 💬 STEP 2: CHAT INTERFACE (AttributeError Fix) ---
     st.divider()
-    for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+    
+    # SAFE CHECK: Always ensure chat_history exists before loop
+    chat_list = st.session_state.get("chat_history", [])
+    
+    for msg in chat_list:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-    if st.session_state.current_index:
-        if user_query := st.chat_input("Ask: 'Explain important formulas'"):
-            # CHECK CREDITS (1 Credit per query)
+    if st.session_state.get("current_index"):
+        if user_query := st.chat_input("Bhai, kya dhoondna hai?"):
             if current_credits >= 1:
+                # Add to history safely
                 st.session_state.chat_history.append({"role": "user", "content": user_query})
-                with st.chat_message("user"): st.markdown(user_query)
+                with st.chat_message("user"):
+                    st.markdown(user_query)
 
                 with st.chat_message("assistant"):
                     with st.spinner("Searching PDF..."):
-                        # Use Gemini for query embedding too
                         query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                        
-                        prompt = f"Answer in Hinglish. Cite page numbers. Query: {user_query}"
-                        response = query_engine.query(prompt)
+                        response = query_engine.query(f"Answer in Hinglish. Cite page numbers. Query: {user_query}")
                         
                         st.markdown(response.response)
                         
-                        # DEDUCT CREDIT
+                        # DEDUCT CREDIT & REFRESH
                         st.session_state.user_data['credits'] -= 1
                         st.session_state.chat_history.append({"role": "assistant", "content": response.response})
                         st.rerun()
             else:
-                st.error("Bhai, balance khatam! 1 Credit chahiye.")
+                st.error("Bhai, balance khatam!")
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
