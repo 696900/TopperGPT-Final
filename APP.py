@@ -33,7 +33,6 @@ if "current_index" not in st.session_state:
     st.session_state.current_index = None
 
 # 2. Key Matching & Variable Sync (Fixes NameError & 404 Error)
-# Screenshots ke mutabiq GEMINI_API_KEY ya GOOGLE_API_KEY dono ko check kar raha hai
 api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
 if api_key_to_use:
@@ -71,7 +70,7 @@ def get_subject_specific_text(doc, sub_name):
     return sub_text
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
-# Note: st.set_page_config must be the first streamlit command
+# Note: st.set_page_config MUST be the first command after imports
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
 def apply_pro_theme():
@@ -180,16 +179,17 @@ with st.sidebar:
     st.markdown("---")
     st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
     
-    # 💎 STRICT PAYMENT MAPPING (Fixes the link mix-up error)
+    # 💎 THE ULTIMATE FIX: Payment Logic with Session Key
     payment_links = {
         "Weekly Sureshot (70 Credits) @ ₹59": "https://rzp.io/rzp/FmwE0Ms6",
         "Jugaad Pack (150 Credits) @ ₹99": "https://rzp.io/rzp/AWiyLxEi",
         "Monthly Pro (350 Credits) @ ₹149": "https://rzp.io/rzp/hXcR54E"
     }
     
-    plan_choice = st.radio("Select pack:", list(payment_links.keys()))
+    # Key 'pack_selector_v2' ensures the radio state is strictly tracked
+    plan_choice = st.radio("Select pack:", list(payment_links.keys()), key="pack_selector_v2")
     
-    # Mapping the link directly from the dictionary to avoid state mismatch
+    # Direct mapping for the specific URL
     base_link = payment_links[plan_choice]
 
     st.markdown(f"""
