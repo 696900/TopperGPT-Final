@@ -33,12 +33,12 @@ if "current_index" not in st.session_state:
     st.session_state.current_index = None
 
 # 2. Key Matching & Variable Sync (Fixes NameError & 404 Error)
-# Hum 'api_key_to_use' name use karenge taaki niche wala code crash na ho
+# Screenshots ke mutabiq GEMINI_API_KEY ya GOOGLE_API_KEY dono ko check kar raha hai
 api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
 if api_key_to_use:
     from llama_index.embeddings.gemini import GeminiEmbedding
-    # 'models/text-embedding-004' is the latest stable version
+    # Latest stable model to prevent indexing crashes
     Settings.embed_model = GeminiEmbedding(
         model_name="models/text-embedding-004", 
         api_key=api_key_to_use
@@ -53,7 +53,6 @@ if 'user_credits' not in st.session_state:
     st.session_state.user_credits = 100 
 
 def check_credits(amount):
-    # Session state check to prevent AttributeError
     if st.session_state.get('user_data') and st.session_state.user_data.get('credits', 0) >= amount:
         return True
     return False
@@ -72,8 +71,7 @@ def get_subject_specific_text(doc, sub_name):
     return sub_text
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
-# Note: st.set_page_config must be the first streamlit command after imports
-# If you get an error here, move this to the very top line after imports.
+# Note: st.set_page_config must be the first streamlit command
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
 def apply_pro_theme():
@@ -143,7 +141,7 @@ def show_login_page():
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 3. SIDEBAR (Razorpay Protected) ---
+# --- 3. SIDEBAR (RAZORPAY GATEWAY PROTECTION) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
@@ -182,18 +180,20 @@ with st.sidebar:
     st.markdown("---")
     st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
     
-    plan_choice = st.radio("Select pack:", [
-        "Weekly Sureshot (70 Credits) @ ₹59",
-        "Jugaad Pack (150 Credits) @ ₹99", 
-        "Monthly Pro (350 Credits) @ ₹149"
-    ])
+    # 💎 STRICT PAYMENT MAPPING (Fixes the link mix-up error)
+    payment_links = {
+        "Weekly Sureshot (70 Credits) @ ₹59": "https://rzp.io/rzp/FmwE0Ms6",
+        "Jugaad Pack (150 Credits) @ ₹99": "https://rzp.io/rzp/AWiyLxEi",
+        "Monthly Pro (350 Credits) @ ₹149": "https://rzp.io/rzp/hXcR54E"
+    }
     
-    base_link = "https://rzp.io/rzp/AWiyLxEi" 
-    if "₹59" in plan_choice: base_link = "https://rzp.io/rzp/FmwE0Ms6" 
-    elif "₹149" in plan_choice: base_link = "https://rzp.io/rzp/hXcR54E" 
+    plan_choice = st.radio("Select pack:", list(payment_links.keys()))
+    
+    # Mapping the link directly from the dictionary to avoid state mismatch
+    base_link = payment_links[plan_choice]
 
     st.markdown(f"""
-        <a href="{base_link}?t={int(time.time())}" target="_blank" style="text-decoration: none;">
+        <a href="{base_link}" target="_blank" style="text-decoration: none;">
             <div style="width: 100%; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: black; text-align: center; padding: 16px 0; border-radius: 12px; font-weight: bold; cursor: pointer;">
                 🚀 Unlock {plan_choice.split(' (')[0]}
             </div>
