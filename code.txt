@@ -1,0 +1,35 @@
+
+    st.markdown("---")
+    st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
+    
+    # 💎 THE ULTIMATE FIX: Payment Logic with Session Key
+    # 💎 STRICT MAPPING WITH CACHE BUSTER
+    payment_links = {
+        "Weekly Sureshot (70 Credits) @ ₹59": "https://rzp.io/rzp/FmwE0Ms6",
+        "Jugaad Pack (150 Credits) @ ₹99": "https://rzp.io/rzp/AWiyLxEi",
+        "Monthly Pro (350 Credits) @ ₹149": "https://rzp.io/rzp/hXcR54E"
+    }
+    
+    # Key 'pack_selector_v2' ensures the radio state is strictly tracked
+    plan_choice = st.radio("Select pack:", list(payment_links.keys()), key="pack_selector_v2")
+    plan_choice = st.radio("Select pack:", list(payment_links.keys()), key="razorpay_fix_v5")
+    
+    # Direct mapping for the specific URL
+    base_link = payment_links[plan_choice]
+    # 🚀 THE MAGIC: Adding a unique timestamp to the URL so browser never caches it
+    raw_link = payment_links[plan_choice]
+    unique_link = f"{raw_link}?v={int(time.time())}" 
+
+    st.markdown(f"""
+        <a href="{base_link}" target="_blank" style="text-decoration: none;">
+        <a href="{unique_link}" target="_blank" style="text-decoration: none;">
+            <div style="width: 100%; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: black; text-align: center; padding: 16px 0; border-radius: 12px; font-weight: bold; cursor: pointer;">
+                🚀 Unlock {plan_choice.split(' (')[0]}
+                🚀 Buy: {plan_choice.split(' @ ')[0]}
+            </div>
+        </a>
+        <p style="font-size: 10px; color: #8b949e; text-align: center; margin-top: 5px;">Link ID: {int(time.time())}</p>
+    """, unsafe_allow_html=True)
+
+    if st.button("🔓 Secure Logout", use_container_width=True):
+
