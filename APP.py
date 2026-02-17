@@ -70,7 +70,6 @@ def get_subject_specific_text(doc, sub_name):
     return sub_text
 
 # --- 1. CONFIGURATION & PRO DARK UI ---
-# Note: st.set_page_config MUST be the first command after imports
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
 def apply_pro_theme():
@@ -140,7 +139,7 @@ def show_login_page():
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 3. SIDEBAR (RAZORPAY PERMANENT CACHE FIX) ---
+# --- 3. SIDEBAR (RAZORPAY FIXED + REFERRAL SYSTEM) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
@@ -148,8 +147,34 @@ with st.sidebar:
         <div class="wallet-card">
             <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
             <p style="color: white; font-size: 28px; font-weight: 900; margin: 5px 0;">{st.session_state.user_data['credits']} 🔥</p>
+            <p style="color: #8b949e; font-size: 10px; margin: 0;">Plan: {st.session_state.user_data['tier']}</p>
         </div>
     """, unsafe_allow_html=True)
+
+    # 🎁 REFERRAL SYSTEM (Restored)
+    with st.expander("🎁 Get FREE Credits (Double Reward)"):
+        st.write("Dosto ko bhej, **Dono** ko 5-5 credits milenge!")
+        st.code(st.session_state.user_data['referral_code'])
+        
+        if not st.session_state.user_data.get('ref_claimed', False):
+            st.divider()
+            claim_code = st.text_input("Friend ka Referral Code?", placeholder="e.g. TOP1234")
+            if st.button("Claim My Bonus (+5)"):
+                clean_claim = claim_code.strip().upper() if claim_code else ""
+                if not clean_claim:
+                    st.warning("Pehle code toh daal bhai!")
+                elif clean_claim == st.session_state.user_data['referral_code']:
+                    st.error("Shaane! Apna hi code daal ke credits badhayega? 😂")
+                elif not re.match(r"^TOP\d{4}$", clean_claim):
+                    st.error("Invalid Code Format! Sahi code daal (e.g. TOP9875).")
+                else:
+                    st.session_state.user_data['credits'] += 5
+                    st.session_state.user_data['ref_claimed'] = True
+                    st.session_state.user_data['tier'] = "Referred User"
+                    st.balloons()
+                    st.success("Success! +5 Credits added. 🔥")
+                    time.sleep(2)
+                    st.rerun()
 
     st.markdown("---")
     st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
@@ -161,9 +186,9 @@ with st.sidebar:
         "Monthly Pro (350 Credits) @ ₹149": "https://rzp.io/rzp/hXcR54E"
     }
     
-    plan_choice = st.radio("Select pack:", list(payment_links.keys()), key="razorpay_fix_v5")
+    plan_choice = st.radio("Select pack:", list(payment_links.keys()), key="razorpay_final_v10")
     
-    # 🚀 THE MAGIC: Adding a unique timestamp to the URL so browser never caches it
+    # 🚀 THE MAGIC: Adding unique timestamp so browser never caches the link
     raw_link = payment_links[plan_choice]
     unique_link = f"{raw_link}?v={int(time.time())}" 
 
@@ -173,7 +198,7 @@ with st.sidebar:
                 🚀 Buy: {plan_choice.split(' @ ')[0]}
             </div>
         </a>
-        <p style="font-size: 10px; color: #8b949e; text-align: center; margin-top: 5px;">Link ID: {int(time.time())}</p>
+        <p style="font-size: 10px; color: #8b949e; text-align: center; margin-top: 5px;">Link Verified: {int(time.time())}</p>
     """, unsafe_allow_html=True)
 
     if st.button("🔓 Secure Logout", use_container_width=True):
