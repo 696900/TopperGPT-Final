@@ -324,103 +324,67 @@ def get_clean_json_v2(text):
 
 # --- TAB 2: SMART SYLLABUS MENTOR ---
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 AI Intelligent Roadmap & Tracker</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'>Checklist se Mentor tak ka safar 🚀</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Tracker</h2>", unsafe_allow_html=True)
     
-    # Session State Initialization
+    # Session States for persistence
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
-    if 'roadmap_data' not in st.session_state: st.session_state.roadmap_data = None
+    if 'detected_subjects' not in st.session_state: st.session_state.detected_subjects = []
 
-    # --- INPUT SECTION ---
-    col_date, col_upload = st.columns([0.4, 0.6])
+    # 1. CLEAN UPLOAD
+    up_pdf = st.file_uploader("Upload Syllabus PDF (MU/SPPU/GTU)", type="pdf", key="clean_tracker_v1")
     
-    with col_date:
-        # Exam Date Picker
-        exam_date = st.date_input("📅 Exam kab se shuru hai?", min_value=datetime.now().date(), key="exam_date_v10")
-        today = datetime.now().date()
-        days_left = (exam_date - today).days
-        
-        # Urgency Badges based on Time Remaining
-        if days_left <= 2:
-            st.error(f"🚨 CRITICAL: Sirf {days_left} din bache hain! AI focus karega 80/20 Rule par.")
-        elif days_left <= 5:
-            st.warning(f"⚠️ URGENT: {days_left} din bache hain. Most important topics pehle.")
-        else:
-            st.info(f"✅ RELAX: {days_left} din hain. Pura syllabus cover karenge.")
-
-    with col_upload:
-        up_syllabus = st.file_uploader("📤 Upload Syllabus PDF", type="pdf", key="syllabus_final_v100")
-
-    # --- GENERATION LOGIC ---
-    if up_syllabus and st.button("🚀 Generate AI Roadmap", use_container_width=True):
-        with st.spinner("AI Mentor is analyzing syllabus weightage..."):
+    if up_pdf and st.button("🔍 Scan & Track Syllabus"):
+        with st.spinner("Isolating Subjects..."):
             try:
-                # 1. Extract Text from PDF
-                doc = fitz.open(stream=up_syllabus.read(), filetype="pdf")
+                pdf_bytes = up_pdf.read()
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                
+                # Step 1: Just detect subject names first to avoid mix-up
+                llm = LlamaGroq(model="llama-3.1-8b-instant", api_key=st.secrets["GROQ_API_KEY"])
                 full_text = ""
-                for page in doc: 
-                    full_text += page.get_text()
+                for i in range(min(len(doc), 15)): full_text += doc[i].get_text()
                 
-                # 2. Intelligent Prompting
-                llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+                detect_prompt = f"List ONLY the main engineering theory subject names from this text. Return as JSON: {{'subs': ['Maths', 'Physics']}}. Text: {full_text[:5000]}"
+                res_detect = llm.complete(detect_prompt)
+                st.session_state.detected_subjects = get_clean_json_v2(res_detect.text).get("subs", [])
                 
-                # Dynamic Logic: Agar din kam hain toh AI ko 80/20 rule force karo
-                priority_instruction = "IMPORTANT: Only include top 20% high-weightage topics (80/20 rule)." if days_left <= 3 else "Include all modules."
+                # Step 2: Build isolated trees for each subject
+                master_tree = {}
+                llm_heavy = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                 
-                prompt = f"""
-                You are a Personal Engineering Mentor. 
-                Days Remaining: {days_left}
-                Strategy: {priority_instruction}
-                Syllabus Text: {full_text[:8000]}
+                for sub in st.session_state.detected_subjects:
+                    # Subject specific text nikalo taaki mixing na ho
+                    sub_context = get_subject_specific_text(doc, sub)
+                    
+                    sub_prompt = f"Extract 6 Modules and their topics for '{sub}' ONLY. Format JSON: {{'Mod 1': ['Topic A', 'Topic B']}}. Text: {sub_context[:8000]}"
+                    res_sub = llm_heavy.complete(sub_prompt)
+                    sub_data = get_clean_json_v2(res_sub.text)
+                    
+                    if sub_data:
+                        master_tree[sub] = sub_data
                 
-                Task:
-                1. Divide the topics into exactly {min(days_left, 7)} daily tasks.
-                2. Extract subject name, modules and specific topics.
-                
-                Return ONLY JSON:
-                {{
-                  "roadmap": {{"Day 1": "Unit 1 Summary + Formulas", "Day 2": "PYQs of Unit 2..."}},
-                  "tracker": {{"Subject Name": {{"Module 1": ["Topic 1", "Topic 2"]}}}}
-                }}
-                """
-                
-                res = llm.complete(prompt)
-                
-                # 3. Clean and Load JSON
-                clean_json = get_clean_json_v2(res.text)
-                
-                if clean_json:
-                    st.session_state.roadmap_data = clean_json.get("roadmap")
-                    st.session_state.master_tracker = clean_json.get("tracker")
-                    st.balloons()
-                    st.rerun()
-                else:
-                    st.error("AI output format error. Please try indexing again.")
-                
-            except Exception as e:
-                st.error(f"Syllabus Engine Error: {e}")
+                st.session_state.master_tracker = master_tree
+                st.success(f"Successfully isolated {len(master_tree)} subjects!")
+                st.rerun()
+            except Exception as e: st.error(f"Scan Error: {e}")
 
-    # --- 🗺️ THE MENTOR DASHBOARD (Hybrid View) ---
-    if st.session_state.roadmap_data:
+    # 2. THE CLEAN UI (No Roadmap, Just Tracking)
+    if st.session_state.master_tracker:
         st.divider()
-        col_roadmap, col_tracker = st.columns([0.4, 0.6])
-        
-        with col_roadmap:
-            st.markdown("### 🗺️ AI Roadmap")
-            for day, task in st.session_state.roadmap_data.items():
-                with st.expander(f"📅 {day}", expanded=True if "Day 1" in day else False):
-                    st.success(f"**To-Do:** {task}")
-        
-        with col_tracker:
-            st.markdown("### 📊 Live Progress")
-            for sub, mods in st.session_state.master_tracker.items():
-                st.markdown(f"#### 📘 {sub}")
-                for mod, topics in mods.items():
-                    with st.expander(f"📂 {mod}"):
+        cols = st.columns(2)
+        for i, (sub, mods) in enumerate(st.session_state.master_tracker.items()):
+            with cols[i % 2]:
+                with st.expander(f"📘 {sub.upper()}", expanded=True):
+                    for mod, topics in mods.items():
+                        st.markdown(f"**📂 {mod}**")
                         for t in topics:
-                            # Unique key for state tracking
                             t_id = hashlib.md5(f"{sub}{mod}{t}".encode()).hexdigest()
-                            st.checkbox(t, key=t_id)  
+                            # Use checkbox directly without roadmap clutter
+                            st.checkbox(t, key=t_id)
+        
+        if st.button("🗑️ Clear All Progress"):
+            st.session_state.master_tracker = {}
+            st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
