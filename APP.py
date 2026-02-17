@@ -326,67 +326,78 @@ def get_clean_json_v2(text):
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Tracker</h2>", unsafe_allow_html=True)
     
-    # Session States check
+    # Session States for Persistence
+    if 'temp_syllabus_text' not in st.session_state: st.session_state.temp_syllabus_text = ""
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
-    
-    # 1. Clean File Uploader
-    up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="v_final_tracker")
-    
-    # 2. Logic Execution (Sirf button dabane par chalega)
-    if up_pdf and st.button("🔍 Scan Syllabus"):
-        with st.spinner("Bhai ruko, subjects isolate kar raha hoon..."):
-            try:
-                pdf_bytes = up_pdf.read()
-                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                
-                # Digital text extraction
-                full_text = ""
-                for i in range(min(len(doc), 10)): 
-                    full_text += doc[i].get_text()
-                
-                # Fast LLM for subject detection
-                llm_fast = LlamaGroq(model="llama-3.1-8b-instant", api_key=st.secrets["GROQ_API_KEY"])
-                detect_prompt = f"List main theory subject names. Return JSON: {{'subs': ['Maths', 'Physics']}}. Text: {full_text[:4000]}"
-                res_detect = llm_fast.complete(detect_prompt)
-                detected_subs = get_clean_json_v2(res_detect.text).get("subs", [])
-                
-                # Heavy LLM for breakdown
-                master_tree = {}
-                llm_heavy = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                
-                # Sirf Top 3 subjects uthao taaki timeout na ho
-                for sub in detected_subs[:4]: 
-                    sub_context = get_subject_specific_text(doc, sub)
-                    sub_prompt = f"Extract 6 Modules for '{sub}'. JSON: {{'Mod 1': ['Topic A']}}. Text: {sub_context[:5000]}"
-                    res_sub = llm_heavy.complete(sub_prompt)
-                    master_tree[sub] = get_clean_json_v2(res_sub.text)
-                
-                if master_tree:
-                    st.session_state.master_tracker = master_tree
-                    st.success("Syllabus Load Ho Gaya!")
-                    # Use st.rerun() ONLY here
-                    st.rerun()
-            except Exception as e:
-                st.error(f"Scan Error: {e}")
 
-    # 3. Display Logic (Loading ke baad yahan aayega)
+    # --- STEP 1: CLEAN EXTRACTION ---
+    up_pdf = st.file_uploader("Upload Syllabus PDF (MU/SPPU/GTU)", type="pdf", key="laser_scanner_v1")
+    
+    if up_pdf and st.button("🔍 Step 1: Filter & Extract"):
+        with st.spinner("Filtering junk (Headers/Footers)..."):
+            try:
+                doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
+                clean_text = ""
+                # Chunking: Sirf wahi pages lo jahan 'Syllabus' ya 'Unit' likha ho
+                for page in doc:
+                    p_text = page.get_text()
+                    if any(x in p_text.lower() for x in ["syllabus", "unit", "module", "subject"]):
+                        # Regex to remove extra spaces and junk
+                        p_text = re.sub(r'\s+', ' ', p_text) # Extra spaces clean
+                        clean_text += p_text + "\n"
+                
+                # AI Filter: Ask AI to list only subjects first
+                llm = LlamaGroq(model="llama-3.1-8b-instant", api_key=st.secrets["GROQ_API_KEY"])
+                res = llm.complete(f"Extract ONLY the main theory subject names from this text. Ignore labs. Text: {clean_text[:6000]}")
+                st.session_state.temp_syllabus_text = res.text
+                st.success("Subjects detected! Ab niche confirm kar.")
+            except Exception as e: st.error(f"Extraction Error: {e}")
+
+    # --- STEP 2: USER ASSISTED MODE (Bhai ka Smart Move) ---
+    if st.session_state.temp_syllabus_text:
+        st.markdown("### 📝 Confirm Subjects")
+        edited_list = st.text_area("AI ne ye subjects dhoonde hain. Jo faltu hain unhe hata do:", 
+                                  value=st.session_state.temp_syllabus_text, height=150)
+        
+        if st.button("🚀 Step 2: Build My Tracker"):
+            with st.spinner("Building isolated module trees..."):
+                try:
+                    llm_heavy = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+                    # Use the clean/edited list to build the final JSON
+                    final_prompt = f"""
+                    Context: Engineering Syllabus. 
+                    Subjects to process: {edited_list}
+                    Task: For each subject, extract Unit/Module names and their sub-topics.
+                    Return ONLY a valid JSON: {{'Subject Name': {{'Unit 1': ['Topic A', 'Topic B']}}}}
+                    """
+                    res_final = llm_heavy.complete(final_prompt)
+                    st.session_state.master_tracker = get_clean_json_v2(res_final.text)
+                    st.session_state.temp_syllabus_text = "" # Clear temp data
+                    st.rerun()
+                except Exception as e: st.error(f"Final Build Error: {e}")
+
+    # --- STEP 3: THE INTERACTIVE TRACKER ---
     if st.session_state.master_tracker:
         st.divider()
-        st.info("💡 Progress save karne ke liye box tick karo.")
+        st.info("🔥 Tera customized tracker ready hai! Progress save karne ke liye tick kar.")
         
-        # Displaying 2 columns to save space
+        # 
+        
         cols = st.columns(2)
         for idx, (sub, mods) in enumerate(st.session_state.master_tracker.items()):
             with cols[idx % 2]:
                 with st.expander(f"📘 {sub.upper()}", expanded=True):
+                    # Progress Bar logic (Billionaire Mindset)
+                    total_topics = sum(len(topics) for topics in mods.values())
+                    st.caption(f"Total Topics: {total_topics}")
+                    
                     for mod, topics in mods.items():
                         st.markdown(f"**📂 {mod}**")
                         for t in topics:
-                            # Unique Hashing for each checkbox
                             t_id = hashlib.md5(f"{sub}{mod}{t}".encode()).hexdigest()
                             st.checkbox(t, key=t_id)
 
-        if st.button("🗑️ Reset Tracker"):
+        if st.button("🗑️ Reset Everything"):
             st.session_state.master_tracker = {}
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
