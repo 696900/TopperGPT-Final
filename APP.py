@@ -309,100 +309,91 @@ with tab1:
     else:
         st.info("👆 Pehle PDF upload karke 'Index for Exam' dabao!")
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 AI Intelligent Roadmap & Tracker</h2>", unsafe_allow_html=True)
     
+    # --- 1. CONFIGURATION AREA ---
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
-    if 'exam_date' not in st.session_state: st.session_state.exam_date = None
-    if 'temp_subjects' not in st.session_state: st.session_state.temp_subjects = []
+    if 'roadmap_data' not in st.session_state: st.session_state.roadmap_data = None
 
-    # 1. DASHBOARD
-    if st.session_state.master_tracker:
-        cols = st.columns([1, 1, 1])
-        all_t = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
-        total, done = len(all_t), sum(1 for t in all_t if t.get('status') == 'Completed')
-        with cols[0]: st.metric("Overall Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
-        with cols[1]: 
-            days = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else 0
-            st.metric("Exam Countdown", f"{max(0, days)} Days")
-        with cols[2]: st.metric("Theory Topics", total)
+    col_date, col_upload = st.columns([0.4, 0.6])
+    
+    with col_date:
+        exam_date = st.date_input("📅 Exam kab se shuru hai?", min_value=datetime.now().date(), key="exam_date_picker")
+        today = datetime.now().date()
+        days_left = (exam_date - today).days
+        
+        if days_left <= 5:
+            st.error(f"⚠️ Sirf {days_left} din bache hain! 'CRASH COURSE' mode active.")
+        else:
+            st.info(f"✅ {days_left} din bache hain. 'Steady Prep' mode active.")
+
+    with col_upload:
+        up_syllabus = st.file_uploader("📤 Upload Syllabus PDF", type="pdf", key="syllabus_pdf_v9")
+
+    # --- 2. THE AI ARCHITECT LOGIC ---
+    if up_syllabus and st.button("🚀 Generate Intelligent Roadmap"):
+        with st.spinner("AI is calculating your success path..."):
+            try:
+                # Syllabus Extraction
+                doc = fitz.open(stream=up_syllabus.read(), filetype="pdf")
+                full_text = ""
+                for page in doc: full_text += page.get_text()
+                
+                # Intelligent Prompting (The Brain)
+                llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+                
+                mode = "80/20 High Priority" if days_left < 7 else "Comprehensive"
+                
+                prompt = f"""
+                Act as an Engineering Mentor.
+                Total Days: {days_left}
+                Mode: {mode}
+                Syllabus: {full_text[:10000]}
+                
+                Task:
+                1. Identify main subjects and their modules.
+                2. Create a Day-by-Day Roadmap for {days_left} days.
+                3. If days are few, focus ONLY on high-weightage topics.
+                
+                Return JSON Format:
+                {{
+                  "roadmap": {{"Day 1": "Topics...", "Day 2": "..."}},
+                  "tracker": {{"Subject 1": {{"Mod 1": ["Topic A", "Topic B"]}}}}
+                }}
+                """
+                
+                res = llm.complete(prompt)
+                clean_json = get_clean_json_v2(res.text) # Tera purana JSON cleaner use kar
+                
+                st.session_state.roadmap_data = clean_json.get("roadmap")
+                st.session_state.master_tracker = clean_json.get("tracker")
+                st.success("Intelligent Roadmap Ready!")
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"Syllabus Error: {e}")
+
+    # --- 3. THE HYBRID VIEW (Roadmap + Tracker) ---
+    if st.session_state.roadmap_data:
         st.divider()
-
-    # 2. LASER ARCHITECT
-    with st.expander("📤 Build Clean Semester Dashboard", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="laser_v1")
+        c1, c2 = st.columns([0.4, 0.6])
         
-        c1, c2 = st.columns(2)
         with c1:
-            target_sem = st.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV"])
-        with c2:
-            st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
+            st.markdown("### 🗺️ AI Roadmap")
+            for day, task in st.session_state.roadmap_data.items():
+                with st.expander(f"📅 {day}", expanded=True if "Day 1" in day else False):
+                    st.write(task)
         
-        # STEP 1: SCAN FOR SUBJECTS
-        if up_pdf and st.button("🔍 Step 1: Detect Subjects"):
-            with st.spinner("Finding Theory Subjects..."):
-                try:
-                    pdf_bytes = up_pdf.read()
-                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                    # Sirf Semester specific text dhoondo
-                    relevant_txt = get_semester_text_v2(doc, target_sem)
-                    
-                    llm_fast = LlamaGroq(model="llama-3.1-8b-instant", api_key=st.secrets["GROQ_API_KEY"])
-                    prompt = f"List MAIN THEORY subjects for '{target_sem}'. IGNORE Labs. Return JSON: {{'subjects': ['Maths', 'Physics']}}. Text: {relevant_txt[:8000]}"
-                    res = llm_fast.complete(prompt)
-                    st.session_state.temp_subjects = get_clean_json_v2(res.text).get("subjects", [])
-                    st.success(f"Detected: {st.session_state.temp_subjects}")
-                except Exception as e: st.error(f"Scan Error: {e}")
-
-        # STEP 2: ISOLATED BUILDING (Fixes image_01c753 mixup)
-        if st.session_state.temp_subjects:
-            st.markdown("---")
-            final_list = []
-            for s in st.session_state.temp_subjects:
-                if any(x in s.lower() for x in ["elective", "choice"]):
-                    choice = st.text_input(f"Path for '{s}'?", key=f"el_laser_{s}")
-                    if choice: final_list.append(f"{s}: {choice}")
-                else: final_list.append(s)
-            
-            if st.button("🚀 Step 2: Architect Clean Dashboard"):
-                with st.spinner("Building isolated subject trees..."):
-                    try:
-                        llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                        doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
-                        
-                        master_tree = {target_sem: {}}
-                        for sub in final_list:
-                            with st.status(f"Scanning {sub} ONLY...", expanded=False):
-                                # LASER FOCUS: Sirf is subject ka text nikalo
-                                sub_context = get_subject_specific_text(doc, sub.split(':')[0])
-                                
-                                prompt = f"Focus ONLY on '{sub}'. Extract 6 Modules and topics. NO MIXING. Return JSON: {{'Mod 1': ['Topic A']}}. Text: {sub_context[:12000]}"
-                                res = llm_main.complete(prompt)
-                                sub_data = get_clean_json_v2(res.text)
-                                if sub_data:
-                                    master_tree[target_sem][sub] = {mod: [{"name": t, "status": "Not Started"} for t in topics] 
-                                                                     for mod, topics in sub_data.items()}
-                        
-                        st.session_state.master_tracker = master_tree
-                        st.session_state.temp_subjects = []
-                        st.success("Clean Dashboard Built!")
-                        st.rerun()
-                    except Exception as e: st.error(f"Error: {e}")
-
-    # 3. INTERACTIVE UI
-    if st.session_state.master_tracker:
-        for sem, subs in st.session_state.master_tracker.items():
-            for sub_name, modules in subs.items():
-                with st.expander(f"📘 {sub_name}"):
-                    for mod_name, topics in modules.items():
-                        st.markdown(f"**📂 {mod_name}**")
-                        for i, t in enumerate(topics):
-                            u_hash = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
-                            c1, c2 = st.columns([0.7, 0.3])
-                            with c1: st.write(f"🔹 {t['name']}")
-                            with c2:
-                                s = st.selectbox("S", ["Not Started", "Completed"], key=u_hash, 
-                                               index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
-                                if s != t['status']: t['status'] = s; st.rerun()  
+        with c2:
+            st.markdown("### 📊 Live Progress")
+            for sub, mods in st.session_state.master_tracker.items():
+                with st.expander(f"📘 {sub}"):
+                    for mod, topics in mods.items():
+                        st.markdown(f"**{mod}**")
+                        for t in topics:
+                            t_id = hashlib.md5(f"{sub}{mod}{t}".encode()).hexdigest()
+                            # Yahan user tick karega toh progress update hogi
+                            st.checkbox(t, key=t_id)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
