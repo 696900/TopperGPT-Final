@@ -308,8 +308,24 @@ with tab1:
                 st.error("❌ Low Credits! Top-up karle bhai.")
     else:
         st.info("👆 Pehle PDF upload karke 'Index for Exam' dabao!")
-# --- GLOBAL UTILITY: Laser Focus Search ---
+# ==========================================
+# --- GLOBAL UTILITY: SYLLABUS FILTERS ---
+# ==========================================
+# Inhe define karna zaroori hai varna 'NameError' aayega
+
+def get_clean_json_v2(text):
+    try:
+        # AI ke kachre se sirf { } wala part nikalne ke liye
+        json_match = re.search(r"\{.*\}", text, re.DOTALL)
+        if json_match:
+            clean_str = json_match.group(0)
+            return json.loads(clean_str)
+        return {}
+    except Exception:
+        return {}
+
 def get_semester_text_v2(doc, sem_name):
+    # Sirf wahi pages uthata hai jahan Semester ka naam ho (Fixes Physics-Mechanics mixup)
     full_txt = ""
     for page in doc:
         txt = page.get_text()
@@ -317,42 +333,61 @@ def get_semester_text_v2(doc, sem_name):
             full_txt += txt
     return full_txt
 
+def get_subject_specific_text(doc, sub_name):
+    # Subject wise laser focus extraction
+    sub_text = ""
+    start_found = False
+    for page in doc:
+        text = page.get_text()
+        if sub_name.lower() in text.lower():
+            start_found = True
+        if start_found:
+            sub_text += text
+            if len(sub_text) > 12000: break 
+    return sub_text
+
+# ==========================================
+# --- TAB 2: PRECISION SYLLABUS MANAGER ---
+# ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
+    # Session States to remember progress
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
     if 'exam_date' not in st.session_state: st.session_state.exam_date = None
     if 'temp_subjects' not in st.session_state: st.session_state.temp_subjects = []
 
-    # 1. DASHBOARD
+    # 1. TOP DASHBOARD (Progress Metrics)
     if st.session_state.master_tracker:
         cols = st.columns([1, 1, 1])
+        # Calculate total and completed topics
         all_t = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
-        total, done = len(all_t), sum(1 for t in all_t if t.get('status') == 'Completed')
+        total = len(all_t)
+        done = sum(1 for t in all_t if t.get('status') == 'Completed')
+        
         with cols[0]: st.metric("Overall Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
         with cols[1]: 
             days = (st.session_state.exam_date - datetime.now().date()).days if st.session_state.exam_date else 0
             st.metric("Exam Countdown", f"{max(0, days)} Days")
-        with cols[2]: st.metric("Theory Topics", total)
+        with cols[2]: st.metric("Total Topics", total)
         st.divider()
 
-    # 2. LASER ARCHITECT
-    with st.expander("📤 Build Clean Semester Dashboard", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="laser_v1")
+    # 2. LASER ARCHITECT (Build Your Dashboard)
+    with st.expander("📤 Build Your Semester Dashboard", expanded=not st.session_state.master_tracker):
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="laser_v1_main")
         
         c1, c2 = st.columns(2)
         with c1:
-            target_sem = st.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV"])
+            target_sem = st.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V", "Semester VI"])
         with c2:
             st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
         
-        # STEP 1: SCAN FOR SUBJECTS
+        # --- STEP 1: DETECT SUBJECTS ---
         if up_pdf and st.button("🔍 Step 1: Detect Subjects"):
             with st.spinner("Finding Theory Subjects..."):
                 try:
                     pdf_bytes = up_pdf.read()
                     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                    # Sirf Semester specific text dhoondo
                     relevant_txt = get_semester_text_v2(doc, target_sem)
                     
                     llm_fast = LlamaGroq(model="llama-3.1-8b-instant", api_key=st.secrets["GROQ_API_KEY"])
@@ -362,58 +397,66 @@ with tab2:
                     st.success(f"Detected: {st.session_state.temp_subjects}")
                 except Exception as e: st.error(f"Scan Error: {e}")
 
-        # STEP 2: ISOLATED BUILDING (Fixes Elective mixup)
+        # --- STEP 2: HANDLE ELECTIVES & BUILD TRACKER ---
         if st.session_state.temp_subjects:
             st.markdown("---")
+            st.info("💡 Elective subjects ke liye apna option specify karein (e.g. Physics-I ya Chemistry-I)")
             final_list = []
             for s in st.session_state.temp_subjects:
-                if any(x in s.lower() for x in ["elective", "choice"]):
-                    choice = st.text_input(f"Path for '{s}'?", key=f"el_laser_{s}")
+                if any(x in s.lower() for x in ["elective", "choice", "group"]):
+                    choice = st.text_input(f"Your Choice for '{s}'?", key=f"el_laser_{s}")
                     if choice: final_list.append(f"{s}: {choice}")
-                else: final_list.append(s)
+                else:
+                    final_list.append(s)
             
-            if st.button("🚀 Step 2: Architect Clean Dashboard"):
-                with st.spinner("Building isolated subject trees..."):
+            if st.button("🚀 Step 2: Build Tracker Tree"):
+                with st.spinner("Building isolated subject trees... (No mix-ups)"):
                     try:
                         llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                        # Reload doc for full scan
                         up_pdf.seek(0)
                         doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
                         
                         master_tree = {target_sem: {}}
                         for sub in final_list:
-                            with st.status(f"Scanning {sub} ONLY...", expanded=False):
-                                # LASER FOCUS: Sirf is subject ka text nikalo
-                                sub_context = get_subject_specific_text(doc, sub.split(':')[0])
-                                
-                                prompt = f"Focus ONLY on '{sub}'. Extract 6 Modules and topics. NO MIXING. Return JSON: {{'Mod 1': ['Topic A']}}. Text: {sub_context[:12000]}"
-                                res = llm_main.complete(prompt)
-                                sub_data = get_clean_json_v2(res.text)
-                                if sub_data:
-                                    master_tree[target_sem][sub] = {mod: [{"name": t, "status": "Not Started"} for t in topics] 
-                                                                     for mod, topics in sub_data.items()}
+                            # Laser focusing on one subject at a time
+                            sub_context = get_subject_specific_text(doc, sub.split(':')[0])
+                            prompt = f"Focus ONLY on '{sub}'. Extract 6 Modules and topics. Return JSON: {{'Mod 1': ['Topic A']}}. Text: {sub_context[:12000]}"
+                            res = llm_main.complete(prompt)
+                            sub_data = get_clean_json_v2(res.text)
+                            if sub_data:
+                                master_tree[target_sem][sub] = {mod: [{"name": t, "status": "Not Started"} for t in topics] 
+                                                                 for mod, topics in sub_data.items()}
                         
                         st.session_state.master_tracker = master_tree
-                        st.session_state.temp_subjects = []
-                        st.success("Clean Dashboard Built!")
+                        st.session_state.temp_subjects = [] # Clear temp list
+                        st.balloons()
                         st.rerun()
-                    except Exception as e: st.error(f"Error: {e}")
+                    except Exception as e: st.error(f"Build Error: {e}")
 
-    # 3. INTERACTIVE UI
+    # 3. INTERACTIVE TRACKER UI
     if st.session_state.master_tracker:
         for sem, subs in st.session_state.master_tracker.items():
+            st.markdown(f"### 📊 {sem} Tracker")
             for sub_name, modules in subs.items():
                 with st.expander(f"📘 {sub_name}"):
                     for mod_name, topics in modules.items():
                         st.markdown(f"**📂 {mod_name}**")
                         for i, t in enumerate(topics):
+                            # Unique ID for state persistence
                             u_hash = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
                             c1, c2 = st.columns([0.7, 0.3])
-                            with c1: st.write(f"🔹 {t['name']}")
+                            with c1: 
+                                st.write(f"🔹 {t['name']}")
                             with c2:
-                                s = st.selectbox("S", ["Not Started", "Completed"], key=u_hash, 
+                                s = st.selectbox("Status", ["Not Started", "Completed"], key=u_hash, 
                                                index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
-                                if s != t['status']: t['status'] = s; st.rerun()
+                                if s != t['status']: 
+                                    t['status'] = s
+                                    st.rerun()
+
+        if st.button("🗑️ Reset Tracker"):
+            st.session_state.master_tracker = {}
+            st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
