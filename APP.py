@@ -311,7 +311,6 @@ with tab1:
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
-# Inhe define karna zaroori hai varna 'NameError' aayega
 
 def get_clean_json_v2(text):
     try:
@@ -343,7 +342,8 @@ def get_subject_specific_text(doc, sub_name):
             start_found = True
         if start_found:
             sub_text += text
-            if len(sub_text) > 12000: break 
+            # Limit to 10 pages to avoid mixing with other subjects
+            if len(sub_text) > 15000: break 
     return sub_text
 
 # ==========================================
@@ -352,15 +352,13 @@ def get_subject_specific_text(doc, sub_name):
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
-    # Session States to remember progress
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
     if 'exam_date' not in st.session_state: st.session_state.exam_date = None
     if 'temp_subjects' not in st.session_state: st.session_state.temp_subjects = []
 
-    # 1. TOP DASHBOARD (Progress Metrics)
+    # 1. TOP DASHBOARD
     if st.session_state.master_tracker:
         cols = st.columns([1, 1, 1])
-        # Calculate total and completed topics
         all_t = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
         total = len(all_t)
         done = sum(1 for t in all_t if t.get('status') == 'Completed')
@@ -372,7 +370,7 @@ with tab2:
         with cols[2]: st.metric("Total Topics", total)
         st.divider()
 
-    # 2. LASER ARCHITECT (Build Your Dashboard)
+    # 2. LASER ARCHITECT
     with st.expander("📤 Build Your Semester Dashboard", expanded=not st.session_state.master_tracker):
         up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="laser_v1_main")
         
@@ -397,20 +395,21 @@ with tab2:
                     st.success(f"Detected: {st.session_state.temp_subjects}")
                 except Exception as e: st.error(f"Scan Error: {e}")
 
-        # --- STEP 2: HANDLE ELECTIVES & BUILD TRACKER ---
+        # --- STEP 2: HANDLE ELECTIVES ---
         if st.session_state.temp_subjects:
             st.markdown("---")
-            st.info("💡 Elective subjects ke liye apna option specify karein (e.g. Physics-I ya Chemistry-I)")
+            st.info("💡 Elective subjects ke liye sahi option specify karein (e.g. Semiconductor Physics ya Engineering Chemistry-II)")
             final_list = []
             for s in st.session_state.temp_subjects:
-                if any(x in s.lower() for x in ["elective", "choice", "group"]):
+                # Asking for BOTH Physics and Chemistry electives
+                if any(x in s.lower() for x in ["elective", "choice", "physics", "chemistry"]):
                     choice = st.text_input(f"Your Choice for '{s}'?", key=f"el_laser_{s}")
                     if choice: final_list.append(f"{s}: {choice}")
                 else:
                     final_list.append(s)
             
             if st.button("🚀 Step 2: Build Tracker Tree"):
-                with st.spinner("Building isolated subject trees... (No mix-ups)"):
+                with st.spinner("Building isolated subject trees..."):
                     try:
                         llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
                         up_pdf.seek(0)
@@ -418,9 +417,9 @@ with tab2:
                         
                         master_tree = {target_sem: {}}
                         for sub in final_list:
-                            # Laser focusing on one subject at a time
+                            # Laser focusing only on the specific subject text
                             sub_context = get_subject_specific_text(doc, sub.split(':')[0])
-                            prompt = f"Focus ONLY on '{sub}'. Extract 6 Modules and topics. Return JSON: {{'Mod 1': ['Topic A']}}. Text: {sub_context[:12000]}"
+                            prompt = f"Focus ONLY on '{sub}'. Extract exactly 6 Modules and topics from PDF. Return JSON: {{'Mod 1': ['Topic A']}}. Text: {sub_context[:12000]}"
                             res = llm_main.complete(prompt)
                             sub_data = get_clean_json_v2(res.text)
                             if sub_data:
@@ -428,7 +427,7 @@ with tab2:
                                                                  for mod, topics in sub_data.items()}
                         
                         st.session_state.master_tracker = master_tree
-                        st.session_state.temp_subjects = [] # Clear temp list
+                        st.session_state.temp_subjects = []
                         st.balloons()
                         st.rerun()
                     except Exception as e: st.error(f"Build Error: {e}")
@@ -442,21 +441,15 @@ with tab2:
                     for mod_name, topics in modules.items():
                         st.markdown(f"**📂 {mod_name}**")
                         for i, t in enumerate(topics):
-                            # Unique ID for state persistence
                             u_hash = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
                             c1, c2 = st.columns([0.7, 0.3])
-                            with c1: 
-                                st.write(f"🔹 {t['name']}")
+                            with c1: st.write(f"🔹 {t['name']}")
                             with c2:
                                 s = st.selectbox("Status", ["Not Started", "Completed"], key=u_hash, 
                                                index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
                                 if s != t['status']: 
                                     t['status'] = s
                                     st.rerun()
-
-        if st.button("🗑️ Reset Tracker"):
-            st.session_state.master_tracker = {}
-            st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
