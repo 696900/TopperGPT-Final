@@ -352,24 +352,21 @@ def get_subject_specific_text(doc, sub_name):
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
-    # Session States for persistence
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
-    if 'temp_subjects' not in st.session_state: st.session_state.temp_subjects = []
 
     # 1. TOP DASHBOARD (Metrics)
     if st.session_state.master_tracker:
         cols = st.columns(3)
-        # Progress calculation logic
         all_t = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
         total = len(all_t)
         done = sum(1 for t in all_t if t.get('status') == 'Completed')
-        with cols[0]: st.metric("Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
+        with cols[0]: st.metric("Overall Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
         with cols[2]: st.metric("Total Topics", total)
         st.divider()
 
-    # 2. BUILD ENGINE (Subject Detection)
+    # 2. BUILD ENGINE (Hard-Filtered Subject Detection)
     with st.expander("📤 Build Your Semester Tracker", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="laser_v1_final")
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="final_stable_v100")
         
         c1, c2 = st.columns(2)
         with c1:
@@ -377,70 +374,74 @@ with tab2:
         with c2:
             st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
         
-        if up_pdf and st.button("🔍 Step 1: Detect Subjects"):
-            with st.spinner("Isolating Semester Data..."):
+        if up_pdf and st.button("🚀 Step 1: Detect & Build Tracker"):
+            with st.spinner(f"Filtering {target_sem} Data..."):
                 try:
                     pdf_bytes = up_pdf.read()
                     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                    # Laser focus on specific semester text to avoid mix-ups
-                    relevant_txt = get_semester_text_v2(doc, target_sem)
                     
-                    llm_fast = LlamaGroq(model="llama-3.1-8b-instant", api_key=st.secrets["GROQ_API_KEY"])
-                    prompt = f"List ALL theory subjects for '{target_sem}'. Return JSON: {{'subjects': ['Maths', 'Physics']}}. Text: {relevant_txt[:8000]}"
-                    res = llm_fast.complete(prompt)
-                    st.session_state.temp_subjects = get_clean_json_v2(res.text).get("subjects", [])
-                    st.success(f"Detected: {st.session_state.temp_subjects}")
+                    # SEMESTER SPECIFIC FILTER: Sirf relevant pages scan karega
+                    relevant_txt = ""
+                    for page in doc:
+                        text = page.get_text()
+                        if target_sem.lower() in text.lower():
+                            relevant_txt += text
+                    
+                    # THEORY ONLY PROMPT: Labs aur extra electives ko block karne ke liye
+                    llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+                    prompt = f"""
+                    Engineering Professor Mode. From this text for '{target_sem}':
+                    1. List ONLY the 5-6 MAIN THEORY subjects (e.g., Maths, Physics, Chemistry, Mechanics).
+                    2. IGNORE ALL Labs, Practical subjects, and Workshop.
+                    3. For each subject, extract exactly 6 Units and their sub-topics.
+                    4. IMPORTANT: No duplicate subjects or extra elective inputs.
+                    
+                    Return ONLY valid JSON: 
+                    {{ "Subject Name": {{ "Unit 1": ["Topic A", "Topic B"] }} }}
+                    
+                    Text: {relevant_txt[:12000]}
+                    """
+                    
+                    res = llm_main.complete(prompt)
+                    clean_data = get_clean_json_v2(res.text)
+                    
+                    if clean_data:
+                        # Converting to Tracker Format with Status
+                        st.session_state.master_tracker = {target_sem: {}}
+                        for sub, mods in clean_data.items():
+                            st.session_state.master_tracker[target_sem][sub] = {
+                                mod: [{"name": t, "status": "Not Started"} for t in topics] 
+                                for mod, topics in mods.items()
+                            }
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        st.error("AI couldn't extract subjects. Text clear nahi hai.")
+                        
                 except Exception as e: st.error(f"Scan Error: {e}")
 
-        # Handling Choice for BOTH Electives (Physics & Chemistry)
-        if st.session_state.temp_subjects:
-            st.markdown("---")
-            final_list = []
-            for s in st.session_state.temp_subjects:
-                if any(x in s.lower() for x in ["physics", "chemistry", "elective"]):
-                    choice = st.text_input(f"Which option for '{s}'?", placeholder="e.g. Semiconductor Physics", key=f"el_{s}")
-                    if choice: final_list.append(f"{s}: {choice}")
-                else: final_list.append(s)
-            
-            if st.button("🚀 Step 2: Build Tracker"):
-                with st.spinner("Building isolated module trees..."):
-                    try:
-                        llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                        up_pdf.seek(0)
-                        doc = fitz.open(stream=up_pdf.read(), filetype="pdf")
-                        
-                        master_tree = {target_sem: {}}
-                        for sub in final_list:
-                            # Search only for the specific subject to avoid data mix-up
-                            sub_context = get_subject_specific_text(doc, sub.split(':')[0])
-                            prompt = f"Extract exactly 6 Modules for '{sub}'. Return JSON: {{'Mod 1': ['Topic A']}}. Text: {sub_context[:12000]}"
-                            res = llm_main.complete(prompt)
-                            sub_data = get_clean_json_v2(res.text)
-                            if sub_data:
-                                master_tree[target_sem][sub] = {mod: [{"name": t, "status": "Not Started"} for t in topics] 
-                                                                 for mod, topics in sub_data.items()}
-                        
-                        st.session_state.master_tracker = master_tree
-                        st.session_state.temp_subjects = []
-                        st.rerun()
-                    except Exception as e: st.error(f"Error: {e}")
-
-    # 3. INTERACTIVE TRACKER
+    # 3. INTERACTIVE UI (Double Column Layout)
     if st.session_state.master_tracker:
         for sem, subs in st.session_state.master_tracker.items():
             st.markdown(f"### 📊 {sem} Tracker")
             for sub_name, modules in subs.items():
-                with st.expander(f"📘 {sub_name}"):
-                    for mod, topics in modules.items():
-                        st.markdown(f"**📂 {mod}**")
-                        for t in topics:
-                            u_hash = hashlib.md5(f"{sub_name}{mod}{t['name']}".encode()).hexdigest()
+                with st.expander(f"📘 {sub_name}", expanded=True):
+                    for mod_name, topics in modules.items():
+                        st.markdown(f"**📂 {mod_name}**")
+                        for i, t in enumerate(topics):
+                            u_hash = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
                             c1, c2 = st.columns([0.7, 0.3])
                             with c1: st.write(f"🔹 {t['name']}")
                             with c2:
-                                s = st.selectbox("S", ["Not Started", "Completed"], key=u_hash, 
+                                s = st.selectbox("Status", ["Not Started", "Completed"], key=u_hash, 
                                                index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
-                                if s != t['status']: t['status'] = s; st.rerun()
+                                if s != t['status']: 
+                                    t['status'] = s
+                                    st.rerun()
+
+        if st.button("🗑️ Reset Tracker"):
+            st.session_state.master_tracker = {}
+            st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
