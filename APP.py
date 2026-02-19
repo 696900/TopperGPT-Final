@@ -481,62 +481,67 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Stable Evaluator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: No-SDK Stable Evaluator</h2>", unsafe_allow_html=True)
     
-    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="stable_eval_v1")
+    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="direct_api_v1")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
         st.image(img, caption="Sheet Uploaded", width=300)
         
-        if st.button("🚀 Evaluate Answer"):
+        if st.button("🚀 Evaluate Now (Final Try)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Step 1: Reading Handwriting..."):
+                with st.spinner("Moderator is checking your paper via Direct API..."):
                     try:
-                        # STEP 1: Sirf Text Extract karo (Stable Gemini 1.5 Pro)
-                        # Hum 'models/gemini-1.5-pro' use karenge jo sabse stable hai
-                        ocr_model = genai.GenerativeModel('gemini-1.5-pro')
-                        ocr_res = ocr_model.generate_content(["Extract all text from this image accurately. Identify Question and Answer.", img])
-                        full_text = ocr_res.text
+                        # 1. IMAGE KO BASE64 ME BADLO
+                        buffered = io.BytesIO()
+                        img.save(buffered, format="JPEG")
+                        img_str = base64.b64encode(buffered.getvalue()).decode()
+
+                        # 2. DIRECT HTTP REQUEST (No SDK, No v1beta conflict)
+                        # Hum explicitly 'v1' (STABLE) use kar rahe hain
+                        api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key_to_use}"
                         
-                        with st.spinner("Step 2: Board Evaluation..."):
-                            # STEP 2: Ab is text ko Groq (Llama 3.3 70B) ko bhej do logic ke liye
-                            # Ye 100% stable hai kyunki ye sirf text process karta hai
-                            eval_prompt = f"""
-                            Evaluate this engineering answer. Identify the question and the answer text from it.
-                            Give marks out of 10 and 2 topper tips.
-                            TEXT: {full_text}
-                            Return ONLY JSON:
-                            {{"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}}
-                            """
-                            
-                            response = groq_client.chat.completions.create(
-                                model="llama-3.3-70b-versatile",
-                                messages=[{"role": "user", "content": eval_prompt}],
-                                response_format={"type": "json_object"}
-                            )
-                            
-                            eval_data = json.loads(response.choices[0].message.content)
+                        payload = {
+                            "contents": [{
+                                "parts": [
+                                    {"text": "Extract Question and Answer from this image. Evaluate marks out of 10 for engineering accuracy. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
+                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_str}}
+                                ]
+                            }]
+                        }
+
+                        response = requests.post(api_url, json=payload)
+                        res_json = response.json()
+
+                        if response.status_code == 200:
+                            # Extracting text from the weird Google response structure
+                            raw_text = res_json['candidates'][0]['content']['parts'][0]['text']
+                            eval_data = get_clean_json_v2(raw_text)
                             
                             if eval_data:
                                 st.session_state.eval_result = eval_data
                                 st.session_state.user_data['credits'] -= 5
                                 st.balloons()
                                 st.rerun()
-                                
+                        else:
+                            st.error(f"Google API Error: {res_json.get('error', {}).get('message', 'Unknown Error')}")
+                            
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"System Error: {e}")
             else:
-                st.error("Credits low hain bhai!")
+                st.error("Credits khatam!")
 
     # --- RESULTS DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         
+        
+        
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks")}/10</div><p>OFFICIAL GRADE</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>OFFICIAL GRADE</p></div>', unsafe_allow_html=True)
         with col2:
             st.info(f"**Question:** {res.get('question')}")
             st.success(f"**Feedback:** {res.get('feedback')}")
