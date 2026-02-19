@@ -453,7 +453,7 @@ with tab3:
 
     # --- THE SMART STEP 1: UPLOAD ---
     st.markdown("### 📸 Step 1: Upload Your Answer Sheet")
-    ans_file = st.file_uploader("Upload answer sheet photo (JPEG/PNG)...", type=["jpg", "png", "jpeg"], key="auto_eval_v2")
+    ans_file = st.file_uploader("Upload answer sheet photo (JPEG/PNG)...", type=["jpg", "png", "jpeg"], key="auto_eval_v3")
     
     if ans_file:
         st.image(ans_file, caption="Answer Sheet Detected", width=400)
@@ -463,34 +463,36 @@ with tab3:
             if st.session_state.user_data['credits'] >= 5:
                 with st.spinner("AI Professor is reading and identifying your paper..."):
                     try:
+                        # --- FIX: MODEL DEFINITION ---
+                        # Yahan humne model define kar diya hai taaki 'name model is not defined' error na aaye
+                        vision_model = genai.GenerativeModel('gemini-1.5-flash')
                         img = Image.open(ans_file)
-                        # Gemini 1.5 Flash is best for OCR                         model = genai.GenerativeModel('gemini-1.5-flash')
                         
                         # Master Prompt: Identifies Question AND Answer automatically
                         ocr_prompt = """
-                        Look at this engineering answer sheet. 
-                        1. Identify the 'Exam Question' written on it.
-                        2. Identify the 'Student's Answer' provided.
-                        3. Extract both as clean text.
-                        4. Now, as a Board Moderator, evaluate the answer out of 10 marks.
-                        5. List 2 missing technical keywords and a Topper's Tip.
+                        Look at this engineering answer sheet image carefully.
+                        1. Identify the 'Question' written on the paper.
+                        2. Identify the 'Student's Answer' written below it.
+                        3. Extract both accurately using OCR.
+                        4. Act as a Strict University Board Moderator.
+                        5. Evaluate the answer out of 10 marks based on technical keywords.
                         
                         Return ONLY in this JSON format:
                         {
-                          "detected_question": "extracted question",
-                          "detected_answer": "extracted answer",
+                          "detected_question": "extracted question text",
+                          "detected_answer": "extracted answer text",
                           "obtained_marks": "X/10",
-                          "semantic_match": "85%",
+                          "semantic_match": "percentage",
                           "missing_keywords": ["keyword1", "keyword2"],
-                          "feedback": "Strict board feedback",
-                          "topper_tip": "Secret tip for extra marks"
+                          "feedback": "Strict feedback on logic",
+                          "topper_tip": "One specific advice for full marks"
                         }
                         """
                         
-                        # Use a try-except block specifically for the API call to catch 404/500
-                        response = model.generate_content([ocr_prompt, img])
+                        # Calling the API
+                        response = vision_model.generate_content([ocr_prompt, img])
                         
-                        # Cleaning and Parsing
+                        # Utility function to clean JSON (Jo humne pehle define kiya tha)
                         eval_data = get_clean_json_v2(response.text)
                         
                         if eval_data:
@@ -499,24 +501,26 @@ with tab3:
                             st.balloons()
                             st.rerun()
                         else:
-                            st.error("AI couldn't parse the handwriting. Please ensure photo is clear.")
+                            st.error("AI couldn't parse the handwriting. Please ensure the photo is clear and bright.")
                             
                     except Exception as e:
-                        st.error(f"System Error: Connection Timeout. Please try again in 5 seconds. Error: {str(e)[:50]}")
+                        # Detailed error for debugging
+                        st.error(f"System Error: {str(e)}")
             else:
-                st.error("Insufficient Credits!")
+                st.error("Insufficient Credits! Sidebar se recharge karlo.")
 
     # --- SMART DISPLAY SECTION ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
         st.divider()
         
-        # Identified Content (Transparency for User)
+        # Identified Content Verification
         with st.expander("📝 AI Detected Content (Check if correct)"):
-            st.info(f"**Question:** {res.get('detected_question')}")
-            st.write(f"**Answer extracted:** {res.get('detected_answer')}")
+            st.info(f"**Question Identified:** {res.get('detected_question')}")
+            st.write(f"**Answer Extracted:** {res.get('detected_answer')}")
 
-        # Cinematic Scoreboard         c1, c2 = st.columns([0.4, 0.6])
+        # Cinematic Scoreboard
+        c1, c2 = st.columns([0.4, 0.6])
         with c1:
             st.markdown(f"""
                 <div style="background: #1e3c72; padding: 40px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
