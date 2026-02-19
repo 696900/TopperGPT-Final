@@ -498,22 +498,22 @@ with tab3:
             if st.session_state.user_data['credits'] >= 5:
                 with st.spinner("AI Engine is warming up..."):
                     
-                    # 1. Prep image once to save resources
+                    # Prepare image once
                     buf = io.BytesIO()
                     img.save(buf, format="JPEG")
                     img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
                     
                     success = False
                     
-                    # --- ATTEMPT 1: OPENROUTER (High Reliability) ---
+                    # --- ATTEMPT 1: OPENROUTER (Claude 3.5 Sonnet) ---
                     if openrouter_key:
                         try:
-                            #                             or_url = "https://openrouter.ai/api/v1/chat/completions"
+                            or_url = "https://openrouter.ai/api/v1/chat/completions"
                             headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
                             payload = {
                                 "model": "anthropic/claude-3.5-sonnet",
                                 "messages": [{"role": "user", "content": [
-                                    {"type": "text", "text": "Evaluate engineering answer. Return JSON only: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\"}"},
+                                    {"type": "text", "text": "Evaluate engineering answer. Return JSON only."},
                                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
                                 ]}]
                             }
@@ -526,11 +526,10 @@ with tab3:
                     # --- ATTEMPT 2: GEMINI 2.0 (Backup with Check) ---
                     if not success and gemini_key:
                         try:
-                            # Hit v1beta for Gemini 2.0 Flash
                             gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
                             gem_payload = {
                                 "contents": [{"parts": [
-                                    {"text": "Extract Question & Answer. Marks/10. Return ONLY JSON."},
+                                    {"text": "Extract Question & Answer. Return JSON."},
                                     {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
                                 ]}]
                             }
@@ -550,7 +549,6 @@ with tab3:
                         st.rerun()
                     else:
                         st.error("❌ Engines Still Sleepy. Please wait 60 seconds.")
-                        st.info(f"Retry delay: {st.session_state.get('retry_after', 60)}s")
 
     # --- RESULT DISPLAY ---
     if st.session_state.get("eval_result"):
