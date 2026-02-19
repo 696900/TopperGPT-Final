@@ -482,65 +482,54 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Automated Evaluator</h2>", unsafe_allow_html=True)
-    
-    # Check if API Key exists in secrets
-    gemini_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Llama-Powered Moderator</h2>", unsafe_allow_html=True)
 
-    if not gemini_key:
-        st.error("❌ API Key missing in Secrets! Please add GEMINI_API_KEY to your secrets.")
-        st.stop()
+    ans_file = st.file_uploader("Upload Answer Sheet (Photo)", type=["jpg", "png", "jpeg"], key="stable_llama_v1")
 
-    ans_file = st.file_uploader("Upload Answer Sheet (Photo)", type=["jpg", "png", "jpeg"], key="ultimate_fix_tab3")
-    
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        st.image(img, caption="Paper Detected", width=300)
-        
-        if st.button("🚀 Evaluate Now (5 Credits)"):
+        st.image(img, caption="Sheet Detected", width=300)
+
+        if st.button("🚀 Evaluate Now"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator is checking your paper..."):
+                with st.spinner("Moderator is analyzing your paper via Groq..."):
                     try:
-                        # 1. Direct Image Processing (No variables left out)
+                        # 1. Image to Base64
                         buffered = io.BytesIO()
                         img.save(buffered, format="JPEG")
-                        encoded_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                        img_b64 = base64.b64encode(buffered.getvalue()).decode()
 
-                        # 2. Direct API Call (Bypassing the buggy SDK)
-                        # We use 'v1' to avoid the v1beta 404 error
-                        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-                        
-                        payload = {
-                            "contents": [{
-                                "parts": [
-                                    {"text": "Extract Question & Answer from this image. Evaluate marks out of 10. Provide feedback & 2 topper tips. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
-                                    {"inline_data": {"mime_type": "image/jpeg", "data": encoded_image}}
-                                ]
-                            }]
-                        }
+                        # 2. Using Groq's ONLY Stable Vision Model (Llama 3.2 11B Vision)
+                        # Agar ye fail hua, toh hum seedha text-based eval pe jayenge
+                        response = groq_client.chat.completions.create(
+                            model="llama-3.2-11b-vision-preview",
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Identify Question & Answer. Grade out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
+                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
+                                    ]
+                                }
+                            ],
+                            response_format={"type": "json_object"}
+                        )
 
-                        response = requests.post(url, json=payload)
-                        res_data = response.json()
+                        eval_data = json.loads(response.choices[0].message.content)
 
-                        if response.status_code == 200:
-                            # Parsing the response
-                            raw_ai_text = res_data['candidates'][0]['content']['parts'][0]['text']
-                            eval_result = get_clean_json_v2(raw_ai_text)
-                            
-                            if eval_result:
-                                st.session_state.eval_result = eval_result
-                                st.session_state.user_data['credits'] -= 5
-                                st.balloons()
-                                st.rerun()
-                        else:
-                            st.error(f"API Error: {res_data.get('error', {}).get('message', 'Unknown error')}")
+                        if eval_data:
+                            st.session_state.eval_result = eval_data
+                            st.session_state.user_data['credits'] -= 5
+                            st.balloons()
+                            st.rerun()
 
                     except Exception as e:
-                        st.error(f"System Error: {str(e)}")
+                        st.error(f"Groq Vision Error: {e}")
+                        st.info("Bhai, shayad Vision model Groq pe bhi limit mein hai. Main Tab 4 (MindMap) pe kaam shuru karun?")
             else:
-                st.error("Credits low hain bhai!")
+                st.error("Credits low hain!")
 
-    # --- RESULT DISPLAY ---
+    # --- DISPLAY RESULTS ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
@@ -549,23 +538,12 @@ with tab3:
 
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f"""
-            <div class="eval-card" style="text-align:center;">
-                <div class="score-circle">{res.get('marks', 0)}/10</div>
-                <p style="margin-top:10px; color:#4CAF50; font-weight:bold;">OFFICIAL SCORE</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>OFFICIAL GRADE</p></div>', unsafe_allow_html=True)
         with col2:
-            st.info(f"**Detected Question:** {res.get('question')}")
+            st.info(f"**Question:** {res.get('question')}")
             st.success(f"**Feedback:** {res.get('feedback')}")
         
-        if res.get('tips'):
-            with st.expander("🏆 Topper's Secret Tips", expanded=True):
-                for tip in res['tips']:
-                    st.write(f"💡 {tip}")
-
-        if st.button("🔄 Check Another"):
+        if st.button("🔄 Reset"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
