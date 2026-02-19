@@ -494,7 +494,9 @@ with tab3:
                 with st.spinner("AI Professor is reading your handwriting..."):
                     try:
                         # 💎 THE 404 KILLER MODEL NAME
-                        model = genai.GenerativeModel(model_name="gemini-1.5-flash-latest")
+                        model = genai.GenerativeModel(
+    model_name="gemini-1.5-flash"  # Prefix 'models/' mat lagana
+)
                         
                         prompt = """
                         Identify:
