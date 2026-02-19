@@ -483,11 +483,17 @@ with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Official Moderator</h2>", unsafe_allow_html=True)
     
-    # API Key Validation check
-    if "OPENROUTER_API_KEY" not in st.secrets:
-        st.error("❌ OpenRouter API Key missing! Sidebar ya Secrets mein check karo.")
+    # --- API KEY & SESSION CHECK ---
+    try:
+        api_key = st.secrets["OPENROUTER_API_KEY"]
+    except:
+        st.error("Bhai key nahi mil rahi! Ek baar app ko Reboot maaro ya Secrets check karo.")
         st.stop()
 
+    if "eval_result" not in st.session_state:
+        st.session_state.eval_result = None
+
+    # --- UPLOAD SECTION ---
     ans_file = st.file_uploader("Upload Answer Sheet (Photo/PDF)", type=["jpg", "png", "jpeg", "pdf"], key="final_boss_eval")
     
     if ans_file:
@@ -498,15 +504,14 @@ with tab3:
             if st.session_state.user_data['credits'] >= 5:
                 with st.spinner("Claude 3.5 Sonnet is analyzing your paper..."):
                     try:
-                        # 1. Image to Base64
+                        # 1. Image to Base64 
                         base64_image = _pil_to_base64(img)
                         
-                        # 2. OpenRouter API Call (Direct & Stable)
-                        # No more 404/400 errors here.
+                        # 2. OpenRouter API Call
                         response = requests.post(
                             url="https://openrouter.ai/api/v1/chat/completions",
                             headers={
-                                "Authorization": f"Bearer {st.secrets['OPENROUTER_API_KEY']}",
+                                "Authorization": f"Bearer {api_key}",
                                 "Content-Type": "application/json"
                             },
                             data=json.dumps({
@@ -543,7 +548,8 @@ with tab3:
                                 st.balloons()
                                 st.rerun()
                         else:
-                            st.error(f"API Error: {res_json.get('error', {}).get('message', 'Unknown Error')}")
+                            error_msg = res_json.get('error', {}).get('message', 'Unknown Error')
+                            st.error(f"API Error: {error_msg}")
                             
                     except Exception as e:
                         st.error(f"System Error: {e}")
@@ -551,25 +557,27 @@ with tab3:
                 st.error("Bhai credits khatam! Sidebar se recharge karlo.")
 
     # --- RESULT DISPLAY ---
-    if st.session_state.get("eval_result"):
+    if st.session_state.eval_result:
         res = st.session_state.eval_result
         st.divider()
+        
+        # 
         
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
             st.markdown(f"""
             <div class="eval-card" style="text-align:center;">
                 <div class="score-circle">{res.get('marks', 0)}/10</div>
-                <p style="margin-top:10px; color:#4CAF50;">BOARD MODERATOR SCORE</p>
+                <p style="margin-top:10px; color:#4CAF50; font-weight:bold;">BOARD MODERATOR SCORE</p>
             </div>
             """, unsafe_allow_html=True)
             
         with col2:
-            st.info(f"**Question Identified:** {res.get('question')}")
-            st.success(f"**Feedback:** {res.get('feedback')}")
+            st.info(f"**Question Identified:**\n{res.get('question')}")
+            st.success(f"**Examiner Feedback:**\n{res.get('feedback')}")
         
         if res.get('tips'):
-            with st.expander("🏆 Topper's Secret Tips"):
+            with st.expander("🏆 Topper's Secret Tips", expanded=True):
                 for tip in res['tips']:
                     st.write(f"💡 {tip}")
 
