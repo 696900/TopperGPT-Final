@@ -480,86 +480,102 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (SMART FAILOVER ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Intelligent Engine</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Professional Moderator</h2>", unsafe_allow_html=True)
     
     # Check for Keys in Secrets
     openrouter_key = st.secrets.get("OPENROUTER_API_KEY")
     gemini_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 
-    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="ultra_pro_eval")
+    ans_file = st.file_uploader("Upload Answer Sheet (Handwritten)", type=["jpg", "png", "jpeg"], key="pro_eval_final_fixed")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        st.image(img, caption="Document Loaded", width=300)
+        st.image(img, caption="Document Detected", width=300)
         
-        if st.button("🚀 Evaluate Now (Smart Switching)"):
+        if st.button("🚀 Evaluate Now (5 Credits)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("AI Engine is warming up..."):
+                with st.spinner("Engines are warming up... (Checking Claude & Gemini)"):
                     
-                    # Prepare image once
+                    # 1. Universal Image Processing
                     buf = io.BytesIO()
                     img.save(buf, format="JPEG")
                     img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
                     
-                    success = False
-                    
-                    # --- ATTEMPT 1: OPENROUTER (Claude 3.5 Sonnet) ---
-                    if openrouter_key:
+                    eval_final = None
+                    error_logs = []
+
+                    # --- PHASE 1: CLAUDE 3.5 SONNET (OPENROUTER) ---
+                    if openrouter_key and not eval_final:
                         try:
                             or_url = "https://openrouter.ai/api/v1/chat/completions"
                             headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
                             payload = {
                                 "model": "anthropic/claude-3.5-sonnet",
-                                "messages": [{"role": "user", "content": [
-                                    {"type": "text", "text": "Evaluate engineering answer. Return JSON only."},
-                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
-                                ]}]
+                                "messages": [{
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Extract Question & Answer. Evaluate marks/10 for Engineering accuracy. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\"}"},
+                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
+                                    ]
+                                }]
                             }
-                            res = requests.post(or_url, headers=headers, json=payload, timeout=40)
+                            res = requests.post(or_url, headers=headers, json=payload, timeout=35)
                             if res.status_code == 200:
-                                st.session_state.eval_result = get_clean_json_v2(res.json()['choices'][0]['message']['content'])
-                                success = True
-                        except: pass 
+                                raw_text = res.json()['choices'][0]['message']['content']
+                                eval_final = get_clean_json_v2(raw_text)
+                            else:
+                                error_logs.append(f"Claude: {res.status_code}")
+                        except Exception as e: error_logs.append(f"Claude Error: {str(e)}")
 
-                    # --- ATTEMPT 2: GEMINI 2.0 (Backup with Check) ---
-                    if not success and gemini_key:
+                    # --- PHASE 2: GEMINI 2.0 FLASH (BACKUP) ---
+                    if gemini_key and not eval_final:
                         try:
+                            # Using v1beta for 2.0 Flash
                             gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
                             gem_payload = {
                                 "contents": [{"parts": [
-                                    {"text": "Extract Question & Answer. Return JSON."},
+                                    {"text": "Extract Question & Answer. Marks/10. Return ONLY JSON."},
                                     {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
                                 ]}]
                             }
                             res = requests.post(gem_url, json=gem_payload, timeout=25)
-                            
                             if res.status_code == 200:
                                 raw_text = res.json()['candidates'][0]['content']['parts'][0]['text']
-                                st.session_state.eval_result = get_clean_json_v2(raw_text)
-                                success = True
-                            elif res.status_code == 429:
-                                st.error("⚠️ Gemini Quota Exhausted. Google is asking to wait.")
-                        except: pass
+                                eval_final = get_clean_json_v2(raw_text)
+                            else:
+                                error_logs.append(f"Gemini 2.0: {res.status_code}")
+                        except Exception as e: error_logs.append(f"Gemini 2.0 Error: {str(e)}")
 
-                    if success:
+                    # --- FINAL EXECUTION ---
+                    if eval_final:
+                        st.session_state.eval_result = eval_final
                         st.session_state.user_data['credits'] -= 5
                         st.balloons()
                         st.rerun()
                     else:
-                        st.error("❌ Engines Still Sleepy. Please wait 60 seconds.")
+                        st.error("❌ Quota Exhausted on all Engines.")
+                        st.info(f"Debug Logs: {', '.join(error_logs)}")
+                        st.warning("Bhai, free limits hit ho gayi hain. 60 seconds ruko.")
+            else:
+                st.error("Bhai credits khatam! Sidebar se recharge karlo.")
 
-    # --- RESULT DISPLAY ---
+    # --- DISPLAY RESULTS (Fixed disappearing issue) ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>PRO GRADE</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>OFFICIAL GRADE</p></div>', unsafe_allow_html=True)
         with col2:
-            st.info(f"**Question:** {res.get('question')}")
-            st.success(f"**Feedback:** {res.get('feedback')}")
+            st.info(f"**Question Identified:**\n{res.get('question')}")
+            st.success(f"**Examiner Feedback:**\n{res.get('feedback')}")
+        
+        if st.button("🔄 Check Another Answer"):
+            st.session_state.eval_result = None
+            st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
