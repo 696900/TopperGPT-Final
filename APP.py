@@ -482,56 +482,51 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator Engine</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Intelligent Engine</h2>", unsafe_allow_html=True)
     
     # Check for Keys in Secrets
     openrouter_key = st.secrets.get("OPENROUTER_API_KEY")
     gemini_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 
-    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="pro_eval_final")
+    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="ultra_pro_eval")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
         st.image(img, caption="Document Loaded", width=300)
         
-        if st.button("🚀 Evaluate Now (Priority: Claude 3.5)"):
+        if st.button("🚀 Evaluate Now (Smart Switching)"):
             if st.session_state.user_data['credits'] >= 5:
-                # --- PROFESSIONAL PIPELINE START ---
-                with st.spinner("Analyzing with High-Priority Engine..."):
+                with st.spinner("AI Engine is warming up..."):
                     
-                    # 1. Prepare Image Data (Universal)
+                    # 1. Prep image once to save resources
                     buf = io.BytesIO()
                     img.save(buf, format="JPEG")
                     img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
                     
                     success = False
                     
-                    # --- ATTEMPT 1: OPENROUTER (Claude 3.5 Sonnet) ---
+                    # --- ATTEMPT 1: OPENROUTER (High Reliability) ---
                     if openrouter_key:
                         try:
                             #                             or_url = "https://openrouter.ai/api/v1/chat/completions"
-                            or_headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
-                            or_payload = {
+                            headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
+                            payload = {
                                 "model": "anthropic/claude-3.5-sonnet",
-                                "messages": [{
-                                    "role": "user",
-                                    "content": [
-                                        {"type": "text", "text": "Extract Question & Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\"}"},
-                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
-                                    ]
-                                }]
+                                "messages": [{"role": "user", "content": [
+                                    {"type": "text", "text": "Evaluate engineering answer. Return JSON only: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\"}"},
+                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
+                                ]}]
                             }
-                            res = requests.post(or_url, headers=or_headers, json=or_payload, timeout=30)
+                            res = requests.post(or_url, headers=headers, json=payload, timeout=40)
                             if res.status_code == 200:
-                                raw_text = res.json()['choices'][0]['message']['content']
-                                st.session_state.eval_result = get_clean_json_v2(raw_text)
+                                st.session_state.eval_result = get_clean_json_v2(res.json()['choices'][0]['message']['content'])
                                 success = True
-                        except: pass # Silent fail to next model
+                        except: pass 
 
-                    # --- ATTEMPT 2: GEMINI 2.0 (Backup) ---
+                    # --- ATTEMPT 2: GEMINI 2.0 (Backup with Check) ---
                     if not success and gemini_key:
                         try:
-                            # Using v1beta for Gemini 2.0 Flash (Stable for now)
+                            # Hit v1beta for Gemini 2.0 Flash
                             gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
                             gem_payload = {
                                 "contents": [{"parts": [
@@ -539,21 +534,23 @@ with tab3:
                                     {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
                                 ]}]
                             }
-                            res = requests.post(gem_url, json=gem_payload, timeout=20)
+                            res = requests.post(gem_url, json=gem_payload, timeout=25)
+                            
                             if res.status_code == 200:
                                 raw_text = res.json()['candidates'][0]['content']['parts'][0]['text']
                                 st.session_state.eval_result = get_clean_json_v2(raw_text)
                                 success = True
+                            elif res.status_code == 429:
+                                st.error("⚠️ Gemini Quota Exhausted. Google is asking to wait.")
                         except: pass
 
-                    # FINAL STATUS CHECK
                     if success:
                         st.session_state.user_data['credits'] -= 5
                         st.balloons()
                         st.rerun()
                     else:
-                        st.error("❌ All Engines Exhausted. (Quota Limit Reached)")
-                        st.info("Bhai, dono AI models ki limit hit ho gayi hai. 1 minute ruko.")
+                        st.error("❌ Engines Still Sleepy. Please wait 60 seconds.")
+                        st.info(f"Retry delay: {st.session_state.get('retry_after', 60)}s")
 
     # --- RESULT DISPLAY ---
     if st.session_state.get("eval_result"):
@@ -565,9 +562,6 @@ with tab3:
         with col2:
             st.info(f"**Question:** {res.get('question')}")
             st.success(f"**Feedback:** {res.get('feedback')}")
-        if st.button("🔄 Clear Result"):
-            st.session_state.eval_result = None
-            st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
