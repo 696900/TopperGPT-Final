@@ -13,6 +13,7 @@ from pypdf import PdfReader
 import requests
 import base64
 import json
+from PIL import Image
 import fitz  # This is PyMuPDF (much more stable)
 import textwrap
 import hashlib
