@@ -484,14 +484,19 @@ with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Claude 3.5 Final</h2>", unsafe_allow_html=True)
     
-    # 1. API Key fetch directly from secrets
-    try:
-        api_key = st.secrets["OPENROUTER_API_KEY"]
-    except:
-        st.error("Bhai key nahi mil rahi secrets mein! Check karo.")
-        st.stop()
+    # --- 💎 THE KEY FIX ---
+    # Hum directly secrets se key nikalenge. 
+    # Ensure karo 'OPENROUTER_API_KEY' exact yahi spelling hai secrets mein.
+    api_key = st.secrets.get("OPENROUTER_API_KEY")
 
-    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="claude_final_v1")
+    if not api_key:
+        # Agar secrets se nahi mil rahi, toh ek temporary text input de dete hain
+        st.error("Bhai secrets mein key nahi mili!")
+        api_key = st.text_input("Yahan apni OpenRouter Key paste kar do (sk-or-v1...):", type="password")
+        if not api_key:
+            st.stop()
+
+    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="claude_final_v99")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
@@ -499,13 +504,14 @@ with tab3:
         
         if st.button("🚀 Evaluate Now (5 Credits)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Claude 3.5 Sonnet is checking your paper..."):
+                with st.spinner("Claude is analyzing your paper..."):
                     try:
-                        # Image to Base64 conversion                         buffered = io.BytesIO()
+                        # Image to Base64 conversion
+                        buffered = io.BytesIO()
                         img.save(buffered, format="JPEG")
                         img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-                        # OpenRouter API Call (Standard & Stable)
+                        # API Request
                         response = requests.post(
                             url="https://openrouter.ai/api/v1/chat/completions",
                             headers={
@@ -518,7 +524,7 @@ with tab3:
                                     {
                                         "role": "user",
                                         "content": [
-                                            {"type": "text", "text": "Extract Question & Answer. Evaluate marks out of 10 for engineering accuracy. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
+                                            {"type": "text", "text": "Extract Question & Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
                                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
                                         ]
                                     }
@@ -530,6 +536,7 @@ with tab3:
                         
                         if "choices" in res_json:
                             raw_text = res_json['choices'][0]['message']['content']
+                            # Humara purana JSON cleaner use karo
                             eval_data = get_clean_json_v2(raw_text)
                             
                             if eval_data:
@@ -550,6 +557,7 @@ with tab3:
         res = st.session_state.eval_result
         st.divider()
         
+                
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
             st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>GRADE</p></div>', unsafe_allow_html=True)
