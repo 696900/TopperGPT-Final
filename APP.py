@@ -445,77 +445,110 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ Board Moderator Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9rem;'>Bulletproof Text Evaluation • Official Board Logic</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Answer Evaluator</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'>Upload handwritten photo or paste text for Board-level marking</p>", unsafe_allow_html=True)
     
-    if "eval_json" not in st.session_state:
-        st.session_state.eval_json = None
+    if "eval_result" not in st.session_state:
+        st.session_state.eval_result = None
 
-    st.warning("💳 Evaluation Cost: **5 Credits**")
+    # --- INPUT SECTION ---
+    col_input, col_marks = st.columns([0.7, 0.3])
+    with col_input:
+        q_text = st.text_input("❓ Enter Question:", placeholder="e.g. Explain the working of a P-N Junction Diode.")
+    with col_marks:
+        total_marks = st.selectbox("Max Marks:", [2, 4, 5, 8, 10], index=2)
+
+    st.divider()
     
-    # 1. INPUT SECTION (Text-only to avoid Vision 404 Errors)
-    input_q = st.text_area("Question:", placeholder="Enter the exam question...", height=70)
-    input_a = st.text_area("Your Answer:", placeholder="Paste your answer text here for instant grading...", height=200)
+    # 📸 HANDWRITING RECOGNITION (OCR) 
+    st.markdown("### 🖋️ Step 2: Submit Your Answer")
+    input_mode = st.radio("Choose Mode:", ["Upload Photo (OCR)", "Paste Text"], horizontal=True)
+    
+    final_answer_text = ""
+    
+    if input_mode == "Upload Photo (OCR)":
+        ans_file = st.file_uploader("Upload answer sheet photo...", type=["jpg", "png", "jpeg"])
+        if ans_file:
+            st.image(ans_file, caption="Processing Handwriting...", width=300)
+            if st.button("🔍 Extract Text from Photo"):
+                with st.spinner("Gemini is reading your handwriting..."):
+                    img = Image.open(ans_file)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    response = model.generate_content(["Read this handwritten engineering answer and provide ONLY the text content.", img])
+                    st.session_state.ocr_text = response.text
+            
+            if "ocr_text" in st.session_state:
+                final_answer_text = st.text_area("OCR Result (Verify & Correct):", value=st.session_state.ocr_text, height=150)
+    else:
+        final_answer_text = st.text_area("Paste your answer text here:", height=200)
 
-    if st.button("🔍 Evaluate My Answer") and input_q and input_a:
+    # --- EVALUATION LOGIC ---
+    if st.button("🚀 Evaluate Now (5 Credits)") and q_text and final_answer_text:
         if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("TopperGPT is analyzing technical accuracy..."):
+            with st.spinner("Board Moderator is checking technical accuracy..."):
                 try:
-                    # Using the most stable Llama 3.3 70B Text Model
-                    chat_completion = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{
-                            "role": "user",
-                            "content": f"Strict Board Examiner. Question: {input_q}. Answer: {input_a}. Return ONLY JSON: {{'marks': 'X/10', 'pros': '...', 'cons': '...', 'tip': '...'}}"
-                        }],
-                        response_format={"type": "json_object"}
-                    )
-                    
-                    st.session_state.eval_json = json.loads(chat_completion.choices[0].message.content)
-                    st.session_state.user_data['credits'] -= 5
-                except Exception as e:
-                    st.error(f"Moderator Error: {e}")
-        else:
-            st.error("Insufficient Credits!")
+                    # Semantic Analysis Prompt 
+                    prompt = f"""
+                    You are a Strict University Board Moderator.
+                    Question: {q_text} (Max Marks: {total_marks})
+                    Student's Answer: {final_answer_text}
 
-    # --- THE CINEMATIC UI DISPLAY ---
-    if st.session_state.get("eval_json"):
-        res = st.session_state.eval_json
+                    Marking Guidelines:
+                    1. 40% Weightage: Technical Keywords & Accuracy.
+                    2. 30% Weightage: Logical Flow & Explanation.
+                    3. 30% Weightage: Completeness (Diagram mentions, Examples).
+
+                    Return ONLY JSON format:
+                    {{
+                      "obtained_marks": "X/{total_marks}",
+                      "semantic_score": "Match percentage (0-100%)",
+                      "missing_keywords": ["keyword1", "keyword2"],
+                      "strengths": "Briefly mention what was correct",
+                      "topper_tip": "One specific advice to get full marks"
+                    }}
+                    """
+                    
+                    llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+                    res = llm.complete(prompt)
+                    st.session_state.eval_result = get_clean_json_v2(res.text)
+                    st.session_state.user_data['credits'] -= 5
+                    st.balloons()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Evaluation Error: {e}")
+        else:
+            st.error("Low Credits! Top-up karle topper.")
+
+    # --- CINEMATIC RESULTS ---
+    if st.session_state.eval_result:
+        res = st.session_state.eval_result
         st.divider()
         
-        # 1. Score Box
-        c_score, c_feed = st.columns([1, 2])
+        c_score, c_details = st.columns([0.4, 0.6])
         with c_score:
             st.markdown(f"""
-            <div style="background: #1e3c72; padding: 40px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
-                <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR GRADE</p>
-                <h1 style="color: white; font-size: 3.8rem; margin:0; font-weight: 900;">{res.get('marks', 'N/A')}</h1>
-            </div>
+                <div style="background: #1e3c72; padding: 40px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
+                    <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR GRADE</p>
+                    <h1 style="color: white; font-size: 4rem; margin:0; font-weight: 900;">{res.get('obtained_marks')}</h1>
+                    <p style="color: #4CAF50; font-weight: bold; margin:0;">Semantic Match: {res.get('semantic_score')}</p>
+                </div>
             """, unsafe_allow_html=True)
-        
-        with c_feed:
+            
+        with c_details:
+            st.markdown(f"**✅ Strengths:** {res.get('strengths')}")
+            st.warning(f"**❌ Missing Keywords:** {', '.join(res.get('missing_keywords'))}")
+            
             st.markdown(f"""
-            <div style="background: #161b22; padding: 20px; border-radius: 20px; border: 1px solid #30363d; height: 100%;">
-                <p style="color: #4CAF50; font-weight: bold; font-size: 0.85rem;">✅ STRENGTHS</p>
-                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('pros', 'Analyzing...')}</p>
-                <p style="color: #ff4b4b; font-weight: bold; margin-top: 15px;">❌ MARKS LOST</p>
-                <p style="color: #babbbe; font-size: 0.95rem;">{res.get('cons', 'Checking gaps...')}</p>
-            </div>
+                <div style="background: #161b22; padding: 20px; border-radius: 15px; border-left: 5px solid #4CAF50; margin-top: 15px;">
+                    <p style="color: #4CAF50; font-weight: bold; margin:0; font-size: 0.8rem;">🎓 THE TOPPER'S MASTERSTROKE</p>
+                    <p style="color: white; font-size: 1rem; margin-top: 5px;">{res.get('topper_tip')}</p>
+                </div>
             """, unsafe_allow_html=True)
 
-        # 2. Topper Tip (Premium Box)
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #1a1c23 0%, #0e1117 100%); padding: 35px; border-radius: 25px; 
-                    margin-top: 25px; border: 1px solid #4CAF50; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: -15px; right: -10px; font-size: 110px; font-weight: 900; color: rgba(76, 175, 80, 0.04); z-index:0;">TIP</div>
-            <div style="position: relative; z-index: 1;">
-                <p style="color: #4CAF50; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px;">🎓 THE TOPPER'S MASTERSTROKE</p>
-                <p style="font-size: 1.25rem; color: #4CAF50; font-weight: 600; line-height: 1.3;">{res.get('tip', 'Keep improving!')}</p>
-                <p style="text-align: right; color: #4CAF50; font-size: 0.7rem; margin-top: 25px;">@TOPPERGPT</p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.balloons()
+        if st.button("🗑️ Clear Evaluation"):
+            st.session_state.eval_result = None
+            if "ocr_text" in st.session_state: del st.session_state.ocr_text
+            st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
