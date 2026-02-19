@@ -100,6 +100,39 @@ def apply_pro_theme():
     """, unsafe_allow_html=True)
 
 apply_pro_theme()
+# --- 🖋️ ANSWER EVALUATOR UTILITIES (STEP 2) ---
+
+def _pil_to_base64(img):
+    """Image ko AI ke samajhne layak format mein badalne ke liye"""
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+# Claude ka sexy CSS logic (Ise bhi yahi define karlo)
+EVAL_CSS = """
+<style>
+.eval-card {
+    background: linear-gradient(135deg, #0f0c29, #1a1a2e);
+    border: 1px solid #4CAF50; border-radius: 15px; padding: 20px; margin: 10px 0;
+}
+.score-circle {
+    width: 100px; height: 100px; border-radius: 50%;
+    border: 5px solid #4CAF50; display: flex; align-items: center;
+    justify-content: center; margin: 0 auto; font-size: 24px; font-weight: bold;
+    color: white;
+}
+</style>
+"""
+
+# Iske niche tera purana get_clean_json_v2 bhi hona chahiye
+def get_clean_json_v2(text):
+    try:
+        json_match = re.search(r"\{.*\}", text, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group(0))
+        return {}
+    except:
+        return {}
 
 # --- INITIALIZE AI CLIENTS ---
 if "GROQ_API_KEY" in st.secrets:
@@ -445,50 +478,37 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Automated Paper Checker</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'>Photo upload karo, AI khud Question aur Answer dhoondh lega.</p>", unsafe_allow_html=True)
+    st.markdown(EVAL_CSS, unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Official Paper Checker</h2>", unsafe_allow_html=True)
     
-    if "eval_result" not in st.session_state:
-        st.session_state.eval_result = None
-
-    # --- STEP 1: UPLOAD ---
-    ans_file = st.file_uploader("Upload answer sheet photo...", type=["jpg", "png", "jpeg"], key="fix_404_final_v1")
+    # 1. UPLOAD SECTION
+    ans_file = st.file_uploader("Upload Answer Photo/PDF", type=["jpg", "png", "jpeg"], key="final_eval_v2")
     
     if ans_file:
-        st.image(ans_file, caption="Processing Paper...", width=400)
+        img = Image.open(ans_file).convert("RGB")
+        st.image(img, caption="Answer Sheet Detected", width=300)
         
-        if st.button("🚀 Extract & Evaluate Everything"):
+        if st.button("🚀 Extract & Evaluate Everything (5 Credits)"):
             if st.session_state.user_data['credits'] >= 5:
                 with st.spinner("AI Professor is reading your handwriting..."):
                     try:
-                        # 💎 THE ULTIMATE FIX: Using the correct model string 
-                        # 'gemini-1.5-flash' works with the stable API version
-                        vision_model = genai.GenerativeModel('gemini-1.5-flash')
-                        img = Image.open(ans_file)
+                        # 💎 THE 404 KILLER MODEL NAME
+                        model = genai.GenerativeModel(model_name="gemini-1.5-flash-latest")
                         
-                        # Master Prompt: No manual typing needed 
-                        ocr_prompt = """
-                        Act as an Engineering Board Moderator. 
-                        1. Extract the Question and the Student's Answer from this image.
-                        2. Identify technical keywords used.
-                        3. Evaluate the answer out of 10 marks based on accuracy and logic.
-                        
-                        Return ONLY valid JSON:
-                        {
-                          "detected_question": "text",
-                          "detected_answer": "text",
-                          "obtained_marks": "X/10",
-                          "semantic_match": "X%",
-                          "missing_keywords": ["k1", "k2"],
-                          "feedback": "Board feedback",
-                          "topper_tip": "One secret tip for extra marks"
-                        }
+                        prompt = """
+                        Identify:
+                        1. Question.
+                        2. Student's Answer.
+                        Evaluate out of 10 for engineering accuracy.
+                        Return ONLY JSON:
+                        {"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}
                         """
                         
-                        # Calling the generative content without 'models/' prefix
-                        response = vision_model.generate_content([ocr_prompt, img])
+                        response = model.generate_content([
+                            prompt, 
+                            {"mime_type": "image/jpeg", "data": _pil_to_base64(img)}
+                        ])
                         
-                        # Parsing JSON using our utility function
                         eval_data = get_clean_json_v2(response.text)
                         
                         if eval_data:
@@ -496,47 +516,37 @@ with tab3:
                             st.session_state.user_data['credits'] -= 5
                             st.balloons()
                             st.rerun()
-                        else:
-                            st.error("AI couldn't parse the JSON. Please ensure the handwriting is legible.")
-                            
                     except Exception as e:
-                        # Catching the exact 404 error if it still persists
-                        st.error(f"System Error: {str(e)}")
+                        st.error(f"System Error: {e}")
             else:
-                st.error("Insufficient Credits! Sidebar se recharge karlo topper.")
+                st.error("Bhai credits khatam! Sidebar se recharge kar.")
 
-    # --- RESULT DISPLAY ---
-    if st.session_state.eval_result:
+    # 2. DISPLAY RESULTS
+    if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         
-        with st.expander("📝 AI Detected Content (Verification)"):
-            st.info(f"**Question:** {res.get('detected_question')}")
-            st.write(f"**Answer:** {res.get('detected_answer')}")
-
         # 
-        c1, c2 = st.columns([0.4, 0.6])
-        with c1:
+        
+        col1, col2 = st.columns([0.4, 0.6])
+        with col1:
             st.markdown(f"""
-                <div style="background: #1e3c72; padding: 40px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
-                    <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR SCORE</p>
-                    <h1 style="color: white; font-size: 4rem; margin:0; font-weight: 900;">{res.get('obtained_marks')}</h1>
-                    <p style="color: #4CAF50; font-weight: bold; margin:0;">Match: {res.get('semantic_match')}</p>
-                </div>
+            <div class="eval-card" style="text-align:center;">
+                <div class="score-circle">{res.get('marks')}/10</div>
+                <p style="margin-top:10px; color:#4CAF50;">BOARD MODERATOR SCORE</p>
+            </div>
             """, unsafe_allow_html=True)
             
-        with c2:
+        with col2:
+            st.info(f"**Question Detected:** {res.get('question')}")
             st.success(f"**Feedback:** {res.get('feedback')}")
-            st.warning(f"**Missing:** {', '.join(res.get('missing_keywords', []))}")
-            
-            st.markdown(f"""
-                <div style="background: #161b22; padding: 20px; border-radius: 15px; border-left: 5px solid #4CAF50; margin-top: 15px;">
-                    <p style="color: #4CAF50; font-weight: bold; margin:0; font-size: 0.8rem;">🎓 THE TOPPER'S MASTERSTROKE</p>
-                    <p style="color: white; font-size: 1rem; margin-top: 5px;">{res.get('topper_tip')}</p>
-                </div>
-            """, unsafe_allow_html=True)
+        
+        if res.get('tips'):
+            with st.expander("🏆 Topper's Secret Tips"):
+                for tip in res['tips']:
+                    st.write(f"💡 {tip}")
 
-        if st.button("🗑️ Reset Evaluator"):
+        if st.button("🔄 Check Another Answer"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
