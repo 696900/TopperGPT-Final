@@ -482,92 +482,90 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official Moderator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator Engine</h2>", unsafe_allow_html=True)
     
-    # 🔑 Key Retrieval
-    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+    # Check for Keys in Secrets
+    openrouter_key = st.secrets.get("OPENROUTER_API_KEY")
+    gemini_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 
-    if not api_key:
-        st.error("🚨 Sniper Alert: Secrets mein API Key nahi mil rahi!")
-        st.stop()
-
-    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="final_boss_v100")
+    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="pro_eval_final")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        st.image(img, caption="Sheet Captured", width=300)
+        st.image(img, caption="Document Loaded", width=300)
         
-        if st.button("🚀 Start Final Evaluation"):
+        if st.button("🚀 Evaluate Now (Priority: Claude 3.5)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("AI Professor (Gemini 2.0) is marking..."):
-                    try:
-                        # --- 🛠️ STEP 1: IMAGE PROCESSING (FIXED) ---
-                        buf = io.BytesIO()
-                        img.save(buf, format="JPEG")
-                        img_bytes = buf.getvalue()
-                        img_data_b64 = base64.b64encode(img_bytes).decode('utf-8')
+                # --- PROFESSIONAL PIPELINE START ---
+                with st.spinner("Analyzing with High-Priority Engine..."):
+                    
+                    # 1. Prepare Image Data (Universal)
+                    buf = io.BytesIO()
+                    img.save(buf, format="JPEG")
+                    img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+                    
+                    success = False
+                    
+                    # --- ATTEMPT 1: OPENROUTER (Claude 3.5 Sonnet) ---
+                    if openrouter_key:
+                        try:
+                            #                             or_url = "https://openrouter.ai/api/v1/chat/completions"
+                            or_headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
+                            or_payload = {
+                                "model": "anthropic/claude-3.5-sonnet",
+                                "messages": [{
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Extract Question & Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\"}"},
+                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
+                                    ]
+                                }]
+                            }
+                            res = requests.post(or_url, headers=or_headers, json=or_payload, timeout=30)
+                            if res.status_code == 200:
+                                raw_text = res.json()['choices'][0]['message']['content']
+                                st.session_state.eval_result = get_clean_json_v2(raw_text)
+                                success = True
+                        except: pass # Silent fail to next model
 
-                        # --- 📡 STEP 2: API HIT ---
-                        # Using v1beta + gemini-2.0-flash (Sabse stable combo)
-                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-                        
-                        payload = {
-                            "contents": [{
-                                "parts": [
-                                    {"text": "Act as an Engineering Moderator. Extract Question and Student Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
-                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_data_b64}}
-                                ]
-                            }]
-                        }
+                    # --- ATTEMPT 2: GEMINI 2.0 (Backup) ---
+                    if not success and gemini_key:
+                        try:
+                            # Using v1beta for Gemini 2.0 Flash (Stable for now)
+                            gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
+                            gem_payload = {
+                                "contents": [{"parts": [
+                                    {"text": "Extract Question & Answer. Marks/10. Return ONLY JSON."},
+                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+                                ]}]
+                            }
+                            res = requests.post(gem_url, json=gem_payload, timeout=20)
+                            if res.status_code == 200:
+                                raw_text = res.json()['candidates'][0]['content']['parts'][0]['text']
+                                st.session_state.eval_result = get_clean_json_v2(raw_text)
+                                success = True
+                        except: pass
 
-                        response = requests.post(url, json=payload)
-                        res_json = response.json()
-                        
-                        if response.status_code == 200:
-                            # --- 🧠 STEP 3: PARSING ---
-                            raw_ai_text = res_json['candidates'][0]['content']['parts'][0]['text']
-                            eval_data = get_clean_json_v2(raw_ai_text)
-                            
-                            if eval_data:
-                                st.session_state.eval_result = eval_data
-                                st.session_state.user_data['credits'] -= 5
-                                st.balloons()
-                                st.rerun()
-                        else:
-                            st.error(f"Engine Failure: {response.status_code}")
-                            st.json(res_json) 
-                            
-                    except Exception as e:
-                        st.error(f"Logic Error: {str(e)}")
-            else:
-                st.error("Bhai credits khatam! Sidebar se recharge karlo.")
+                    # FINAL STATUS CHECK
+                    if success:
+                        st.session_state.user_data['credits'] -= 5
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        st.error("❌ All Engines Exhausted. (Quota Limit Reached)")
+                        st.info("Bhai, dono AI models ki limit hit ho gayi hai. 1 minute ruko.")
 
-    # --- 📊 STEP 4: OUTPUT DISPLAY ---
+    # --- RESULT DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
-        
-        # 
-        
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f"""
-                <div class="eval-card" style="text-align:center;">
-                    <div class="score-circle">{res.get('marks', 0)}/10</div>
-                    <p style="margin-top:10px; color:#4CAF50; font-weight:bold;">BOARD SCORE</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
+            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>PRO GRADE</p></div>', unsafe_allow_html=True)
         with col2:
-            st.info(f"**Question Identified:**\n{res.get('question')}")
-            st.success(f"**Examiner Feedback:**\n{res.get('feedback')}")
-        
-        if res.get('tips'):
-            with st.expander("🏆 Topper's Secret Tips", expanded=True):
-                for tip in res['tips']:
-                    st.write(f"💡 {tip}")
-
-        if st.button("🔄 Check Another Answer"):
+            st.info(f"**Question:** {res.get('question')}")
+            st.success(f"**Feedback:** {res.get('feedback')}")
+        if st.button("🔄 Clear Result"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
