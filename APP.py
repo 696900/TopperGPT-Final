@@ -482,60 +482,77 @@ with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Official Paper Checker</h2>", unsafe_allow_html=True)
     
-    ans_file = st.file_uploader("Upload Answer Photo/PDF", type=["jpg", "png", "jpeg"], key="final_eval_v101")
+    # 💳 Wallet Check
+    st.info("💡 Tip: Answer sheet ki clear photo upload karein taaki AI handwriting read kar sake.")
+    
+    ans_file = st.file_uploader("Upload Handwritten Answer Photo", type=["jpg", "png", "jpeg"], key="groq_vision_final")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        st.image(img, caption="Answer Sheet Detected", width=300)
+        st.image(img, caption="Answer Sheet Detected", width=400)
         
-        if st.button("🚀 Extract & Evaluate Everything (5 Credits)"):
+        if st.button("🚀 Evaluate Now (5 Credits)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator is checking your paper..."):
+                with st.spinner("Moderator is analyzing your handwriting via Llama Vision..."):
                     try:
-                        # 💎 THE ULTIMATE BYPASS: Force 'v1' API Version
-                        # 'models/gemini-1.5-flash' is the correct full path
-                        import google.generativeai as genai
+                        # 💎 THE PERMANENT FIX: Using Groq Llama-3.2-11b-vision-preview
+                        # No Gemini, No 404, No v1beta errors anymore!
                         
-                        # Configuring with a clean slate
-                        genai.configure(api_key=api_key_to_use)
-                        
-                        # Creating model with explicit stable versioning
-                        professor_model = genai.GenerativeModel(
-                            model_name='gemini-1.5-flash'
-                        )
+                        base64_image = _pil_to_base64(img)
                         
                         prompt = """
-                        Act as an Engineering Board Moderator.
+                        You are an Engineering Board Moderator.
                         1. Extract the Question and the Student's Answer from the image.
-                        2. Evaluate marks out of 10.
-                        3. Provide feedback and 2 topper tips.
-                        Return ONLY JSON:
-                        {"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}
-                        """
+                        2. Evaluate the answer out of 10 marks based on:
+                           - Technical Accuracy (4 Marks)
+                           - Logical Explanation (3 Marks)
+                           - Keywords & Clarity (3 Marks)
+                        3. Provide 2 specific topper tips.
                         
-                        # Using the direct content generation
-                        response = professor_model.generate_content(
-                            contents=[
-                                prompt, 
-                                {"mime_type": "image/jpeg", "data": _pil_to_base64(img)}
-                            ]
+                        Return ONLY a valid JSON object:
+                        {
+                          "question": "...",
+                          "answer": "...",
+                          "marks": 8,
+                          "feedback": "...",
+                          "tips": ["tip1", "tip2"]
+                        }
+                        """
+
+                        # Using your existing groq_client
+                        response = groq_client.chat.completions.create(
+                            model="llama-3.2-11b-vision-preview",
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": prompt},
+                                        {
+                                            "type": "image_url",
+                                            "image_url": {
+                                                "url": f"data:image/jpeg;base64,{base64_image}",
+                                            },
+                                        },
+                                    ],
+                                }
+                            ],
+                            response_format={"type": "json_object"}
                         )
                         
-                        eval_data = get_clean_json_v2(response.text)
+                        # JSON Parsing
+                        eval_data = json.loads(response.choices[0].message.content)
                         
                         if eval_data:
                             st.session_state.eval_result = eval_data
                             st.session_state.user_data['credits'] -= 5
                             st.balloons()
                             st.rerun()
-                        else:
-                            st.error("AI output format error. Please try again.")
                             
                     except Exception as e:
-                        st.error(f"API Error: {e}")
-                        st.info("Bhai, agar ye fir bhi na chale toh apna Gemini API Key check kar, shayad wo 'Paid' tier mein activate nahi hai.")
+                        st.error(f"Evaluation Error: {str(e)}")
+                        st.info("Bhai, ensure karo ki '_pil_to_base64' function code ke upar defined hai.")
             else:
-                st.error("Bhai credits khatam! Sidebar se recharge kar.")
+                st.error("Bhai credits khatam! Sidebar se recharge karlo.")
 
     # --- RESULT DISPLAY ---
     if st.session_state.get("eval_result"):
@@ -546,15 +563,16 @@ with tab3:
         
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
+            # Score card with CSS from Step 2
             st.markdown(f"""
             <div class="eval-card" style="text-align:center;">
-                <div class="score-circle">{res.get('marks') or 0}/10</div>
-                <p style="margin-top:10px; color:#4CAF50;">BOARD MODERATOR SCORE</p>
+                <div class="score-circle">{res.get('marks', 0)}/10</div>
+                <p style="margin-top:10px; color:#4CAF50; font-weight:bold;">OFFICIAL GRADE</p>
             </div>
             """, unsafe_allow_html=True)
             
         with col2:
-            st.info(f"**Question Detected:** {res.get('question')}")
+            st.info(f"**Question Identified:** {res.get('question')}")
             st.success(f"**Feedback:** {res.get('feedback')}")
         
         if res.get('tips'):
