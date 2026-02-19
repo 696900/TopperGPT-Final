@@ -482,62 +482,54 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Claude 3.5 Final</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official AI Moderator</h2>", unsafe_allow_html=True)
+
+    # STEP 1: Key Check (Debugging)
+    # 
+    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
     
-    # --- 💎 THE KEY FIX ---
-    # Hum directly secrets se key nikalenge. 
-    # Ensure karo 'OPENROUTER_API_KEY' exact yahi spelling hai secrets mein.
-    api_key = st.secrets.get("OPENROUTER_API_KEY")
-
     if not api_key:
-        # Agar secrets se nahi mil rahi, toh ek temporary text input de dete hain
-        st.error("Bhai secrets mein key nahi mili!")
-        api_key = st.text_input("Yahan apni OpenRouter Key paste kar do (sk-or-v1...):", type="password")
-        if not api_key:
-            st.stop()
+        st.error("🚨 Sniper Alert: API Key hi nahi mil rahi Secrets mein!")
+        st.stop()
 
-    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="claude_final_v99")
+    # STEP 2: Input Section
+    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="sniper_eval_v1")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        st.image(img, caption="Sheet Uploaded", width=300)
+        st.image(img, caption="Sheet Captured", width=300)
         
-        if st.button("🚀 Evaluate Now (5 Credits)"):
+        if st.button("🚀 Start Final Evaluation"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Claude is analyzing your paper..."):
+                with st.spinner("AI Professor is scanning and marking..."):
                     try:
-                        # Image to Base64 conversion
+                        # 3. Processing: Image to Base64
                         buffered = io.BytesIO()
                         img.save(buffered, format="JPEG")
-                        img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                        img_data = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-                        # API Request
-                        response = requests.post(
-                            url="https://openrouter.ai/api/v1/chat/completions",
-                            headers={
-                                "Authorization": f"Bearer {api_key}",
-                                "Content-Type": "application/json"
-                            },
-                            data=json.dumps({
-                                "model": "anthropic/claude-3.5-sonnet",
-                                "messages": [
-                                    {
-                                        "role": "user",
-                                        "content": [
-                                            {"type": "text", "text": "Extract Question & Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
-                                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
-                                        ]
-                                    }
+                        # 4. The Direct Hit (Bypassing all SDK version errors)
+                        # We are using v1 (Stable) with the exact generateContent method
+                        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+                        
+                        payload = {
+                            "contents": [{
+                                "parts": [
+                                    {"text": "Extract the Question and Student Answer. Evaluate marks out of 10. Give feedback and 2 tips. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
+                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_data}}
                                 ]
-                            })
-                        )
+                            }]
+                        }
+
+                        # 📡 Debugging: Sending Request
+                        response = requests.post(url, json=payload)
                         
-                        res_json = response.json()
-                        
-                        if "choices" in res_json:
-                            raw_text = res_json['choices'][0]['message']['content']
-                            # Humara purana JSON cleaner use karo
-                            eval_data = get_clean_json_v2(raw_text)
+                        if response.status_code == 200:
+                            res_json = response.json()
+                            raw_ai_text = res_json['candidates'][0]['content']['parts'][0]['text']
+                            
+                            # Clean and Parse
+                            eval_data = get_clean_json_v2(raw_text=raw_ai_text)
                             
                             if eval_data:
                                 st.session_state.eval_result = eval_data
@@ -545,27 +537,36 @@ with tab3:
                                 st.balloons()
                                 st.rerun()
                         else:
-                            st.error(f"API Error: {res_json.get('error', {}).get('message')}")
+                            # 🚨 Step 1 Debugging: Agar yahan fatega toh exact error dikhayega
+                            st.error(f"Engine Failure: {response.status_code}")
+                            st.code(response.text) # Isse exact error pata chal jayega
                             
                     except Exception as e:
-                        st.error(f"System Error: {e}")
+                        st.error(f"Logic Error: {str(e)}")
             else:
                 st.error("Bhai credits khatam! Sidebar se recharge karlo.")
 
-    # --- RESULT DISPLAY ---
+    # --- OUTPUT SECTION ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         
-                
+        # 
+        
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>GRADE</p></div>', unsafe_allow_html=True)
+            st.markdown(f"""
+                <div class="eval-card" style="text-align:center;">
+                    <div class="score-circle">{res.get('marks', 0)}/10</div>
+                    <p style="margin-top:10px; color:#4CAF50;">BOARD MODERATOR SCORE</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
         with col2:
             st.info(f"**Question:** {res.get('question')}")
             st.success(f"**Feedback:** {res.get('feedback')}")
         
-        if st.button("🔄 Reset"):
+        if st.button("🔄 Reset Evaluator"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
