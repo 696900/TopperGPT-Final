@@ -452,7 +452,7 @@ with tab3:
         st.session_state.eval_result = None
 
     # --- STEP 1: UPLOAD ---
-    ans_file = st.file_uploader("Upload answer sheet photo...", type=["jpg", "png", "jpeg"], key="fix_404_eval")
+    ans_file = st.file_uploader("Upload answer sheet photo...", type=["jpg", "png", "jpeg"], key="fix_404_final_v1")
     
     if ans_file:
         st.image(ans_file, caption="Processing Paper...", width=400)
@@ -461,17 +461,19 @@ with tab3:
             if st.session_state.user_data['credits'] >= 5:
                 with st.spinner("AI Professor is reading your handwriting..."):
                     try:
-                        # 💎 THE FIX: Using the correct model string for the latest API
+                        # 💎 THE ULTIMATE FIX: Using the correct model string 
+                        # 'gemini-1.5-flash' works with the stable API version
                         vision_model = genai.GenerativeModel('gemini-1.5-flash')
                         img = Image.open(ans_file)
                         
+                        # Master Prompt: No manual typing needed 
                         ocr_prompt = """
-                        Act as an Engineering Moderator. 
-                        1. Extract the Question and Answer from this image.
-                        2. Evaluate technical accuracy out of 10 marks.
-                        3. Identify missing keywords.
+                        Act as an Engineering Board Moderator. 
+                        1. Extract the Question and the Student's Answer from this image.
+                        2. Identify technical keywords used.
+                        3. Evaluate the answer out of 10 marks based on accuracy and logic.
                         
-                        Return ONLY JSON:
+                        Return ONLY valid JSON:
                         {
                           "detected_question": "text",
                           "detected_answer": "text",
@@ -479,14 +481,14 @@ with tab3:
                           "semantic_match": "X%",
                           "missing_keywords": ["k1", "k2"],
                           "feedback": "Board feedback",
-                          "topper_tip": "One tip"
+                          "topper_tip": "One secret tip for extra marks"
                         }
                         """
                         
-                        # Calling the generative content
+                        # Calling the generative content without 'models/' prefix
                         response = vision_model.generate_content([ocr_prompt, img])
                         
-                        # Parsing JSON
+                        # Parsing JSON using our utility function
                         eval_data = get_clean_json_v2(response.text)
                         
                         if eval_data:
@@ -495,40 +497,46 @@ with tab3:
                             st.balloons()
                             st.rerun()
                         else:
-                            st.error("AI couldn't parse the image. Please try a clearer photo.")
+                            st.error("AI couldn't parse the JSON. Please ensure the handwriting is legible.")
                             
                     except Exception as e:
                         # Catching the exact 404 error if it still persists
                         st.error(f"System Error: {str(e)}")
             else:
-                st.error("Insufficient Credits!")
+                st.error("Insufficient Credits! Sidebar se recharge karlo topper.")
 
     # --- RESULT DISPLAY ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
         st.divider()
         
-        # 
-        
-        with st.expander("📝 AI Detected Content"):
+        with st.expander("📝 AI Detected Content (Verification)"):
             st.info(f"**Question:** {res.get('detected_question')}")
             st.write(f"**Answer:** {res.get('detected_answer')}")
 
+        # 
         c1, c2 = st.columns([0.4, 0.6])
         with c1:
             st.markdown(f"""
                 <div style="background: #1e3c72; padding: 40px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
                     <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR SCORE</p>
                     <h1 style="color: white; font-size: 4rem; margin:0; font-weight: 900;">{res.get('obtained_marks')}</h1>
+                    <p style="color: #4CAF50; font-weight: bold; margin:0;">Match: {res.get('semantic_match')}</p>
                 </div>
             """, unsafe_allow_html=True)
             
         with c2:
             st.success(f"**Feedback:** {res.get('feedback')}")
             st.warning(f"**Missing:** {', '.join(res.get('missing_keywords', []))}")
-            st.info(f"**Topper Tip:** {res.get('topper_tip')}")
+            
+            st.markdown(f"""
+                <div style="background: #161b22; padding: 20px; border-radius: 15px; border-left: 5px solid #4CAF50; margin-top: 15px;">
+                    <p style="color: #4CAF50; font-weight: bold; margin:0; font-size: 0.8rem;">🎓 THE TOPPER'S MASTERSTROKE</p>
+                    <p style="color: white; font-size: 1rem; margin-top: 5px;">{res.get('topper_tip')}</p>
+                </div>
+            """, unsafe_allow_html=True)
 
-        if st.button("🗑️ Reset"):
+        if st.button("🗑️ Reset Evaluator"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
