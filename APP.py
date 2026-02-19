@@ -104,7 +104,8 @@ apply_pro_theme()
 # --- 🖋️ ANSWER EVALUATOR UTILITIES (STEP 2) ---
 
 def _pil_to_base64(img):
-    """Image ko AI ke samajhne layak format mein badalne ke liye"""
+    import io
+    import base64
     buf = io.BytesIO()
     img.save(buf, format="JPEG")
     return base64.b64encode(buf.getvalue()).decode("utf-8")
