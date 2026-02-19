@@ -482,106 +482,90 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Official Moderator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Automated Evaluator</h2>", unsafe_allow_html=True)
     
-    # --- 🔑 EMERGENCY KEY BYPASS ---
-    # Agar secrets fail ho jayein toh user se key maang lo
-    if "OPENROUTER_API_KEY" not in st.secrets:
-        key_input = st.text_input("🔑 Enter OpenRouter API Key to start:", type="password", help="Secrets fail ho rahe hain, yahan key dalo.")
-        if key_input:
-            final_api_key = key_input
-        else:
-            st.warning("Bhai, OpenRouter key dalo topper banne ke liye!")
-            st.stop()
-    else:
-        final_api_key = st.secrets["OPENROUTER_API_KEY"]
+    # Check if API Key exists in secrets
+    gemini_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 
-    if "eval_result" not in st.session_state:
-        st.session_state.eval_result = None
+    if not gemini_key:
+        st.error("❌ API Key missing in Secrets! Please add GEMINI_API_KEY to your secrets.")
+        st.stop()
 
-    # --- UPLOAD SECTION ---
-    ans_file = st.file_uploader("Upload Answer Sheet (Photo/PDF)", type=["jpg", "png", "jpeg", "pdf"], key="final_boss_eval_v2")
+    ans_file = st.file_uploader("Upload Answer Sheet (Photo)", type=["jpg", "png", "jpeg"], key="ultimate_fix_tab3")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        st.image(img, caption="Sheet Uploaded", width=300)
+        st.image(img, caption="Paper Detected", width=300)
         
         if st.button("🚀 Evaluate Now (5 Credits)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Claude 3.5 Sonnet is analyzing your paper..."):
+                with st.spinner("Moderator is checking your paper..."):
                     try:
-                        # 1. Image to Base64                         base64_image = _pil_to_base64(img)
+                        # 1. Direct Image Processing (No variables left out)
+                        buffered = io.BytesIO()
+                        img.save(buffered, format="JPEG")
+                        encoded_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+                        # 2. Direct API Call (Bypassing the buggy SDK)
+                        # We use 'v1' to avoid the v1beta 404 error
+                        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
                         
-                        # 2. OpenRouter API Call with Claude 3.5 Sonnet
-                        response = requests.post(
-                            url="https://openrouter.ai/api/v1/chat/completions",
-                            headers={
-                                "Authorization": f"Bearer {final_api_key}",
-                                "Content-Type": "application/json"
-                            },
-                            data=json.dumps({
-                                "model": "anthropic/claude-3.5-sonnet",
-                                "messages": [
-                                    {
-                                        "role": "user",
-                                        "content": [
-                                            {
-                                                "type": "text", 
-                                                "text": "Identify Question & Answer. Grade out of 10 like a strict university examiner. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"
-                                            },
-                                            {
-                                                "type": "image_url",
-                                                "image_url": { "url": f"data:image/jpeg;base64,{base64_image}" }
-                                            }
-                                        ]
-                                    }
+                        payload = {
+                            "contents": [{
+                                "parts": [
+                                    {"text": "Extract Question & Answer from this image. Evaluate marks out of 10. Provide feedback & 2 topper tips. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
+                                    {"inline_data": {"mime_type": "image/jpeg", "data": encoded_image}}
                                 ]
-                            })
-                        )
-                        
-                        res_json = response.json()
-                        
-                        if "choices" in res_json:
-                            raw_text = res_json['choices'][0]['message']['content']
-                            eval_data = get_clean_json_v2(raw_text)
+                            }]
+                        }
+
+                        response = requests.post(url, json=payload)
+                        res_data = response.json()
+
+                        if response.status_code == 200:
+                            # Parsing the response
+                            raw_ai_text = res_data['candidates'][0]['content']['parts'][0]['text']
+                            eval_result = get_clean_json_v2(raw_ai_text)
                             
-                            if eval_data:
-                                st.session_state.eval_result = eval_data
+                            if eval_result:
+                                st.session_state.eval_result = eval_result
                                 st.session_state.user_data['credits'] -= 5
                                 st.balloons()
                                 st.rerun()
                         else:
-                            st.error(f"API Error: {res_json.get('error', {}).get('message', 'Unknown Error')}")
-                            
+                            st.error(f"API Error: {res_data.get('error', {}).get('message', 'Unknown error')}")
+
                     except Exception as e:
-                        st.error(f"System Error: {e}")
+                        st.error(f"System Error: {str(e)}")
             else:
-                st.error("Bhai credits khatam! Sidebar se recharge karlo.")
+                st.error("Credits low hain bhai!")
 
     # --- RESULT DISPLAY ---
-    if st.session_state.eval_result:
+    if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         
+        
+
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
             st.markdown(f"""
             <div class="eval-card" style="text-align:center;">
                 <div class="score-circle">{res.get('marks', 0)}/10</div>
-                <p style="margin-top:10px; color:#4CAF50; font-weight:bold;">BOARD MODERATOR SCORE</p>
+                <p style="margin-top:10px; color:#4CAF50; font-weight:bold;">OFFICIAL SCORE</p>
             </div>
             """, unsafe_allow_html=True)
             
         with col2:
-            st.info(f"**Question Identified:**\n{res.get('question')}")
-            st.success(f"**Examiner Feedback:**\n{res.get('feedback')}")
+            st.info(f"**Detected Question:** {res.get('question')}")
+            st.success(f"**Feedback:** {res.get('feedback')}")
         
         if res.get('tips'):
             with st.expander("🏆 Topper's Secret Tips", expanded=True):
                 for tip in res['tips']:
                     st.write(f"💡 {tip}")
 
-        if st.button("🔄 Check Another Answer"):
+        if st.button("🔄 Check Another"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
