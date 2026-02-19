@@ -479,22 +479,28 @@ with tab2:
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
+# --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Official Moderator</h2>", unsafe_allow_html=True)
     
-    # --- API KEY & SESSION CHECK ---
-    try:
-        api_key = st.secrets["OPENROUTER_API_KEY"]
-    except:
-        st.error("Bhai key nahi mil rahi! Ek baar app ko Reboot maaro ya Secrets check karo.")
-        st.stop()
+    # --- 🔑 EMERGENCY KEY BYPASS ---
+    # Agar secrets fail ho jayein toh user se key maang lo
+    if "OPENROUTER_API_KEY" not in st.secrets:
+        key_input = st.text_input("🔑 Enter OpenRouter API Key to start:", type="password", help="Secrets fail ho rahe hain, yahan key dalo.")
+        if key_input:
+            final_api_key = key_input
+        else:
+            st.warning("Bhai, OpenRouter key dalo topper banne ke liye!")
+            st.stop()
+    else:
+        final_api_key = st.secrets["OPENROUTER_API_KEY"]
 
     if "eval_result" not in st.session_state:
         st.session_state.eval_result = None
 
     # --- UPLOAD SECTION ---
-    ans_file = st.file_uploader("Upload Answer Sheet (Photo/PDF)", type=["jpg", "png", "jpeg", "pdf"], key="final_boss_eval")
+    ans_file = st.file_uploader("Upload Answer Sheet (Photo/PDF)", type=["jpg", "png", "jpeg", "pdf"], key="final_boss_eval_v2")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
@@ -504,14 +510,13 @@ with tab3:
             if st.session_state.user_data['credits'] >= 5:
                 with st.spinner("Claude 3.5 Sonnet is analyzing your paper..."):
                     try:
-                        # 1. Image to Base64 
-                        base64_image = _pil_to_base64(img)
+                        # 1. Image to Base64                         base64_image = _pil_to_base64(img)
                         
-                        # 2. OpenRouter API Call
+                        # 2. OpenRouter API Call with Claude 3.5 Sonnet
                         response = requests.post(
                             url="https://openrouter.ai/api/v1/chat/completions",
                             headers={
-                                "Authorization": f"Bearer {api_key}",
+                                "Authorization": f"Bearer {final_api_key}",
                                 "Content-Type": "application/json"
                             },
                             data=json.dumps({
@@ -522,13 +527,11 @@ with tab3:
                                         "content": [
                                             {
                                                 "type": "text", 
-                                                "text": "Identify the Question and Answer from this image. Evaluate it like a strict university board examiner out of 10 marks. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"
+                                                "text": "Identify Question & Answer. Grade out of 10 like a strict university examiner. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"
                                             },
                                             {
                                                 "type": "image_url",
-                                                "image_url": {
-                                                    "url": f"data:image/jpeg;base64,{base64_image}"
-                                                }
+                                                "image_url": { "url": f"data:image/jpeg;base64,{base64_image}" }
                                             }
                                         ]
                                     }
@@ -548,8 +551,7 @@ with tab3:
                                 st.balloons()
                                 st.rerun()
                         else:
-                            error_msg = res_json.get('error', {}).get('message', 'Unknown Error')
-                            st.error(f"API Error: {error_msg}")
+                            st.error(f"API Error: {res_json.get('error', {}).get('message', 'Unknown Error')}")
                             
                     except Exception as e:
                         st.error(f"System Error: {e}")
@@ -560,8 +562,6 @@ with tab3:
     if st.session_state.eval_result:
         res = st.session_state.eval_result
         st.divider()
-        
-        # 
         
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
