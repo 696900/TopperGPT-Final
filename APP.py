@@ -446,53 +446,47 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Automated Paper Checker</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'>Bas photo khicho aur upload karo, AI khud Question aur Answer identify kar lega.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'>Photo upload karo, AI khud Question aur Answer dhoondh lega.</p>", unsafe_allow_html=True)
     
     if "eval_result" not in st.session_state:
         st.session_state.eval_result = None
 
-    # --- THE SMART STEP 1: UPLOAD ---
-    st.markdown("### 📸 Step 1: Upload Your Answer Sheet")
-    ans_file = st.file_uploader("Upload answer sheet photo (JPEG/PNG)...", type=["jpg", "png", "jpeg"], key="auto_eval_v3")
+    # --- STEP 1: UPLOAD ---
+    ans_file = st.file_uploader("Upload answer sheet photo...", type=["jpg", "png", "jpeg"], key="fix_404_eval")
     
     if ans_file:
-        st.image(ans_file, caption="Answer Sheet Detected", width=400)
+        st.image(ans_file, caption="Processing Paper...", width=400)
         
-        # --- SMART EXTRACTION (No Manual Typing) ---
-        if st.button("🚀 Extract & Evaluate Everything (5 Credits)"):
+        if st.button("🚀 Extract & Evaluate Everything"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("AI Professor is reading and identifying your paper..."):
+                with st.spinner("AI Professor is reading your handwriting..."):
                     try:
-                        # --- FIX: MODEL DEFINITION ---
-                        # Yahan humne model define kar diya hai taaki 'name model is not defined' error na aaye
+                        # 💎 THE FIX: Using the correct model string for the latest API
                         vision_model = genai.GenerativeModel('gemini-1.5-flash')
                         img = Image.open(ans_file)
                         
-                        # Master Prompt: Identifies Question AND Answer automatically
                         ocr_prompt = """
-                        Look at this engineering answer sheet image carefully.
-                        1. Identify the 'Question' written on the paper.
-                        2. Identify the 'Student's Answer' written below it.
-                        3. Extract both accurately using OCR.
-                        4. Act as a Strict University Board Moderator.
-                        5. Evaluate the answer out of 10 marks based on technical keywords.
+                        Act as an Engineering Moderator. 
+                        1. Extract the Question and Answer from this image.
+                        2. Evaluate technical accuracy out of 10 marks.
+                        3. Identify missing keywords.
                         
-                        Return ONLY in this JSON format:
+                        Return ONLY JSON:
                         {
-                          "detected_question": "extracted question text",
-                          "detected_answer": "extracted answer text",
+                          "detected_question": "text",
+                          "detected_answer": "text",
                           "obtained_marks": "X/10",
-                          "semantic_match": "percentage",
-                          "missing_keywords": ["keyword1", "keyword2"],
-                          "feedback": "Strict feedback on logic",
-                          "topper_tip": "One specific advice for full marks"
+                          "semantic_match": "X%",
+                          "missing_keywords": ["k1", "k2"],
+                          "feedback": "Board feedback",
+                          "topper_tip": "One tip"
                         }
                         """
                         
-                        # Calling the API
+                        # Calling the generative content
                         response = vision_model.generate_content([ocr_prompt, img])
                         
-                        # Utility function to clean JSON (Jo humne pehle define kiya tha)
+                        # Parsing JSON
                         eval_data = get_clean_json_v2(response.text)
                         
                         if eval_data:
@@ -501,47 +495,40 @@ with tab3:
                             st.balloons()
                             st.rerun()
                         else:
-                            st.error("AI couldn't parse the handwriting. Please ensure the photo is clear and bright.")
+                            st.error("AI couldn't parse the image. Please try a clearer photo.")
                             
                     except Exception as e:
-                        # Detailed error for debugging
+                        # Catching the exact 404 error if it still persists
                         st.error(f"System Error: {str(e)}")
             else:
-                st.error("Insufficient Credits! Sidebar se recharge karlo.")
+                st.error("Insufficient Credits!")
 
-    # --- SMART DISPLAY SECTION ---
+    # --- RESULT DISPLAY ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
         st.divider()
         
-        # Identified Content Verification
-        with st.expander("📝 AI Detected Content (Check if correct)"):
-            st.info(f"**Question Identified:** {res.get('detected_question')}")
-            st.write(f"**Answer Extracted:** {res.get('detected_answer')}")
+        # 
+        
+        with st.expander("📝 AI Detected Content"):
+            st.info(f"**Question:** {res.get('detected_question')}")
+            st.write(f"**Answer:** {res.get('detected_answer')}")
 
-        # Cinematic Scoreboard
         c1, c2 = st.columns([0.4, 0.6])
         with c1:
             st.markdown(f"""
                 <div style="background: #1e3c72; padding: 40px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
                     <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR SCORE</p>
                     <h1 style="color: white; font-size: 4rem; margin:0; font-weight: 900;">{res.get('obtained_marks')}</h1>
-                    <p style="color: #4CAF50; font-weight: bold; margin:0;">Semantic Match: {res.get('semantic_match')}</p>
                 </div>
             """, unsafe_allow_html=True)
             
         with c2:
-            st.success(f"**✅ Feedback:** {res.get('feedback')}")
-            st.warning(f"**❌ Missing Keywords:** {', '.join(res.get('missing_keywords', []))}")
-            
-            st.markdown(f"""
-                <div style="background: #161b22; padding: 20px; border-radius: 15px; border-left: 5px solid #4CAF50; margin-top: 15px;">
-                    <p style="color: #4CAF50; font-weight: bold; margin:0; font-size: 0.8rem;">🎓 THE TOPPER'S MASTERSTROKE</p>
-                    <p style="color: white; font-size: 1rem; margin-top: 5px;">{res.get('topper_tip')}</p>
-                </div>
-            """, unsafe_allow_html=True)
+            st.success(f"**Feedback:** {res.get('feedback')}")
+            st.warning(f"**Missing:** {', '.join(res.get('missing_keywords', []))}")
+            st.info(f"**Topper Tip:** {res.get('topper_tip')}")
 
-        if st.button("🗑️ Reset Evaluator"):
+        if st.button("🗑️ Reset"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
