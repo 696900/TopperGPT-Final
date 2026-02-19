@@ -481,48 +481,34 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Official Paper Checker</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Board-Level Evaluator</h2>", unsafe_allow_html=True)
     
-    # 💳 Wallet Check
-    st.info("💡 Tip: Answer sheet ki clear photo upload karein taaki AI handwriting read kar sake.")
-    
-    ans_file = st.file_uploader("Upload Handwritten Answer Photo", type=["jpg", "png", "jpeg"], key="groq_vision_final")
+    ans_file = st.file_uploader("Upload Answer Photo (JPEG/PNG)", type=["jpg", "png", "jpeg"], key="groq_vision_fixed_final")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        st.image(img, caption="Answer Sheet Detected", width=400)
+        st.image(img, caption="Paper Detected", width=300)
         
-        if st.button("🚀 Evaluate Now (5 Credits)"):
+        if st.button("🚀 Evaluate Answer (5 Credits)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator is analyzing your handwriting via Llama Vision..."):
+                with st.spinner("Moderator is analyzing your handwriting via Latest Llama Vision..."):
                     try:
-                        # 💎 THE PERMANENT FIX: Using Groq Llama-3.2-11b-vision-preview
-                        # No Gemini, No 404, No v1beta errors anymore!
-                        
+                        # 💎 THE PERMANENT BYPASS: Using the LATEST active model
+                        # llama-3.2-90b-vision-preview is the current stable model on Groq
                         base64_image = _pil_to_base64(img)
                         
                         prompt = """
-                        You are an Engineering Board Moderator.
+                        Act as an Engineering Board Moderator.
                         1. Extract the Question and the Student's Answer from the image.
-                        2. Evaluate the answer out of 10 marks based on:
-                           - Technical Accuracy (4 Marks)
-                           - Logical Explanation (3 Marks)
-                           - Keywords & Clarity (3 Marks)
-                        3. Provide 2 specific topper tips.
-                        
-                        Return ONLY a valid JSON object:
-                        {
-                          "question": "...",
-                          "answer": "...",
-                          "marks": 8,
-                          "feedback": "...",
-                          "tips": ["tip1", "tip2"]
-                        }
+                        2. Evaluate marks out of 10.
+                        3. Provide feedback and 2 topper tips.
+                        Return ONLY JSON:
+                        {"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}
                         """
 
-                        # Using your existing groq_client
+                        # Groq Vision API Call with updated model
                         response = groq_client.chat.completions.create(
-                            model="llama-3.2-11b-vision-preview",
+                            model="llama-3.2-90b-vision-preview",
                             messages=[
                                 {
                                     "role": "user",
@@ -540,7 +526,6 @@ with tab3:
                             response_format={"type": "json_object"}
                         )
                         
-                        # JSON Parsing
                         eval_data = json.loads(response.choices[0].message.content)
                         
                         if eval_data:
@@ -550,21 +535,19 @@ with tab3:
                             st.rerun()
                             
                     except Exception as e:
-                        st.error(f"Evaluation Error: {str(e)}")
-                        st.info("Bhai, ensure karo ki '_pil_to_base64' function code ke upar defined hai.")
+                        st.error(f"Evaluation Error: {e}")
+                        st.info("Bhai, agar model error de raha hai toh ek baar Groq Dashboard check kar.")
             else:
-                st.error("Bhai credits khatam! Sidebar se recharge karlo.")
+                st.error("Bhai credits khatam! Sidebar se recharge kar.")
 
-    # --- RESULT DISPLAY ---
+    # --- DISPLAY RESULTS ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         
-        
-        
+                
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            # Score card with CSS from Step 2
             st.markdown(f"""
             <div class="eval-card" style="text-align:center;">
                 <div class="score-circle">{res.get('marks', 0)}/10</div>
@@ -573,7 +556,7 @@ with tab3:
             """, unsafe_allow_html=True)
             
         with col2:
-            st.info(f"**Question Identified:** {res.get('question')}")
+            st.info(f"**Question:** {res.get('question')}")
             st.success(f"**Feedback:** {res.get('feedback')}")
         
         if res.get('tips'):
