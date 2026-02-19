@@ -491,7 +491,7 @@ with tab3:
         st.error("🚨 Sniper Alert: Secrets mein API Key nahi mil rahi!")
         st.stop()
 
-    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="sniper_v2_final")
+    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="final_boss_v100")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
@@ -501,18 +501,21 @@ with tab3:
             if st.session_state.user_data['credits'] >= 5:
                 with st.spinner("AI Professor (Gemini 2.0) is marking..."):
                     try:
-                        # 3. Processing: Image to Base64                         buffered = io.BytesIO()
-                        img.save(buffered, format="JPEG")
-                        img_data = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                        # --- 🛠️ STEP 1: IMAGE PROCESSING (FIXED) ---
+                        buf = io.BytesIO()
+                        img.save(buf, format="JPEG")
+                        img_bytes = buf.getvalue()
+                        img_data_b64 = base64.b64encode(img_bytes).decode('utf-8')
 
-                        # 📡 DIRECT HIT: Using v1beta and gemini-2.0-flash (The most stable pair currently)
+                        # --- 📡 STEP 2: API HIT ---
+                        # Using v1beta + gemini-2.0-flash (Sabse stable combo)
                         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
                         
                         payload = {
                             "contents": [{
                                 "parts": [
-                                    {"text": "Act as an Engineering Moderator. Extract Question and Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
-                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_data}}
+                                    {"text": "Act as an Engineering Moderator. Extract Question and Student Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
+                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_data_b64}}
                                 ]
                             }]
                         }
@@ -521,6 +524,7 @@ with tab3:
                         res_json = response.json()
                         
                         if response.status_code == 200:
+                            # --- 🧠 STEP 3: PARSING ---
                             raw_ai_text = res_json['candidates'][0]['content']['parts'][0]['text']
                             eval_data = get_clean_json_v2(raw_ai_text)
                             
@@ -530,7 +534,6 @@ with tab3:
                                 st.balloons()
                                 st.rerun()
                         else:
-                            # Detailed error logging for you to see
                             st.error(f"Engine Failure: {response.status_code}")
                             st.json(res_json) 
                             
@@ -539,17 +542,19 @@ with tab3:
             else:
                 st.error("Bhai credits khatam! Sidebar se recharge karlo.")
 
-    # --- OUTPUT DISPLAY ---
+    # --- 📊 STEP 4: OUTPUT DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
+        
+        # 
         
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
             st.markdown(f"""
                 <div class="eval-card" style="text-align:center;">
                     <div class="score-circle">{res.get('marks', 0)}/10</div>
-                    <p style="margin-top:10px; color:#4CAF50;">BOARD MODERATOR SCORE</p>
+                    <p style="margin-top:10px; color:#4CAF50; font-weight:bold;">BOARD SCORE</p>
                 </div>
             """, unsafe_allow_html=True)
             
@@ -557,7 +562,12 @@ with tab3:
             st.info(f"**Question Identified:**\n{res.get('question')}")
             st.success(f"**Examiner Feedback:**\n{res.get('feedback')}")
         
-        if st.button("🔄 Reset Evaluator"):
+        if res.get('tips'):
+            with st.expander("🏆 Topper's Secret Tips", expanded=True):
+                for tip in res['tips']:
+                    st.write(f"💡 {tip}")
+
+        if st.button("🔄 Check Another Answer"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
