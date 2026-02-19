@@ -445,98 +445,90 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Answer Evaluator</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'>Upload handwritten photo or paste text for Board-level marking</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Automated Paper Checker</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'>Bas photo khicho aur upload karo, AI khud Question aur Answer identify kar lega.</p>", unsafe_allow_html=True)
     
     if "eval_result" not in st.session_state:
         st.session_state.eval_result = None
 
-    # --- INPUT SECTION ---
-    col_input, col_marks = st.columns([0.7, 0.3])
-    with col_input:
-        q_text = st.text_input("❓ Enter Question:", placeholder="e.g. Explain the working of a P-N Junction Diode.")
-    with col_marks:
-        total_marks = st.selectbox("Max Marks:", [2, 4, 5, 8, 10], index=2)
-
-    st.divider()
+    # --- THE SMART STEP 1: UPLOAD ---
+    st.markdown("### 📸 Step 1: Upload Your Answer Sheet")
+    ans_file = st.file_uploader("Upload answer sheet photo (JPEG/PNG)...", type=["jpg", "png", "jpeg"], key="auto_eval_v2")
     
-    # 📸 HANDWRITING RECOGNITION (OCR) 
-    st.markdown("### 🖋️ Step 2: Submit Your Answer")
-    input_mode = st.radio("Choose Mode:", ["Upload Photo (OCR)", "Paste Text"], horizontal=True)
-    
-    final_answer_text = ""
-    
-    if input_mode == "Upload Photo (OCR)":
-        ans_file = st.file_uploader("Upload answer sheet photo...", type=["jpg", "png", "jpeg"])
-        if ans_file:
-            st.image(ans_file, caption="Processing Handwriting...", width=300)
-            if st.button("🔍 Extract Text from Photo"):
-                with st.spinner("Gemini is reading your handwriting..."):
-                    img = Image.open(ans_file)
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    response = model.generate_content(["Read this handwritten engineering answer and provide ONLY the text content.", img])
-                    st.session_state.ocr_text = response.text
-            
-            if "ocr_text" in st.session_state:
-                final_answer_text = st.text_area("OCR Result (Verify & Correct):", value=st.session_state.ocr_text, height=150)
-    else:
-        final_answer_text = st.text_area("Paste your answer text here:", height=200)
+    if ans_file:
+        st.image(ans_file, caption="Answer Sheet Detected", width=400)
+        
+        # --- SMART EXTRACTION (No Manual Typing) ---
+        if st.button("🚀 Extract & Evaluate Everything (5 Credits)"):
+            if st.session_state.user_data['credits'] >= 5:
+                with st.spinner("AI Professor is reading and identifying your paper..."):
+                    try:
+                        img = Image.open(ans_file)
+                        # Gemini 1.5 Flash is best for OCR                         model = genai.GenerativeModel('gemini-1.5-flash')
+                        
+                        # Master Prompt: Identifies Question AND Answer automatically
+                        ocr_prompt = """
+                        Look at this engineering answer sheet. 
+                        1. Identify the 'Exam Question' written on it.
+                        2. Identify the 'Student's Answer' provided.
+                        3. Extract both as clean text.
+                        4. Now, as a Board Moderator, evaluate the answer out of 10 marks.
+                        5. List 2 missing technical keywords and a Topper's Tip.
+                        
+                        Return ONLY in this JSON format:
+                        {
+                          "detected_question": "extracted question",
+                          "detected_answer": "extracted answer",
+                          "obtained_marks": "X/10",
+                          "semantic_match": "85%",
+                          "missing_keywords": ["keyword1", "keyword2"],
+                          "feedback": "Strict board feedback",
+                          "topper_tip": "Secret tip for extra marks"
+                        }
+                        """
+                        
+                        # Use a try-except block specifically for the API call to catch 404/500
+                        response = model.generate_content([ocr_prompt, img])
+                        
+                        # Cleaning and Parsing
+                        eval_data = get_clean_json_v2(response.text)
+                        
+                        if eval_data:
+                            st.session_state.eval_result = eval_data
+                            st.session_state.user_data['credits'] -= 5
+                            st.balloons()
+                            st.rerun()
+                        else:
+                            st.error("AI couldn't parse the handwriting. Please ensure photo is clear.")
+                            
+                    except Exception as e:
+                        st.error(f"System Error: Connection Timeout. Please try again in 5 seconds. Error: {str(e)[:50]}")
+            else:
+                st.error("Insufficient Credits!")
 
-    # --- EVALUATION LOGIC ---
-    if st.button("🚀 Evaluate Now (5 Credits)") and q_text and final_answer_text:
-        if st.session_state.user_data['credits'] >= 5:
-            with st.spinner("Board Moderator is checking technical accuracy..."):
-                try:
-                    # Semantic Analysis Prompt 
-                    prompt = f"""
-                    You are a Strict University Board Moderator.
-                    Question: {q_text} (Max Marks: {total_marks})
-                    Student's Answer: {final_answer_text}
-
-                    Marking Guidelines:
-                    1. 40% Weightage: Technical Keywords & Accuracy.
-                    2. 30% Weightage: Logical Flow & Explanation.
-                    3. 30% Weightage: Completeness (Diagram mentions, Examples).
-
-                    Return ONLY JSON format:
-                    {{
-                      "obtained_marks": "X/{total_marks}",
-                      "semantic_score": "Match percentage (0-100%)",
-                      "missing_keywords": ["keyword1", "keyword2"],
-                      "strengths": "Briefly mention what was correct",
-                      "topper_tip": "One specific advice to get full marks"
-                    }}
-                    """
-                    
-                    llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                    res = llm.complete(prompt)
-                    st.session_state.eval_result = get_clean_json_v2(res.text)
-                    st.session_state.user_data['credits'] -= 5
-                    st.balloons()
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Evaluation Error: {e}")
-        else:
-            st.error("Low Credits! Top-up karle topper.")
-
-    # --- CINEMATIC RESULTS ---
+    # --- SMART DISPLAY SECTION ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
         st.divider()
         
-        c_score, c_details = st.columns([0.4, 0.6])
-        with c_score:
+        # Identified Content (Transparency for User)
+        with st.expander("📝 AI Detected Content (Check if correct)"):
+            st.info(f"**Question:** {res.get('detected_question')}")
+            st.write(f"**Answer extracted:** {res.get('detected_answer')}")
+
+        # Cinematic Scoreboard         c1, c2 = st.columns([0.4, 0.6])
+        with c1:
             st.markdown(f"""
                 <div style="background: #1e3c72; padding: 40px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
-                    <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR GRADE</p>
+                    <p style="color: white; font-size: 0.8rem; margin:0;">MODERATOR SCORE</p>
                     <h1 style="color: white; font-size: 4rem; margin:0; font-weight: 900;">{res.get('obtained_marks')}</h1>
-                    <p style="color: #4CAF50; font-weight: bold; margin:0;">Semantic Match: {res.get('semantic_score')}</p>
+                    <p style="color: #4CAF50; font-weight: bold; margin:0;">Semantic Match: {res.get('semantic_match')}</p>
                 </div>
             """, unsafe_allow_html=True)
             
-        with c_details:
-            st.markdown(f"**✅ Strengths:** {res.get('strengths')}")
-            st.warning(f"**❌ Missing Keywords:** {', '.join(res.get('missing_keywords'))}")
+        with c2:
+            st.success(f"**✅ Feedback:** {res.get('feedback')}")
+            st.warning(f"**❌ Missing Keywords:** {', '.join(res.get('missing_keywords', []))}")
             
             st.markdown(f"""
                 <div style="background: #161b22; padding: 20px; border-radius: 15px; border-left: 5px solid #4CAF50; margin-top: 15px;">
@@ -545,9 +537,8 @@ with tab3:
                 </div>
             """, unsafe_allow_html=True)
 
-        if st.button("🗑️ Clear Evaluation"):
+        if st.button("🗑️ Reset Evaluator"):
             st.session_state.eval_result = None
-            if "ocr_text" in st.session_state: del st.session_state.ocr_text
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
 with tab4:
