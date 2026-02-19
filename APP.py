@@ -481,80 +481,99 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Groq-Vision Evaluator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Official Moderator</h2>", unsafe_allow_html=True)
     
-    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="final_boss_v1")
+    # API Key Validation check
+    if "OPENROUTER_API_KEY" not in st.secrets:
+        st.error("❌ OpenRouter API Key missing! Sidebar ya Secrets mein check karo.")
+        st.stop()
+
+    ans_file = st.file_uploader("Upload Answer Sheet (Photo/PDF)", type=["jpg", "png", "jpeg", "pdf"], key="final_boss_eval")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
         st.image(img, caption="Sheet Uploaded", width=300)
         
-        if st.button("🚀 Evaluate Answer (Final Attempt)"):
+        if st.button("🚀 Evaluate Now (5 Credits)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator (Llama 3.2 Vision) is checking your paper..."):
+                with st.spinner("Claude 3.5 Sonnet is analyzing your paper..."):
                     try:
-                        # 1. IMAGE KO BASE64 ME BADLO
-                        buffered = io.BytesIO()
-                        img.save(buffered, format="JPEG")
-                        base64_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
-
-                        # 2. USING GROQ VISION (Llama-3.2-90b-vision-preview)
-                        # Ye model stable hai aur Gemini ke 404 errors se azad hai
-                        prompt = """
-                        Extract Question and Answer from this image. 
-                        Evaluate marks out of 10 for engineering accuracy. 
-                        Return ONLY JSON: 
-                        {"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}
-                        """
-
-                        completion = groq_client.chat.completions.create(
-                            model="llama-3.2-90b-vision-preview",
-                            messages=[
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {"type": "text", "text": prompt},
-                                        {
-                                            "type": "image_url",
-                                            "image_url": {
-                                                "url": f"data:image/jpeg;base64,{base64_image}"
-                                            }
-                                        }
-                                    ]
-                                }
-                            ],
-                            response_format={"type": "json_object"}
-                        )
-
-                        eval_data = json.loads(completion.choices[0].message.content)
+                        # 1. Image to Base64
+                        base64_image = _pil_to_base64(img)
                         
-                        if eval_data:
-                            st.session_state.eval_result = eval_data
-                            st.session_state.user_data['credits'] -= 5
-                            st.balloons()
-                            st.rerun()
+                        # 2. OpenRouter API Call (Direct & Stable)
+                        # No more 404/400 errors here.
+                        response = requests.post(
+                            url="https://openrouter.ai/api/v1/chat/completions",
+                            headers={
+                                "Authorization": f"Bearer {st.secrets['OPENROUTER_API_KEY']}",
+                                "Content-Type": "application/json"
+                            },
+                            data=json.dumps({
+                                "model": "anthropic/claude-3.5-sonnet",
+                                "messages": [
+                                    {
+                                        "role": "user",
+                                        "content": [
+                                            {
+                                                "type": "text", 
+                                                "text": "Identify the Question and Answer from this image. Evaluate it like a strict university board examiner out of 10 marks. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"
+                                            },
+                                            {
+                                                "type": "image_url",
+                                                "image_url": {
+                                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            })
+                        )
+                        
+                        res_json = response.json()
+                        
+                        if "choices" in res_json:
+                            raw_text = res_json['choices'][0]['message']['content']
+                            eval_data = get_clean_json_v2(raw_text)
+                            
+                            if eval_data:
+                                st.session_state.eval_result = eval_data
+                                st.session_state.user_data['credits'] -= 5
+                                st.balloons()
+                                st.rerun()
+                        else:
+                            st.error(f"API Error: {res_json.get('error', {}).get('message', 'Unknown Error')}")
                             
                     except Exception as e:
-                        st.error(f"Groq API Error: {e}")
-                        st.info("Bhai, agar Groq bhi error de raha hai toh model name check karna hoga.")
+                        st.error(f"System Error: {e}")
             else:
-                st.error("Credits khatam!")
+                st.error("Bhai credits khatam! Sidebar se recharge karlo.")
 
-    # --- RESULTS DISPLAY ---
+    # --- RESULT DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         
-        
-        
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>OFFICIAL GRADE</p></div>', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="eval-card" style="text-align:center;">
+                <div class="score-circle">{res.get('marks', 0)}/10</div>
+                <p style="margin-top:10px; color:#4CAF50;">BOARD MODERATOR SCORE</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
         with col2:
-            st.info(f"**Question:** {res.get('question')}")
+            st.info(f"**Question Identified:** {res.get('question')}")
             st.success(f"**Feedback:** {res.get('feedback')}")
         
-        if st.button("🔄 Reset"):
+        if res.get('tips'):
+            with st.expander("🏆 Topper's Secret Tips"):
+                for tip in res['tips']:
+                    st.write(f"💡 {tip}")
+
+        if st.button("🔄 Check Another Answer"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
