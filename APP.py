@@ -481,90 +481,67 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Board-Level Evaluator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Stable Evaluator</h2>", unsafe_allow_html=True)
     
-    ans_file = st.file_uploader("Upload Answer Photo (JPEG/PNG)", type=["jpg", "png", "jpeg"], key="groq_vision_fixed_final")
+    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="stable_eval_v1")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        st.image(img, caption="Paper Detected", width=300)
+        st.image(img, caption="Sheet Uploaded", width=300)
         
-        if st.button("🚀 Evaluate Answer (5 Credits)"):
+        if st.button("🚀 Evaluate Answer"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator is analyzing your handwriting via Latest Llama Vision..."):
+                with st.spinner("Step 1: Reading Handwriting..."):
                     try:
-                        # 💎 THE PERMANENT BYPASS: Using the LATEST active model
-                        # llama-3.2-90b-vision-preview is the current stable model on Groq
-                        base64_image = _pil_to_base64(img)
+                        # STEP 1: Sirf Text Extract karo (Stable Gemini 1.5 Pro)
+                        # Hum 'models/gemini-1.5-pro' use karenge jo sabse stable hai
+                        ocr_model = genai.GenerativeModel('gemini-1.5-pro')
+                        ocr_res = ocr_model.generate_content(["Extract all text from this image accurately. Identify Question and Answer.", img])
+                        full_text = ocr_res.text
                         
-                        prompt = """
-                        Act as an Engineering Board Moderator.
-                        1. Extract the Question and the Student's Answer from the image.
-                        2. Evaluate marks out of 10.
-                        3. Provide feedback and 2 topper tips.
-                        Return ONLY JSON:
-                        {"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}
-                        """
-
-                        # Groq Vision API Call with updated model
-                        response = groq_client.chat.completions.create(
-                            model="llama-3.2-90b-vision-preview",
-                            messages=[
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {"type": "text", "text": prompt},
-                                        {
-                                            "type": "image_url",
-                                            "image_url": {
-                                                "url": f"data:image/jpeg;base64,{base64_image}",
-                                            },
-                                        },
-                                    ],
-                                }
-                            ],
-                            response_format={"type": "json_object"}
-                        )
-                        
-                        eval_data = json.loads(response.choices[0].message.content)
-                        
-                        if eval_data:
-                            st.session_state.eval_result = eval_data
-                            st.session_state.user_data['credits'] -= 5
-                            st.balloons()
-                            st.rerun()
+                        with st.spinner("Step 2: Board Evaluation..."):
+                            # STEP 2: Ab is text ko Groq (Llama 3.3 70B) ko bhej do logic ke liye
+                            # Ye 100% stable hai kyunki ye sirf text process karta hai
+                            eval_prompt = f"""
+                            Evaluate this engineering answer. Identify the question and the answer text from it.
+                            Give marks out of 10 and 2 topper tips.
+                            TEXT: {full_text}
+                            Return ONLY JSON:
+                            {{"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}}
+                            """
                             
+                            response = groq_client.chat.completions.create(
+                                model="llama-3.3-70b-versatile",
+                                messages=[{"role": "user", "content": eval_prompt}],
+                                response_format={"type": "json_object"}
+                            )
+                            
+                            eval_data = json.loads(response.choices[0].message.content)
+                            
+                            if eval_data:
+                                st.session_state.eval_result = eval_data
+                                st.session_state.user_data['credits'] -= 5
+                                st.balloons()
+                                st.rerun()
+                                
                     except Exception as e:
-                        st.error(f"Evaluation Error: {e}")
-                        st.info("Bhai, agar model error de raha hai toh ek baar Groq Dashboard check kar.")
+                        st.error(f"Error: {e}")
             else:
-                st.error("Bhai credits khatam! Sidebar se recharge kar.")
+                st.error("Credits low hain bhai!")
 
-    # --- DISPLAY RESULTS ---
+    # --- RESULTS DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         
-                
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f"""
-            <div class="eval-card" style="text-align:center;">
-                <div class="score-circle">{res.get('marks', 0)}/10</div>
-                <p style="margin-top:10px; color:#4CAF50; font-weight:bold;">OFFICIAL GRADE</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks")}/10</div><p>OFFICIAL GRADE</p></div>', unsafe_allow_html=True)
         with col2:
             st.info(f"**Question:** {res.get('question')}")
             st.success(f"**Feedback:** {res.get('feedback')}")
         
-        if res.get('tips'):
-            with st.expander("🏆 Topper's Secret Tips"):
-                for tip in res['tips']:
-                    st.write(f"💡 {tip}")
-
-        if st.button("🔄 Check Another Answer"):
+        if st.button("🔄 Reset"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
