@@ -482,18 +482,16 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official AI Moderator</h2>", unsafe_allow_html=True)
-
-    # STEP 1: Key Check (Debugging)
-    # 
-    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official Moderator</h2>", unsafe_allow_html=True)
     
+    # 🔑 Key Retrieval
+    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+
     if not api_key:
-        st.error("🚨 Sniper Alert: API Key hi nahi mil rahi Secrets mein!")
+        st.error("🚨 Sniper Alert: Secrets mein API Key nahi mil rahi!")
         st.stop()
 
-    # STEP 2: Input Section
-    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="sniper_eval_v1")
+    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="sniper_v2_final")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
@@ -501,35 +499,30 @@ with tab3:
         
         if st.button("🚀 Start Final Evaluation"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("AI Professor is scanning and marking..."):
+                with st.spinner("AI Professor (Gemini 2.0) is marking..."):
                     try:
-                        # 3. Processing: Image to Base64
-                        buffered = io.BytesIO()
+                        # 3. Processing: Image to Base64                         buffered = io.BytesIO()
                         img.save(buffered, format="JPEG")
                         img_data = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-                        # 4. The Direct Hit (Bypassing all SDK version errors)
-                        # We are using v1 (Stable) with the exact generateContent method
-                        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+                        # 📡 DIRECT HIT: Using v1beta and gemini-2.0-flash (The most stable pair currently)
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
                         
                         payload = {
                             "contents": [{
                                 "parts": [
-                                    {"text": "Extract the Question and Student Answer. Evaluate marks out of 10. Give feedback and 2 tips. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
+                                    {"text": "Act as an Engineering Moderator. Extract Question and Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
                                     {"inline_data": {"mime_type": "image/jpeg", "data": img_data}}
                                 ]
                             }]
                         }
 
-                        # 📡 Debugging: Sending Request
                         response = requests.post(url, json=payload)
+                        res_json = response.json()
                         
                         if response.status_code == 200:
-                            res_json = response.json()
                             raw_ai_text = res_json['candidates'][0]['content']['parts'][0]['text']
-                            
-                            # Clean and Parse
-                            eval_data = get_clean_json_v2(raw_text=raw_ai_text)
+                            eval_data = get_clean_json_v2(raw_ai_text)
                             
                             if eval_data:
                                 st.session_state.eval_result = eval_data
@@ -537,21 +530,19 @@ with tab3:
                                 st.balloons()
                                 st.rerun()
                         else:
-                            # 🚨 Step 1 Debugging: Agar yahan fatega toh exact error dikhayega
+                            # Detailed error logging for you to see
                             st.error(f"Engine Failure: {response.status_code}")
-                            st.code(response.text) # Isse exact error pata chal jayega
+                            st.json(res_json) 
                             
                     except Exception as e:
                         st.error(f"Logic Error: {str(e)}")
             else:
                 st.error("Bhai credits khatam! Sidebar se recharge karlo.")
 
-    # --- OUTPUT SECTION ---
+    # --- OUTPUT DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
-        
-        # 
         
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
@@ -563,8 +554,8 @@ with tab3:
             """, unsafe_allow_html=True)
             
         with col2:
-            st.info(f"**Question:** {res.get('question')}")
-            st.success(f"**Feedback:** {res.get('feedback')}")
+            st.info(f"**Question Identified:**\n{res.get('question')}")
+            st.success(f"**Examiner Feedback:**\n{res.get('feedback')}")
         
         if st.button("🔄 Reset Evaluator"):
             st.session_state.eval_result = None
