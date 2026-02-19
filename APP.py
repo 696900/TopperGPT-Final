@@ -481,54 +481,62 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: No-SDK Stable Evaluator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Groq-Vision Evaluator</h2>", unsafe_allow_html=True)
     
-    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="direct_api_v1")
+    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="final_boss_v1")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
         st.image(img, caption="Sheet Uploaded", width=300)
         
-        if st.button("🚀 Evaluate Now (Final Try)"):
+        if st.button("🚀 Evaluate Answer (Final Attempt)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator is checking your paper via Direct API..."):
+                with st.spinner("Moderator (Llama 3.2 Vision) is checking your paper..."):
                     try:
                         # 1. IMAGE KO BASE64 ME BADLO
                         buffered = io.BytesIO()
                         img.save(buffered, format="JPEG")
-                        img_str = base64.b64encode(buffered.getvalue()).decode()
+                        base64_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-                        # 2. DIRECT HTTP REQUEST (No SDK, No v1beta conflict)
-                        # Hum explicitly 'v1' (STABLE) use kar rahe hain
-                        api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key_to_use}"
+                        # 2. USING GROQ VISION (Llama-3.2-90b-vision-preview)
+                        # Ye model stable hai aur Gemini ke 404 errors se azad hai
+                        prompt = """
+                        Extract Question and Answer from this image. 
+                        Evaluate marks out of 10 for engineering accuracy. 
+                        Return ONLY JSON: 
+                        {"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}
+                        """
+
+                        completion = groq_client.chat.completions.create(
+                            model="llama-3.2-90b-vision-preview",
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": prompt},
+                                        {
+                                            "type": "image_url",
+                                            "image_url": {
+                                                "url": f"data:image/jpeg;base64,{base64_image}"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            response_format={"type": "json_object"}
+                        )
+
+                        eval_data = json.loads(completion.choices[0].message.content)
                         
-                        payload = {
-                            "contents": [{
-                                "parts": [
-                                    {"text": "Extract Question and Answer from this image. Evaluate marks out of 10 for engineering accuracy. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
-                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_str}}
-                                ]
-                            }]
-                        }
-
-                        response = requests.post(api_url, json=payload)
-                        res_json = response.json()
-
-                        if response.status_code == 200:
-                            # Extracting text from the weird Google response structure
-                            raw_text = res_json['candidates'][0]['content']['parts'][0]['text']
-                            eval_data = get_clean_json_v2(raw_text)
-                            
-                            if eval_data:
-                                st.session_state.eval_result = eval_data
-                                st.session_state.user_data['credits'] -= 5
-                                st.balloons()
-                                st.rerun()
-                        else:
-                            st.error(f"Google API Error: {res_json.get('error', {}).get('message', 'Unknown Error')}")
+                        if eval_data:
+                            st.session_state.eval_result = eval_data
+                            st.session_state.user_data['credits'] -= 5
+                            st.balloons()
+                            st.rerun()
                             
                     except Exception as e:
-                        st.error(f"System Error: {e}")
+                        st.error(f"Groq API Error: {e}")
+                        st.info("Bhai, agar Groq bhi error de raha hai toh model name check karna hoga.")
             else:
                 st.error("Credits khatam!")
 
