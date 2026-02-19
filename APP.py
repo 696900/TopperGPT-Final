@@ -482,16 +482,16 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Gemini 2.0 Stable</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Claude 3.5 Final</h2>", unsafe_allow_html=True)
     
-    # Check if API Key exists
-    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-
-    if not api_key:
-        st.error("❌ API Key missing! Sidebar ya Secrets mein check karo.")
+    # 1. API Key fetch directly from secrets
+    try:
+        api_key = st.secrets["OPENROUTER_API_KEY"]
+    except:
+        st.error("Bhai key nahi mil rahi secrets mein! Check karo.")
         st.stop()
 
-    ans_file = st.file_uploader("Upload Answer Sheet (Photo)", type=["jpg", "png", "jpeg"], key="gemini_2_fix")
+    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="claude_final_v1")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
@@ -499,31 +499,37 @@ with tab3:
         
         if st.button("🚀 Evaluate Now (5 Credits)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator (Gemini 2.0) is checking your paper..."):
+                with st.spinner("Claude 3.5 Sonnet is checking your paper..."):
                     try:
-                        # 1. Image to Base64
-                        buffered = io.BytesIO()
+                        # Image to Base64 conversion                         buffered = io.BytesIO()
                         img.save(buffered, format="JPEG")
                         img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-                        # 2. Direct REST API Call using Gemini 2.0 Flash
-                        # Hum explicitly 'v1beta' endpoint use karenge Gemini 2.0 ke liye
-                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-                        
-                        payload = {
-                            "contents": [{
-                                "parts": [
-                                    {"text": "Act as an Engineering Moderator. Extract Question and Answer from this image. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
-                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+                        # OpenRouter API Call (Standard & Stable)
+                        response = requests.post(
+                            url="https://openrouter.ai/api/v1/chat/completions",
+                            headers={
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json"
+                            },
+                            data=json.dumps({
+                                "model": "anthropic/claude-3.5-sonnet",
+                                "messages": [
+                                    {
+                                        "role": "user",
+                                        "content": [
+                                            {"type": "text", "text": "Extract Question & Answer. Evaluate marks out of 10 for engineering accuracy. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
+                                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
+                                        ]
+                                    }
                                 ]
-                            }]
-                        }
-
-                        response = requests.post(url, json=payload)
+                            })
+                        )
+                        
                         res_json = response.json()
-
-                        if response.status_code == 200:
-                            raw_text = res_json['candidates'][0]['content']['parts'][0]['text']
+                        
+                        if "choices" in res_json:
+                            raw_text = res_json['choices'][0]['message']['content']
                             eval_data = get_clean_json_v2(raw_text)
                             
                             if eval_data:
@@ -532,21 +538,17 @@ with tab3:
                                 st.balloons()
                                 st.rerun()
                         else:
-                            # Detailed error showing if model is actually found
                             st.error(f"API Error: {res_json.get('error', {}).get('message')}")
-                            st.info("Bhai, agar ye bhi 404 de, toh samjh jao Google ke servers down hain.")
-
+                            
                     except Exception as e:
                         st.error(f"System Error: {e}")
             else:
-                st.error("Credits low hain bhai!")
+                st.error("Bhai credits khatam! Sidebar se recharge karlo.")
 
     # --- RESULT DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
-        
-        
         
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
