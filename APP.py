@@ -482,8 +482,7 @@ with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Official Paper Checker</h2>", unsafe_allow_html=True)
     
-    # 1. UPLOAD SECTION
-    ans_file = st.file_uploader("Upload Answer Photo/PDF", type=["jpg", "png", "jpeg"], key="final_eval_v2")
+    ans_file = st.file_uploader("Upload Answer Photo/PDF", type=["jpg", "png", "jpeg"], key="final_eval_v99")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
@@ -493,21 +492,21 @@ with tab3:
             if st.session_state.user_data['credits'] >= 5:
                 with st.spinner("AI Professor is reading your handwriting..."):
                     try:
-                        # 💎 THE 404 KILLER MODEL NAME
-                        model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash"  # Prefix 'models/' mat lagana
-)
+                        # 💎 THE STABLE FIX: Prefix hatake simple model name
+                        # Aur ensure karna ki genai.configure() upar global ho chuka hai
+                        professor_model = genai.GenerativeModel("gemini-1.5-flash")
                         
                         prompt = """
-                        Identify:
-                        1. Question.
-                        2. Student's Answer.
+                        Look at this image. Extract:
+                        1. The Question.
+                        2. The Student's Answer.
                         Evaluate out of 10 for engineering accuracy.
                         Return ONLY JSON:
                         {"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}
                         """
                         
-                        response = model.generate_content([
+                        # Image encoding and call
+                        response = professor_model.generate_content([
                             prompt, 
                             {"mime_type": "image/jpeg", "data": _pil_to_base64(img)}
                         ])
@@ -520,16 +519,18 @@ with tab3:
                             st.balloons()
                             st.rerun()
                     except Exception as e:
-                        st.error(f"System Error: {e}")
+                        # Agar abhi bhi v1beta bole, toh ye error dikhayega
+                        st.error(f"API Error: {e}")
+                        st.info("Bhai, terminal mein 'pip install --upgrade google-generativeai' try kar.")
             else:
                 st.error("Bhai credits khatam! Sidebar se recharge kar.")
 
-    # 2. DISPLAY RESULTS
+    # DISPLAY RESULTS
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         
-        # 
+        
         
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
