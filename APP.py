@@ -482,63 +482,72 @@ with tab2:
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Llama-Powered Moderator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Official Moderator</h2>", unsafe_allow_html=True)
+    
+    # Check if API Key exists
+    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 
-    ans_file = st.file_uploader("Upload Answer Sheet (Photo)", type=["jpg", "png", "jpeg"], key="stable_llama_v1")
+    if not api_key:
+        st.error("❌ API Key missing! Secrets check karo.")
+        st.stop()
 
+    ans_file = st.file_uploader("Upload Answer Sheet (Photo)", type=["jpg", "png", "jpeg"], key="stable_v1_final")
+    
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        st.image(img, caption="Sheet Detected", width=300)
-
-        if st.button("🚀 Evaluate Now"):
+        st.image(img, caption="Sheet Uploaded", width=300)
+        
+        if st.button("🚀 Evaluate Now (5 Credits)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator is analyzing your paper via Groq..."):
+                with st.spinner("Moderator is checking your paper using Stable Engine..."):
                     try:
-                        # 1. Image to Base64
+                        # 1. Base64 Encoding
                         buffered = io.BytesIO()
                         img.save(buffered, format="JPEG")
-                        img_b64 = base64.b64encode(buffered.getvalue()).decode()
+                        img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-                        # 2. Using Groq's ONLY Stable Vision Model (Llama 3.2 11B Vision)
-                        # Agar ye fail hua, toh hum seedha text-based eval pe jayenge
-                        response = groq_client.chat.completions.create(
-                            model="llama-3.2-11b-vision-preview",
-                            messages=[
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {"type": "text", "text": "Identify Question & Answer. Grade out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
-                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
-                                    ]
-                                }
-                            ],
-                            response_format={"type": "json_object"}
-                        )
+                        # 2. Direct REST API Call (Bypassing buggy SDKs)
+                        # Hum explicitly v1 stable use kar rahe hain
+                        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+                        
+                        payload = {
+                            "contents": [{
+                                "parts": [
+                                    {"text": "Act as an Engineering Moderator. Extract Question and Answer. Grade out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\", \"tips\": [\"tip1\", \"tip2\"]}"},
+                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+                                ]
+                            }]
+                        }
 
-                        eval_data = json.loads(response.choices[0].message.content)
+                        response = requests.post(url, json=payload)
+                        res_json = response.json()
 
-                        if eval_data:
-                            st.session_state.eval_result = eval_data
-                            st.session_state.user_data['credits'] -= 5
-                            st.balloons()
-                            st.rerun()
+                        if response.status_code == 200:
+                            raw_text = res_json['candidates'][0]['content']['parts'][0]['text']
+                            eval_data = get_clean_json_v2(raw_text)
+                            
+                            if eval_data:
+                                st.session_state.eval_result = eval_data
+                                st.session_state.user_data['credits'] -= 5
+                                st.balloons()
+                                st.rerun()
+                        else:
+                            st.error(f"API Error: {res_json.get('error', {}).get('message')}")
 
                     except Exception as e:
-                        st.error(f"Groq Vision Error: {e}")
-                        st.info("Bhai, shayad Vision model Groq pe bhi limit mein hai. Main Tab 4 (MindMap) pe kaam shuru karun?")
+                        st.error(f"System Error: {e}")
             else:
-                st.error("Credits low hain!")
+                st.error("Credits low hain bhai!")
 
-    # --- DISPLAY RESULTS ---
+    # --- RESULT DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         
-        
-
+                
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>OFFICIAL GRADE</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>GRADE</p></div>', unsafe_allow_html=True)
         with col2:
             st.info(f"**Question:** {res.get('question')}")
             st.success(f"**Feedback:** {res.get('feedback')}")
