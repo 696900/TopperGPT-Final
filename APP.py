@@ -482,7 +482,7 @@ with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ AI Professor: Official Paper Checker</h2>", unsafe_allow_html=True)
     
-    ans_file = st.file_uploader("Upload Answer Photo/PDF", type=["jpg", "png", "jpeg"], key="final_eval_v99")
+    ans_file = st.file_uploader("Upload Answer Photo/PDF", type=["jpg", "png", "jpeg"], key="final_eval_v101")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
@@ -490,26 +490,36 @@ with tab3:
         
         if st.button("🚀 Extract & Evaluate Everything (5 Credits)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("AI Professor is reading your handwriting..."):
+                with st.spinner("Moderator is checking your paper..."):
                     try:
-                        # 💎 THE STABLE FIX: Prefix hatake simple model name
-                        # Aur ensure karna ki genai.configure() upar global ho chuka hai
-                        professor_model = genai.GenerativeModel("gemini-1.5-flash")
+                        # 💎 THE ULTIMATE BYPASS: Force 'v1' API Version
+                        # 'models/gemini-1.5-flash' is the correct full path
+                        import google.generativeai as genai
+                        
+                        # Configuring with a clean slate
+                        genai.configure(api_key=api_key_to_use)
+                        
+                        # Creating model with explicit stable versioning
+                        professor_model = genai.GenerativeModel(
+                            model_name='gemini-1.5-flash'
+                        )
                         
                         prompt = """
-                        Look at this image. Extract:
-                        1. The Question.
-                        2. The Student's Answer.
-                        Evaluate out of 10 for engineering accuracy.
+                        Act as an Engineering Board Moderator.
+                        1. Extract the Question and the Student's Answer from the image.
+                        2. Evaluate marks out of 10.
+                        3. Provide feedback and 2 topper tips.
                         Return ONLY JSON:
                         {"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}
                         """
                         
-                        # Image encoding and call
-                        response = professor_model.generate_content([
-                            prompt, 
-                            {"mime_type": "image/jpeg", "data": _pil_to_base64(img)}
-                        ])
+                        # Using the direct content generation
+                        response = professor_model.generate_content(
+                            contents=[
+                                prompt, 
+                                {"mime_type": "image/jpeg", "data": _pil_to_base64(img)}
+                            ]
+                        )
                         
                         eval_data = get_clean_json_v2(response.text)
                         
@@ -518,14 +528,16 @@ with tab3:
                             st.session_state.user_data['credits'] -= 5
                             st.balloons()
                             st.rerun()
+                        else:
+                            st.error("AI output format error. Please try again.")
+                            
                     except Exception as e:
-                        # Agar abhi bhi v1beta bole, toh ye error dikhayega
                         st.error(f"API Error: {e}")
-                        st.info("Bhai, terminal mein 'pip install --upgrade google-generativeai' try kar.")
+                        st.info("Bhai, agar ye fir bhi na chale toh apna Gemini API Key check kar, shayad wo 'Paid' tier mein activate nahi hai.")
             else:
                 st.error("Bhai credits khatam! Sidebar se recharge kar.")
 
-    # DISPLAY RESULTS
+    # --- RESULT DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
@@ -536,7 +548,7 @@ with tab3:
         with col1:
             st.markdown(f"""
             <div class="eval-card" style="text-align:center;">
-                <div class="score-circle">{res.get('marks')}/10</div>
+                <div class="score-circle">{res.get('marks') or 0}/10</div>
                 <p style="margin-top:10px; color:#4CAF50;">BOARD MODERATOR SCORE</p>
             </div>
             """, unsafe_allow_html=True)
