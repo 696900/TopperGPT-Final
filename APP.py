@@ -480,98 +480,98 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V100) ---
-# --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V100) ---
+# --- TAB 3: THE FINAL BULLETPROOF EVALUATOR (PRO SNIPER V101) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official AI Moderator</h2>", unsafe_allow_html=True)
     
-    # 🔑 Master Key Retrieval
-    or_key = st.secrets.get("OPENROUTER_API_KEY")
-    gem_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+    # 🔑 Master Key Retrieval from Secrets
+    api_key_or = st.secrets.get("OPENROUTER_API_KEY")
+    api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 
-    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="pro_sniper_final_fixed_v100")
+    ans_file = st.file_uploader("Upload Your Answer Photo", type=["jpg", "png", "jpeg"], key="final_boss_v999_fixed")
     
     if ans_file:
         img_raw = Image.open(ans_file).convert("RGB")
-        st.image(img_raw, caption="Document Loaded", width=300)
+        st.image(img_raw, caption="Paper Detected", width=300)
         
-        if st.button("🚀 Evaluate Now (High Priority: Claude 3.5)"):
+        if st.button("🚀 Evaluate Now (High Priority Engine)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Analyzing with Professional Pipeline..."):
+                with st.spinner("Moderator (Claude 3.5) is marking your paper..."):
                     try:
-                        # --- 🛠️ UNIVERSAL SETUP (No NameError anymore) ---
-                        final_buf = io.BytesIO()
-                        img_raw.save(final_buf, format="JPEG")
-                        img_b64_data = base64.b64encode(final_buf.getvalue()).decode('utf-8')
+                        # 🛠️ UNIVERSAL ENCODING (Fixed Variable Scope)                         final_io_buf = io.BytesIO()
+                        img_raw.save(final_io_buf, format="JPEG")
+                        final_b64_data = base64.b64encode(final_io_buf.getvalue()).decode('utf-8')
                         
-                        eval_final_data = None
-                        status_logs = []
+                        eval_final_res = None
+                        debug_logs = []
 
-                        # --- LAYER 1: CLAUDE 3.5 SONNET (STABLE) ---
-                        if or_key:
+                        # --- LAYER 1: CLAUDE 3.5 SONNET (PRIMARY) ---
+                        if api_key_or:
                             try:
-                                or_url = "https://openrouter.ai/api/v1/chat/completions"
-                                or_headers = {"Authorization": f"Bearer {or_key}", "Content-Type": "application/json"}
-                                or_payload = {
-                                    "model": "anthropic/claude-3.5-sonnet",
-                                    "messages": [{
-                                        "role": "user",
-                                        "content": [
-                                            {"type": "text", "text": "Identify Question & Answer. Grade out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\"}"},
-                                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64_data}"}}
-                                        ]
-                                    }]
-                                }
-                                res = requests.post(or_url, headers=or_headers, json=or_payload, timeout=45)
-                                if res.status_code == 200:
-                                    eval_final_data = get_clean_json_v2(res.json()['choices'][0]['message']['content'])
-                                else: status_logs.append(f"Claude: {res.status_code}")
+                                res_or = requests.post(
+                                    url="https://openrouter.ai/api/v1/chat/completions",
+                                    headers={"Authorization": f"Bearer {api_key_or}", "Content-Type": "application/json"},
+                                    json={
+                                        "model": "anthropic/claude-3.5-sonnet",
+                                        "messages": [{
+                                            "role": "user",
+                                            "content": [
+                                                {"type": "text", "text": "Extract Question & Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\"}"},
+                                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{final_b64_data}"}}
+                                            ]
+                                        }]
+                                    }, timeout=45
+                                )
+                                if res_or.status_code == 200:
+                                    eval_final_res = get_clean_json_v2(res_or.json()['choices'][0]['message']['content'])
+                                else: debug_logs.append(f"Claude: {res_or.status_code}")
                             except: pass
 
                         # --- LAYER 2: GEMINI 2.0 FLASH (BACKUP) ---
-                        if not eval_final_data and gem_key:
+                        if not eval_final_res and api_key_gemini:
                             try:
-                                gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gem_key}"
+                                gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key_gemini}"
                                 gem_res = requests.post(gem_url, json={
                                     "contents": [{"parts": [
                                         {"text": "Extract Question & Answer. Return JSON."},
-                                        {"inline_data": {"mime_type": "image/jpeg", "data": img_b64_data}}
+                                        {"inline_data": {"mime_type": "image/jpeg", "data": final_b64_data}}
                                     ]}]
                                 }, timeout=25)
                                 if gem_res.status_code == 200:
                                     raw_ai = gem_res.json()['candidates'][0]['content']['parts'][0]['text']
-                                    eval_final_data = get_clean_json_v2(raw_ai)
-                                else: status_logs.append(f"Gemini: {gem_res.status_code}")
+                                    eval_final_res = get_clean_json_v2(raw_ai)
+                                else: debug_logs.append(f"Gemini: {gem_res.status_code}")
                             except: pass
 
-                        # --- 🚀 EXECUTION FINALIZATION ---
-                        if eval_final_data:
-                            st.session_state.eval_result = eval_final_data
+                        # --- EXECUTION ---
+                        if eval_final_res:
+                            st.session_state.eval_result = eval_final_res
                             st.session_state.user_data['credits'] -= 5
                             st.balloons()
                             st.rerun()
                         else:
-                            st.error("❌ All Engines Exhausted. (Quota Limit Reached)")
-                            st.info(f"System Logs: {', '.join(status_logs)}")
-                            st.warning("Bhai, free limits hit ho gayi hain. 60 seconds ruko.")
+                            st.error("❌ Engines Busy. (Quota Limit Reached)")
+                            st.info(f"System Logs: {', '.join(debug_logs)}")
+                            st.warning("Bhai, 60 seconds wait karo aur phir try karo.")
 
                     except Exception as e:
                         st.error(f"Logic Error: {str(e)}")
             else:
-                st.error("Bhai credits khatam! Sidebar se recharge karlo.")
+                st.error("Bhai credits khatam!")
 
-    # --- PERSISTENT RESULT DISPLAY ---
+    # --- PERSISTENT DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
-        col1, col2 = st.columns([0.4, 0.6])
+        #         col1, col2 = st.columns([0.4, 0.6])
         with col1:
             st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>PRO GRADE</p></div>', unsafe_allow_html=True)
         with col2:
-            st.info(f"**Question Identified:**\n{res.get('question', 'N/A')}")
-            st.success(f"**Examiner Feedback:**\n{res.get('feedback', 'N/A')}")
+            st.info(f"**Question:** {res.get('question', 'N/A')}")
+            st.success(f"**Feedback:** {res.get('feedback', 'N/A')}")
         
-        if st.button("🔄 Start New Evaluation"):
+        if st.button("🔄 Clear Result"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
