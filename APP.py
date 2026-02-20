@@ -30,21 +30,20 @@ from llama_index.core import Settings
 # --- 1. CONFIGURATION & PRO DARK UI ---
 st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
 
-def apply_pro_theme():
-    st.markdown("""
-        <style>
-        .stApp { background-color: #0e1117 !important; color: #ffffff !important; }
-        [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
-        .eval-card { background: linear-gradient(135deg, #0f0c29, #1a1a2e); border: 1px solid #4CAF50; border-radius: 15px; padding: 20px; margin: 10px 0; }
-        .score-circle { width: 100px; height: 100px; border-radius: 50%; border: 5px solid #4CAF50; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 24px; font-weight: bold; color: white; }
-        .login-card { background: linear-gradient(145deg, #1e2530, #161b22); padding: 40px; border-radius: 25px; text-align: center; border: 1px solid #4CAF50; box-shadow: 0 20px 50px rgba(0,0,0,0.7); max-width: 450px; margin: auto; }
-        .wallet-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; text-align: center; margin-bottom: 20px; }
-        .exam-special-tag { background: rgba(255, 75, 75, 0.15); color: #ff4b4b; border: 1px solid #ff4b4b; padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; text-align: center; margin-bottom: 10px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        </style>
-    """, unsafe_allow_html=True)
-
-apply_pro_theme()
+# 🖋️ GLOBAL STYLES (Fixes the NameError: EVAL_CSS)
+EVAL_CSS = """
+<style>
+.eval-card { background: linear-gradient(135deg, #0f0c29, #1a1a2e); border: 1px solid #4CAF50; border-radius: 15px; padding: 20px; margin: 10px 0; }
+.score-circle { width: 100px; height: 100px; border-radius: 50%; border: 5px solid #4CAF50; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 24px; font-weight: bold; color: white; }
+.stApp { background-color: #0e1117 !important; color: #ffffff !important; }
+[data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
+.login-card { background: linear-gradient(145deg, #1e2530, #161b22); padding: 40px; border-radius: 25px; text-align: center; border: 1px solid #4CAF50; box-shadow: 0 20px 50px rgba(0,0,0,0.7); max-width: 450px; margin: auto; }
+.wallet-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; text-align: center; margin-bottom: 20px; }
+.exam-special-tag { background: rgba(255, 75, 75, 0.15); color: #ff4b4b; border: 1px solid #ff4b4b; padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; text-align: center; margin-bottom: 10px; animation: pulse 2s infinite; }
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+</style>
+"""
+st.markdown(EVAL_CSS, unsafe_allow_html=True)
 
 # --- 2. GLOBAL STABILITY & REVENUE LOGIC ---
 if "user_data" not in st.session_state: st.session_state.user_data = None
@@ -56,16 +55,13 @@ def use_credits(amount):
     """Checks and deducts credits for AI operations."""
     if st.session_state.user_data and st.session_state.user_data.get('credits', 0) >= amount:
         st.session_state.user_data['credits'] -= amount
-        # firebase_sync_call(st.session_state.user_data['email'], -amount) # Kal integrate karenge
         return True
     return False
 
 # --- 🛠️ SILENT AI SETUP ---
 api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
-
 if api_key_to_use:
     Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_to_use)
-    Settings.chunk_size = 700
     genai.configure(api_key=api_key_to_use)
 else:
     st.error("⚠️ Dashboard Secrets mein Key missing hai bhai!")
@@ -82,17 +78,6 @@ def get_clean_json_v2(text):
         return json.loads(json_match.group(0)) if json_match else {}
     except: return {}
 
-def get_subject_specific_text(doc, sub_name):
-    sub_text = ""
-    start_found = False
-    for page in doc:
-        text = page.get_text()
-        if sub_name.lower() in text.lower(): start_found = True
-        if start_found:
-            sub_text += text
-            if len(sub_text) > 12000: break 
-    return sub_text
-
 # --- 3. LOGIN PAGE ---
 def show_login_page():
     st.markdown("<br><br><br>", unsafe_allow_html=True)
@@ -100,13 +85,7 @@ def show_login_page():
     with col_mid:
         st.markdown('<div class="login-card"><h1 style="color:#4CAF50; font-style: italic;">TopperGPT</h1><p>OFFICIAL UNIVERSITY RESEARCH PORTAL</p><hr><p style="color:#4CAF50; font-weight:bold;">🎁 EXCLUSIVE: Get 15 FREE Credits on Login!</p></div>', unsafe_allow_html=True)
         if st.button("🔴 Continue with Google Account", use_container_width=True):
-            st.session_state.user_data = {
-                "email": "verified.student@mu.edu", 
-                "credits": 15, 
-                "tier": "Free Starter", 
-                "referral_code": "TOP" + str(int(time.time()))[-4:], 
-                "ref_claimed": False
-            }
+            st.session_state.user_data = {"email": "verified.student@mu.edu", "credits": 15, "tier": "Free Starter", "referral_code": "TOP" + str(int(time.time()))[-4:], "ref_claimed": False}
             st.rerun()
     st.stop()
 
@@ -116,34 +95,19 @@ if st.session_state.user_data is None:
 # --- 4. SIDEBAR (WALLET & 3-PACK REFILL) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
-    
-    st.markdown(f"""
-        <div class="wallet-card">
-            <p style="color: #eab308; font-weight: bold; margin: 0; font-size: 11px; letter-spacing: 1px;">CURRENT BALANCE</p>
-            <p style="color: white; font-size: 28px; font-weight: 900; margin: 5px 0;">{st.session_state.user_data['credits']} 🔥</p>
-            <p style="color: #8b949e; font-size: 10px; margin: 0;">Plan: {st.session_state.user_data['tier']}</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # 🎁 REFERRAL
-    with st.expander("🎁 Get FREE Credits (Double Reward)"):
-        st.write("Dosto ko bhej, Dono ko 5-5 credits milenge!")
-        st.code(st.session_state.user_data['referral_code'])
-        # Code logic...
+    st.markdown(f'<div class="wallet-card"><p style="color: #eab308; font-size: 11px;">CURRENT BALANCE</p><p style="color: white; font-size: 28px; font-weight: 900;">{st.session_state.user_data["credits"]} 🔥</p></div>', unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
     
-    # 💎 UPDATED 3-OPTION PAYMENT MAPPING (FIXED)
+    # 💎 FULL 3-OPTION PAYMENT MAPPING (FIXED)
     payment_links = {
         "Weekly Sureshot (70 Credits) @ ₹59": "https://rzp.io/rzp/FmwE0Ms6",
         "Jugaad Pack (150 Credits) @ ₹99": "https://rzp.io/rzp/AWiyLxEi",
         "Monthly Pro (350 Credits) @ ₹149": "https://rzp.io/rzp/hXcR54E"
     }
     
-    plan_choice = st.radio("Select pack:", list(payment_links.keys()), key="razorpay_fixed_v100")
-    
-    # Cache buster to ensure link fresh
+    plan_choice = st.radio("Select pack:", list(payment_links.keys()), key="razorpay_final_v102")
     unique_link = f"{payment_links[plan_choice]}?v={int(time.time())}" 
 
     st.markdown(f"""
