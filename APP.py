@@ -480,102 +480,81 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V100) ---
-# --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V102 - NO MORE NAME ERRORS) ---
+# --- TAB 3: THE ULTIMATE STABLE ENGINE (V103 - OCR + TEXT LLM) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official AI Moderator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Stable Board Moderator</h2>", unsafe_allow_html=True)
     
-    # 🔑 Master Key Retrieval from Secrets
-    api_key_or = st.secrets.get("OPENROUTER_API_KEY")
-    api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+    # Check for Groq Key (Text models are very stable here)
+    groq_key = st.secrets.get("GROQ_API_KEY")
 
-    # Image Uploader
-    ans_file = st.file_uploader("Upload Your Answer Photo", type=["jpg", "png", "jpeg"], key="final_boss_v102")
+    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="stable_v103")
     
     if ans_file:
         img_raw = Image.open(ans_file).convert("RGB")
         st.image(img_raw, caption="Paper Detected", width=300)
         
-        if st.button("🚀 Evaluate Now (High Priority Engine)"):
+        if st.button("🚀 Evaluate Now (OCR + AI Logic)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator is scanning your paper..."):
+                with st.spinner("AI is reading handwriting and marking..."):
                     try:
-                        # 🛠️ STEP 1: GLOBAL VARIABLE DEFINITION (No more NameError)
-                        # Hum variables ko session_state mein store karenge taaki scope ka panga na ho
-                        import io, base64
+                        # --- 🛠️ STEP 1: OCR ENGINE (Direct from Gemini Flash - High Quota for Text) ---
+                        # Vision fail ho raha hai toh hum Gemini ko sirf "Text Extraction" ke liye use karenge
+                        import base64, io
                         temp_buf = io.BytesIO()
                         img_raw.save(temp_buf, format="JPEG")
-                        st.session_state.temp_b64 = base64.b64encode(temp_buf.getvalue()).decode('utf-8')
+                        img_b64 = base64.b64encode(temp_buf.getvalue()).decode('utf-8')
                         
-                        eval_final_res = None
-                        debug_logs = []
+                        gemini_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+                        
+                        # Phase 1: Sirf Handwriting ko text mein convert karo
+                        ocr_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+                        ocr_payload = {
+                            "contents": [{"parts": [
+                                {"text": "Transcribe the handwritten text from this image exactly. Do not evaluate, just extract text."},
+                                {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+                            ]}]
+                        }
+                        ocr_res = requests.post(ocr_url, json=ocr_payload, timeout=20)
+                        extracted_text = ocr_res.json()['candidates'][0]['content']['parts'][0]['text']
 
-                        # --- LAYER 1: CLAUDE 3.5 SONNET (PRIMARY) ---
-                        if api_key_or:
-                            try:
-                                res_or = requests.post(
-                                    url="https://openrouter.ai/api/v1/chat/completions",
-                                    headers={"Authorization": f"Bearer {api_key_or}", "Content-Type": "application/json"},
-                                    json={
-                                        "model": "anthropic/claude-3.5-sonnet",
-                                        "messages": [{
-                                            "role": "user",
-                                            "content": [
-                                                {"type": "text", "text": "Extract Question & Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\"}"},
-                                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{st.session_state.temp_b64}"}}
-                                            ]
-                                        }]
-                                    }, timeout=45
-                                )
-                                if res_or.status_code == 200:
-                                    eval_final_res = get_clean_json_v2(res_or.json()['choices'][0]['message']['content'])
-                                else: debug_logs.append(f"Claude: {res_or.status_code}")
-                            except: pass
-
-                        # --- LAYER 2: GEMINI 2.0 FLASH (BACKUP) ---
-                        if not eval_final_res and api_key_gemini:
-                            try:
-                                gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key_gemini}"
-                                gem_res = requests.post(gem_url, json={
-                                    "contents": [{"parts": [
-                                        {"text": "Extract Question & Answer. Return JSON."},
-                                        {"inline_data": {"mime_type": "image/jpeg", "data": st.session_state.temp_b64}}
-                                    ]}]
-                                }, timeout=25)
-                                if gem_res.status_code == 200:
-                                    raw_ai = gem_res.json()['candidates'][0]['content']['parts'][0]['text']
-                                    eval_final_res = get_clean_json_v2(raw_ai)
-                                else: debug_logs.append(f"Gemini: {gem_res.status_code}")
-                            except: pass
-
-                        # --- FINAL EXECUTION ---
-                        if eval_final_res:
-                            st.session_state.eval_result = eval_final_res
-                            st.session_state.user_data['credits'] -= 5
-                            st.balloons()
-                            st.rerun()
-                        else:
-                            st.error("❌ Engines Busy. (Quota Limit Reached)")
-                            st.info(f"Debug Logs: {', '.join(debug_logs)}")
-                            st.warning("Bhai, 60 seconds ruko aur phir try karo.")
+                        # --- STEP 2: STABLE TEXT EVALUATION (Groq Llama 3.3) ---
+                        # Groq ka text engine kabhi fail nahi hota
+                        eval_prompt = f"""
+                        Act as an Engineering Moderator. Evaluate this student's answer based on the extracted text.
+                        Answer Text: {extracted_text}
+                        Return ONLY JSON: {{"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}}
+                        """
+                        
+                        llm_res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "user", "content": eval_prompt}],
+                            response_format={"type": "json_object"}
+                        )
+                        
+                        st.session_state.eval_result = json.loads(llm_res.choices[0].message.content)
+                        st.session_state.user_data['credits'] -= 5
+                        st.balloons()
+                        st.rerun()
 
                     except Exception as e:
-                        st.error(f"Logic Error: {str(e)}")
+                        st.error(f"System Error: {str(e)}")
+                        st.info("Bhai, 60 seconds ruko, Google ke servers limited hain.")
             else:
                 st.error("Bhai credits khatam!")
 
-    # --- PERSISTENT RESULT DISPLAY ---
+    # --- PERSISTENT DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>PRO GRADE</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>GRADE</p></div>', unsafe_allow_html=True)
         with col2:
-            st.info(f"**Question Identified:**\n{res.get('question', 'N/A')}")
-            st.success(f"**Feedback:**\n{res.get('feedback', 'N/A')}")
+            st.info(f"**Question:** {res.get('question', 'N/A')}")
+            st.success(f"**Feedback:** {res.get('feedback', 'N/A')}")
         
-        if st.button("🔄 Check Another"):
+        if st.button("🔄 Reset"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
