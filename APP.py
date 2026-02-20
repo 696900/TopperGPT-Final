@@ -479,11 +479,7 @@ with tab2:
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (SMART FAILOVER ENGINE) ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (SMART FAILOVER ENGINE) ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (PRO FAILOVER ENGINE) ---
-# --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE ---
+# --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V100) ---
 # --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V100) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
@@ -493,7 +489,7 @@ with tab3:
     or_key = st.secrets.get("OPENROUTER_API_KEY")
     gem_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 
-    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="pro_sniper_final_fixed")
+    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="pro_sniper_final_fixed_v100")
     
     if ans_file:
         img_raw = Image.open(ans_file).convert("RGB")
