@@ -480,81 +480,92 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V100) ---
-# --- TAB 3: THE ULTIMATE STABLE ENGINE (V103 - OCR + TEXT LLM) ---
+# --- TAB 3: TOPPERGPT STABLE EVALUATOR (FOUNDER EDITION) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Stable Board Moderator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator</h2>", unsafe_allow_html=True)
     
-    # Check for Groq Key (Text models are very stable here)
-    groq_key = st.secrets.get("GROQ_API_KEY")
+    # 🔑 Keys (Fetching from Secrets)
+    api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+    api_key_groq = st.secrets.get("GROQ_API_KEY")
 
-    ans_file = st.file_uploader("Upload Answer Sheet", type=["jpg", "png", "jpeg"], key="stable_v103")
+    ans_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"], key="stable_final_fix")
     
     if ans_file:
-        img_raw = Image.open(ans_file).convert("RGB")
-        st.image(img_raw, caption="Paper Detected", width=300)
+        # ✅ Session Persistence: Variable ko pehle hi save kar lo
+        img_input = Image.open(ans_file).convert("RGB")
+        st.image(img_input, caption="Document Loaded", width=300)
         
-        if st.button("🚀 Evaluate Now (OCR + AI Logic)"):
+        if st.button("🚀 Start Professional Marking"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("AI is reading handwriting and marking..."):
+                with st.spinner("Moderator is evaluating..."):
                     try:
-                        # --- 🛠️ STEP 1: OCR ENGINE (Direct from Gemini Flash - High Quota for Text) ---
-                        # Vision fail ho raha hai toh hum Gemini ko sirf "Text Extraction" ke liye use karenge
-                        import base64, io
-                        temp_buf = io.BytesIO()
-                        img_raw.save(temp_buf, format="JPEG")
-                        img_b64 = base64.b64encode(temp_buf.getvalue()).decode('utf-8')
+                        # 🛠️ 1. UNIVERSAL ENCODING
+                        import io, base64
+                        final_buffer = io.BytesIO()
+                        img_input.save(final_buffer, format="JPEG")
+                        img_b64_str = base64.b64encode(final_buffer.getvalue()).decode('utf-8')
                         
-                        gemini_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-                        
-                        # Phase 1: Sirf Handwriting ko text mein convert karo
-                        ocr_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-                        ocr_payload = {
+                        # 🛠️ 2. HYBRID PIPELINE (OCR + LOGIC)
+                        # Gemini ko sirf OCR (Reading) ke liye use karo - Iska quota zyada hai
+                        ocr_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key_gemini}"
+                        ocr_res = requests.post(ocr_url, json={
                             "contents": [{"parts": [
-                                {"text": "Transcribe the handwritten text from this image exactly. Do not evaluate, just extract text."},
-                                {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+                                {"text": "Extract all handwritten text from this image exactly."},
+                                {"inline_data": {"mime_type": "image/jpeg", "data": img_b64_str}}
                             ]}]
-                        }
-                        ocr_res = requests.post(ocr_url, json=ocr_payload, timeout=20)
-                        extracted_text = ocr_res.json()['candidates'][0]['content']['parts'][0]['text']
+                        }, timeout=25)
+                        
+                        if ocr_res.status_code != 200:
+                            st.error("Gemini Quota Hit! 60s ruko bhai.")
+                        else:
+                            extracted_text = ocr_res.json()['candidates'][0]['content']['parts'][0]['text']
 
-                        # --- STEP 2: STABLE TEXT EVALUATION (Groq Llama 3.3) ---
-                        # Groq ka text engine kabhi fail nahi hota
-                        eval_prompt = f"""
-                        Act as an Engineering Moderator. Evaluate this student's answer based on the extracted text.
-                        Answer Text: {extracted_text}
-                        Return ONLY JSON: {{"question": "...", "answer": "...", "marks": 8, "feedback": "...", "tips": ["tip1", "tip2"]}}
-                        """
-                        
-                        llm_res = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[{"role": "user", "content": eval_prompt}],
-                            response_format={"type": "json_object"}
-                        )
-                        
-                        st.session_state.eval_result = json.loads(llm_res.choices[0].message.content)
-                        st.session_state.user_data['credits'] -= 5
-                        st.balloons()
-                        st.rerun()
+                            # 🛠️ 3. STABLE MARKING (Groq Llama 3.3 - 70B)
+                            # Ye kabhi fail nahi hota aur marking ekdum Board Level ki karta hai
+                            marking_prompt = f"""
+                            Act as a Board Examiner. Evaluate this answer:
+                            TEXT: {extracted_text}
+                            Return ONLY JSON: {{"question": "...", "answer": "...", "marks": 8, "feedback": "...", "recom": "..."}}
+                            """
+                            
+                            from groq import Groq
+                            client_g = Groq(api_key=api_key_groq)
+                            eval_completion = client_g.chat.completions.create(
+                                model="llama-3.3-70b-versatile",
+                                messages=[{"role": "user", "content": marking_prompt}],
+                                response_format={"type": "json_object"}
+                            )
+                            
+                            # Save to session
+                            st.session_state.eval_result = json.loads(eval_completion.choices[0].message.content)
+                            
+                            # 🔄 CREDIT LOOP: Update Firebase (Placeholder for your next step)
+                            st.session_state.user_data['credits'] -= 5
+                            # update_firebase_credits(user_id, -5) # Ye hum kal set karenge!
+                            
+                            st.balloons()
+                            st.rerun()
 
                     except Exception as e:
-                        st.error(f"System Error: {str(e)}")
-                        st.info("Bhai, 60 seconds ruko, Google ke servers limited hain.")
+                        st.error(f"Engine Heatup! Error: {str(e)}")
             else:
-                st.error("Bhai credits khatam!")
+                st.error("Bhai credits khatam! Recharge kar lo.")
 
-    # --- PERSISTENT DISPLAY ---
+    # --- RESULTS (Persistent) ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
-        col1, col2 = st.columns([0.4, 0.6])
-        with col1:
-            st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>GRADE</p></div>', unsafe_allow_html=True)
-        with col2:
+        c1, c2 = st.columns([0.4, 0.6])
+        with c1:
+            st.markdown(f'<div style="background:#1e1e1e; padding:20px; border-radius:15px; border:2px solid #4CAF50; text-align:center;">'
+                        f'<h1 style="color:#4CAF50; font-size:50px;">{res.get("marks", 0)}/10</h1>'
+                        f'<p style="color:white;">PRO SCORE</p></div>', unsafe_allow_html=True)
+        with c2:
             st.info(f"**Question:** {res.get('question', 'N/A')}")
             st.success(f"**Feedback:** {res.get('feedback', 'N/A')}")
-        
-        if st.button("🔄 Reset"):
+            
+        if st.button("🔄 Try Next Paper"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
