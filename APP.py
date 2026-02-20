@@ -450,69 +450,81 @@ with tab3:
         if st.button("🔄 Try Next Paper"):
             st.session_state.eval_result = None
             st.rerun()
-# --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
+# --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # 💰 WALLET SYNC: Sidebar credits se link hai
+    # Wallet Sync using Global Function
     current_bal = st.session_state.user_data.get('credits', 0) if st.session_state.user_data else 0
 
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
+    
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_final_stable_v10", placeholder="e.g. Laser Working")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v102_fixed", placeholder="e.g. Laser Working")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
-    cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
+    # Dynamic Cost Calculation
+    mm_cost = 8 if (use_pdf and st.session_state.get('current_index')) else 2
 
-    if st.button(f"🚀 Build High-Res Mindmap ({cost} Credits)"):
+    if st.button(f"🚀 Build High-Res Mindmap ({mm_cost} Credits)"):
         if mm_input:
-            if current_bal >= cost:
+            # Revenue Loop Check
+            if use_credits(mm_cost):
                 with st.spinner("Generating HD Architecture..."):
                     try:
-                        # GROQ LLM for fast code generation
-                        llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
-                        
+                        # Logic: Groq for fast Mermaid code generation
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
-                            # Using Gemini for technical context extraction
+                            # Technical Context Extraction
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
                             context_res = qe.query(f"Extract key technical components for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        # Strict prompt to prevent Syntax Errors
+                        # Prompt Engineering for Mermaid.js
                         prompt = f"""
                         Create a Mermaid.js mindmap for: '{mm_input}'.
                         {context}
                         Rules:
                         1. Start code with 'mindmap'
                         2. Root must be 'root(({mm_input}))'
-                        3. Use simple text for nodes. NO brackets () [] or special chars inside nodes.
+                        3. Simple text for nodes. NO brackets or special chars inside nodes.
                         4. Return ONLY the Mermaid code block.
                         """
-                        res = llm.complete(prompt)
-                        mm_code = res.text.replace("```mermaid", "").replace("```", "").strip()
                         
-                        # 💰 DEDUCT & SAVE
-                        st.session_state.user_data['credits'] -= cost
+                        # Calling Groq via Global Client
+                        res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                        
+                        mm_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
+                        
+                        # Save result and rerun to show display engine
                         st.session_state.last_mm_code = mm_code
-                        st.toast(f"Success! {cost} Credits deducted.")
+                        st.toast(f"Success! {mm_cost} Credits deducted.")
                         st.rerun() 
-                    except Exception as e: st.error(f"Logic Error: {e}")
-            else: st.error("Credits low hain bhai! Sidebar se top-up kar.")
-        else: st.warning("Concept ka naam toh dalo!")
+                        
+                    except Exception as e:
+                        # Refund credits if logic fails (Founder Ethics)
+                        st.session_state.user_data['credits'] += mm_cost
+                        st.error(f"Logic Error: {e}")
+            else:
+                st.error("Credits low hain bhai! Sidebar se top-up kar.")
+        else:
+            st.warning("Concept ka naam toh dalo!")
 
-    # --- HD RENDER & DOWNLOAD ENGINE (Scale 4) ---
+    # --- HD RENDER & DOWNLOAD ENGINE ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # High resolution script with error suppression
+        # Rendering Mermaid in high resolution
         html_code = f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <div id="capture_area" style="background: white; padding: 40px; border-radius: 15px; display: inline-block; min-width: 800px; text-align: center;">
-            <div class="mermaid" style="font-size: 20px;">
+            <div class="mermaid" style="font-size: 20px; color: black;">
             {st.session_state.last_mm_code}
             </div>
         </div>
@@ -522,13 +534,12 @@ with tab4:
         </button>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            // Suppress errors to keep UI clean even if syntax is tricky
-            mermaid.initialize({{ startOnLoad: true, theme: 'forest', securityLevel: 'loose', suppressErrors: true }});
+            mermaid.initialize({{ startOnLoad: true, theme: 'neutral', securityLevel: 'loose', suppressErrors: true }});
             
             window.downloadHD = function() {{
                 const area = document.querySelector("#capture_area");
                 html2canvas(area, {{ 
-                    scale: 4,  // 4x resolution for crystal clear quality
+                    scale: 4, 
                     useCORS: true,
                     backgroundColor: "#ffffff"
                 }}).then(canvas => {{
