@@ -480,7 +480,7 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V100) ---
-# --- TAB 3: THE FINAL BULLETPROOF EVALUATOR (PRO SNIPER V101) ---
+# --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V102 - NO MORE NAME ERRORS) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official AI Moderator</h2>", unsafe_allow_html=True)
@@ -489,7 +489,8 @@ with tab3:
     api_key_or = st.secrets.get("OPENROUTER_API_KEY")
     api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 
-    ans_file = st.file_uploader("Upload Your Answer Photo", type=["jpg", "png", "jpeg"], key="final_boss_v999_fixed")
+    # Image Uploader
+    ans_file = st.file_uploader("Upload Your Answer Photo", type=["jpg", "png", "jpeg"], key="final_boss_v102")
     
     if ans_file:
         img_raw = Image.open(ans_file).convert("RGB")
@@ -497,11 +498,14 @@ with tab3:
         
         if st.button("🚀 Evaluate Now (High Priority Engine)"):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator (Claude 3.5) is marking your paper..."):
+                with st.spinner("Moderator is scanning your paper..."):
                     try:
-                        # 🛠️ UNIVERSAL ENCODING (Fixed Variable Scope)                         final_io_buf = io.BytesIO()
-                        img_raw.save(final_io_buf, format="JPEG")
-                        final_b64_data = base64.b64encode(final_io_buf.getvalue()).decode('utf-8')
+                        # 🛠️ STEP 1: GLOBAL VARIABLE DEFINITION (No more NameError)
+                        # Hum variables ko session_state mein store karenge taaki scope ka panga na ho
+                        import io, base64
+                        temp_buf = io.BytesIO()
+                        img_raw.save(temp_buf, format="JPEG")
+                        st.session_state.temp_b64 = base64.b64encode(temp_buf.getvalue()).decode('utf-8')
                         
                         eval_final_res = None
                         debug_logs = []
@@ -518,7 +522,7 @@ with tab3:
                                             "role": "user",
                                             "content": [
                                                 {"type": "text", "text": "Extract Question & Answer. Evaluate marks out of 10. Return ONLY JSON: {\"question\": \"...\", \"answer\": \"...\", \"marks\": 8, \"feedback\": \"...\"}"},
-                                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{final_b64_data}"}}
+                                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{st.session_state.temp_b64}"}}
                                             ]
                                         }]
                                     }, timeout=45
@@ -535,7 +539,7 @@ with tab3:
                                 gem_res = requests.post(gem_url, json={
                                     "contents": [{"parts": [
                                         {"text": "Extract Question & Answer. Return JSON."},
-                                        {"inline_data": {"mime_type": "image/jpeg", "data": final_b64_data}}
+                                        {"inline_data": {"mime_type": "image/jpeg", "data": st.session_state.temp_b64}}
                                     ]}]
                                 }, timeout=25)
                                 if gem_res.status_code == 200:
@@ -544,7 +548,7 @@ with tab3:
                                 else: debug_logs.append(f"Gemini: {gem_res.status_code}")
                             except: pass
 
-                        # --- EXECUTION ---
+                        # --- FINAL EXECUTION ---
                         if eval_final_res:
                             st.session_state.eval_result = eval_final_res
                             st.session_state.user_data['credits'] -= 5
@@ -552,26 +556,26 @@ with tab3:
                             st.rerun()
                         else:
                             st.error("❌ Engines Busy. (Quota Limit Reached)")
-                            st.info(f"System Logs: {', '.join(debug_logs)}")
-                            st.warning("Bhai, 60 seconds wait karo aur phir try karo.")
+                            st.info(f"Debug Logs: {', '.join(debug_logs)}")
+                            st.warning("Bhai, 60 seconds ruko aur phir try karo.")
 
                     except Exception as e:
                         st.error(f"Logic Error: {str(e)}")
             else:
                 st.error("Bhai credits khatam!")
 
-    # --- PERSISTENT DISPLAY ---
+    # --- PERSISTENT RESULT DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
-        #         col1, col2 = st.columns([0.4, 0.6])
+        col1, col2 = st.columns([0.4, 0.6])
         with col1:
             st.markdown(f'<div class="eval-card" style="text-align:center;"><div class="score-circle">{res.get("marks", 0)}/10</div><p>PRO GRADE</p></div>', unsafe_allow_html=True)
         with col2:
-            st.info(f"**Question:** {res.get('question', 'N/A')}")
-            st.success(f"**Feedback:** {res.get('feedback', 'N/A')}")
+            st.info(f"**Question Identified:**\n{res.get('question', 'N/A')}")
+            st.success(f"**Feedback:**\n{res.get('feedback', 'N/A')}")
         
-        if st.button("🔄 Clear Result"):
+        if st.button("🔄 Check Another"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: PERMANENT FIX FOR DISAPPEARING RESULTS ---
