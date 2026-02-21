@@ -492,7 +492,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V125 - VIBRANT RENDERER FIX) ---
+# --- TAB 4: CONCEPT MINDMAP (V127 - DEEP TECHNICAL EDITION) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Vibrant Exam Architect</h2>", unsafe_allow_html=True)
     
@@ -500,33 +500,34 @@ with tab4:
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v125", placeholder="e.g. Quantum Computing")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v127", placeholder="e.g. PN Junction Diode")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
     mm_cost = 2
 
-    if st.button(f"🚀 Generate Vibrant Exam Map ({mm_cost} Credits)"):
+    if st.button(f"🚀 Generate Deep Technical Map ({mm_cost} Credits)"):
         if mm_input:
             if use_credits(mm_cost):
-                with st.spinner("Designing High-Performance Architecture..."):
+                with st.spinner("Analyzing Deep Engineering Concepts..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
-                            qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
-                            context_res = qe.query(f"Extract marks-oriented details for {mm_input}: Definition, Working, Components, and Applications.")
-                            context = f"Context: {context_res.response}"
+                            qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
+                            context_res = qe.query(f"Explain {mm_input} in detail: Definition, Working mechanism, Key Components, and Technical Applications.")
+                            context = f"PDF Data: {context_res.response}"
 
-                        # Master Prompt for Exam Logic
+                        # ✅ MASTER PROMPT: Strictly for DEEP TECHNICAL CONTENT
                         prompt = f"""
-                        Create a Mermaid flowchart for: '{mm_input}'. {context}
-                        Rules:
-                        1. Start with 'graph TD'.
-                        2. Root is 'ROOT(({mm_input}))'.
-                        3. Branches: 'DEF[Definition]', 'WORK[Working]', 'COMP[Components]', 'APP[Applications]'.
-                        4. Sub-nodes connect like: DEF --> D1[Point 1].
-                        5. NO special characters inside nodes.
-                        6. Output ONLY code, NO markdown backticks.
+                        Act as an Engineering Professor. Create a Mermaid flowchart for: '{mm_input}'. {context}
+                        Rules for Content:
+                        1. NO generic points like 'Point 1'. Use REAL technical terms from the context.
+                        2. ROOT is 'ROOT(({mm_input}))'.
+                        3. Main Nodes: 'DEF[Definition]', 'WORK[Working Mechanism]', 'COMP[Key Components]', 'APP[Applications]'.
+                        4. For Working: Explain the actual process (e.g., 'Hole Diffusion', 'Depletion Layer').
+                        5. For Components: List actual parts (e.g., 'P-type material', 'Anode').
+                        6. Rules for Syntax: NO special characters (&, !, :, -) inside []. Max 4 words per node.
+                        7. Output ONLY code, NO backticks.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -534,14 +535,11 @@ with tab4:
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
-                        # Data Sanitization
                         raw_output = res.choices[0].message.content
                         clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
-                        
-                        if not clean_code.startswith("graph"):
-                            clean_code = "graph TD\n" + clean_code
+                        if not clean_code.startswith("graph"): clean_code = "graph TD\n" + clean_code
                             
-                        # Cinematic Styling
+                        # Cinematic Styles
                         vibrant_styles = """
                         classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
                         classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
@@ -550,35 +548,35 @@ with tab4:
                         classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
                         class DEF defStyle; class WORK workStyle; class COMP compStyle; class APP appStyle;
                         """
-                        
                         st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
                         st.rerun() 
                     except Exception as e:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
-# --- 🎭 THE RENDERER: NO MORE BLUE CODE (V126) ---
-if "last_mm_code" in st.session_state:
-    st.markdown("---")
-    import streamlit.components.v1 as components
-    
-    #     # Yahan double curly braces {{ }} use kiye hain taaki f-string JS ko na chhede
-    html_code = f"""
-    <div id="capture_area" style="background:#0d1117; padding:30px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center; overflow:hidden;">
-        <div class="mermaid" style="width:100%;">
-        {st.session_state.last_mm_code}
+
+    # --- 🎭 THE RENDERER: ZERO CODE, PURE VISUALS ---
+    if "last_mm_code" in st.session_state:
+        st.markdown("---")
+        import streamlit.components.v1 as components
+        
+        # Fixed f-string vs JS braces conflict
+        html_code = f"""
+        <div id="capture_area" style="background:#0d1117; padding:30px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center; overflow:hidden;">
+            <div class="mermaid" style="width:100%;">
+            {st.session_state.last_mm_code}
+            </div>
         </div>
-    </div>
-    <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({{ 
-            startOnLoad: true, 
-            theme: 'dark',
-            securityLevel: 'loose',
-            flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis' }}
-        }});
-    </script>
-    """
-    components.html(html_code, height=650, scrolling=True)
+        <script type="module">
+            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+            mermaid.initialize({{ 
+                startOnLoad: true, 
+                theme: 'dark',
+                securityLevel: 'loose',
+                flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis' }}
+            }});
+        </script>
+        """
+        components.html(html_code, height=650, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
