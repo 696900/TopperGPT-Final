@@ -26,6 +26,17 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
+# --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
+api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+
+if api_key_to_use:
+    # Settings ko globally lock kar diya taaki OpenAI ka error na aaye
+    from llama_index.llms.gemini import Gemini
+    from llama_index.embeddings.gemini import GeminiEmbedding
+    
+    # ✅ FIX: strictly using 'models/' prefix to kill 404 errors
+    Settings.llm = Gemini(model_name="models/gemini-1.5-flash", api_key=api_key_to_use)
+    Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_to_use)
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
 def use_credits(amount):
     """Checks and deducts credits from session state."""
@@ -180,61 +191,41 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: TOPPERGPT CHAT ENGINE (V124 - ZERO ERROR EDITION) ---
+# --- TAB 1: TOPPERGPT CHAT ENGINE (V126 - GLOBAL SYNCED) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat Engine</h2>", unsafe_allow_html=True)
     
-    # 📦 LlamaIndex & Google AI Config (Locked for Stability)
-    from llama_index.llms.gemini import Gemini
-    from llama_index.embeddings.gemini import GeminiEmbedding
-    from llama_index.core import Settings, VectorStoreIndex, Document
+    # Imports strictly for PDF handling
     import fitz
-
-    api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
-
-    if api_key_to_use:
-        try:
-            # ✅ FIX: Explicitly setting the stable v1 models to avoid 404/v1beta errors
-            #
-            Settings.llm = Gemini(
-                model_name="models/gemini-1.5-flash", 
-                api_key=api_key_to_use,
-                temperature=0.3
-            )
-            Settings.embed_model = GeminiEmbedding(
-                model_name="models/text-embedding-004", 
-                api_key=api_key_to_use
-            )
-        except Exception as e:
-            st.error(f"AI Engine Heatup: {e}")
+    from llama_index.core import VectorStoreIndex, Document
 
     # --- 📂 STEP 1: INDEXING ---
     st.markdown("### 📂 Step 1: Upload Exam Material (PDF)")
     up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload Chapter PDF", type="pdf", key="pdf_v124")
+    uploaded_file = up_col.file_uploader("Upload Chapter PDF", type="pdf", key="pdf_v126")
     
     if uploaded_file and btn_col.button("🚀 Index for Exam", use_container_width=True):
-        with st.spinner("Decoding PDF..."):
+        with st.spinner("Decoding PDF... mapping technical concepts"):
             try:
-                # Fast Stream Processing
+                # Fast Stream Processing with PyMuPDF
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                 documents = []
                 for i, page in enumerate(doc):
-                    text = page.get_text().strip() or f"Diagram Content Page {i+1}"
+                    text = page.get_text().strip() or f"Diagram/Table Content Page {i+1}"
                     documents.append(Document(text=text, metadata={"page_label": str(i+1)}))
                 
-                # Critical: Building index with the fixed settings
+                # 🔥 CRITICAL: Uses Global Settings (Gemini) defined at the top
                 st.session_state.current_index = VectorStoreIndex.from_documents(documents)
                 st.success("✅ System Ready! Phod de exam.")
                 st.rerun()
             except Exception as e:
-                # Detailed error logging for you but clean for UI
                 st.error(f"Indexing Error: {str(e)}")
 
     st.divider()
 
     # --- 💬 STEP 2: STABLE CHAT ---
-    if "chat_history" not in st.session_state: st.session_state.chat_history = []
+    if "chat_history" not in st.session_state: 
+        st.session_state.chat_history = []
 
     # Display Chat History
     for msg in st.session_state.chat_history:
@@ -242,17 +233,17 @@ with tab1:
             st.markdown(msg["content"])
 
     if st.session_state.get("current_index"):
-        if user_query := st.chat_input("Ex: Explain the key points on Page 3"):
-            # Sync with your wallet
+        if user_query := st.chat_input("Ex: Explain the working principle in Hinglish"):
+            # Sync with your wallet (1 credit per query)
             if use_credits(1):
                 st.session_state.chat_history.append({"role": "user", "content": user_query})
                 with st.chat_message("user"):
                     st.markdown(user_query)
 
                 with st.chat_message("assistant"):
-                    with st.spinner("Searching Textbook..."):
+                    with st.spinner("Analyzing Textbook..."):
                         try:
-                            # Standard Query Engine
+                            # Uses global LLM and Embed settings automatically
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
                             res = qe.query(f"Answer in simple Hinglish: {user_query}")
                             
@@ -261,11 +252,11 @@ with tab1:
                             st.rerun()
                         except Exception as e:
                             st.error(f"Chat Engine Busy: {e}")
-                            st.session_state.user_data['credits'] += 1 # Auto-Refund
+                            st.session_state.user_data['credits'] += 1 # Auto-Refund on fail
             else:
                 st.error("❌ Low Balance! Sidebar se pack buy karlo.")
     else:
-        st.info("👆 Pehle PDF upload karke Index karo!")
+        st.info("👆 Pehle PDF upload karke 'Index for Exam' dabao!")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
