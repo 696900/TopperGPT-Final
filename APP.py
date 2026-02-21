@@ -492,7 +492,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V128 - THE BILLIONAIRE BIBLE) ---
+# --- TAB 4: CONCEPT MINDMAP (V129 - THE BILLIONAIRE BIBLE) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
     
@@ -500,7 +500,7 @@ with tab4:
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v128", placeholder="e.g. PN Junction Diode")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v129", placeholder="e.g. PN Junction Diode")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -514,19 +514,19 @@ with tab4:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            context_res = qe.query(f"Explain {mm_input} like a textbook: working, internal physics, and components.")
+                            context_res = qe.query(f"Explain {mm_input} like a textbook: working physics and internal components.")
                             context = f"PDF Context: {context_res.response}"
 
                         # ✅ MASTER PROMPT: Strictly for EXPLAINED TECHNICAL CONTENT
                         prompt = f"""
                         Act as an Engineering Professor. Create a Mermaid flowchart for: '{mm_input}'. {context}
-                        Rules for "Bible" Content:
-                        1. NO 'Point 1' or 'Step 1'. Use REAL technical definitions.
+                        Rules for Content:
+                        1. NO generic 'Point 1'. Explain the term in the node itself.
                         2. ROOT is 'ROOT(({mm_input}))'.
                         3. Main Nodes must EXPLAIN the topic. 
-                           Format: NODE[Topic: Short 1-line Explanation].
-                           Example: DIFF[Diffusion: Movement of charge carriers due to concentration gradient].
-                        4. Cover: 'Working Physics', 'Core Construction', and 'Exam-Critical Logic'.
+                           Format: NODE[Topic: Short 1-line definition].
+                           Example: DIFF[Diffusion: Movement of carriers from high to low concentration].
+                        4. Nodes: DEF[Definition], WORK[Working Mechanism], COMP[Key Components].
                         5. Syntax: NO special characters (&, !, :, -) inside []. Max 8 words per node.
                         6. Output ONLY code, NO markdown backticks.
                         """
@@ -540,7 +540,7 @@ with tab4:
                         clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
                         if not clean_code.startswith("graph"): clean_code = "graph TD\n" + clean_code
                             
-                        # Cinematic Styles
+                        # Cinematic Styles for Vibrant Colors
                         vibrant_styles = """
                         classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
                         classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
@@ -559,7 +559,7 @@ with tab4:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # Double curly braces {{ }} to fix f-string JS conflict
+        #         # Double curly braces {{ }} fix the JS vs f-string conflict
         html_code = f"""
         <div id="capture_area" style="background:#0d1117; padding:30px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center; overflow:hidden;">
             <div class="mermaid" style="width:100%;">
