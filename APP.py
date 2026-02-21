@@ -492,44 +492,45 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CINEMATIC COLOURFUL MINDMAP (V114 - SYNTAX SECURE) ---
+# --- TAB 4: PROFESSIONAL DETAILED MINDMAP (V116 - THE RETURN) ---
 with tab4:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Vibrant Concept Architect</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Professional Concept Architect</h2>", unsafe_allow_html=True)
     
     # Wallet Sync & UI
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v114_vibrant", placeholder="e.g. Laser Action")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v116_pro", placeholder="e.g. Quantum Computing")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
-    # 💰 Revenue Loop Cost
-    mm_cost = 5 if (use_pdf and st.session_state.get('current_index')) else 2
+    mm_cost = 5 if use_pdf else 2
 
-    if st.button(f"🚀 Generate Vibrant Mindmap ({mm_cost} Credits)"):
+    if st.button(f"🚀 Generate Detailed Mindmap ({mm_cost} Credits)"):
         if mm_input:
-            # --- START REVENUE LOOP ---
             if use_credits(mm_cost):
-                with st.spinner("Designing Colourful Architecture..."):
+                with st.spinner("Architecture design ho raha hai..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
-                            context_res = qe.query(f"Extract main branches for {mm_input}.")
+                            context_res = qe.query(f"Extract deep sub-topics and details for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        # ✅ PROMPT: Strict Syntax Rules to avoid "Syntax Error in Text"
+                        # ✅ MASTER PROMPT: Strictly for Detailed Circular Mindmap
                         prompt = f"""
-                        Create a Mermaid.js mindmap for: '{mm_input}'. {context}
+                        Create a Detailed Mermaid.js mindmap for: '{mm_input}'. {context}
                         Rules:
-                        1. Start with the word 'mindmap' alone on the first line.
-                        2. Use 'root(({mm_input}))' for the central node.
-                        3. Limit to 5 main branches.
-                        4. IMPORTANT: Do NOT use special characters like (&, !, ?, -, :) inside brackets.
-                        5. Use ONLY simple alphanumeric text for nodes.
-                        6. Do NOT include any markdown code blocks (```) in the output.
+                        1. Start ONLY with the word 'mindmap'.
+                        2. The root must be: 'root(({mm_input}))'.
+                        3. Use EXACTLY 2 levels of indentation (spaces) for branches.
+                        4. Branch 1
+                          Sub-branch 1.1
+                          Sub-branch 1.2
+                        5. NO special characters (:, &, !, -, ()) inside the node names.
+                        6. Ensure it is very detailed and covers 5-6 main branches.
+                        7. Return ONLY the code, no markdown backticks.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -537,85 +538,49 @@ with tab4:
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
-                        # Cleanup logic to ensure zero markdown noise
-                        clean_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
+                        clean_code = res.choices[0].message.content.strip()
+                        # Syntax Guard: Ensuring it starts correctly
                         if not clean_code.startswith("mindmap"):
                             clean_code = "mindmap\n" + clean_code
                             
                         st.session_state.last_mm_code = clean_code
-                        st.toast(f"Success! {mm_cost} Credits Deducted.")
                         st.rerun() 
-                        
                     except Exception as e:
-                        st.session_state.user_data['credits'] += mm_cost # Refund
+                        st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
-            else:
-                st.error("Credits low hain bhai! Sidebar se top-up kar.")
 
-    # --- 🎭 VIBRANT RENDERING ENGINE ---
+    # --- 🎭 PRO RENDERING ENGINE ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # HTML with Responsive Container & HD Canvas
+        # HTML with Zoom and HD Config
         html_code = f"""
-        <script src="[https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js](https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js)"></script>
-        <div id="capture_area" style="
-            background: #0d1117; 
-            padding: 40px; 
-            border-radius: 20px; 
-            border: 2px solid #4CAF50;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 400px;
-        ">
-            <div class="mermaid" style="width: 100%; text-align: center;">
+        <div id="capture_area" style="background:#0d1117; padding:20px; border-radius:15px; border:1px solid #4CAF50;">
+            <div class="mermaid" style="display:flex; justify-content:center;">
             {st.session_state.last_mm_code}
             </div>
         </div>
-        <br>
-        <button onclick="downloadHD()" style="
-            width: 100%; background: #4CAF50; color: white; border: none; 
-            padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer;
-            box-shadow: 0 4px 10px rgba(76,175,80,0.3);
-        ">
-            📥 Download HD Mindmap (PNG)
-        </button>
-        
         <script type="module">
-            import mermaid from '[https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs](https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs)';
-            
+            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             mermaid.initialize({{ 
                 startOnLoad: true, 
-                theme: 'forest', 
+                theme: 'forest',
                 securityLevel: 'loose',
+                mindmap: {{ useMaxWidth: true }},
                 themeVariables: {{
-                    fontSize: '22px',
+                    fontSize: '16px',
                     primaryColor: '#4CAF50',
-                    nodeBorder: '#4CAF50',
                     mainBkg: '#1c2128',
                     textColor: '#fff',
-                    lineColor: '#4CAF50'
+                    lineColor: '#4CAF50',
+                    nodePadding: '10px'
                 }}
             }});
-            
-            window.downloadHD = function() {{
-                const area = document.querySelector("#capture_area");
-                html2canvas(area, {{ 
-                    scale: 3, 
-                    backgroundColor: "#0d1117",
-                    useCORS: true 
-                }}).then(canvas => {{
-                    let link = document.createElement('a');
-                    link.download = 'TopperGPT_Vibrant_Map.png';
-                    link.href = canvas.toDataURL("image/png");
-                    link.click();
-                }});
-            }}
         </script>
+        <p style="text-align:center; color:#8b949e; font-size:12px;">Tip: Download karke status par lagao, full HD dikhega!</p>
         """
-        components.html(html_code, height=650, scrolling=True)
+        components.html(html_code, height=600, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
