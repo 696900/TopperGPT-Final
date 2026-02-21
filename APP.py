@@ -616,7 +616,7 @@ with tab4:
         """
         components.html(html_code, height=650, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
+# --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
     st.markdown("<h3 style='text-align: center; color: #4CAF50;'>🎬 Cinematic Revision Deck</h3>", unsafe_allow_html=True)
     
@@ -625,8 +625,12 @@ with tab5:
 
     t_input = st.text_input("Enter Topic for Revision:", placeholder="e.g. 'Transformer Working'", key="rev_v8_final")
     
-    if st.button("🚀 Build Deck") and t_input:
-        if st.session_state.user_data['credits'] >= 2:
+    # 💰 Cost for generating a professional deck
+    card_cost = 2
+
+    if st.button(f"🚀 Build Deck ({card_cost} Credits)") and t_input:
+        # --- START REVENUE LOOP ---
+        if use_credits(card_cost):
             with st.spinner("AI is crafting visual cards..."):
                 try:
                     res = groq_client.chat.completions.create(
@@ -638,10 +642,15 @@ with tab5:
                     )
                     clean_res = res.choices[0].message.content.replace("**", "").replace("*", "")
                     st.session_state.flash_cards_list = [c for c in clean_res.split("\n") if "|" in c]
-                    st.session_state.user_data['credits'] -= 2
+                    
+                    st.toast(f"Deck Created! {card_cost} Credits deducted.")
                     st.rerun()
                 except Exception as e:
+                    # Refund on error
+                    st.session_state.user_data['credits'] += card_cost
                     st.error(f"Error: {e}")
+        else:
+            st.error("Bhai credits khatam! Sidebar se top-up kar lo.")
 
     # --- THE VISUAL DISPLAY ---
     if st.session_state.get("flash_cards_list"):
@@ -673,6 +682,7 @@ with tab5:
                     d = ImageDraw.Draw(img)
                     d.rectangle([0, 0, 30, H], fill='#4CAF50') 
                     d.text((60, 60), f"TOPPERGPT | CARD {idx+1}", fill='#4CAF50')
+                    # Limited title for image
                     d.text((60, 140), t[:25], fill='white')
                     wrapped = textwrap.fill(c, width=40)
                     d.multiline_text((60, 260), wrapped, fill='#babbbe', spacing=10)
