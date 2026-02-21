@@ -26,35 +26,33 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 🛠️ MASTER AI SETUP (STABLE v1 BYPASS) ---
-api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+# --- 🛠️ MASTER AI SETUP (STABLE GROQ-GEMINI HYBRID) ---
+api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+api_key_groq = st.secrets.get("GROQ_API_KEY")
 
-if api_key:
-    from llama_index.llms.gemini import Gemini
+if api_key_gemini and api_key_groq:
+    from llama_index.llms.groq import Groq as LlamaGroq
     from llama_index.embeddings.gemini import GeminiEmbedding
     from llama_index.core import Settings
-    import google.generativeai as genai
-
-    # Pehle stable SDK configure karo
-    genai.configure(api_key=api_key)
-
-    # ✅ FIX 1: strictly using 'models/' prefix
-    # ✅ FIX 2: transport="rest" to kill v1beta errors
-    Settings.llm = Gemini(
-        model_name="models/gemini-1.5-flash", 
-        api_key=api_key,
-        transport="rest" 
+    
+    # ✅ FIX: LLM ke liye Groq use karo (Gemini LLM crash kar raha hai)
+    Settings.llm = LlamaGroq(
+        model="llama-3.3-70b-versatile", 
+        api_key=api_key_groq
     )
+    
+    # ✅ FIX: Gemini ko sirf Embedding ke liye rakho (transport="rest" ke sath)
     Settings.embed_model = GeminiEmbedding(
         model_name="models/text-embedding-004", 
-        api_key=api_key,
+        api_key=api_key_gemini,
         transport="rest"
     )
+    
     Settings.chunk_size = 512
     Settings.chunk_overlap = 50
 
-# Groq Client for Logic & Other Tabs
-groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+# Native Groq Client for other tabs
+groq_client = Groq(api_key=api_key_groq)
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
 def use_credits(amount):
     """Checks and deducts credits from session state."""
