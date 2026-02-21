@@ -492,42 +492,41 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V119 - ULTRA-CLEAN PRO) ---
+# --- TAB 4: CONCEPT MINDMAP (V120 - MOBILE & LAPTOP OPTIMIZED) ---
 with tab4:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Professional Concept Architect</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Responsive Concept Architect</h2>", unsafe_allow_html=True)
     
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v119", placeholder="e.g. Quantum Computing")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v120", placeholder="e.g. Semi Conductors")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
     mm_cost = 2
 
-    if st.button(f"🚀 Generate Professional Mindmap ({mm_cost} Credits)"):
+    if st.button(f"🚀 Generate Optimized Mindmap ({mm_cost} Credits)"):
         if mm_input:
             if use_credits(mm_cost):
-                with st.spinner("Engineering Architecture design ho raha hai..."):
+                with st.spinner("Optimizing for your screen..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
-                            context_res = qe.query(f"Extract main branches and details for {mm_input}.")
+                            context_res = qe.query(f"Extract main branches for {mm_input}.")
                             context = f"Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Strictly for clean, professional Left-to-Right layout
+                        # ✅ MASTER PROMPT: Top-Down (TD) is better for Mobile & Laptop fit
                         prompt = f"""
                         Create a Mermaid flowchart for: '{mm_input}'. {context}
-                        Strict Rules for Professional Look:
-                        1. Start with 'graph LR' (Left to Right).
-                        2. The root must be 'ROOT(({mm_input}))'.
-                        3. Root should connect to 5 main CATEGORIES (C1, C2, C3...).
-                        4. Each Category connects to 3 detailed SUB-TOPICS (S1, S2, S3...).
-                        5. IMPORTANT: Use ONLY alphanumeric characters. NO symbols like & ! - : inside nodes.
-                        6. Ensure it is very detailed but neatly structured.
-                        7. Output ONLY the code, NO markdown backticks.
+                        Rules for Screen Fit:
+                        1. Start with 'graph TD' (Top Down).
+                        2. Root is 'ROOT(({mm_input}))'.
+                        3. Use 4-5 main categories (C1, C2...).
+                        4. Limit sub-topics to 2 per category to keep it compact.
+                        5. Use ONLY simple labels (Max 2 words). No special characters.
+                        6. Output ONLY code, no markdown backticks.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -537,7 +536,7 @@ with tab4:
                         
                         clean_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
                         if not clean_code.startswith("graph"):
-                            clean_code = "graph LR\n" + clean_code
+                            clean_code = "graph TD\n" + clean_code
                             
                         st.session_state.last_mm_code = clean_code
                         st.rerun() 
@@ -545,14 +544,15 @@ with tab4:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- 🎭 PROFESSIONAL RENDERING ENGINE ---
+    # --- 🎭 RESPONSIVE RENDERING ENGINE ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
         
+        # HTML Fix: added 'useMaxWidth: true' and viewport settings for mobile
         html_code = f"""
-        <div id="capture_area" style="background:#0d1117; padding:40px; border-radius:15px; border:1px solid #4CAF50; overflow-x:auto;">
-            <pre class="mermaid" style="background:transparent; text-align:center;">
+        <div id="capture_area" style="background:#0d1117; padding:15px; border-radius:15px; border:1px solid #4CAF50; display:flex; justify-content:center;">
+            <pre class="mermaid" style="background:transparent; width:100%; max-width:100%;">
             {st.session_state.last_mm_code}
             </pre>
         </div>
@@ -563,15 +563,14 @@ with tab4:
                 theme: 'base',
                 securityLevel: 'loose',
                 flowchart: {{ 
-                    useMaxWidth: false,
+                    useMaxWidth: true, 
                     htmlLabels: true,
-                    curve: 'stepAfter'
+                    curve: 'basis'
                 }},
                 themeVariables: {{
-                    fontSize: '18px',
+                    fontSize: '14px',
                     primaryColor: '#4CAF50',
                     primaryTextColor: '#fff',
-                    primaryBorderColor: '#4CAF50',
                     lineColor: '#eab308',
                     nodeBkg: '#1c2128',
                     mainBkg: '#1c2128',
@@ -579,9 +578,9 @@ with tab4:
                 }}
             }});
         </script>
-        <p style="text-align:center; color:#8b949e; font-size:12px; margin-top:10px;">Engineering Standard: Left-to-Right Architecture View</p>
+        <p style="text-align:center; color:#8b949e; font-size:11px; margin-top:10px;">UI Optimized: Laptop & Mobile View Enabled</p>
         """
-        components.html(html_code, height=700, scrolling=True)
+        components.html(html_code, height=550, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
