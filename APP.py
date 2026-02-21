@@ -414,92 +414,99 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V100) ---
-# --- TAB 3: TOPPERGPT STABLE EVALUATOR (FOUNDER EDITION) ---
+# --- TAB 3: TOPPERGPT PRO EVALUATOR (PAID ENGINE V115) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator</h2>", unsafe_allow_html=True)
     
-    # 🔑 Keys (Fetching from Secrets)
-    api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+    # 🔑 Master Keys
+    api_key_gemini = st.secrets.get("GEMINI_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
 
-    ans_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"], key="stable_final_fix")
+    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="pro_eval_v115")
     
     if ans_file:
-        # ✅ Session Persistence: Variable ko pehle hi save kar lo
         img_input = Image.open(ans_file).convert("RGB")
-        st.image(img_input, caption="Document Loaded", width=300)
+        st.image(img_input, caption="Document Detected", width=400)
         
-        if st.button("🚀 Start Professional Marking"):
-            if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("Moderator is evaluating..."):
+        # 💰 Pro Evaluation Cost
+        eval_cost = 5
+
+        if st.button(f"🚀 Start Professional Marking ({eval_cost} Credits)"):
+            if use_credits(eval_cost):
+                with st.spinner("Paid Engine: Reading handwriting & calculating marks..."):
                     try:
-                        # 🛠️ 1. UNIVERSAL ENCODING
+                        # 🛠️ STEP 1: PRO OCR (Using Gemini 1.5 Pro - Paid Tier Speed)
                         import io, base64
-                        final_buffer = io.BytesIO()
-                        img_input.save(final_buffer, format="JPEG")
-                        img_b64_str = base64.b64encode(final_buffer.getvalue()).decode('utf-8')
+                        buf = io.BytesIO()
+                        img_input.save(buf, format="JPEG")
+                        img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
                         
-                        # 🛠️ 2. HYBRID PIPELINE (OCR + LOGIC)
-                        # Gemini ko sirf OCR (Reading) ke liye use karo - Iska quota zyada hai
-                        ocr_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key_gemini}"
+                        # Gemini Pro is 10x more accurate for messy handwriting
+                        ocr_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={api_key_gemini}"
                         ocr_res = requests.post(ocr_url, json={
                             "contents": [{"parts": [
-                                {"text": "Extract all handwritten text from this image exactly."},
-                                {"inline_data": {"mime_type": "image/jpeg", "data": img_b64_str}}
+                                {"text": "Transcribe this engineering answer sheet exactly. Capture every word and symbol."},
+                                {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
                             ]}]
-                        }, timeout=25)
+                        }, timeout=30)
                         
                         if ocr_res.status_code != 200:
-                            st.error("Gemini Quota Hit! 60s ruko bhai.")
+                            st.error(f"Paid Engine Error: {ocr_res.text}")
+                            st.session_state.user_data['credits'] += eval_cost # Refund
                         else:
                             extracted_text = ocr_res.json()['candidates'][0]['content']['parts'][0]['text']
 
-                            # 🛠️ 3. STABLE MARKING (Groq Llama 3.3 - 70B)
-                            # Ye kabhi fail nahi hota aur marking ekdum Board Level ki karta hai
+                            # 🛠️ STEP 2: EXPERT MARKING (Llama 3.3 70B)
                             marking_prompt = f"""
-                            Act as a Board Examiner. Evaluate this answer:
-                            TEXT: {extracted_text}
-                            Return ONLY JSON: {{"question": "...", "answer": "...", "marks": 8, "feedback": "...", "recom": "..."}}
+                            Act as a Senior University Professor. Evaluate this transcribed answer:
+                            {extracted_text}
+                            
+                            Return ONLY a JSON object:
+                            {{
+                                "question": "The question identified",
+                                "answer_quality": "High/Medium/Low",
+                                "marks": "marks out of 10",
+                                "feedback": "Detailed critical feedback",
+                                "improvement": "3 tips to score more"
+                            }}
                             """
                             
-                            from groq import Groq
-                            client_g = Groq(api_key=api_key_groq)
-                            eval_completion = client_g.chat.completions.create(
+                            client = Groq(api_key=api_key_groq)
+                            response = client.chat.completions.create(
                                 model="llama-3.3-70b-versatile",
                                 messages=[{"role": "user", "content": marking_prompt}],
                                 response_format={"type": "json_object"}
                             )
                             
-                            # Save to session
-                            st.session_state.eval_result = json.loads(eval_completion.choices[0].message.content)
-                            
-                            # 🔄 CREDIT LOOP: Update Firebase (Placeholder for your next step)
-                            st.session_state.user_data['credits'] -= 5
-                            # update_firebase_credits(user_id, -5) # Ye hum kal set karenge!
-                            
-                            st.balloons()
+                            st.session_state.eval_result = json.loads(response.choices[0].message.content)
+                            st.toast("Evaluation Complete! Credits Deducted.")
                             st.rerun()
 
                     except Exception as e:
-                        st.error(f"Engine Heatup! Error: {str(e)}")
+                        st.session_state.user_data['credits'] += eval_cost # Refund
+                        st.error(f"System Overload: {str(e)}")
             else:
-                st.error("Bhai credits khatam! Recharge kar lo.")
+                st.error("Bhai credits khatam! Sidebar se pack buy karo.")
 
-    # --- RESULTS (Persistent) ---
+    # --- PROFESSIONAL DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
-        c1, c2 = st.columns([0.4, 0.6])
-        with c1:
-            st.markdown(f'<div style="background:#1e1e1e; padding:20px; border-radius:15px; border:2px solid #4CAF50; text-align:center;">'
-                        f'<h1 style="color:#4CAF50; font-size:50px;">{res.get("marks", 0)}/10</h1>'
-                        f'<p style="color:white;">PRO SCORE</p></div>', unsafe_allow_html=True)
-        with c2:
+        col1, col2 = st.columns([0.4, 0.6])
+        with col1:
+            st.markdown(f'''
+                <div class="eval-card">
+                    <div class="score-circle">{res.get("marks", 0)}/10</div>
+                    <p style="text-align:center; color:#4CAF50; font-weight:bold; margin-top:10px;">OFFICIAL GRADE</p>
+                </div>
+            ''', unsafe_allow_html=True)
+        with col2:
             st.info(f"**Question:** {res.get('question', 'N/A')}")
-            st.success(f"**Feedback:** {res.get('feedback', 'N/A')}")
-            
-        if st.button("🔄 Try Next Paper"):
+            st.warning(f"**Feedback:** {res.get('feedback', 'N/A')}")
+            st.success(f"**Tips to Score 10/10:**\n{res.get('improvement', 'N/A')}")
+        
+        if st.button("🔄 Check Another Sheet"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
