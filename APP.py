@@ -27,20 +27,62 @@ from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 
-# --- 1. CONFIGURATION & PRO DARK UI ---
-st.set_page_config(page_title="TopperGPT Pro", layout="wide", page_icon="🚀")
+# --- 1. CONFIGURATION & MOBILE-OPTIMIZED UI ---
+st.set_page_config(
+    page_title="TopperGPT Pro", 
+    layout="wide", 
+    page_icon="🚀",
+    initial_sidebar_state="collapsed" # Mobile par space bachane ke liye
+)
 
-# 🖋️ GLOBAL STYLES (Fixes the NameError: EVAL_CSS)
+# 🖋️ GLOBAL STYLES (Cinematic Dark + Mobile Responsive)
 EVAL_CSS = """
 <style>
-.eval-card { background: linear-gradient(135deg, #0f0c29, #1a1a2e); border: 1px solid #4CAF50; border-radius: 15px; padding: 20px; margin: 10px 0; }
-.score-circle { width: 100px; height: 100px; border-radius: 50%; border: 5px solid #4CAF50; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 24px; font-weight: bold; color: white; }
-.stApp { background-color: #0e1117 !important; color: #ffffff !important; }
-[data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
-.login-card { background: linear-gradient(145deg, #1e2530, #161b22); padding: 40px; border-radius: 25px; text-align: center; border: 1px solid #4CAF50; box-shadow: 0 20px 50px rgba(0,0,0,0.7); max-width: 450px; margin: auto; }
-.wallet-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; text-align: center; margin-bottom: 20px; }
-.exam-special-tag { background: rgba(255, 75, 75, 0.15); color: #ff4b4b; border: 1px solid #ff4b4b; padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; text-align: center; margin-bottom: 10px; animation: pulse 2s infinite; }
+/* Base Dark Theme */
+.stApp { background-color: #0d1117 !important; color: #c9d1d9 !important; }
+[data-testid="stSidebar"] { background-color: #161b22 !important; border-right: 1px solid #30363d; }
+
+/* Mobile Optimizations (Media Queries) */
+@media (max-width: 768px) {
+    .stTabs [data-baseweb="tab-list"] { gap: 5px; }
+    .stTabs [data-baseweb="tab"] { padding: 8px 10px; font-size: 12px; }
+    h1 { font-size: 1.8rem !important; }
+    h2 { font-size: 1.5rem !important; }
+    .score-circle { width: 80px !important; height: 80px !important; font-size: 18px !important; }
+}
+
+/* Cinematic Cards */
+.eval-card { 
+    background: linear-gradient(145deg, #1e2530, #161b22); 
+    border: 1px solid #4CAF50; border-radius: 15px; padding: 20px; margin: 10px 0;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+.score-circle { 
+    width: 100px; height: 100px; border-radius: 50%; 
+    border: 5px solid #4CAF50; display: flex; align-items: center; 
+    justify-content: center; margin: 0 auto; font-size: 24px; font-weight: bold; color: #4CAF50; 
+}
+
+/* Wallet Card */
+.wallet-card { 
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
+    padding: 15px; border-radius: 15px; border: 1px solid #4CAF50; 
+    text-align: center; margin-bottom: 15px;
+}
+
+/* Exam Tag */
+.exam-special-tag { 
+    background: rgba(255, 75, 75, 0.1); color: #ff4b4b; border: 1px solid #ff4b4b; 
+    padding: 8px; border-radius: 8px; font-size: 12px; font-weight: bold; 
+    text-align: center; margin-bottom: 10px; animation: pulse 2s infinite; 
+}
 @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+/* Touch-Friendly Buttons */
+.stButton > button {
+    border-radius: 10px; height: 3em; font-weight: 600;
+    transition: all 0.3s ease;
+}
 </style>
 """
 st.markdown(EVAL_CSS, unsafe_allow_html=True)
@@ -50,9 +92,8 @@ if "user_data" not in st.session_state: st.session_state.user_data = None
 if "chat_history" not in st.session_state: st.session_state.chat_history = []
 if "current_index" not in st.session_state: st.session_state.current_index = None
 
-# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER ---
+# 💎 REVENUE LOOP: MASTER CREDIT CHECKER
 def use_credits(amount):
-    """Checks and deducts credits for AI operations."""
     if st.session_state.user_data and st.session_state.user_data.get('credits', 0) >= amount:
         st.session_state.user_data['credits'] -= amount
         return True
@@ -64,68 +105,72 @@ if api_key_to_use:
     Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_to_use)
     genai.configure(api_key=api_key_to_use)
 else:
-    st.error("⚠️ Dashboard Secrets mein Key missing hai bhai!")
+    st.error("⚠️ Dashboard Secrets mein Key missing hai!")
 
 if "GROQ_API_KEY" in st.secrets:
     groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 else:
     st.error("GROQ_API_KEY missing in Secrets!")
 
-# --- GLOBAL UTILITIES ---
-def get_clean_json_v2(text):
-    try:
-        json_match = re.search(r"\{.*\}", text, re.DOTALL)
-        return json.loads(json_match.group(0)) if json_match else {}
-    except: return {}
-
 # --- 3. LOGIN PAGE ---
 def show_login_page():
-    st.markdown("<br><br><br>", unsafe_allow_html=True)
-    _, col_mid, _ = st.columns([1, 2, 1])
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    _, col_mid, _ = st.columns([0.1, 0.8, 0.1]) # Adjusted for Mobile
     with col_mid:
-        st.markdown('<div class="login-card"><h1 style="color:#4CAF50; font-style: italic;">TopperGPT</h1><p>OFFICIAL UNIVERSITY RESEARCH PORTAL</p><hr><p style="color:#4CAF50; font-weight:bold;">🎁 EXCLUSIVE: Get 15 FREE Credits on Login!</p></div>', unsafe_allow_html=True)
+        st.markdown('''
+            <div style="background: linear-gradient(145deg, #1e2530, #161b22); padding: 30px; border-radius: 20px; text-align: center; border: 1px solid #4CAF50;">
+                <h1 style="color:#4CAF50; font-style: italic; margin-bottom:0;">TopperGPT</h1>
+                <p style="color:#8b949e; font-size:12px;">UNIVERSITY RESEARCH PORTAL</p>
+                <hr style="border-color:#30363d;">
+                <p style="color:#4CAF50; font-weight:bold;">🎁 EXCLUSIVE: Get 15 FREE Credits!</p>
+            </div>
+        ''', unsafe_allow_html=True)
         if st.button("🔴 Continue with Google Account", use_container_width=True):
-            st.session_state.user_data = {"email": "verified.student@mu.edu", "credits": 15, "tier": "Free Starter", "referral_code": "TOP" + str(int(time.time()))[-4:], "ref_claimed": False}
+            st.session_state.user_data = {"email": "student@mu.edu", "credits": 15, "tier": "Free Starter", "referral_code": "TOP" + str(int(time.time()))[-4:], "ref_claimed": False}
             st.rerun()
     st.stop()
 
 if st.session_state.user_data is None:
     show_login_page()
 
-# --- 4. SIDEBAR (WALLET & 3-PACK REFILL) ---
+# --- 4. SIDEBAR (MOBILE TOUCH FRIENDLY) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
-    st.markdown(f'<div class="wallet-card"><p style="color: #eab308; font-size: 11px;">CURRENT BALANCE</p><p style="color: white; font-size: 28px; font-weight: 900;">{st.session_state.user_data["credits"]} 🔥</p></div>', unsafe_allow_html=True)
+    st.markdown(f'''
+        <div class="wallet-card">
+            <p style="color: #eab308; font-size: 11px; margin:0;">BALANCE</p>
+            <p style="color: white; font-size: 28px; font-weight: 900; margin:0;">{st.session_state.user_data["credits"]} 🔥</p>
+        </div>
+    ''', unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown('<div class="exam-special-tag">🔥 EXAM SPECIAL ACTIVE</div>', unsafe_allow_html=True)
     
-    # 💎 FULL 3-OPTION PAYMENT MAPPING (FIXED)
+    # 💎 FULL 3-OPTION PAYMENT MAPPING (FIXED & TOUCH-READY)
     payment_links = {
         "Weekly Sureshot (70 Credits) @ ₹59": "https://rzp.io/rzp/FmwE0Ms6",
         "Jugaad Pack (150 Credits) @ ₹99": "https://rzp.io/rzp/AWiyLxEi",
         "Monthly Pro (350 Credits) @ ₹149": "https://rzp.io/rzp/hXcR54E"
     }
     
-    plan_choice = st.radio("Select pack:", list(payment_links.keys()), key="razorpay_final_v102")
-    unique_link = f"{payment_links[plan_choice]}?v={int(time.time())}" 
-
-    st.markdown(f"""
-        <a href="{unique_link}" target="_blank" style="text-decoration: none;">
-            <div style="width: 100%; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: black; text-align: center; padding: 16px 0; border-radius: 12px; font-weight: bold; cursor: pointer;">
-                🚀 Buy: {plan_choice.split(' @ ')[0]}
+    plan_choice = st.radio("Select Pack:", list(payment_links.keys()), key="razorpay_mobile_v1")
+    
+    st.markdown(f'''
+        <a href="{payment_links[plan_choice]}" target="_blank" style="text-decoration: none;">
+            <div style="width: 100%; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: black; text-align: center; padding: 15px 0; border-radius: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+                🚀 Buy Credits
             </div>
         </a>
-    """, unsafe_allow_html=True)
+    ''', unsafe_allow_html=True)
 
-    if st.button("🔓 Secure Logout", use_container_width=True):
+    if st.button("🔓 Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
 
 # --- 5. MAIN TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-    "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
-    "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
+    "💬 PDF", "📊 Sylb", "📝 Eval", "🧠 Map", 
+    "🃏 Cards", "❓ PYQs", "🔍 Search", "🤝 Conn", "⚖️ Leg"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 with tab1:
