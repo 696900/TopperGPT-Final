@@ -504,17 +504,16 @@ with tab3:
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (V109 - BULLETPROOF) ---
+# --- TAB 4: CONCEPT MINDMAP ARCHITECT (V111 - FULL POWER UPDATE) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # Wallet Sync
-    current_bal = st.session_state.user_data.get('credits', 0) if st.session_state.user_data else 0
-
+    # Wallet Sync & UI Setup
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v109_final", placeholder="e.g. Laser Working")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v111_final", placeholder="e.g. Laser Working")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -523,33 +522,44 @@ with tab4:
 
     if st.button(f"🚀 Build High-Res Mindmap ({mm_cost} Credits)"):
         if mm_input:
-            # 🔥 CRITICAL: Calling the global function defined in Step 1
+            # 💎 REVENUE LOOP CHECK
             if use_credits(mm_cost):
-                with st.spinner("Generating HD Architecture..."):
+                with st.spinner("Generating HD Architecture with Vibrant Colors..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
+                            # Technical Context Extraction
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
                             context_res = qe.query(f"Extract key technical components for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
+                        # Prompt Engineering for Mermaid.js (Color-friendly)
                         prompt = f"""
-                        Create a Mermaid.js mindmap for: '{mm_input}'. {context}
-                        Rules: 1. Start with 'mindmap' 2. Root is 'root(({mm_input}))' 3. No special chars in nodes.
+                        Create a Mermaid.js mindmap for: '{mm_input}'.
+                        {context}
+                        Rules:
+                        1. Start code with 'mindmap'
+                        2. Root must be 'root(({mm_input}))'
+                        3. Use simple text for nodes. NO brackets or special chars.
+                        4. Keep it detailed but clean.
+                        Return ONLY the Mermaid code block.
                         """
                         
-                        # Direct call to Groq
+                        # Calling Groq for Fast Generation
                         res = groq_client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
                         mm_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
+                        
+                        # Save result
                         st.session_state.last_mm_code = mm_code
+                        st.toast(f"Success! {mm_cost} Credits deducted.")
                         st.rerun() 
                         
                     except Exception as e:
-                        # Refund on fail
+                        # Refund credits if logic fails
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
             else:
@@ -557,34 +567,57 @@ with tab4:
         else:
             st.warning("Concept ka naam toh dalo!")
 
-    # --- HD RENDER & DOWNLOAD ENGINE ---
+    # --- HD RENDER & COLOURFUL DISPLAY ENGINE ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
+        
+        # Rendering Mermaid in Dark-Theme with 'Forest' Colors
         html_code = f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        <div id="capture_area" style="background: white; padding: 40px; border-radius: 15px; display: inline-block; min-width: 800px; text-align: center;">
-            <div class="mermaid" style="font-size: 20px; color: black;">{st.session_state.last_mm_code}</div>
+        <div id="capture_area" style="background: #0d1117; padding: 50px; border-radius: 20px; display: inline-block; min-width: 850px; text-align: center; border: 2px solid #4CAF50;">
+            <div class="mermaid" style="font-size: 22px;">
+            {st.session_state.last_mm_code}
+            </div>
         </div>
         <br><br>
-        <button onclick="downloadHD()" style="background:#4CAF50; color:white; border:none; padding:15px 30px; border-radius:12px; cursor:pointer; font-weight:bold; font-size:18px;">
-            📥 Download HD Mindmap
+        <button onclick="downloadHD()" style="background:linear-gradient(135deg, #4CAF50 0%, #2e7d32 100%); color:white; border:none; padding:15px 35px; border-radius:12px; cursor:pointer; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);">
+            📥 Download Vibrant HD Mindmap (PNG)
         </button>
+        
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({{ startOnLoad: true, theme: 'neutral' }});
+            
+            // 'forest' theme restores the vibrant nodes you wanted
+            mermaid.initialize({{ 
+                startOnLoad: true, 
+                theme: 'forest', 
+                securityLevel: 'loose',
+                themeVariables: {{
+                    primaryColor: '#4CAF50',
+                    lineColor: '#4CAF50',
+                    textColor: '#ffffff',
+                    mainBkg: '#1c2128',
+                    nodeBorder: '#4CAF50'
+                }}
+            }});
+            
             window.downloadHD = function() {{
                 const area = document.querySelector("#capture_area");
-                html2canvas(area, {{ scale: 4, useCORS: true }}).then(canvas => {{
+                html2canvas(area, {{ 
+                    scale: 4, // Ultra HD Quality
+                    useCORS: true,
+                    backgroundColor: "#0d1117"
+                }}).then(canvas => {{
                     let link = document.createElement('a');
-                    link.download = 'TopperGPT_Mindmap.png';
-                    link.href = canvas.toDataURL("image/png");
+                    link.download = 'TopperGPT_Pro_Mindmap.png';
+                    link.href = canvas.toDataURL("image/png", 1.0);
                     link.click();
                 }});
             }}
         </script>
         """
-        components.html(html_code, height=900, scrolling=True)
+        components.html(html_code, height=1000, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
 with tab5:
