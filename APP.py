@@ -26,6 +26,15 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
+# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
+def use_credits(amount):
+    """Checks and deducts credits from session state."""
+    if "user_data" in st.session_state and st.session_state.user_data is not None:
+        current_credits = st.session_state.user_data.get('credits', 0)
+        if current_credits >= amount:
+            st.session_state.user_data['credits'] -= amount
+            return True
+    return False
 # --- 1. CONFIGURATION: PRO BALANCED MODE ---
 st.set_page_config(
     page_title="TopperGPT Pro", 
@@ -494,17 +503,18 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
+# --- TAB 4: CONCEPT MINDMAP ARCHITECT (V109 - BULLETPROOF) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
     
-    # Wallet Sync using Global Function
+    # Wallet Sync
     current_bal = st.session_state.user_data.get('credits', 0) if st.session_state.user_data else 0
 
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v102_fixed", placeholder="e.g. Laser Working")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v109_final", placeholder="e.g. Laser Working")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -513,44 +523,33 @@ with tab4:
 
     if st.button(f"🚀 Build High-Res Mindmap ({mm_cost} Credits)"):
         if mm_input:
-            # Revenue Loop Check
+            # 🔥 CRITICAL: Calling the global function defined in Step 1
             if use_credits(mm_cost):
                 with st.spinner("Generating HD Architecture..."):
                     try:
-                        # Logic: Groq for fast Mermaid code generation
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
-                            # Technical Context Extraction
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
                             context_res = qe.query(f"Extract key technical components for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        # Prompt Engineering for Mermaid.js
                         prompt = f"""
-                        Create a Mermaid.js mindmap for: '{mm_input}'.
-                        {context}
-                        Rules:
-                        1. Start code with 'mindmap'
-                        2. Root must be 'root(({mm_input}))'
-                        3. Simple text for nodes. NO brackets or special chars inside nodes.
-                        4. Return ONLY the Mermaid code block.
+                        Create a Mermaid.js mindmap for: '{mm_input}'. {context}
+                        Rules: 1. Start with 'mindmap' 2. Root is 'root(({mm_input}))' 3. No special chars in nodes.
                         """
                         
-                        # Calling Groq via Global Client
+                        # Direct call to Groq
                         res = groq_client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
                         mm_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
-                        
-                        # Save result and rerun to show display engine
                         st.session_state.last_mm_code = mm_code
-                        st.toast(f"Success! {mm_cost} Credits deducted.")
                         st.rerun() 
                         
                     except Exception as e:
-                        # Refund credits if logic fails (Founder Ethics)
+                        # Refund on fail
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
             else:
@@ -562,33 +561,24 @@ with tab4:
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
-        
-        # Rendering Mermaid in high resolution
         html_code = f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <div id="capture_area" style="background: white; padding: 40px; border-radius: 15px; display: inline-block; min-width: 800px; text-align: center;">
-            <div class="mermaid" style="font-size: 20px; color: black;">
-            {st.session_state.last_mm_code}
-            </div>
+            <div class="mermaid" style="font-size: 20px; color: black;">{st.session_state.last_mm_code}</div>
         </div>
         <br><br>
-        <button onclick="downloadHD()" style="background:#4CAF50; color:white; border:none; padding:15px 30px; border-radius:12px; cursor:pointer; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-            📥 Download HD Mindmap (Clear PNG)
+        <button onclick="downloadHD()" style="background:#4CAF50; color:white; border:none; padding:15px 30px; border-radius:12px; cursor:pointer; font-weight:bold; font-size:18px;">
+            📥 Download HD Mindmap
         </button>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({{ startOnLoad: true, theme: 'neutral', securityLevel: 'loose', suppressErrors: true }});
-            
+            mermaid.initialize({{ startOnLoad: true, theme: 'neutral' }});
             window.downloadHD = function() {{
                 const area = document.querySelector("#capture_area");
-                html2canvas(area, {{ 
-                    scale: 4, 
-                    useCORS: true,
-                    backgroundColor: "#ffffff"
-                }}).then(canvas => {{
+                html2canvas(area, {{ scale: 4, useCORS: true }}).then(canvas => {{
                     let link = document.createElement('a');
-                    link.download = 'TopperGPT_HD_Mindmap.png';
-                    link.href = canvas.toDataURL("image/png", 1.0);
+                    link.download = 'TopperGPT_Mindmap.png';
+                    link.href = canvas.toDataURL("image/png");
                     link.click();
                 }});
             }}
