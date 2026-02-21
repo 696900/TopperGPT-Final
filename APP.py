@@ -492,7 +492,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V124 - THE FINAL VIBRANT STABLE) ---
+# --- TAB 4: CONCEPT MINDMAP (V125 - VIBRANT RENDERER FIX) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Vibrant Exam Architect</h2>", unsafe_allow_html=True)
     
@@ -500,7 +500,7 @@ with tab4:
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v124", placeholder="e.g. DC Generator")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v125", placeholder="e.g. Quantum Computing")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -517,16 +517,16 @@ with tab4:
                             context_res = qe.query(f"Extract marks-oriented details for {mm_input}: Definition, Working, Components, and Applications.")
                             context = f"Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Strictly formatted to prevent Syntax Errors
+                        # Master Prompt for Exam Logic
                         prompt = f"""
                         Create a Mermaid flowchart for: '{mm_input}'. {context}
                         Rules:
                         1. Start with 'graph TD'.
                         2. Root is 'ROOT(({mm_input}))'.
                         3. Branches: 'DEF[Definition]', 'WORK[Working]', 'COMP[Components]', 'APP[Applications]'.
-                        4. Sub-nodes MUST connect like this: DEF --> D1[Point 1].
-                        5. NO special characters like &, !, :, or brackets inside nodes.
-                        6. Output ONLY the code block. NO markdown backticks (```).
+                        4. Sub-nodes connect like: DEF --> D1[Point 1].
+                        5. NO special characters inside nodes.
+                        6. Output ONLY code, NO markdown backticks.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -534,24 +534,21 @@ with tab4:
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
-                        # 🔥 DATA SANITIZATION: Clean extra AI text
+                        # Data Sanitization
                         raw_output = res.choices[0].message.content
                         clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
                         
                         if not clean_code.startswith("graph"):
                             clean_code = "graph TD\n" + clean_code
                             
-                        # Manual Vibrant Class Injection for Cinematic Look
+                        # Cinematic Styling
                         vibrant_styles = """
                         classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
                         classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
                         classDef workStyle fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
                         classDef compStyle fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
                         classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
-                        class DEF defStyle;
-                        class WORK workStyle;
-                        class COMP compStyle;
-                        class APP appStyle;
+                        class DEF defStyle; class WORK workStyle; class COMP compStyle; class APP appStyle;
                         """
                         
                         st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
@@ -559,33 +556,29 @@ with tab4:
                     except Exception as e:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
-
-    # --- 🎭 VIBRANT RESPONSIVE ENGINE (ZERO-CODE RENDERER) ---
-    if "last_mm_code" in st.session_state:
-        st.markdown("---")
-        import streamlit.components.v1 as components
-        
-        # HTML with Cinematic Styling & Mermaid Engine
-        html_code = f"""
-        <div id="capture_area" style="background:#0d1117; padding:25px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center; overflow:hidden;">
-            <div class="mermaid" style="width:100%; transition:transform 0.3s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-            {st.session_state.last_mm_code}
-            </div>
+# --- 🎭 THE RENDERER: NO MORE BLUE CODE (V126) ---
+if "last_mm_code" in st.session_state:
+    st.markdown("---")
+    import streamlit.components.v1 as components
+    
+    #     # Yahan double curly braces {{ }} use kiye hain taaki f-string JS ko na chhede
+    html_code = f"""
+    <div id="capture_area" style="background:#0d1117; padding:30px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center; overflow:hidden;">
+        <div class="mermaid" style="width:100%;">
+        {st.session_state.last_mm_code}
         </div>
-        <script type="module">
-            import mermaid from '[https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs](https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs)';
-            mermaid.initialize({{ 
-                startOnLoad: true, 
-                theme: 'dark',
-                securityLevel: 'loose',
-                flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis' }}
-            }});
-        </script>
-        """
-        components.html(html_code, height=650, scrolling=True)
-        
-        # Download Option
-        st.caption("Tip: Laptop par hover karne se zoom hoga. Mobile par pinch karein.")
+    </div>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({{ 
+            startOnLoad: true, 
+            theme: 'dark',
+            securityLevel: 'loose',
+            flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis' }}
+        }});
+    </script>
+    """
+    components.html(html_code, height=650, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
