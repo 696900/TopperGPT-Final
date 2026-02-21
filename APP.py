@@ -492,7 +492,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V122 - VIBRANT EXAM EDITION) ---
+# --- TAB 4: CONCEPT MINDMAP (V123 - VIBRANT & STABLE) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Vibrant Exam Architect</h2>", unsafe_allow_html=True)
     
@@ -500,7 +500,7 @@ with tab4:
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v122_vibrant", placeholder="e.g. Electric Motor")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v123", placeholder="e.g. DC Generator")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -509,7 +509,7 @@ with tab4:
     if st.button(f"🚀 Generate Vibrant Exam Map ({mm_cost} Credits)"):
         if mm_input:
             if use_credits(mm_cost):
-                with st.spinner("Designing Colourful Architecture..."):
+                with st.spinner("Designing High-Performance Architecture..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
@@ -517,18 +517,16 @@ with tab4:
                             context_res = qe.query(f"Extract marks-oriented details for {mm_input}: Definition, Working, Components, and Applications.")
                             context = f"Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Strictly for Exam-Marks with Colour Nodes
+                        # ✅ MASTER PROMPT: Strict Formatting to kill Syntax Errors
                         prompt = f"""
                         Create a Mermaid flowchart for: '{mm_input}'. {context}
                         Rules:
                         1. Start with 'graph TD'.
                         2. Root is 'ROOT(({mm_input}))'.
-                        3. Exactly 4 Main Branches: 'Definition', 'Working', 'Components', 'Applications'.
-                        4. Add 2-3 technical sub-points for each.
-                        5. IMPORTANT: NO special characters. Max 3 words per node.
-                        6. Assign Classes for Colours: 
-                           Assign class 'def' to Definition nodes, 'work' to Working, 'comp' to Components, 'app' to Applications.
-                        7. Output ONLY code, no markdown backticks.
+                        3. Branches: 'DEF[Definition]', 'WORK[Working]', 'COMP[Components]', 'APP[Applications]'.
+                        4. Sub-nodes MUST connect like this: DEF --> D1[Point 1].
+                        5. NO special characters like &, !, :, or brackets inside nodes.
+                        6. Output ONLY the code block. NO markdown backticks (```).
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -536,19 +534,27 @@ with tab4:
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
-                        clean_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
+                        # 🔥 DATA SANITIZATION: Removes backticks and extra text
+                        raw_output = res.choices[0].message.content
+                        clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
+                        
                         if not clean_code.startswith("graph"):
                             clean_code = "graph TD\n" + clean_code
                             
-                        # Manual Class Definition for Vibrant Colours
-                        class_defs = """
+                        # Manual Vibrant Class Injection
+                        vibrant_styles = """
                         classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
-                        classDef def fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
-                        classDef work fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
-                        classDef comp fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
-                        classDef app fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
+                        classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
+                        classDef workStyle fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
+                        classDef compStyle fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
+                        classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
+                        class DEF defStyle;
+                        class WORK workStyle;
+                        class COMP compStyle;
+                        class APP appStyle;
                         """
-                        st.session_state.last_mm_code = clean_code + "\n" + class_defs
+                        
+                        st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
                         st.rerun() 
                     except Exception as e:
                         st.session_state.user_data['credits'] += mm_cost
@@ -559,14 +565,15 @@ with tab4:
         st.markdown("---")
         import streamlit.components.v1 as components
         
+        # Adding Scale-on-Hover for Laptop and fit for Mobile
         html_code = f"""
-        <div id="capture_area" style="background:#0d1117; padding:25px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center;">
-            <pre class="mermaid" style="background:transparent; width:100%;">
+        <div id="capture_area" style="background:#0d1117; padding:25px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center; overflow:hidden;">
+            <pre class="mermaid" style="background:transparent; width:100%; transition:transform 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
             {st.session_state.last_mm_code}
             </pre>
         </div>
         <script type="module">
-            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+            import mermaid from '[https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs](https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs)';
             mermaid.initialize({{ 
                 startOnLoad: true, 
                 theme: 'dark',
@@ -574,7 +581,6 @@ with tab4:
                 flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis' }}
             }});
         </script>
-        <p style="text-align:center; color:#8b949e; font-size:11px; margin-top:10px;">Vibe: Cinematic Topper | Detail: Exam-Grade</p>
         """
         components.html(html_code, height=650, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
