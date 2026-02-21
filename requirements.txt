@@ -15,7 +15,6 @@ PyMuPDF
 requests
 Pillow
 llama-index
-llama-index-llms-groq
 llama-index-embeddings-huggingface
 llama-index-embeddings-gemini
 google-generativeai

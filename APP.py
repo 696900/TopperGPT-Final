@@ -33,8 +33,12 @@ if api_key:
     from llama_index.llms.gemini import Gemini
     from llama_index.embeddings.gemini import GeminiEmbedding
     from llama_index.core import Settings
-    
-    # Force LlamaIndex to use the REST transport (Bypasses v1beta gRPC errors)
+    import google.generativeai as genai
+
+    # Pehle SDK configure karo
+    genai.configure(api_key=api_key)
+
+    # ✅ FIX: Model naming must be strictly 'models/...'
     Settings.llm = Gemini(
         model_name="models/gemini-1.5-flash", 
         api_key=api_key,
@@ -45,10 +49,10 @@ if api_key:
         api_key=api_key,
         transport="rest"
     )
-    # Chunking size optimized for Engineering PDFs (As per your Pro Advice)
     Settings.chunk_size = 512
     Settings.chunk_overlap = 50
 
+# Groq Client setup
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
 def use_credits(amount):
