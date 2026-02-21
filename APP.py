@@ -492,7 +492,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V118 - PROFESSIONAL TREE EDITION) ---
+# --- TAB 4: CONCEPT MINDMAP (V119 - ULTRA-CLEAN PRO) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Professional Concept Architect</h2>", unsafe_allow_html=True)
     
@@ -500,7 +500,7 @@ with tab4:
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v118", placeholder="e.g. Quantum Computing")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v119", placeholder="e.g. Quantum Computing")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -514,19 +514,20 @@ with tab4:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
-                            context_res = qe.query(f"Extract deep sub-topics for {mm_input}.")
+                            context_res = qe.query(f"Extract main branches and details for {mm_input}.")
                             context = f"Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Strictly for clean, professional tree-style mindmap
+                        # ✅ MASTER PROMPT: Strictly for clean, professional Left-to-Right layout
                         prompt = f"""
-                        Create a Mermaid.js mindmap for: '{mm_input}'. {context}
+                        Create a Mermaid flowchart for: '{mm_input}'. {context}
                         Strict Rules for Professional Look:
-                        1. Start with the word 'mindmap' alone on the first line.
-                        2. Root MUST be: 'root(({mm_input}))'.
-                        3. Use EXACTLY 2 spaces for each level of indentation.
-                        4. NO special characters or extra punctuation inside node names.
-                        5. Use 5-6 main branches with 2-3 detailed sub-nodes each.
-                        6. Output ONLY the code. NO markdown backticks.
+                        1. Start with 'graph LR' (Left to Right).
+                        2. The root must be 'ROOT(({mm_input}))'.
+                        3. Root should connect to 5 main CATEGORIES (C1, C2, C3...).
+                        4. Each Category connects to 3 detailed SUB-TOPICS (S1, S2, S3...).
+                        5. IMPORTANT: Use ONLY alphanumeric characters. NO symbols like & ! - : inside nodes.
+                        6. Ensure it is very detailed but neatly structured.
+                        7. Output ONLY the code, NO markdown backticks.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -535,8 +536,8 @@ with tab4:
                         )
                         
                         clean_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
-                        if "mindmap" not in clean_code[:10]:
-                            clean_code = "mindmap\n" + clean_code
+                        if not clean_code.startswith("graph"):
+                            clean_code = "graph LR\n" + clean_code
                             
                         st.session_state.last_mm_code = clean_code
                         st.rerun() 
@@ -549,9 +550,8 @@ with tab4:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # UI Fix: Using a cleaner 'base' theme with custom colors for professional look
         html_code = f"""
-        <div id="capture_area" style="background:#0d1117; padding:40px; border-radius:15px; border:1px solid #4CAF50; display:flex; justify-content:center;">
+        <div id="capture_area" style="background:#0d1117; padding:40px; border-radius:15px; border:1px solid #4CAF50; overflow-x:auto;">
             <pre class="mermaid" style="background:transparent; text-align:center;">
             {st.session_state.last_mm_code}
             </pre>
@@ -562,6 +562,11 @@ with tab4:
                 startOnLoad: true, 
                 theme: 'base',
                 securityLevel: 'loose',
+                flowchart: {{ 
+                    useMaxWidth: false,
+                    htmlLabels: true,
+                    curve: 'stepAfter'
+                }},
                 themeVariables: {{
                     fontSize: '18px',
                     primaryColor: '#4CAF50',
@@ -570,13 +575,13 @@ with tab4:
                     lineColor: '#eab308',
                     nodeBkg: '#1c2128',
                     mainBkg: '#1c2128',
-                    textColor: '#fff',
-                    fontFamily: 'Inter, sans-serif'
+                    textColor: '#fff'
                 }}
             }});
         </script>
+        <p style="text-align:center; color:#8b949e; font-size:12px; margin-top:10px;">Engineering Standard: Left-to-Right Architecture View</p>
         """
-        components.html(html_code, height=650, scrolling=True)
+        components.html(html_code, height=700, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
