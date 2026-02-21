@@ -413,110 +413,88 @@ with tab2:
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
-# --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V100) ---
-# --- TAB 3: TOPPERGPT PRO EVALUATOR (FINAL STABLE VERSION) ---
+# --- TAB 3: TOPPERGPT PRO EVALUATOR (V118 - SDK STABLE) ---
 with tab3:
-    st.markdown(EVAL_CSS, unsafe_allow_html=True)
+    st.markdown(EVAL_CSS, unsafe_allow_html=True) # Fixed NameError
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator</h2>", unsafe_allow_html=True)
     
-    # Master Keys from Secrets
+    # Master Keys
     api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
 
-    # Image Uploader
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="stable_eval_final")
+    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="stable_v118")
     
     if ans_file:
-        # Load and display image
         img_input = Image.open(ans_file).convert("RGB")
         st.image(img_input, caption="Document Loaded", width=400)
         
-        # 💰 REVENUE LOOP: Cost per evaluation
         eval_cost = 5
 
         if st.button(f"🚀 Start Professional Marking ({eval_cost} Credits)"):
-            # Check if user has enough credits
+            # Revenue Loop Integration
             if use_credits(eval_cost):
-                with st.spinner("AI Moderator is reading your handwriting..."):
+                with st.spinner("Moderator is scanning handwriting..."):
                     try:
-                        # 🛠️ STEP 1: CONVERT IMAGE TO BASE64
-                        import io, base64
-                        buf = io.BytesIO()
-                        img_input.save(buf, format="JPEG")
-                        img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+                        # 🛠️ STEP 1: SDK BASED OCR (No more 404/Not Found Errors)
+                        genai.configure(api_key=api_key_gemini)
+                        # Using 1.5-flash-latest for maximum stability across versions
+                        model = genai.GenerativeModel('gemini-1.5-flash-latest')
                         
-                        # 🛠️ STEP 2: STABLE OCR (Using v1 Endpoint for 100% Stability)
-                        ocr_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key_gemini}"
+                        response_ocr = model.generate_content([
+                            "Transcribe the handwritten text from this image exactly. Do not evaluate yet.",
+                            img_input
+                        ])
                         
-                        ocr_payload = {
-                            "contents": [{
-                                "parts": [
-                                    {"text": "Transcribe this engineering answer sheet exactly. Capture all text clearly."},
-                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
-                                ]
-                            }]
-                        }
-                        
-                        ocr_res = requests.post(ocr_url, json=ocr_payload, timeout=30)
-                        
-                        if ocr_res.status_code != 200:
-                            # If Gemini fails, refund credits and show error
-                            error_info = ocr_res.json().get('error', {}).get('message', 'API connection error')
-                            st.error(f"Moderator Busy: {error_info}")
-                            st.session_state.user_data['credits'] += eval_cost # Refund logic
+                        if not response_ocr.text:
+                            st.error("Engine busy. 60 seconds ruko bhai.")
+                            st.session_state.user_data['credits'] += eval_cost # Refund
                         else:
-                            extracted_text = ocr_res.json()['candidates'][0]['content']['parts'][0]['text']
+                            extracted_text = response_ocr.text
 
-                            # 🛠️ STEP 3: PROFESSIONAL EVALUATION (Using Groq)
+                            # 🛠️ STEP 2: PROFESSIONAL MARKING (GROQ)
                             marking_prompt = f"""
-                            Act as a Senior Board Examiner. Evaluate the following student answer:
+                            Evaluate this engineering answer sheet as a Board Professor.
                             TRANSCRIPTION: {extracted_text}
-                            
-                            Return a JSON object ONLY:
+                            Return ONLY JSON:
                             {{
-                                "question": "The question being answered",
+                                "question": "Question text",
                                 "marks": 8,
-                                "feedback": "Detailed academic feedback in 2 lines",
-                                "improvement": "3 tips to get full marks"
+                                "feedback": "Brief feedback",
+                                "improvement": "3 tips to score 10/10"
                             }}
                             """
                             
-                            client = Groq(api_key=api_key_groq)
-                            response = client.chat.completions.create(
+                            client_g = Groq(api_key=api_key_groq)
+                            eval_res = client_g.chat.completions.create(
                                 model="llama-3.3-70b-versatile",
                                 messages=[{"role": "user", "content": marking_prompt}],
                                 response_format={"type": "json_object"}
                             )
                             
-                            # Save result to session state
-                            st.session_state.eval_result = json.loads(response.choices[0].message.content)
-                            st.toast(f"Evaluation Complete! {eval_cost} Credits deducted.")
+                            st.session_state.eval_result = json.loads(eval_res.choices[0].message.content)
+                            st.toast("Evaluation Complete! 🔥")
                             st.rerun()
 
                     except Exception as e:
-                        st.session_state.user_data['credits'] += eval_cost # Refund
-                        st.error(f"Logic Error: {str(e)}")
+                        st.session_state.user_data['credits'] += eval_cost
+                        st.error(f"Moderator Overload: 60s ruko bhai. (Error: {str(e)})")
             else:
                 st.error("Bhai credits khatam! Sidebar se pack buy karo.")
 
-    # --- PROFESSIONAL DISPLAY (Always shows the last result) ---
+    # --- RESULTS DISPLAY ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f'''
-                <div class="eval-card" style="text-align:center;">
-                    <div class="score-circle">{res.get("marks", 0)}/10</div>
-                    <p style="color:#4CAF50; font-weight:bold; margin-top:10px;">BOARD SCORE</p>
-                </div>
-            ''', unsafe_allow_html=True)
+            # Cinematic score circle fixed
+            st.markdown(f'''<div class="eval-card"><div class="score-circle">{res.get("marks", 0)}/10</div></div>''', unsafe_allow_html=True)
         with col2:
-            st.info(f"**Question Identified:**\n{res.get('question', 'N/A')}")
-            st.success(f"**Professor's Feedback:**\n{res.get('feedback', 'N/A')}")
-            st.warning(f"**How to improve:**\n{res.get('improvement', 'N/A')}")
+            st.info(f"**Question Identified:** {res.get('question', 'N/A')}")
+            st.success(f"**Feedback:** {res.get('feedback', 'N/A')}")
+            st.warning(f"**Improvement:** {res.get('improvement', 'N/A')}")
         
-        if st.button("🔄 Scan New Answer"):
+        if st.button("🔄 Try Another Sheet"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
