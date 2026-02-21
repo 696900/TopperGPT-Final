@@ -26,7 +26,7 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 🛠️ MASTER AI SETUP (STABLE GROQ-GEMINI HYBRID) ---
+# --- 🛠️ MASTER AI SETUP (STABLE HYBRID ENGINE) ---
 api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 api_key_groq = st.secrets.get("GROQ_API_KEY")
 
@@ -35,23 +35,18 @@ if api_key_gemini and api_key_groq:
     from llama_index.embeddings.gemini import GeminiEmbedding
     from llama_index.core import Settings
     
-    # ✅ FIX: LLM ke liye Groq use karo (Gemini LLM crash kar raha hai)
-    Settings.llm = LlamaGroq(
-        model="llama-3.3-70b-versatile", 
-        api_key=api_key_groq
-    )
+    # Brain (LLM) shifted to Groq to avoid Gemini v1beta crashes
+    Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
     
-    # ✅ FIX: Gemini ko sirf Embedding ke liye rakho (transport="rest" ke sath)
+    # Search (Embedding) kept on Gemini stable endpoint
     Settings.embed_model = GeminiEmbedding(
         model_name="models/text-embedding-004", 
         api_key=api_key_gemini,
         transport="rest"
     )
-    
     Settings.chunk_size = 512
     Settings.chunk_overlap = 50
 
-# Native Groq Client for other tabs
 groq_client = Groq(api_key=api_key_groq)
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
 def use_credits(amount):
@@ -497,7 +492,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CINEMATIC COLOURFUL MINDMAP (V113 - REVENUE SYNCED) ---
+# --- TAB 4: CINEMATIC COLOURFUL MINDMAP (V114 - SYNTAX SECURE) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Vibrant Concept Architect</h2>", unsafe_allow_html=True)
     
@@ -506,7 +501,7 @@ with tab4:
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v113_vibrant", placeholder="e.g. Laser Action")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v114_vibrant", placeholder="e.g. Laser Action")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -525,14 +520,16 @@ with tab4:
                             context_res = qe.query(f"Extract main branches for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
-                        # Prompt Optimized for Colour & Fit
+                        # ✅ PROMPT: Strict Syntax Rules to avoid "Syntax Error in Text"
                         prompt = f"""
                         Create a Mermaid.js mindmap for: '{mm_input}'. {context}
                         Rules:
-                        1. Start with 'mindmap'
-                        2. Root is 'root(({mm_input}))'
-                        3. Limit to 4-5 main branches so it fits the screen.
-                        4. NO special characters.
+                        1. Start with the word 'mindmap' alone on the first line.
+                        2. Use 'root(({mm_input}))' for the central node.
+                        3. Limit to 5 main branches.
+                        4. IMPORTANT: Do NOT use special characters like (&, !, ?, -, :) inside brackets.
+                        5. Use ONLY simple alphanumeric text for nodes.
+                        6. Do NOT include any markdown code blocks (```) in the output.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -540,36 +537,40 @@ with tab4:
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
-                        st.session_state.last_mm_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
+                        # Cleanup logic to ensure zero markdown noise
+                        clean_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
+                        if not clean_code.startswith("mindmap"):
+                            clean_code = "mindmap\n" + clean_code
+                            
+                        st.session_state.last_mm_code = clean_code
                         st.toast(f"Success! {mm_cost} Credits Deducted.")
                         st.rerun() 
                         
                     except Exception as e:
-                        # Refund on error
-                        st.session_state.user_data['credits'] += mm_cost
+                        st.session_state.user_data['credits'] += mm_cost # Refund
                         st.error(f"Logic Error: {e}")
             else:
                 st.error("Credits low hain bhai! Sidebar se top-up kar.")
 
-    # --- 🎭 VIBRANT RENDERING ENGINE (Screen-Fit & Colourful) ---
+    # --- 🎭 VIBRANT RENDERING ENGINE ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # HTML with Responsive Container
+        # HTML with Responsive Container & HD Canvas
         html_code = f"""
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script src="[https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js](https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js)"></script>
         <div id="capture_area" style="
             background: #0d1117; 
-            padding: 20px; 
+            padding: 40px; 
             border-radius: 20px; 
             border: 2px solid #4CAF50;
-            overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
+            min-height: 400px;
         ">
-            <div class="mermaid" style="width: 100%; max-width: 800px;">
+            <div class="mermaid" style="width: 100%; text-align: center;">
             {st.session_state.last_mm_code}
             </div>
         </div>
@@ -577,29 +578,35 @@ with tab4:
         <button onclick="downloadHD()" style="
             width: 100%; background: #4CAF50; color: white; border: none; 
             padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(76,175,80,0.3);
         ">
-            📥 Download Vibrant Mindmap (PNG)
+            📥 Download HD Mindmap (PNG)
         </button>
         
         <script type="module">
-            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+            import mermaid from '[https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs](https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs)';
             
             mermaid.initialize({{ 
                 startOnLoad: true, 
                 theme: 'forest', 
                 securityLevel: 'loose',
                 themeVariables: {{
-                    fontSize: '20px',
+                    fontSize: '22px',
                     primaryColor: '#4CAF50',
                     nodeBorder: '#4CAF50',
                     mainBkg: '#1c2128',
-                    textColor: '#fff'
+                    textColor: '#fff',
+                    lineColor: '#4CAF50'
                 }}
             }});
             
             window.downloadHD = function() {{
                 const area = document.querySelector("#capture_area");
-                html2canvas(area, {{ scale: 3, backgroundColor: "#0d1117" }}).then(canvas => {{
+                html2canvas(area, {{ 
+                    scale: 3, 
+                    backgroundColor: "#0d1117",
+                    useCORS: true 
+                }}).then(canvas => {{
                     let link = document.createElement('a');
                     link.download = 'TopperGPT_Vibrant_Map.png';
                     link.href = canvas.toDataURL("image/png");
