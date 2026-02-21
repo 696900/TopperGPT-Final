@@ -779,40 +779,35 @@ with tab6:
             st.rerun()
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
 # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
-# --- TAB 7: TOPIC RESEARCH (FULL PRECISE VERSION) ---
+# --- TAB 7: TOPIC RESEARCH (FIXED FLOWCHART & SLEEK ROADMAP) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
     st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
     
-    # Monetization
     search_cost = 3
     roadmap_cost = 2 
     st.info(f"🚀 Premium Analysis: **{search_cost} Credits** | AI Roadmap: **{roadmap_cost} Credits**")
 
-    # Persistent State Maintenance
-    if "research_data" not in st.session_state:
-        st.session_state.research_data = None
-    if "research_query" not in st.session_state:
-        st.session_state.research_query = ""
+    if "research_data" not in st.session_state: st.session_state.research_data = None
+    if "research_query" not in st.session_state: st.session_state.research_query = ""
 
-    # User Input Fields
     col_q, col_d = st.columns([0.7, 0.3])
     query = col_q.text_input("Enter Engineering Topic (e.g. Transformer):", key="search_final_absolute_v1")
     exam_date = col_d.date_input("Target Exam Date", key="roadmap_date_v1")
     
-    # 1. DEEP RESEARCH EXECUTION BLOCK
     if st.button("Deep Research", key="btn_absolute_v1") and query:
         if st.session_state.user_data['credits'] >= search_cost:
-            with st.spinner(f"Analyzing '{query}' for University Exams..."):
+            with st.spinner(f"Analyzing '{query}'..."):
+                # Updated Prompt: Flowchart ke liye Mermaid code mangwaya hai jo 100% dikhega
                 prompt = f"""
                 Act as an Engineering Professor. Provide a comprehensive report for: '{query}'.
-                Use these markers exactly:
-                [1_DEF] for a technical definition.
+                Use these markers:
+                [1_DEF] for definition.
                 [2_KEY] for 7-10 technical keywords.
-                [3_CXP] for detailed technical breakdown/working.
-                [4_SMP] for a simple 2-line explanation.
-                [5_DOT] for ONLY Graphviz DOT code (digraph G {{...}}) showing its architecture.
-                [6_PYQ] for at least 15 REAL university exam questions (2m, 5m, 10m mixed).
+                [3_CXP] for working.
+                [4_SMP] for simple explanation.
+                [5_MER] for Mermaid Diagram code (graph TD...). No brackets inside nodes.
+                [6_PYQ] for 15 REAL PYQs.
                 """
                 try:
                     res = groq_client.chat.completions.create(
@@ -822,15 +817,9 @@ with tab7:
                     st.session_state.research_data = res.choices[0].message.content
                     st.session_state.research_query = query
                     st.session_state.user_data['credits'] -= search_cost 
-                    st.toast(f"Success! {search_cost} Credits deducted.")
-                    time.sleep(1)
                     st.rerun()
-                except Exception as e:
-                    st.error(f"System Busy. Error: {e}")
-        else:
-            st.error(f"Insufficient Credits! Need {search_cost} credits.")
+                except Exception as e: st.error(f"Error: {e}")
 
-    # 2. DATA RENDERING BLOCK (The visual part you loved)
     if st.session_state.research_data:
         out = st.session_state.research_data
         q_name = st.session_state.research_query
@@ -841,65 +830,61 @@ with tab7:
                 if len(parts) < 2: return "Data missing."
                 content = parts[1]
                 if m2 and m2 in content: content = content.split(m2)[0]
-                return content.strip().replace("```dot", "").replace("```", "")
+                return content.strip().replace("```mermaid", "").replace("```", "")
             except: return "Section error."
 
         st.markdown(f"## 📘 Technical Report: {q_name}")
         st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write(f"**2. Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
-        with col2:
-            st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_DOT]')}")
+        c1, c2 = st.columns(2)
+        with c1: st.write(f"**2. Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
+        with c2: st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
         
-        st.warning(f"**3. Technical Breakdown (Working):**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
+        st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
 
-        # Graphviz Section
+        # --- FIXED FLOWCHART SECTION ---
         st.markdown("---")
         st.markdown("### 📊 5. Architecture Flowchart")
-        dot_code = get_sec('[5_DOT]', '[6_PYQ]')
-        if "digraph" in dot_code:
-            try: st.graphviz_chart(dot_code, use_container_width=True)
-            except: st.code(dot_code, language="dot")
+        mer_code = get_sec('[5_MER]', '[6_PYQ]')
+        if "graph" in mer_code:
+            from streamlit_mermaid import st_mermaid
+            st_mermaid(mer_code, height="400px") # Mermaid use kiya hai taaki image ki tarah display ho
+        else: st.info("Flowchart code generating...")
         
         st.markdown("---")
         st.markdown("### ❓ 6. Expected Exam Questions (15+ PYQs)")
         st.write(get_sec('[6_PYQ]'))
 
-        # 3. VISUAL ROADMAP BLOCK
+        # --- SLEEK VISUAL ROADMAP ---
         st.markdown("---")
-        st.markdown("### 📅 AI Study Roadmap")
+        st.markdown("### 📅 Study Strategy")
         days_left = (exam_date - datetime.now().date()).days
         
-        if st.button(f"Generate Visual Plan ({roadmap_cost} Credits)"):
+        if st.button(f"Generate Plan ({roadmap_cost} Credits)"):
             if st.session_state.user_data['credits'] >= roadmap_cost:
-                if days_left <= 0:
-                    st.error("Bhai valid date choose kar!")
-                else:
-                    with st.spinner("AI is calculating success path..."):
-                        roadmap_prompt = f"Create a Day-by-Day study plan for topic: {q_name}. Days left: {days_left}. Use 'Day X:' format."
-                        rm_res = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[{"role": "user", "content": roadmap_prompt}]
-                        )
-                        st.session_state.user_data['credits'] -= roadmap_cost
-                        
-                        st.success(f"🎯 Roadmap for {days_left} Days Generated!")
-                        roadmap_text = rm_res.choices[0].message.content
-                        days_data = roadmap_text.split("Day")
-                        
-                        for day in days_data:
-                            if day.strip() and ":" in day:
-                                with st.container():
-                                    d_num = day.split(':')[0].strip()
-                                    d_text = day.split(':', 1)[1].strip()
-                                    st.markdown(f"""
-                                        <div style="background: #161b22; padding: 15px; border-radius: 12px; border-left: 5px solid #4CAF50; margin-bottom: 10px; border: 1px solid #30363d;">
-                                            <p style="color: #4CAF50; font-weight: bold; margin:0; font-size: 14px;">📅 DAY {d_num}</p>
-                                            <p style="color: #e6edf3; margin-top: 5px; font-size: 15px;">{d_text}</p>
-                                        </div>
-                                    """, unsafe_allow_html=True)
+                with st.spinner("AI Planning..."):
+                    rm_prompt = f"Topic: {q_name}. Days: {days_left}. Give daily plan in 'Day X: [Action]' format."
+                    rm_res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": rm_prompt}]
+                    )
+                    st.session_state.user_data['credits'] -= roadmap_cost
+                    
+                    st.success(f"🎯 Roadmap for {days_left} Days")
+                    roadmap_text = rm_res.choices[0].message.content
+                    days_data = roadmap_text.split("Day")
+                    
+                    # Sleek Flex Layout for Roadmap
+                    for day in days_data:
+                        if day.strip() and ":" in day:
+                            d_num, d_text = day.split(':', 1)
+                            st.markdown(f"""
+                                <div style="background: #1a1c23; padding: 12px; border-radius: 8px; border-left: 4px solid #4CAF50; margin-bottom: 8px;">
+                                    <span style="color: #4CAF50; font-weight: bold;">DAY {d_num.strip()}</span>: 
+                                    <span style="color: #e6edf3;">{d_text.strip()}</span>
+                                </div>
+                            """, unsafe_allow_html=True)
+            else: st.error("Credits low hain!")
 
         if st.button("Clear Research"):
             st.session_state.research_data = None
