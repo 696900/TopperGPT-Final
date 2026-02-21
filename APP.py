@@ -180,12 +180,10 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: TOPPERGPT CHAT ENGINE (V121 - NO CRASH) ---
-# --- TAB 1: TOPPERGPT CHAT ENGINE (V122 - ENDPOINT & NAMING FIXED) ---
+# --- TAB 1: TOPPERGPT CHAT ENGINE (V123 - UNIVERSAL STABLE) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat Engine</h2>", unsafe_allow_html=True)
     
-    # 🔑 Global Keys & Model Setup
     from llama_index.llms.gemini import Gemini
     from llama_index.embeddings.gemini import GeminiEmbedding
     from llama_index.core import Settings, VectorStoreIndex, Document
@@ -193,18 +191,21 @@ with tab1:
 
     api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
+    # ✅ FIX 1: Naming & Versioning Loop (Prevents 404/Invalid Name errors)
     if api_key_to_use:
         try:
-            # ✅ FIX: Prefix hata diya taaki LlamaIndex confuse na ho
+            # First try with 'models/' prefix (Standard for v1)
+            Settings.llm = Gemini(model_name="models/gemini-1.5-flash", api_key=api_key_to_use)
+            Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_to_use)
+        except:
+            # Fallback for older SDK versions
             Settings.llm = Gemini(model_name="gemini-1.5-flash", api_key=api_key_to_use)
             Settings.embed_model = GeminiEmbedding(model_name="text-embedding-004", api_key=api_key_to_use)
-        except Exception as e:
-            st.error(f"AI Setup Error: {e}")
 
     # --- 📂 STEP 1: PDF INDEXING ---
     st.markdown("### 📂 Step 1: Upload Exam Material (PDF)")
     up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="pdf_v122")
+    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="pdf_v123")
     
     if uploaded_file and btn_col.button("🚀 Index for Exam", use_container_width=True):
         with st.spinner("Decoding Technical PDF..."):
@@ -216,39 +217,41 @@ with tab1:
                     text = page.get_text().strip() or f"Diagram Content P{i+1}"
                     documents.append(Document(text=text, metadata={"page_label": str(i+1)}))
                 
-                # Re-verify settings before indexing
+                # Create index with global settings
                 st.session_state.current_index = VectorStoreIndex.from_documents(documents)
-                st.success("✅ Ready! PDF scan ho gaya.")
+                st.success("✅ System Ready! Ab sawaal pucho.")
                 st.rerun()
             except Exception as e:
-                st.error(f"Indexing failed: {e}")
+                # Specific fix for v1beta errors
+                st.error(f"Indexing Error: {str(e)}")
+                st.info("💡 Tip: Streamlit Reboot maaro, settings update ho jayengi.")
 
     st.divider()
 
-    # --- 💬 STEP 2: CHAT INTERFACE ---
+    # --- 💬 STEP 2: STABLE CHAT INTERFACE ---
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
     if st.session_state.get("current_index"):
-        if user_query := st.chat_input("Ex: Explain this formula in Hinglish"):
-            if use_credits(1): # Credit loop active
+        if user_query := st.chat_input("Ex: Explain the formula on Page 5"):
+            if use_credits(1): # Credit loop sync
                 st.session_state.chat_history.append({"role": "user", "content": user_query})
                 with st.chat_message("user"): st.markdown(user_query)
 
                 with st.chat_message("assistant"):
-                    with st.spinner("Topper AI thinking..."):
+                    with st.spinner("Searching Textbook..."):
                         try:
-                            # Direct query engine
+                            # Final Query Logic
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
-                            res = qe.query(f"Answer as TopperGPT in Hinglish: {user_query}")
+                            res = qe.query(f"Answer in simple Hinglish: {user_query}")
                             
                             st.markdown(res.response)
                             st.session_state.chat_history.append({"role": "assistant", "content": res.response})
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Engine busy: {e}")
+                            st.error(f"Chat Engine busy: {e}")
                             st.session_state.user_data['credits'] += 1 # Refund
             else:
                 st.error("Low Credits! Top-up karle bhai.")
