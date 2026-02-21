@@ -708,7 +708,7 @@ with tab5:
             st.session_state.flash_cards_list = None
             st.rerun()
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
-# --- TAB 6: UNIVERSITY VERIFIED PYQS (FIXED OUTPUT) ---
+# --- TAB 6: UNIVERSITY VERIFIED PYQS (V114 - REVENUE SYNCED) ---
 with tab6:
     st.subheader("❓ University Previous Year Questions")
     
@@ -729,9 +729,13 @@ with tab6:
 
     subj_name = st.text_input("Enter Subject Name:", key="pyq_sub_v2")
 
-    if st.button("🔍 Fetch Important PYQs"):
+    # 💰 Cost for University Research
+    pyq_cost = 1
+
+    if st.button(f"🔍 Fetch Important PYQs ({pyq_cost} Credit)"):
         if subj_name:
-            if st.session_state.user_data['credits'] >= 1:
+            # --- START REVENUE LOOP ---
+            if use_credits(pyq_cost):
                 with st.spinner(f"Fetching {subj_name} Question Bank..."):
                     prompt = f"Act as a Paper Setter for {univ}. Provide 5 Repeated PYQs and 2 Expected questions for {subj_name} ({branch}, {semester}). Format: Clear and Professional."
                     
@@ -741,24 +745,23 @@ with tab6:
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
-                        # SAVE TO SESSION STATE FIRST
+                        # SAVE TO SESSION STATE
                         st.session_state.pyq_result = res.choices[0].message.content
                         st.session_state.pyq_subject_last = subj_name
                         
-                        # DEDUCT CREDIT
-                        st.session_state.user_data['credits'] -= 1
-                        
-                        # NOW RERUN
+                        st.toast(f"Success! {pyq_cost} Credit deducted.")
                         st.rerun()
 
                     except Exception as e:
+                        # Refund on error
+                        st.session_state.user_data['credits'] += pyq_cost
                         st.error(f"API Error: {e}")
             else:
                 st.error("Low Balance! Sidebar se top-up karo.")
         else:
             st.warning("Subject name dalo bhai.")
 
-    # DISPLAY LOGIC (Rerun ke baad yahan se dikhega)
+    # DISPLAY LOGIC
     if st.session_state.pyq_result:
         st.markdown("---")
         st.success(f"Result for {st.session_state.pyq_subject_last}")
@@ -767,10 +770,11 @@ with tab6:
         st.download_button(
             label="📥 Download This Bank",
             data=st.session_state.pyq_result,
-            file_name=f"{st.session_state.pyq_subject_last}_PYQs.txt"
+            file_name=f"{st.session_state.pyq_subject_last}_PYQs.txt",
+            use_container_width=True
         )
         
-        if st.button("Clear Results"):
+        if st.button("🗑️ Clear Results"):
             st.session_state.pyq_result = None
             st.rerun()
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
