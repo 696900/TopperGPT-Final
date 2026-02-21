@@ -180,10 +180,11 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: TOPPERGPT CHAT ENGINE (V123 - UNIVERSAL STABLE) ---
+# --- TAB 1: TOPPERGPT CHAT ENGINE (V124 - ZERO ERROR EDITION) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat Engine</h2>", unsafe_allow_html=True)
     
+    # 📦 LlamaIndex & Google AI Config (Locked for Stability)
     from llama_index.llms.gemini import Gemini
     from llama_index.embeddings.gemini import GeminiEmbedding
     from llama_index.core import Settings, VectorStoreIndex, Document
@@ -191,59 +192,67 @@ with tab1:
 
     api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
-    # ✅ FIX 1: Naming & Versioning Loop (Prevents 404/Invalid Name errors)
     if api_key_to_use:
         try:
-            # First try with 'models/' prefix (Standard for v1)
-            Settings.llm = Gemini(model_name="models/gemini-1.5-flash", api_key=api_key_to_use)
-            Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_to_use)
-        except:
-            # Fallback for older SDK versions
-            Settings.llm = Gemini(model_name="gemini-1.5-flash", api_key=api_key_to_use)
-            Settings.embed_model = GeminiEmbedding(model_name="text-embedding-004", api_key=api_key_to_use)
+            # ✅ FIX: Explicitly setting the stable v1 models to avoid 404/v1beta errors
+            #
+            Settings.llm = Gemini(
+                model_name="models/gemini-1.5-flash", 
+                api_key=api_key_to_use,
+                temperature=0.3
+            )
+            Settings.embed_model = GeminiEmbedding(
+                model_name="models/text-embedding-004", 
+                api_key=api_key_to_use
+            )
+        except Exception as e:
+            st.error(f"AI Engine Heatup: {e}")
 
-    # --- 📂 STEP 1: PDF INDEXING ---
+    # --- 📂 STEP 1: INDEXING ---
     st.markdown("### 📂 Step 1: Upload Exam Material (PDF)")
     up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="pdf_v123")
+    uploaded_file = up_col.file_uploader("Upload Chapter PDF", type="pdf", key="pdf_v124")
     
     if uploaded_file and btn_col.button("🚀 Index for Exam", use_container_width=True):
-        with st.spinner("Decoding Technical PDF..."):
+        with st.spinner("Decoding PDF..."):
             try:
-                # Use PyMuPDF for fast reading
+                # Fast Stream Processing
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                 documents = []
                 for i, page in enumerate(doc):
-                    text = page.get_text().strip() or f"Diagram Content P{i+1}"
+                    text = page.get_text().strip() or f"Diagram Content Page {i+1}"
                     documents.append(Document(text=text, metadata={"page_label": str(i+1)}))
                 
-                # Create index with global settings
+                # Critical: Building index with the fixed settings
                 st.session_state.current_index = VectorStoreIndex.from_documents(documents)
-                st.success("✅ System Ready! Ab sawaal pucho.")
+                st.success("✅ System Ready! Phod de exam.")
                 st.rerun()
             except Exception as e:
-                # Specific fix for v1beta errors
+                # Detailed error logging for you but clean for UI
                 st.error(f"Indexing Error: {str(e)}")
-                st.info("💡 Tip: Streamlit Reboot maaro, settings update ho jayengi.")
 
     st.divider()
 
-    # --- 💬 STEP 2: STABLE CHAT INTERFACE ---
+    # --- 💬 STEP 2: STABLE CHAT ---
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
+    # Display Chat History
     for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
     if st.session_state.get("current_index"):
-        if user_query := st.chat_input("Ex: Explain the formula on Page 5"):
-            if use_credits(1): # Credit loop sync
+        if user_query := st.chat_input("Ex: Explain the key points on Page 3"):
+            # Sync with your wallet
+            if use_credits(1):
                 st.session_state.chat_history.append({"role": "user", "content": user_query})
-                with st.chat_message("user"): st.markdown(user_query)
+                with st.chat_message("user"):
+                    st.markdown(user_query)
 
                 with st.chat_message("assistant"):
                     with st.spinner("Searching Textbook..."):
                         try:
-                            # Final Query Logic
+                            # Standard Query Engine
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
                             res = qe.query(f"Answer in simple Hinglish: {user_query}")
                             
@@ -251,10 +260,12 @@ with tab1:
                             st.session_state.chat_history.append({"role": "assistant", "content": res.response})
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Chat Engine busy: {e}")
-                            st.session_state.user_data['credits'] += 1 # Refund
+                            st.error(f"Chat Engine Busy: {e}")
+                            st.session_state.user_data['credits'] += 1 # Auto-Refund
             else:
-                st.error("Low Credits! Top-up karle bhai.")
+                st.error("❌ Low Balance! Sidebar se pack buy karlo.")
+    else:
+        st.info("👆 Pehle PDF upload karke Index karo!")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
