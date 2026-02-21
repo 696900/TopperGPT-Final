@@ -492,15 +492,15 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V127 - DEEP TECHNICAL EDITION) ---
+# --- TAB 4: CONCEPT MINDMAP (V128 - THE BILLIONAIRE BIBLE) ---
 with tab4:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Vibrant Exam Architect</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
     
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v127", placeholder="e.g. PN Junction Diode")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v128", placeholder="e.g. PN Junction Diode")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -509,25 +509,26 @@ with tab4:
     if st.button(f"🚀 Generate Deep Technical Map ({mm_cost} Credits)"):
         if mm_input:
             if use_credits(mm_cost):
-                with st.spinner("Analyzing Deep Engineering Concepts..."):
+                with st.spinner("Decoding technical depths for full marks..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            context_res = qe.query(f"Explain {mm_input} in detail: Definition, Working mechanism, Key Components, and Technical Applications.")
-                            context = f"PDF Data: {context_res.response}"
+                            context_res = qe.query(f"Explain {mm_input} like a textbook: working, internal physics, and components.")
+                            context = f"PDF Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Strictly for DEEP TECHNICAL CONTENT
+                        # ✅ MASTER PROMPT: Strictly for EXPLAINED TECHNICAL CONTENT
                         prompt = f"""
                         Act as an Engineering Professor. Create a Mermaid flowchart for: '{mm_input}'. {context}
-                        Rules for Content:
-                        1. NO generic points like 'Point 1'. Use REAL technical terms from the context.
+                        Rules for "Bible" Content:
+                        1. NO 'Point 1' or 'Step 1'. Use REAL technical definitions.
                         2. ROOT is 'ROOT(({mm_input}))'.
-                        3. Main Nodes: 'DEF[Definition]', 'WORK[Working Mechanism]', 'COMP[Key Components]', 'APP[Applications]'.
-                        4. For Working: Explain the actual process (e.g., 'Hole Diffusion', 'Depletion Layer').
-                        5. For Components: List actual parts (e.g., 'P-type material', 'Anode').
-                        6. Rules for Syntax: NO special characters (&, !, :, -) inside []. Max 4 words per node.
-                        7. Output ONLY code, NO backticks.
+                        3. Main Nodes must EXPLAIN the topic. 
+                           Format: NODE[Topic: Short 1-line Explanation].
+                           Example: DIFF[Diffusion: Movement of charge carriers due to concentration gradient].
+                        4. Cover: 'Working Physics', 'Core Construction', and 'Exam-Critical Logic'.
+                        5. Syntax: NO special characters (&, !, :, -) inside []. Max 8 words per node.
+                        6. Output ONLY code, NO markdown backticks.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -545,8 +546,7 @@ with tab4:
                         classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
                         classDef workStyle fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
                         classDef compStyle fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
-                        classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
-                        class DEF defStyle; class WORK workStyle; class COMP compStyle; class APP appStyle;
+                        class DEF defStyle; class WORK workStyle; class COMP compStyle;
                         """
                         st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
                         st.rerun() 
@@ -559,7 +559,7 @@ with tab4:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # Fixed f-string vs JS braces conflict
+        # Double curly braces {{ }} to fix f-string JS conflict
         html_code = f"""
         <div id="capture_area" style="background:#0d1117; padding:30px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center; overflow:hidden;">
             <div class="mermaid" style="width:100%;">
@@ -576,7 +576,7 @@ with tab4:
             }});
         </script>
         """
-        components.html(html_code, height=650, scrolling=True)
+        components.html(html_code, height=700, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
