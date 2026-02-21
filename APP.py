@@ -414,59 +414,70 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: THE ULTIMATE PRO FAIL-SAFE ENGINE (V100) ---
-# --- TAB 3: TOPPERGPT STABLE EVALUATOR (V116 - FREE TIER FIXED) ---
+# --- TAB 3: TOPPERGPT PRO EVALUATOR (FINAL STABLE VERSION) ---
 with tab3:
     st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator</h2>", unsafe_allow_html=True)
     
-    # Master Keys
-    api_key_gemini = st.secrets.get("GEMINI_API_KEY")
+    # Master Keys from Secrets
+    api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
 
-    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="stable_eval_v116")
+    # Image Uploader
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="stable_eval_final")
     
     if ans_file:
+        # Load and display image
         img_input = Image.open(ans_file).convert("RGB")
-        st.image(img_input, caption="Document Detected", width=400)
+        st.image(img_input, caption="Document Loaded", width=400)
         
+        # 💰 REVENUE LOOP: Cost per evaluation
         eval_cost = 5
 
         if st.button(f"🚀 Start Professional Marking ({eval_cost} Credits)"):
+            # Check if user has enough credits
             if use_credits(eval_cost):
-                with st.spinner("Stable Engine: Reading handwriting..."):
+                with st.spinner("AI Moderator is reading your handwriting..."):
                     try:
+                        # 🛠️ STEP 1: CONVERT IMAGE TO BASE64
                         import io, base64
                         buf = io.BytesIO()
                         img_input.save(buf, format="JPEG")
                         img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
                         
-                        # CHANGED: Using 'gemini-1.5-flash' which is stable for free tier
-                        # Fixed URL version to v1beta for better compatibility
-                        ocr_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key_gemini}"
+                        # 🛠️ STEP 2: STABLE OCR (Using v1 Endpoint for 100% Stability)
+                        ocr_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key_gemini}"
                         
-                        ocr_res = requests.post(ocr_url, json={
-                            "contents": [{"parts": [
-                                {"text": "Transcribe this engineering answer sheet exactly. Output the text directly."},
-                                {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
-                            ]}]
-                        }, timeout=30)
+                        ocr_payload = {
+                            "contents": [{
+                                "parts": [
+                                    {"text": "Transcribe this engineering answer sheet exactly. Capture all text clearly."},
+                                    {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+                                ]
+                            }]
+                        }
+                        
+                        ocr_res = requests.post(ocr_url, json=ocr_payload, timeout=30)
                         
                         if ocr_res.status_code != 200:
-                            st.error(f"Engine Error: {ocr_res.json().get('error', {}).get('message', 'Unknown Error')}")
-                            st.session_state.user_data['credits'] += eval_cost
+                            # If Gemini fails, refund credits and show error
+                            error_info = ocr_res.json().get('error', {}).get('message', 'API connection error')
+                            st.error(f"Moderator Busy: {error_info}")
+                            st.session_state.user_data['credits'] += eval_cost # Refund logic
                         else:
                             extracted_text = ocr_res.json()['candidates'][0]['content']['parts'][0]['text']
 
-                            # Marking via Stable Groq Llama 3.3
+                            # 🛠️ STEP 3: PROFESSIONAL EVALUATION (Using Groq)
                             marking_prompt = f"""
-                            Evaluate this transcribed student answer as a Professor.
+                            Act as a Senior Board Examiner. Evaluate the following student answer:
                             TRANSCRIPTION: {extracted_text}
-                            Return ONLY JSON:
+                            
+                            Return a JSON object ONLY:
                             {{
-                                "question": "Question text",
+                                "question": "The question being answered",
                                 "marks": 8,
-                                "feedback": "Brief feedback",
-                                "improvement": "3 short tips"
+                                "feedback": "Detailed academic feedback in 2 lines",
+                                "improvement": "3 tips to get full marks"
                             }}
                             """
                             
@@ -477,28 +488,35 @@ with tab3:
                                 response_format={"type": "json_object"}
                             )
                             
+                            # Save result to session state
                             st.session_state.eval_result = json.loads(response.choices[0].message.content)
-                            st.toast("Evaluation Complete!")
+                            st.toast(f"Evaluation Complete! {eval_cost} Credits deducted.")
                             st.rerun()
 
                     except Exception as e:
-                        st.session_state.user_data['credits'] += eval_cost
+                        st.session_state.user_data['credits'] += eval_cost # Refund
                         st.error(f"Logic Error: {str(e)}")
             else:
                 st.error("Bhai credits khatam! Sidebar se pack buy karo.")
 
-    # --- DISPLAY LOGIC ---
+    # --- PROFESSIONAL DISPLAY (Always shows the last result) ---
     if st.session_state.get("eval_result"):
         res = st.session_state.eval_result
         st.divider()
         col1, col2 = st.columns([0.4, 0.6])
         with col1:
-            st.markdown(f'''<div class="eval-card"><div class="score-circle">{res.get("marks", 0)}/10</div></div>''', unsafe_allow_html=True)
+            st.markdown(f'''
+                <div class="eval-card" style="text-align:center;">
+                    <div class="score-circle">{res.get("marks", 0)}/10</div>
+                    <p style="color:#4CAF50; font-weight:bold; margin-top:10px;">BOARD SCORE</p>
+                </div>
+            ''', unsafe_allow_html=True)
         with col2:
-            st.info(f"**Question:** {res.get('question', 'N/A')}")
-            st.success(f"**Feedback:** {res.get('feedback', 'N/A')}")
+            st.info(f"**Question Identified:**\n{res.get('question', 'N/A')}")
+            st.success(f"**Professor's Feedback:**\n{res.get('feedback', 'N/A')}")
+            st.warning(f"**How to improve:**\n{res.get('improvement', 'N/A')}")
         
-        if st.button("🔄 Check Another"):
+        if st.button("🔄 Scan New Answer"):
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
