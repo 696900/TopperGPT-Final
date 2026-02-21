@@ -26,117 +26,124 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-
-# --- 1. CONFIGURATION: FORCE FULL SCREEN ---
+# --- 1. CONFIGURATION: FORCE WIDE & RESPONSIVE ---
 st.set_page_config(
     page_title="TopperGPT Pro", 
-    layout="wide",  # Laptop par poori screen cover karega
+    layout="wide",  # Laptop par poori screen bharega
     page_icon="🚀",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# 🖋️ ADVANCED RESPONSIVE CSS
+# 🖋️ CINEMATIC DARK UI (Laptop & Mobile Responsive)
 EVAL_CSS = """
 <style>
-/* Laptop vs Mobile Detection */
-.stApp { 
-    background-color: #0d1117 !important; 
-    max-width: 100% !important; 
+/* Laptop Width Fix: Khali jagah bharne ke liye */
+.block-container {
+    max-width: 95% !important;
+    padding-top: 2rem !important;
 }
 
-/* Force content to use full width on laptop */
-[data-testid="stVerticalBlock"] > div:first-child {
-    max-width: 100% !important;
-}
+.stApp { background-color: #0d1117 !important; color: #c9d1d9 !important; }
 
-/* Mobile: Hide Streamlit Footer/Menu if possible */
-footer {visibility: hidden;}
-#MainMenu {visibility: hidden;}
-
-/* Cinematic Header for Laptop & Mobile */
-.main-header {
-    text-align: center;
-    padding: 20px;
-    background: linear-gradient(90deg, #1e2530, #161b22);
-    border-radius: 15px;
-    border: 1px solid #4CAF50;
-    margin-bottom: 25px;
-}
-
-/* Tablet & Mobile responsive tabs */
-@media (max-width: 768px) {
-    .stTabs [data-baseweb="tab-list"] { 
-        display: flex;
-        overflow-x: auto;
-        white-space: nowrap;
-    }
-    .score-circle { width: 70px !important; height: 70px !important; font-size: 16px !important; }
-}
-
-/* Wallet Card Styling */
+/* Responsive Sidebar Card */
 .wallet-card { 
     background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
     padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; 
     text-align: center; margin-bottom: 15px;
 }
 
-/* Button & Input optimization */
-.stButton > button { width: 100%; border-radius: 10px; font-weight: bold; }
+/* Tab labels for Desktop & Mobile */
+@media (max-width: 768px) {
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+    .stTabs [data-baseweb="tab"] { padding: 8px; font-size: 11px; }
+}
+
+/* Coupon & Referral Style */
+.referral-box {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px dashed #4CAF50;
+    padding: 15px; border-radius: 12px;
+    margin-top: 10px;
+}
 </style>
 """
 st.markdown(EVAL_CSS, unsafe_allow_html=True)
 
-# --- 2. SPEED OPTIMIZATION & KEY SYNC ---
+# --- 2. REVENUE & STABILITY LOGIC ---
 if "user_data" not in st.session_state: st.session_state.user_data = None
-if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
-# Using 1.5-Flash for better speed and fewer 429 errors
-api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
-    Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key)
-else:
-    st.error("⚠️ API Key Missing in Secrets!")
-
-groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-
-# --- 💎 REVENUE LOOP: CREDIT CHECKER ---
 def use_credits(amount):
     if st.session_state.user_data and st.session_state.user_data.get('credits', 0) >= amount:
         st.session_state.user_data['credits'] -= amount
         return True
     return False
 
-# --- 3. LOGIN PAGE (WIDE MODE) ---
-def show_login_page():
-    _, col_mid, _ = st.columns([1, 2, 1]) # Laptop par wide dikhega
+# --- 🛠️ AI CLIENTS ---
+api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
+    Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key)
+groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+
+# --- 3. LOGIN PAGE ---
+if st.session_state.user_data is None:
+    _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
-        st.markdown('<div class="main-header"><h1 style="color:#4CAF50; margin:0;">TopperGPT Pro</h1><p style="color:#8b949e;">UNIVERSITY RESEARCH PORTAL</p></div>', unsafe_allow_html=True)
-        if st.button("🔴 Continue with Google", use_container_width=True):
-            st.session_state.user_data = {"email": "student@mu.edu", "credits": 15, "tier": "Free Starter", "referral_code": "TOP" + str(int(time.time()))[-4:]}
+        st.markdown('<div style="text-align:center; padding:40px; background:#161b22; border-radius:20px; border:1px solid #4CAF50;">'
+                    '<h1 style="color:#4CAF50; font-style:italic;">TopperGPT</h1>'
+                    '<p style="color:#8b949e;">UNIVERSITY RESEARCH PORTAL</p></div>', unsafe_allow_html=True)
+        if st.button("🔴 Login with University Account", use_container_width=True):
+            st.session_state.user_data = {
+                "email": "verified.student@mu.edu", 
+                "credits": 15, 
+                "tier": "Starter",
+                "referral_code": "TOP" + str(int(time.time()))[-4:],
+                "ref_claimed": False
+            }
             st.rerun()
     st.stop()
 
-if st.session_state.user_data is None: show_login_page()
-
-# --- 4. SIDEBAR (RESPONSIVE) ---
+# --- 4. SIDEBAR (WIDER & FULL FEATURES) ---
 with st.sidebar:
-    st.markdown(f'<div class="wallet-card"><p style="margin:0; font-size:12px;">WALLET BALANCE</p><h1 style="color:white; margin:0;">{st.session_state.user_data["credits"]} 🔥</h1></div>', unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
+    st.markdown(f'''
+        <div class="wallet-card">
+            <p style="margin:0; font-size:12px; color:#eab308;">WALLET BALANCE</p>
+            <h1 style="margin:0; color:white;">{st.session_state.user_data["credits"]} 🔥</h1>
+        </div>
+    ''', unsafe_allow_html=True)
+
+    # 🎁 REFERRAL SYSTEM (Restore)
+    with st.expander("🎁 Referral & Coupon", expanded=True):
+        st.markdown('<div class="referral-box">', unsafe_allow_html=True)
+        st.write("Dosto ko bhejo, Dono ko 5 credits milenge!")
+        st.code(st.session_state.user_data['referral_code'])
+        
+        if not st.session_state.user_data.get('ref_claimed', False):
+            coupon = st.text_input("Coupon / Referral Code?", placeholder="Enter TOPXXXX")
+            if st.button("Claim Bonus"):
+                if coupon and coupon.upper().startswith("TOP"):
+                    st.session_state.user_data['credits'] += 5
+                    st.session_state.user_data['ref_claimed'] = True
+                    st.success("+5 Credits Added!")
+                    st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
     st.markdown("---")
     payment_links = {
         "Weekly (70 Credits) @ ₹59": "https://rzp.io/rzp/FmwE0Ms6",
         "Jugaad (150 Credits) @ ₹99": "https://rzp.io/rzp/AWiyLxEi",
         "Monthly (350 Credits) @ ₹149": "https://rzp.io/rzp/hXcR54E"
     }
-    plan = st.radio("Select Pack:", list(payment_links.keys()), key="pay_v2")
-    st.markdown(f'<a href="{payment_links[plan]}" target="_blank"><button style="width:100%; padding:12px; background:#eab308; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">🚀 Buy Credits</button></a>', unsafe_allow_html=True)
+    choice = st.radio("Select Refill Pack:", list(payment_links.keys()))
+    st.markdown(f'<a href="{payment_links[choice]}" target="_blank"><button style="width:100%; padding:12px; background:#eab308; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">🚀 Buy Pack</button></a>', unsafe_allow_html=True)
 
     if st.button("🔓 Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
 
-# --- 5. MAIN TABS (SHORT NAMES FOR MOBILE) ---
+# --- 5. MAIN TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 PDF", "📊 Sylb", "📝 Eval", "🧠 Map", "🃏 Cards", "❓ PYQs", "🔍 Search", "🤝 Conn", "⚖️ Leg"
 ])
