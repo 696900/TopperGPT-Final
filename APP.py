@@ -26,24 +26,28 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 🛠️ SILENT AI SETUP (v1 Stable Lock) ---
-api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+# --- 🛠️ MASTER AI SETUP (v1 Stable Lock) ---
+api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
-if api_key_to_use:
+if api_key:
     from llama_index.llms.gemini import Gemini
     from llama_index.embeddings.gemini import GeminiEmbedding
     
-    # ✅ FIX: Using transport="rest" and proper model naming
+    # Global Configuration: Sabhi tabs ke liye ek hi setting
     Settings.llm = Gemini(
         model_name="models/gemini-1.5-flash", 
-        api_key=api_key_to_use,
-        transport="rest"  # <--- Ye line 404 errors ko khatam kar degi!
+        api_key=api_key,
+        transport="rest"
     )
     Settings.embed_model = GeminiEmbedding(
         model_name="models/text-embedding-004", 
-        api_key=api_key_to_use,
-        transport="rest"  # <--- Stable transport lock
+        api_key=api_key,
+        transport="rest"
     )
+    # Standard Gemini SDK for Answer Eval
+    genai.configure(api_key=api_key)
+
+groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
 def use_credits(amount):
     """Checks and deducts credits from session state."""
@@ -202,7 +206,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat Engine</h2>", unsafe_allow_html=True)
     
-    # Imports strictly for PDF handling
+    # Imports strictly for PDF handling (No extra AI setup here)
     import fitz
     from llama_index.core import VectorStoreIndex, Document
 
@@ -221,7 +225,8 @@ with tab1:
                     text = page.get_text().strip() or f"Diagram/Table Content Page {i+1}"
                     documents.append(Document(text=text, metadata={"page_label": str(i+1)}))
                 
-                # 🔥 CRITICAL: Uses Global Settings (Gemini) defined at the top
+                # 🔥 CRITICAL: Seedha Global Settings (v1 stable) ko call karega
+                # Jo humne top par transport="rest" ke sath set kiya hai
                 st.session_state.current_index = VectorStoreIndex.from_documents(documents)
                 st.success("✅ System Ready! Phod de exam.")
                 st.rerun()
@@ -250,16 +255,25 @@ with tab1:
                 with st.chat_message("assistant"):
                     with st.spinner("Analyzing Textbook..."):
                         try:
-                            # Uses global LLM and Embed settings automatically
+                            # Uses global LLM and Embed settings automatically (Zero config needed here)
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
-                            res = qe.query(f"Answer in simple Hinglish: {user_query}")
+                            
+                            # Custom Prompt for Topper Vibe
+                            chat_prompt = f"""
+                            Instruction: Use Hinglish. Cite page numbers. 
+                            If math involved, use LaTeX $$.
+                            Question: {user_query}
+                            """
+                            
+                            res = qe.query(chat_prompt)
                             
                             st.markdown(res.response)
                             st.session_state.chat_history.append({"role": "assistant", "content": res.response})
                             st.rerun()
                         except Exception as e:
+                            # Auto-Refund on fail
+                            st.session_state.user_data['credits'] += 1
                             st.error(f"Chat Engine Busy: {e}")
-                            st.session_state.user_data['credits'] += 1 # Auto-Refund on fail
             else:
                 st.error("❌ Low Balance! Sidebar se pack buy karlo.")
     else:
