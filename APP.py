@@ -492,40 +492,40 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V120 - MOBILE & LAPTOP OPTIMIZED) ---
+# --- TAB 4: CONCEPT MINDMAP (V121 - EXAM-SPECIFIC DETAIL) ---
 with tab4:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Responsive Concept Architect</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Exam-Focused Concept Architect</h2>", unsafe_allow_html=True)
     
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v120", placeholder="e.g. Semi Conductors")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v121", placeholder="e.g. Photovoltaic Cell")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
     mm_cost = 2
 
-    if st.button(f"🚀 Generate Optimized Mindmap ({mm_cost} Credits)"):
+    if st.button(f"🚀 Generate Detailed Mindmap ({mm_cost} Credits)"):
         if mm_input:
             if use_credits(mm_cost):
-                with st.spinner("Optimizing for your screen..."):
+                with st.spinner("Analyzing exam importance..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
-                            context_res = qe.query(f"Extract main branches for {mm_input}.")
+                            context_res = qe.query(f"Extract marks-oriented details for {mm_input}: Definition, Working, Components, and Applications.")
                             context = f"Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Top-Down (TD) is better for Mobile & Laptop fit
+                        # ✅ MASTER PROMPT: Strictly for Exam-Marks with Detail
                         prompt = f"""
                         Create a Mermaid flowchart for: '{mm_input}'. {context}
-                        Rules for Screen Fit:
-                        1. Start with 'graph TD' (Top Down).
+                        Exam-Focus Rules:
+                        1. Start with 'graph TD'.
                         2. Root is 'ROOT(({mm_input}))'.
-                        3. Use 4-5 main categories (C1, C2...).
-                        4. Limit sub-topics to 2 per category to keep it compact.
-                        5. Use ONLY simple labels (Max 2 words). No special characters.
+                        3. Branch out to EXACTLY these 4 Exam Categories: 'Definition', 'Working Principle', 'Key Components', 'Applications'.
+                        4. For each category, add 2-3 technical sub-points that are essential for scoring full marks.
+                        5. Use ONLY alphanumeric technical terms. Max 3 words per node.
                         6. Output ONLY code, no markdown backticks.
                         """
                         
@@ -549,10 +549,10 @@ with tab4:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # HTML Fix: added 'useMaxWidth: true' and viewport settings for mobile
+        # UI Fix: Zoom-on-Hover added for laptop users
         html_code = f"""
-        <div id="capture_area" style="background:#0d1117; padding:15px; border-radius:15px; border:1px solid #4CAF50; display:flex; justify-content:center;">
-            <pre class="mermaid" style="background:transparent; width:100%; max-width:100%;">
+        <div id="capture_area" style="background:#0d1117; padding:20px; border-radius:15px; border:1px solid #4CAF50; display:flex; justify-content:center; overflow:hidden;">
+            <pre class="mermaid" style="background:transparent; width:100%; transition: transform 0.3s ease-in-out;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
             {st.session_state.last_mm_code}
             </pre>
         </div>
@@ -562,15 +562,10 @@ with tab4:
                 startOnLoad: true, 
                 theme: 'base',
                 securityLevel: 'loose',
-                flowchart: {{ 
-                    useMaxWidth: true, 
-                    htmlLabels: true,
-                    curve: 'basis'
-                }},
+                flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis' }},
                 themeVariables: {{
-                    fontSize: '14px',
+                    fontSize: '15px',
                     primaryColor: '#4CAF50',
-                    primaryTextColor: '#fff',
                     lineColor: '#eab308',
                     nodeBkg: '#1c2128',
                     mainBkg: '#1c2128',
@@ -578,9 +573,9 @@ with tab4:
                 }}
             }});
         </script>
-        <p style="text-align:center; color:#8b949e; font-size:11px; margin-top:10px;">UI Optimized: Laptop & Mobile View Enabled</p>
+        <p style="text-align:center; color:#8b949e; font-size:11px; margin-top:10px;">Exam-Optimized: Hover to Zoom | Technical Detail Level: High</p>
         """
-        components.html(html_code, height=550, scrolling=True)
+        components.html(html_code, height=600, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
