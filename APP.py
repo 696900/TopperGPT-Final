@@ -180,86 +180,67 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: TOPPERGPT CHAT ENGINE (V120 - STABLE ONE-SHOT) ---
+# --- TAB 1: TOPPERGPT CHAT ENGINE (V121 - NO CRASH) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat Engine</h2>", unsafe_allow_html=True)
     
-    # 🔑 Global Keys & Models Setup (To prevent OpenAI errors)
-    from llama_index.llms.gemini import Gemini
-    from llama_index.embeddings.gemini import GeminiEmbedding
-    from llama_index.core import Settings
+    try:
+        from llama_index.llms.gemini import Gemini
+        from llama_index.embeddings.gemini import GeminiEmbedding
+        from llama_index.core import Settings, VectorStoreIndex, Document
+        import fitz
+    except ImportError:
+        st.error("🚨 Missing Libraries! Please add 'llama-index-llms-gemini' and 'pymupdf' to requirements.txt")
+        st.stop()
 
     api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
     if api_key_to_use:
-        # Pura system Gemini par lock kar diya (No more OpenAI crash)
         Settings.llm = Gemini(model_name="models/gemini-1.5-flash", api_key=api_key_to_use)
         Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_to_use)
     
     # --- 📂 STEP 1: PDF INDEXING ---
     st.markdown("### 📂 Step 1: Upload Exam Material (PDF)")
     up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="pdf_v120", label_visibility="collapsed")
+    uploaded_file = up_col.file_uploader("Upload PDF", type="pdf", key="pdf_v121")
     
     if uploaded_file and btn_col.button("🚀 Index for Exam", use_container_width=True):
-        with st.spinner("Decoding Technical PDF..."):
+        with st.spinner("Decoding PDF..."):
             try:
-                # Read PDF with PyMuPDF
+                # Optimized PDF Reading
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                documents = []
-                for page_num, page in enumerate(doc):
-                    text = page.get_text().strip()
-                    if not text: text = f"Image/Diagram on Page {page_num+1}"
-                    documents.append(Document(text=text, metadata={"page_label": str(page_num + 1)}))
+                documents = [Document(text=page.get_text().strip() or f"Scan P{i+1}", 
+                             metadata={"page_label": str(i+1)}) for i, page in enumerate(doc)]
                 
-                # Create Index
                 st.session_state.current_index = VectorStoreIndex.from_documents(documents)
-                st.success("✅ System Ready! Ab sawaal pucho.")
+                st.success("✅ System Ready!")
                 st.rerun()
             except Exception as e:
-                st.error(f"Index Error: {e}")
+                st.error(f"Error: {e}")
 
     st.divider()
 
     # --- 💬 STEP 2: STABLE CHAT ---
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
-    # Display History
     for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
     if st.session_state.get("current_index"):
         if user_query := st.chat_input("Ex: Explain this in simple Hinglish"):
-            # Check Credits
             if use_credits(1):
                 st.session_state.chat_history.append({"role": "user", "content": user_query})
-                with st.chat_message("user"):
-                    st.markdown(user_query)
+                with st.chat_message("user"): st.markdown(user_query)
 
                 with st.chat_message("assistant"):
-                    with st.spinner("Analyzing Textbook..."):
-                        try:
-                            query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=3)
-                            
-                            prompt = f"""
-                            User Query: {user_query}
-                            Instruction: Answer as TopperGPT in Hinglish (Roman Script). 
-                            Cite page numbers. Use LaTeX for math.
-                            """
-                            response = query_engine.query(prompt)
-                            
-                            st.markdown(response.response)
-                            st.session_state.chat_history.append({"role": "assistant", "content": response.response})
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Chat Error: {e}")
-                            st.session_state.user_data['credits'] += 1 # Refund
+                    with st.spinner("Analyzing..."):
+                        query_engine = st.session_state.current_index.as_query_engine(similarity_top_k=3)
+                        response = query_engine.query(f"Answer in Hinglish: {user_query}")
+                        st.markdown(response.response)
+                        st.session_state.chat_history.append({"role": "assistant", "content": response.response})
+                        st.rerun()
             else:
-                st.error("❌ Credits low hain bhai!")
-    else:
-        st.info("👆 Pehle PDF upload karke Index karo!")
+                st.error("❌ Low Credits!")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
