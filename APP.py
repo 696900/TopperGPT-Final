@@ -503,41 +503,42 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP ARCHITECT (V109 - BULLETPROOF) ---
-# --- TAB 4: SCI-FI CONCEPT ARCHITECT (V112 - PRO VERSION) ---
+# --- TAB 4: CINEMATIC COLOURFUL MINDMAP (V113 - REVENUE SYNCED) ---
 with tab4:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 Concept Mindmap Architect</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Vibrant Concept Architect</h2>", unsafe_allow_html=True)
     
-    # Wallet Sync & UI Setup
+    # Wallet Sync & UI
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v112_pro", placeholder="e.g. Quantum Computing")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v113_vibrant", placeholder="e.g. Laser Action")
     with col_opt:
-        use_pdf = st.checkbox("Deep PDF Scan (Premium)", value=True if st.session_state.get('current_index') else False)
+        use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
-    # Dynamic Cost Calculation
-    mm_cost = 8 if (use_pdf and st.session_state.get('current_index')) else 3 # Premium price for pro look
+    # 💰 Revenue Loop Cost
+    mm_cost = 5 if (use_pdf and st.session_state.get('current_index')) else 2
 
-    if st.button(f"🚀 Generate Sci-Fi Mindmap ({mm_cost} Credits)"):
+    if st.button(f"🚀 Generate Vibrant Mindmap ({mm_cost} Credits)"):
         if mm_input:
+            # --- START REVENUE LOOP ---
             if use_credits(mm_cost):
-                with st.spinner("Decoding Architecture..."):
+                with st.spinner("Designing Colourful Architecture..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
-                            qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            context_res = qe.query(f"Extract technical hierarchy for {mm_input}.")
+                            qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
+                            context_res = qe.query(f"Extract main branches for {mm_input}.")
                             context = f"PDF Context: {context_res.response}"
 
+                        # Prompt Optimized for Colour & Fit
                         prompt = f"""
                         Create a Mermaid.js mindmap for: '{mm_input}'. {context}
-                        Rules: 
-                        1. Start with 'mindmap' 
+                        Rules:
+                        1. Start with 'mindmap'
                         2. Root is 'root(({mm_input}))'
-                        3. Branching nodes should be detailed.
-                        4. DO NOT use special characters or brackets inside text.
+                        3. Limit to 4-5 main branches so it fits the screen.
+                        4. NO special characters.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -546,90 +547,74 @@ with tab4:
                         )
                         
                         st.session_state.last_mm_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
-                        st.toast(f"System Ready! {mm_cost} Credits Deducted.")
+                        st.toast(f"Success! {mm_cost} Credits Deducted.")
                         st.rerun() 
                         
                     except Exception as e:
+                        # Refund on error
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
             else:
                 st.error("Credits low hain bhai! Sidebar se top-up kar.")
 
-    # --- 🎭 THE PRO RENDERING ENGINE (Sci-Fi Glassmorphism) ---
+    # --- 🎭 VIBRANT RENDERING ENGINE (Screen-Fit & Colourful) ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # High-End HTML & CSS for Professional Look
+        # HTML with Responsive Container
         html_code = f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <div id="capture_area" style="
-            background: radial-gradient(circle, #1a1c23 0%, #0d1117 100%); 
-            padding: 60px; 
-            border-radius: 30px; 
-            display: inline-block; 
-            min-width: 900px; 
-            text-align: center; 
+            background: #0d1117; 
+            padding: 20px; 
+            border-radius: 20px; 
             border: 2px solid #4CAF50;
-            box-shadow: 0 0 40px rgba(76, 175, 80, 0.2);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         ">
-            <h1 style="color: #4CAF50; font-size: 14px; letter-spacing: 5px; margin-bottom: 20px; opacity: 0.7;">TOPPERGPT SCI-FI ARCHITECTURE</h1>
-            <div class="mermaid">
+            <div class="mermaid" style="width: 100%; max-width: 800px;">
             {st.session_state.last_mm_code}
             </div>
         </div>
-        <br><br>
-        <div style="text-align: center;">
-            <button onclick="downloadHD()" style="
-                background: #4CAF50; 
-                color: #000; 
-                border: none; 
-                padding: 18px 40px; 
-                border-radius: 50px; 
-                cursor: pointer; 
-                font-weight: 900; 
-                font-size: 16px; 
-                letter-spacing: 1px;
-                box-shadow: 0 10px 20px rgba(0,0,0,0.4);
-            ">
-                📥 DOWNLOAD HIGH-RES BLUEPRINT (PNG)
-            </button>
-        </div>
+        <br>
+        <button onclick="downloadHD()" style="
+            width: 100%; background: #4CAF50; color: white; border: none; 
+            padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer;
+        ">
+            📥 Download Vibrant Mindmap (PNG)
+        </button>
         
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             
             mermaid.initialize({{ 
                 startOnLoad: true, 
-                theme: 'base', 
+                theme: 'forest', 
                 securityLevel: 'loose',
                 themeVariables: {{
-                    primaryColor: '#1e2530',
-                    primaryTextColor: '#ffffff',
-                    primaryBorderColor: '#4CAF50',
-                    lineColor: '#4CAF50',
-                    secondaryColor: '#0d1117',
-                    tertiaryColor: '#1c2128'
+                    fontSize: '20px',
+                    primaryColor: '#4CAF50',
+                    nodeBorder: '#4CAF50',
+                    mainBkg: '#1c2128',
+                    textColor: '#fff'
                 }}
             }});
             
             window.downloadHD = function() {{
                 const area = document.querySelector("#capture_area");
-                html2canvas(area, {{ 
-                    scale: 3, 
-                    useCORS: true,
-                    backgroundColor: "#0d1117"
-                }}).then(canvas => {{
+                html2canvas(area, {{ scale: 3, backgroundColor: "#0d1117" }}).then(canvas => {{
                     let link = document.createElement('a');
-                    link.download = 'TopperGPT_SciFi_Blueprint.png';
-                    link.href = canvas.toDataURL("image/png", 1.0);
+                    link.download = 'TopperGPT_Vibrant_Map.png';
+                    link.href = canvas.toDataURL("image/png");
                     link.click();
                 }});
             }}
         </script>
         """
-        components.html(html_code, height=1000, scrolling=True)
+        components.html(html_code, height=650, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS ---
 with tab5:
