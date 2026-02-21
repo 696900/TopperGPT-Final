@@ -26,16 +26,25 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
+# --- 🛠️ SILENT AI SETUP (The Bulletproof v1 Stable Version) ---
 api_key_to_use = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
 if api_key_to_use:
-    # Settings ko globally lock kar diya taaki OpenAI ka error na aaye
     from llama_index.llms.gemini import Gemini
     from llama_index.embeddings.gemini import GeminiEmbedding
     
-    # ✅ FIX: strictly using 'models/' prefix to kill 404 errors
-    Settings.llm = Gemini(model_name="models/gemini-1.5-flash", api_key=api_key_to_use)
+    # ✅ FIX: strictly using v1 stable and transport="rest" to kill 404/v1beta errors
+    #
+    Settings.llm = Gemini(
+        model_name="models/gemini-1.5-flash", 
+        api_key=api_key_to_use,
+        transport="rest"  # <--- Ye v1beta errors ko khatam kar dega
+    )
+    Settings.embed_model = GeminiEmbedding(
+        model_name="models/text-embedding-004", 
+        api_key=api_key_to_use,
+        transport="rest"  # <--- Stable endpoint lock
+    )
     Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_to_use)
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
 def use_credits(amount):
