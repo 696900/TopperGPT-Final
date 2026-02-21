@@ -19,3 +19,5 @@ llama-index-embeddings-huggingface
 llama-index-embeddings-gemini
 faiss-cpu
 Pillow
+google-generativeai
+llama-index-llms-gemini
