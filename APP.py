@@ -492,24 +492,24 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V121 - EXAM-SPECIFIC DETAIL) ---
+# --- TAB 4: CONCEPT MINDMAP (V122 - VIBRANT EXAM EDITION) ---
 with tab4:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Exam-Focused Concept Architect</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Vibrant Exam Architect</h2>", unsafe_allow_html=True)
     
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v121", placeholder="e.g. Photovoltaic Cell")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v122_vibrant", placeholder="e.g. Electric Motor")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
     mm_cost = 2
 
-    if st.button(f"🚀 Generate Detailed Mindmap ({mm_cost} Credits)"):
+    if st.button(f"🚀 Generate Vibrant Exam Map ({mm_cost} Credits)"):
         if mm_input:
             if use_credits(mm_cost):
-                with st.spinner("Analyzing exam importance..."):
+                with st.spinner("Designing Colourful Architecture..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
@@ -517,16 +517,18 @@ with tab4:
                             context_res = qe.query(f"Extract marks-oriented details for {mm_input}: Definition, Working, Components, and Applications.")
                             context = f"Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Strictly for Exam-Marks with Detail
+                        # ✅ MASTER PROMPT: Strictly for Exam-Marks with Colour Nodes
                         prompt = f"""
                         Create a Mermaid flowchart for: '{mm_input}'. {context}
-                        Exam-Focus Rules:
+                        Rules:
                         1. Start with 'graph TD'.
                         2. Root is 'ROOT(({mm_input}))'.
-                        3. Branch out to EXACTLY these 4 Exam Categories: 'Definition', 'Working Principle', 'Key Components', 'Applications'.
-                        4. For each category, add 2-3 technical sub-points that are essential for scoring full marks.
-                        5. Use ONLY alphanumeric technical terms. Max 3 words per node.
-                        6. Output ONLY code, no markdown backticks.
+                        3. Exactly 4 Main Branches: 'Definition', 'Working', 'Components', 'Applications'.
+                        4. Add 2-3 technical sub-points for each.
+                        5. IMPORTANT: NO special characters. Max 3 words per node.
+                        6. Assign Classes for Colours: 
+                           Assign class 'def' to Definition nodes, 'work' to Working, 'comp' to Components, 'app' to Applications.
+                        7. Output ONLY code, no markdown backticks.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -538,21 +540,28 @@ with tab4:
                         if not clean_code.startswith("graph"):
                             clean_code = "graph TD\n" + clean_code
                             
-                        st.session_state.last_mm_code = clean_code
+                        # Manual Class Definition for Vibrant Colours
+                        class_defs = """
+                        classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
+                        classDef def fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
+                        classDef work fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
+                        classDef comp fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
+                        classDef app fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
+                        """
+                        st.session_state.last_mm_code = clean_code + "\n" + class_defs
                         st.rerun() 
                     except Exception as e:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- 🎭 RESPONSIVE RENDERING ENGINE ---
+    # --- 🎭 VIBRANT RESPONSIVE ENGINE ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # UI Fix: Zoom-on-Hover added for laptop users
         html_code = f"""
-        <div id="capture_area" style="background:#0d1117; padding:20px; border-radius:15px; border:1px solid #4CAF50; display:flex; justify-content:center; overflow:hidden;">
-            <pre class="mermaid" style="background:transparent; width:100%; transition: transform 0.3s ease-in-out;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+        <div id="capture_area" style="background:#0d1117; padding:25px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center;">
+            <pre class="mermaid" style="background:transparent; width:100%;">
             {st.session_state.last_mm_code}
             </pre>
         </div>
@@ -560,22 +569,14 @@ with tab4:
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             mermaid.initialize({{ 
                 startOnLoad: true, 
-                theme: 'base',
+                theme: 'dark',
                 securityLevel: 'loose',
-                flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis' }},
-                themeVariables: {{
-                    fontSize: '15px',
-                    primaryColor: '#4CAF50',
-                    lineColor: '#eab308',
-                    nodeBkg: '#1c2128',
-                    mainBkg: '#1c2128',
-                    textColor: '#fff'
-                }}
+                flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis' }}
             }});
         </script>
-        <p style="text-align:center; color:#8b949e; font-size:11px; margin-top:10px;">Exam-Optimized: Hover to Zoom | Technical Detail Level: High</p>
+        <p style="text-align:center; color:#8b949e; font-size:11px; margin-top:10px;">Vibe: Cinematic Topper | Detail: Exam-Grade</p>
         """
-        components.html(html_code, height=600, scrolling=True)
+        components.html(html_code, height=650, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
