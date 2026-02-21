@@ -413,88 +413,86 @@ with tab2:
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
-# --- TAB 3: TOPPERGPT PRO EVALUATOR (V118 - SDK STABLE) ---
+# --- TAB 3: TOPPERGPT PRO EVALUATOR (V119 - TWO-STEP LOGIC) ---
 with tab3:
-    st.markdown(EVAL_CSS, unsafe_allow_html=True) # Fixed NameError
+    st.markdown(EVAL_CSS, unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator</h2>", unsafe_allow_html=True)
     
-    # Master Keys
-    api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-    api_key_groq = st.secrets.get("GROQ_API_KEY")
+    # 💰 REVENUE LOOP: Master Cost
+    eval_cost = 5
 
-    ans_file = st.file_uploader("Upload Your Answer Sheet", type=["jpg", "png", "jpeg"], key="stable_v118")
+    # Step-by-step state management
+    if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
+    if "eval_result" not in st.session_state: st.session_state.eval_result = None
+
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="v119_file")
     
     if ans_file:
-        img_input = Image.open(ans_file).convert("RGB")
-        st.image(img_input, caption="Document Loaded", width=400)
-        
-        eval_cost = 5
+        img = Image.open(ans_file).convert("RGB")
+        # Step 1: PIL Image Resize (Jugaad No. 1 - Prevent size error)
+        img.thumbnail((800, 800)) 
+        st.image(img, caption="Document Detected", width=300)
 
-        if st.button(f"🚀 Start Professional Marking ({eval_cost} Credits)"):
-            # Revenue Loop Integration
+        # --- STEP A: THE EYE (OCR) ---
+        if st.button(f"🔍 Scan Handwriting ({eval_cost} Credits)"):
             if use_credits(eval_cost):
-                with st.spinner("Moderator is scanning handwriting..."):
+                with st.spinner("Moderator is reading..."):
                     try:
-                        # 🛠️ STEP 1: SDK BASED OCR (No more 404/Not Found Errors)
-                        genai.configure(api_key=api_key_gemini)
-                        # Using 1.5-flash-latest for maximum stability across versions
+                        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                         model = genai.GenerativeModel('gemini-1.5-flash-latest')
                         
-                        response_ocr = model.generate_content([
-                            "Transcribe the handwritten text from this image exactly. Do not evaluate yet.",
-                            img_input
-                        ])
+                        # Sirf text nikalne ka prompt
+                        response = model.generate_content(["Transcribe the handwritten text from this image exactly.", img])
                         
-                        if not response_ocr.text:
-                            st.error("Engine busy. 60 seconds ruko bhai.")
-                            st.session_state.user_data['credits'] += eval_cost # Refund
-                        else:
-                            extracted_text = response_ocr.text
-
-                            # 🛠️ STEP 2: PROFESSIONAL MARKING (GROQ)
-                            marking_prompt = f"""
-                            Evaluate this engineering answer sheet as a Board Professor.
-                            TRANSCRIPTION: {extracted_text}
-                            Return ONLY JSON:
-                            {{
-                                "question": "Question text",
-                                "marks": 8,
-                                "feedback": "Brief feedback",
-                                "improvement": "3 tips to score 10/10"
-                            }}
-                            """
-                            
-                            client_g = Groq(api_key=api_key_groq)
-                            eval_res = client_g.chat.completions.create(
-                                model="llama-3.3-70b-versatile",
-                                messages=[{"role": "user", "content": marking_prompt}],
-                                response_format={"type": "json_object"}
-                            )
-                            
-                            st.session_state.eval_result = json.loads(eval_res.choices[0].message.content)
-                            st.toast("Evaluation Complete! 🔥")
+                        if response.text:
+                            st.session_state.extracted_text = response.text
                             st.rerun()
-
                     except Exception as e:
-                        st.session_state.user_data['credits'] += eval_cost
-                        st.error(f"Moderator Overload: 60s ruko bhai. (Error: {str(e)})")
+                        st.session_state.user_data['credits'] += eval_cost # Refund
+                        st.error("Server busy! Ek baar phir try karo.")
             else:
-                st.error("Bhai credits khatam! Sidebar se pack buy karo.")
+                st.error("Bhai credits khatam!")
 
-    # --- RESULTS DISPLAY ---
-    if st.session_state.get("eval_result"):
+    # --- STEP B: THE BRAIN (EVALUATION) ---
+    if st.session_state.extracted_text and not st.session_state.eval_result:
+        st.success("✅ Scanning Complete!")
+        # Student text dekh sakta hai (Trust building)
+        edited_text = st.text_area("Check/Edit Scanned Text:", value=st.session_state.extracted_text, height=200)
+        
+        if st.button("📝 Generate Marks & Feedback"):
+            with st.spinner("Professor is marking..."):
+                try:
+                    marking_prompt = f"""
+                    Evaluate this student answer as a Board Examiner:
+                    ANSWER: {edited_text}
+                    Return ONLY JSON:
+                    {{"question": "string", "marks": int, "feedback": "string", "improvement": "string"}}
+                    """
+                    
+                    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": marking_prompt}],
+                        response_format={"type": "json_object"}
+                    )
+                    st.session_state.eval_result = json.loads(res.choices[0].message.content)
+                    st.rerun()
+                except:
+                    st.error("Format error! Phir se 'Generate Marks' dabao.")
+
+    # --- FINAL DISPLAY ---
+    if st.session_state.eval_result:
         res = st.session_state.eval_result
         st.divider()
-        col1, col2 = st.columns([0.4, 0.6])
-        with col1:
-            # Cinematic score circle fixed
-            st.markdown(f'''<div class="eval-card"><div class="score-circle">{res.get("marks", 0)}/10</div></div>''', unsafe_allow_html=True)
-        with col2:
-            st.info(f"**Question Identified:** {res.get('question', 'N/A')}")
+        c1, c2 = st.columns([0.4, 0.6])
+        with c1:
+            st.markdown(f'<div class="eval-card"><div class="score-circle">{res.get("marks", 0)}/10</div></div>', unsafe_allow_html=True)
+        with c2:
+            st.info(f"**Question:** {res.get('question', 'N/A')}")
             st.success(f"**Feedback:** {res.get('feedback', 'N/A')}")
-            st.warning(f"**Improvement:** {res.get('improvement', 'N/A')}")
         
-        if st.button("🔄 Try Another Sheet"):
+        if st.button("🔄 New Evaluation"):
+            st.session_state.extracted_text = None
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
