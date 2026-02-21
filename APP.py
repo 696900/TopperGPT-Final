@@ -26,7 +26,7 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 🛠️ MASTER AI SETUP (STABLE v1 REST BYPASS) ---
+# --- 🛠️ MASTER AI SETUP (STABLE v1 BYPASS) ---
 api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 
 if api_key:
@@ -35,10 +35,11 @@ if api_key:
     from llama_index.core import Settings
     import google.generativeai as genai
 
-    # Pehle SDK configure karo
+    # Pehle stable SDK configure karo
     genai.configure(api_key=api_key)
 
-    # ✅ FIX: Model naming must be strictly 'models/...'
+    # ✅ FIX 1: strictly using 'models/' prefix
+    # ✅ FIX 2: transport="rest" to kill v1beta errors
     Settings.llm = Gemini(
         model_name="models/gemini-1.5-flash", 
         api_key=api_key,
@@ -52,7 +53,7 @@ if api_key:
     Settings.chunk_size = 512
     Settings.chunk_overlap = 50
 
-# Groq Client setup
+# Groq Client for Logic & Other Tabs
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
 def use_credits(amount):
