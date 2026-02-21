@@ -779,28 +779,28 @@ with tab6:
             st.rerun()
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
 # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
-# --- TAB 7: TOPIC RESEARCH (UPDATED WITH AI ROADMAP) ---
+# --- TAB 7: TOPIC RESEARCH (FULL PRECISE VERSION) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
     st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
     
-    # Monetization: Deep research is premium
+    # Monetization
     search_cost = 3
-    roadmap_cost = 2  # New: Roadmap costs extra
+    roadmap_cost = 2 
     st.info(f"🚀 Premium Analysis: **{search_cost} Credits** | AI Roadmap: **{roadmap_cost} Credits**")
 
-    # Persistent State
+    # Persistent State Maintenance
     if "research_data" not in st.session_state:
         st.session_state.research_data = None
     if "research_query" not in st.session_state:
         st.session_state.research_query = ""
 
-    # Inputs
+    # User Input Fields
     col_q, col_d = st.columns([0.7, 0.3])
     query = col_q.text_input("Enter Engineering Topic (e.g. Transformer):", key="search_final_absolute_v1")
     exam_date = col_d.date_input("Target Exam Date", key="roadmap_date_v1")
     
-    # --- Deep Research Logic (Tera Purana Logic - No Changes) ---
+    # 1. DEEP RESEARCH EXECUTION BLOCK
     if st.button("Deep Research", key="btn_absolute_v1") and query:
         if st.session_state.user_data['credits'] >= search_cost:
             with st.spinner(f"Analyzing '{query}' for University Exams..."):
@@ -821,7 +821,7 @@ with tab7:
                     )
                     st.session_state.research_data = res.choices[0].message.content
                     st.session_state.research_query = query
-                    st.session_state.user_data['credits'] -= search_cost # Credit Deduct Logic
+                    st.session_state.user_data['credits'] -= search_cost 
                     st.toast(f"Success! {search_cost} Credits deducted.")
                     time.sleep(1)
                     st.rerun()
@@ -830,7 +830,7 @@ with tab7:
         else:
             st.error(f"Insufficient Credits! Need {search_cost} credits.")
 
-    # --- Display Logic (Keep your original UI intact) ---
+    # 2. DATA RENDERING BLOCK (The visual part you loved)
     if st.session_state.research_data:
         out = st.session_state.research_data
         q_name = st.session_state.research_query
@@ -867,33 +867,39 @@ with tab7:
         st.markdown("### ❓ 6. Expected Exam Questions (15+ PYQs)")
         st.write(get_sec('[6_PYQ]'))
 
-        # --- NEW: AI Roadmap Section (Update Based on your Idea) ---
+        # 3. VISUAL ROADMAP BLOCK
         st.markdown("---")
-        st.markdown("### 📅 Personalized Study Roadmap")
+        st.markdown("### 📅 AI Study Roadmap")
         days_left = (exam_date - datetime.now().date()).days
         
-        if st.button(f"Generate Study Plan for {days_left} Days ({roadmap_cost} Credits)"):
+        if st.button(f"Generate Visual Plan ({roadmap_cost} Credits)"):
             if st.session_state.user_data['credits'] >= roadmap_cost:
                 if days_left <= 0:
-                    st.error("Bhai kal exam hai ya exam ho chuka hai? Sahi date choose kar!")
+                    st.error("Bhai valid date choose kar!")
                 else:
-                    with st.spinner("AI is calculating your success path..."):
-                        roadmap_prompt = f"""
-                        Topic: {q_name}
-                        Technical Breakdown: {get_sec('[3_CXP]', '[4_SMP]')}
-                        Days Left for Exam: {days_left}
-                        Act as a Mentor. Create a day-by-day study roadmap to master this topic. 
-                        If days are less than 3, give a 'Crash Course' mode.
-                        """
+                    with st.spinner("AI is calculating success path..."):
+                        roadmap_prompt = f"Create a Day-by-Day study plan for topic: {q_name}. Days left: {days_left}. Use 'Day X:' format."
                         rm_res = groq_client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=[{"role": "user", "content": roadmap_prompt}]
                         )
                         st.session_state.user_data['credits'] -= roadmap_cost
-                        st.success("Your Roadmap is ready!")
-                        st.write(rm_res.choices[0].message.content)
-            else:
-                st.error("Credits low hain recharge karlo!")
+                        
+                        st.success(f"🎯 Roadmap for {days_left} Days Generated!")
+                        roadmap_text = rm_res.choices[0].message.content
+                        days_data = roadmap_text.split("Day")
+                        
+                        for day in days_data:
+                            if day.strip() and ":" in day:
+                                with st.container():
+                                    d_num = day.split(':')[0].strip()
+                                    d_text = day.split(':', 1)[1].strip()
+                                    st.markdown(f"""
+                                        <div style="background: #161b22; padding: 15px; border-radius: 12px; border-left: 5px solid #4CAF50; margin-bottom: 10px; border: 1px solid #30363d;">
+                                            <p style="color: #4CAF50; font-weight: bold; margin:0; font-size: 14px;">📅 DAY {d_num}</p>
+                                            <p style="color: #e6edf3; margin-top: 5px; font-size: 15px;">{d_text}</p>
+                                        </div>
+                                    """, unsafe_allow_html=True)
 
         if st.button("Clear Research"):
             st.session_state.research_data = None
