@@ -26,26 +26,24 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 1. CONFIGURATION: FULL WIDE MODE ---
+# --- 1. CONFIGURATION: BALANCED WIDE MODE ---
 st.set_page_config(
     page_title="TopperGPT Pro", 
-    layout="wide",  # Force laptop width
+    layout="wide",  # Laptop par wide but controlled
     page_icon="🚀",
     initial_sidebar_state="expanded"
 )
 
-# 🖋️ CINEMATIC PRO DARK UI (Laptop & Mobile Responsive)
+# 🖋️ BALANCED PRO DARK UI
 EVAL_CSS = """
 <style>
-/* Laptop Content Area Width Fix */
+/* Layout Fix: Content ko center aur readable banane ke liye */
 .block-container {
-    max-width: 98% !important;
-    padding-left: 2rem !important;
-    padding-right: 2rem !important;
-    padding-top: 1.5rem !important;
+    max-width: 90% !important;
+    padding-top: 3rem !important; /* Uper se thodi jagah di hai taaki chipke na */
+    padding-bottom: 2rem !important;
 }
 
-/* Global Dark Aesthetics */
 .stApp { background-color: #0d1117 !important; color: #ffffff !important; }
 
 /* Sidebar Premium Look */
@@ -54,132 +52,109 @@ EVAL_CSS = """
     border-right: 1px solid #30363d;
 }
 
-/* Wallet Card (Neon Glow) */
+/* Wallet Card (Controlled Size) */
 .wallet-card { 
     background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
-    padding: 25px; border-radius: 20px; border: 1px solid #4CAF50; 
-    text-align: center; margin-bottom: 20px;
-    box-shadow: 0 10px 30px rgba(76, 175, 80, 0.2);
+    padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; 
+    text-align: center; margin-bottom: 15px;
 }
 
-/* Payment Radio Group Custom Style */
+/* Tabs: Professional spacing */
+.stTabs [data-baseweb="tab-list"] { gap: 10px; }
+.stTabs [data-baseweb="tab"] { 
+    padding: 8px 15px !important; 
+    font-size: 14px !important; 
+    font-weight: 500 !important;
+}
+
+/* Radio buttons card look */
 div[data-testid="stRadio"] > label {
     background: #1c2128;
-    padding: 15px; border-radius: 12px;
-    border: 1px solid #30363d; margin-bottom: 10px;
-    width: 100%; transition: 0.3s;
-}
-div[data-testid="stRadio"] > label:hover {
-    border-color: #4CAF50; background: #22272e;
+    padding: 10px; border-radius: 10px;
+    border: 1px solid #30363d; margin-bottom: 8px;
+    width: 100%; font-size: 13px;
 }
 
-/* Tab labels: Professional and readable */
-.stTabs [data-baseweb="tab-list"] { gap: 15px; }
-.stTabs [data-baseweb="tab"] { 
-    padding: 10px 20px !important; 
-    font-size: 16px !important; 
-    font-weight: 600 !important;
-}
-
-/* Referral cinematic box */
-.referral-box {
-    background: rgba(76, 175, 80, 0.05);
-    border: 2px dashed #4CAF50;
-    padding: 20px; border-radius: 15px;
-    margin-top: 15px;
+/* Button glow fix */
+.stButton > button {
+    border-radius: 10px; font-weight: bold;
+    border: 1px solid #4CAF50 !important;
 }
 </style>
 """
 st.markdown(EVAL_CSS, unsafe_allow_html=True)
 
-# --- 2. REVENUE & STABILITY LOGIC ---
+# --- 2. GLOBAL STABILITY ---
 if "user_data" not in st.session_state: st.session_state.user_data = None
 
+# 💎 REVENUE LOOP: CREDIT CHECKER
 def use_credits(amount):
     if st.session_state.user_data and st.session_state.user_data.get('credits', 0) >= amount:
         st.session_state.user_data['credits'] -= amount
         return True
     return False
 
-# --- 🛠️ AI CLIENTS ---
+# --- 🛠️ AI SETUP ---
 api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
     Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key)
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- 3. LOGIN PAGE (Cinematic Intro) ---
+# --- 3. LOGIN PAGE (Symmetrical Design) ---
 if st.session_state.user_data is None:
-    _, col_mid, _ = st.columns([1, 1.5, 1])
+    _, col_mid, _ = st.columns([1, 1.2, 1])
     with col_mid:
-        st.markdown('<div style="text-align:center; padding:50px; background:#161b22; border-radius:25px; border:1px solid #4CAF50; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">'
-                    '<h1 style="color:#4CAF50; font-size: 3.5rem; font-style:italic; margin-bottom:0;">TopperGPT</h1>'
-                    '<p style="color:#8b949e; font-size:1.2rem; letter-spacing: 2px;">OFFICIAL RESEARCH PORTAL</p>'
-                    '<hr style="border-color:#30363d; margin: 30px 0;">'
-                    '<p style="color:#4CAF50; font-weight:bold; font-size:1.1rem;">🎁 Get 15 FREE Credits on First Login!</p></div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center; padding:40px; background:#161b22; border-radius:20px; border:1px solid #4CAF50;">'
+                    '<h1 style="color:#4CAF50; font-size: 2.5rem; font-style:italic;">TopperGPT</h1>'
+                    '<p style="color:#8b949e; letter-spacing: 1px;">RESEARCH PORTAL</p>'
+                    '<hr style="border-color:#30363d;">'
+                    '<p style="color:#4CAF50; font-weight:bold;">🎁 +15 FREE Credits added on Login</p></div>', unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔴 Access with University Account", use_container_width=True):
+        if st.button("🔴 Secure Login with University Mail", use_container_width=True):
             st.session_state.user_data = {
-                "email": "student@university.edu", 
-                "credits": 15, 
-                "referral_code": "TOP" + str(int(time.time()))[-4:],
-                "ref_claimed": False
+                "email": "student@mu.edu", "credits": 15, 
+                "referral_code": "TOP" + str(int(time.time()))[-4:], "ref_claimed": False
             }
             st.rerun()
     st.stop()
 
-# --- 4. SIDEBAR (WIDER & PREMIUM FEATURES) ---
+# --- 4. SIDEBAR (PROFESSIONAL & CLEAN) ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:0; font-style:italic;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='font-size:10px; color:#8b949e; margin-bottom:20px;'>V2.0 STABLE RELEASE</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:10px; color:#8b949e;'>V2.0 STABLE</p>", unsafe_allow_html=True)
     
-    st.markdown(f'''
-        <div class="wallet-card">
-            <p style="margin:0; font-size:12px; color:#eab308; font-weight:bold; letter-spacing:1px;">AVAILABLE BALANCE</p>
-            <h1 style="margin:5px 0; color:white; font-size:40px;">{st.session_state.user_data["credits"]} 🔥</h1>
-        </div>
-    ''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="wallet-card"><p style="margin:0; font-size:11px; color:#eab308;">BALANCE</p>
+        <h1 style="margin:0; color:white;">{st.session_state.user_data["credits"]} 🔥</h1></div>''', unsafe_allow_html=True)
 
-    # 🎁 REFERRAL SECTION
+    # 🎁 REFERRAL BOX
     with st.expander("🎁 Referral & Bonus", expanded=False):
-        st.markdown('<div class="referral-box">', unsafe_allow_html=True)
-        st.write("Invite Friends - Both Get 5 Credits!")
+        st.write("Share code & earn 5 credits:")
         st.code(st.session_state.user_data['referral_code'])
-        
         if not st.session_state.user_data.get('ref_claimed', False):
-            coupon = st.text_input("Claim Referral Code", placeholder="Enter TOPXXXX")
-            if st.button("Activate Bonus", use_container_width=True):
+            coupon = st.text_input("Coupon Code?", key="ref_input_v1")
+            if st.button("Claim"):
                 if coupon and coupon.upper().startswith("TOP"):
                     st.session_state.user_data['credits'] += 5
                     st.session_state.user_data['ref_claimed'] = True
-                    st.success("Credits Added! 🚀")
                     st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("<p style='font-weight:bold; color:#4CAF50;'>💎 PREMIUM REFILL PACKS</p>", unsafe_allow_html=True)
-    
+    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:12px;'>💎 REFILL PACKS</p>", unsafe_allow_html=True)
     payment_links = {
-        "Weekly Sureshot (70 Credits) @ ₹59": "https://rzp.io/rzp/FmwE0Ms6",
-        "Jugaad Pack (150 Credits) @ ₹99": "https://rzp.io/rzp/AWiyLxEi",
-        "Monthly Pro (350 Credits) @ ₹149": "https://rzp.io/rzp/hXcR54E"
+        "Weekly (70 Credits) @ ₹59": "https://rzp.io/rzp/FmwE0Ms6",
+        "Jugaad (150 Credits) @ ₹99": "https://rzp.io/rzp/AWiyLxEi",
+        "Monthly (350 Credits) @ ₹149": "https://rzp.io/rzp/hXcR54E"
     }
-    choice = st.radio("Select Plan:", list(payment_links.keys()), label_visibility="collapsed")
-    
-    st.markdown(f'''
-        <a href="{payment_links[choice]}" target="_blank" style="text-decoration: none;">
-            <div style="width: 100%; background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: black; text-align: center; padding: 15px 0; border-radius: 12px; font-weight: bold; cursor: pointer; border: 1px solid black;">
-                🚀 GET CREDITS NOW
-            </div>
-        </a>
-    ''', unsafe_allow_html=True)
+    choice = st.radio("Select:", list(payment_links.keys()), label_visibility="collapsed")
+    st.markdown(f'<a href="{payment_links[choice]}" target="_blank" style="text-decoration:none;"><div style="width:100%; background:#eab308; color:black; text-align:center; padding:12px 0; border-radius:10px; font-weight:bold;">🚀 BUY CREDITS</div></a>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔓 Secure Logout", use_container_width=True):
+    if st.button("🔓 Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
 
-# --- 5. MAIN TABS (PROFESSIONAL LABELS) ---
+# --- 5. MAIN TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
