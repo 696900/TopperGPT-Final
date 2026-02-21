@@ -779,7 +779,7 @@ with tab6:
             st.rerun()
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
 # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
-# --- TAB 7: TOPIC RESEARCH (FIXED FLOWCHART & SLEEK ROADMAP) ---
+# --- TAB 7: TOPIC RESEARCH (PRO VISUALS WITH GRAPHVIZ) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
     st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
@@ -798,16 +798,16 @@ with tab7:
     if st.button("Deep Research", key="btn_absolute_v1") and query:
         if st.session_state.user_data['credits'] >= search_cost:
             with st.spinner(f"Analyzing '{query}'..."):
-                # Updated Prompt: Flowchart ke liye Mermaid code mangwaya hai jo 100% dikhega
+                # Updated Prompt: Mermaid ko nikal kar Graphviz DOT code mangwaya hai
                 prompt = f"""
                 Act as an Engineering Professor. Provide a comprehensive report for: '{query}'.
-                Use these markers:
-                [1_DEF] for definition.
+                Use these markers exactly:
+                [1_DEF] for technical definition.
                 [2_KEY] for 7-10 technical keywords.
-                [3_CXP] for working.
-                [4_SMP] for simple explanation.
-                [5_MER] for Mermaid Diagram code (graph TD...). No brackets inside nodes.
-                [6_PYQ] for 15 REAL PYQs.
+                [3_CXP] for detailed technical breakdown/working.
+                [4_SMP] for a simple 2-line explanation.
+                [5_DOT] for ONLY Graphviz DOT code (digraph G {{...}}) showing its architecture. Use clean labels.
+                [6_PYQ] for at least 15 REAL university exam questions.
                 """
                 try:
                     res = groq_client.chat.completions.create(
@@ -818,7 +818,7 @@ with tab7:
                     st.session_state.research_query = query
                     st.session_state.user_data['credits'] -= search_cost 
                     st.rerun()
-                except Exception as e: st.error(f"Error: {e}")
+                except Exception as e: st.error(f"System Busy. Error: {e}")
 
     if st.session_state.research_data:
         out = st.session_state.research_data
@@ -830,7 +830,7 @@ with tab7:
                 if len(parts) < 2: return "Data missing."
                 content = parts[1]
                 if m2 and m2 in content: content = content.split(m2)[0]
-                return content.strip().replace("```mermaid", "").replace("```", "")
+                return content.strip().replace("```dot", "").replace("```", "").replace("```gv", "")
             except: return "Section error."
 
         st.markdown(f"## 📘 Technical Report: {q_name}")
@@ -838,48 +838,47 @@ with tab7:
         
         c1, c2 = st.columns(2)
         with c1: st.write(f"**2. Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
-        with c2: st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_MER]')}")
+        with c2: st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_DOT]')}")
         
         st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
 
-        # --- FIXED FLOWCHART SECTION ---
+        # --- HD GRAPHVIZ FLOWCHART (Better than Mermaid) ---
         st.markdown("---")
         st.markdown("### 📊 5. Architecture Flowchart")
-        mer_code = get_sec('[5_MER]', '[6_PYQ]')
-        if "graph" in mer_code:
-            from streamlit_mermaid import st_mermaid
-            st_mermaid(mer_code, height="400px") # Mermaid use kiya hai taaki image ki tarah display ho
-        else: st.info("Flowchart code generating...")
+        dot_code = get_sec('[5_DOT]', '[6_PYQ]')
+        if "digraph" in dot_code:
+            # Graphviz is built-in to Streamlit and renders beautiful SVGs
+            st.graphviz_chart(dot_code, use_container_width=True)
+        else:
+            st.info("Generating architecture visuals...")
         
         st.markdown("---")
         st.markdown("### ❓ 6. Expected Exam Questions (15+ PYQs)")
         st.write(get_sec('[6_PYQ]'))
 
-        # --- SLEEK VISUAL ROADMAP ---
+        # --- PREMIUM ROADMAP VIEW ---
         st.markdown("---")
-        st.markdown("### 📅 Study Strategy")
+        st.markdown("### 📅 Personalized Study Roadmap")
         days_left = (exam_date - datetime.now().date()).days
         
-        if st.button(f"Generate Plan ({roadmap_cost} Credits)"):
+        if st.button(f"Generate Plan for {days_left} Days ({roadmap_cost} Credits)"):
             if st.session_state.user_data['credits'] >= roadmap_cost:
-                with st.spinner("AI Planning..."):
-                    rm_prompt = f"Topic: {q_name}. Days: {days_left}. Give daily plan in 'Day X: [Action]' format."
+                with st.spinner("AI Mentor is planning..."):
+                    rm_prompt = f"Create a Day-by-Day study plan for: {q_name}. Days left: {days_left}. Use 'Day X:' format."
                     rm_res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": rm_prompt}]
                     )
                     st.session_state.user_data['credits'] -= roadmap_cost
-                    
-                    st.success(f"🎯 Roadmap for {days_left} Days")
+                    st.success("Plan Generated!")
                     roadmap_text = rm_res.choices[0].message.content
                     days_data = roadmap_text.split("Day")
                     
-                    # Sleek Flex Layout for Roadmap
                     for day in days_data:
                         if day.strip() and ":" in day:
                             d_num, d_text = day.split(':', 1)
                             st.markdown(f"""
-                                <div style="background: #1a1c23; padding: 12px; border-radius: 8px; border-left: 4px solid #4CAF50; margin-bottom: 8px;">
+                                <div style="background: #1a1c23; padding: 12px; border-radius: 8px; border-left: 4px solid #4CAF50; margin-bottom: 8px; border: 1px solid #30363d;">
                                     <span style="color: #4CAF50; font-weight: bold;">DAY {d_num.strip()}</span>: 
                                     <span style="color: #e6edf3;">{d_text.strip()}</span>
                                 </div>
