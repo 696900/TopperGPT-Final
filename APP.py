@@ -492,81 +492,90 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP ARCHITECT (HD COLORFUL VERSION) ---
+# --- TAB 4: CONCEPT MINDMAP (V117 - SYNTAX SECURE) ---
 with tab4:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🧠 HD Concept Mindmap</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Professional Concept Architect</h2>", unsafe_allow_html=True)
     
-    current_bal = st.session_state.user_data.get('credits', 0) if st.session_state.user_data else 0
-    mm_input = st.text_input("Concept Name:", key="mm_pro_v1", placeholder="e.g. Quantum Computing")
+    incoming_topic = st.session_state.get('active_topic', "")
+    col_in, col_opt = st.columns([0.7, 0.3])
     
-    cost = 2 
+    with col_in:
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v117", placeholder="e.g. Data Structures")
+    with col_opt:
+        use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
-    if st.button(f"🚀 Generate Detailed Mindmap ({cost} Credits)"):
-        if mm_input and current_bal >= cost:
-            with st.spinner("Crafting Colorful Architecture..."):
-                try:
-                    # Prompt ko upgrade kiya hai colorful styling ke liye
-                    prompt = f"""
-                    Create a detailed Mermaid.js mindmap for: '{mm_input}'.
-                    Rules:
-                    1. Start with 'mindmap'.
-                    2. Use 'root(({mm_input}))' as the center.
-                    3. Add at least 4-5 main branches.
-                    4. IMPORTANT: Give each branch a different style using Mermaid syntax if possible, or just deep nesting.
-                    5. Use ONLY plain text inside nodes. No special characters.
-                    Return ONLY the code block.
-                    """
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    mm_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
-                    
-                    st.session_state.user_data['credits'] -= cost
-                    st.session_state.last_mm_code = mm_code
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
+    mm_cost = 2
 
-    # --- THE PRO RENDERING ENGINE ---
+    if st.button(f"🚀 Generate Detailed Mindmap ({mm_cost} Credits)"):
+        if mm_input:
+            if use_credits(mm_cost):
+                with st.spinner("Architecture design ho raha hai..."):
+                    try:
+                        context = ""
+                        if use_pdf and st.session_state.get('current_index'):
+                            qe = st.session_state.current_index.as_query_engine(similarity_top_k=3)
+                            context_res = qe.query(f"Extract deep sub-topics for {mm_input}.")
+                            context = f"Context: {context_res.response}"
+
+                        # ✅ MASTER PROMPT: Strict formatting to avoid Syntax Error
+                        prompt = f"""
+                        Create a Mermaid.js mindmap for: '{mm_input}'. {context}
+                        Strict Rules:
+                        1. Start with 'mindmap'
+                        2. Root is 'root(({mm_input}))'
+                        3. Use 2-space indentation for branches.
+                        4. NO special characters like (&, !, ?, -, :) or brackets INSIDE the labels.
+                        5. Return ONLY the code. NO markdown backticks, NO intro text.
+                        """
+                        
+                        res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                        
+                        # 🔥 DATA SANITIZATION: Removes backticks and extra text
+                        raw_output = res.choices[0].message.content
+                        clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
+                        
+                        # Force start with mindmap keyword
+                        if "mindmap" not in clean_code[:10]:
+                            clean_code = "mindmap\n" + clean_code
+                            
+                        st.session_state.last_mm_code = clean_code
+                        st.rerun() 
+                    except Exception as e:
+                        st.session_state.user_data['credits'] += mm_cost
+                        st.error(f"Logic Error: {e}")
+
+    # --- 🎭 PRO RENDERING ENGINE ---
     if "last_mm_code" in st.session_state:
-        st.divider()
-        
-        # Mermaid code ko sunder border mein dikhane ke liye HTML/CSS
-        st.markdown(f"""
-            <div style="border: 2px solid #4CAF50; padding: 10px; border-radius: 15px; background: #0e1117;">
-                <p style="text-align: center; color: #4CAF50; font-weight: bold; font-size: 12px;">TopperGPT Visual Engine v2.0</p>
-            </div>
-        """, unsafe_allow_html=True)
-
-        # Mermaid Container
+        st.markdown("---")
         import streamlit.components.v1 as components
         
-        # Is script mein humne colors aur font ko upgrade kiya hai
+        # UI Fix: Responsive container for different screen sizes
         html_code = f"""
-        <div id="graphDiv" style="background: #0e1117; display: flex; justify-content: center; padding: 20px;">
-            <pre class="mermaid" style="background: transparent;">
+        <div id="capture_area" style="background:#0d1117; padding:20px; border-radius:15px; border:1px solid #4CAF50;">
+            <pre class="mermaid" style="display:flex; justify-content:center; background:transparent;">
             {st.session_state.last_mm_code}
             </pre>
         </div>
-        
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             mermaid.initialize({{ 
                 startOnLoad: true, 
-                theme: 'dark',
+                theme: 'forest',
+                securityLevel: 'loose',
                 themeVariables: {{
-                    'primaryColor': '#4CAF50',
-                    'primaryTextColor': '#fff',
-                    'lineColor': '#4CAF50',
-                    'fontSize': '16px'
+                    fontSize: '18px',
+                    primaryColor: '#4CAF50',
+                    mainBkg: '#1c2128',
+                    textColor: '#fff',
+                    lineColor: '#4CAF50'
                 }}
             }});
         </script>
         """
-        components.html(html_code, height=600)
-        
-        st.caption("💡 Tip: Download karke status par lagao, full HD dikhega!")
+        components.html(html_code, height=600, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
