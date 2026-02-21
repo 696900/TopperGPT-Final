@@ -492,7 +492,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V117 - SYNTAX SECURE) ---
+# --- TAB 4: CONCEPT MINDMAP (V118 - PROFESSIONAL TREE EDITION) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Professional Concept Architect</h2>", unsafe_allow_html=True)
     
@@ -500,16 +500,16 @@ with tab4:
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v117", placeholder="e.g. Data Structures")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v118", placeholder="e.g. Quantum Computing")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
     mm_cost = 2
 
-    if st.button(f"🚀 Generate Detailed Mindmap ({mm_cost} Credits)"):
+    if st.button(f"🚀 Generate Professional Mindmap ({mm_cost} Credits)"):
         if mm_input:
             if use_credits(mm_cost):
-                with st.spinner("Architecture design ho raha hai..."):
+                with st.spinner("Engineering Architecture design ho raha hai..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
@@ -517,15 +517,16 @@ with tab4:
                             context_res = qe.query(f"Extract deep sub-topics for {mm_input}.")
                             context = f"Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Strict formatting to avoid Syntax Error
+                        # ✅ MASTER PROMPT: Strictly for clean, professional tree-style mindmap
                         prompt = f"""
                         Create a Mermaid.js mindmap for: '{mm_input}'. {context}
-                        Strict Rules:
-                        1. Start with 'mindmap'
-                        2. Root is 'root(({mm_input}))'
-                        3. Use 2-space indentation for branches.
-                        4. NO special characters like (&, !, ?, -, :) or brackets INSIDE the labels.
-                        5. Return ONLY the code. NO markdown backticks, NO intro text.
+                        Strict Rules for Professional Look:
+                        1. Start with the word 'mindmap' alone on the first line.
+                        2. Root MUST be: 'root(({mm_input}))'.
+                        3. Use EXACTLY 2 spaces for each level of indentation.
+                        4. NO special characters or extra punctuation inside node names.
+                        5. Use 5-6 main branches with 2-3 detailed sub-nodes each.
+                        6. Output ONLY the code. NO markdown backticks.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -533,11 +534,7 @@ with tab4:
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
-                        # 🔥 DATA SANITIZATION: Removes backticks and extra text
-                        raw_output = res.choices[0].message.content
-                        clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
-                        
-                        # Force start with mindmap keyword
+                        clean_code = res.choices[0].message.content.replace("```mermaid", "").replace("```", "").strip()
                         if "mindmap" not in clean_code[:10]:
                             clean_code = "mindmap\n" + clean_code
                             
@@ -547,15 +544,15 @@ with tab4:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- 🎭 PRO RENDERING ENGINE ---
+    # --- 🎭 PROFESSIONAL RENDERING ENGINE ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # UI Fix: Responsive container for different screen sizes
+        # UI Fix: Using a cleaner 'base' theme with custom colors for professional look
         html_code = f"""
-        <div id="capture_area" style="background:#0d1117; padding:20px; border-radius:15px; border:1px solid #4CAF50;">
-            <pre class="mermaid" style="display:flex; justify-content:center; background:transparent;">
+        <div id="capture_area" style="background:#0d1117; padding:40px; border-radius:15px; border:1px solid #4CAF50; display:flex; justify-content:center;">
+            <pre class="mermaid" style="background:transparent; text-align:center;">
             {st.session_state.last_mm_code}
             </pre>
         </div>
@@ -563,19 +560,23 @@ with tab4:
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             mermaid.initialize({{ 
                 startOnLoad: true, 
-                theme: 'forest',
+                theme: 'base',
                 securityLevel: 'loose',
                 themeVariables: {{
                     fontSize: '18px',
                     primaryColor: '#4CAF50',
+                    primaryTextColor: '#fff',
+                    primaryBorderColor: '#4CAF50',
+                    lineColor: '#eab308',
+                    nodeBkg: '#1c2128',
                     mainBkg: '#1c2128',
                     textColor: '#fff',
-                    lineColor: '#4CAF50'
+                    fontFamily: 'Inter, sans-serif'
                 }}
             }});
         </script>
         """
-        components.html(html_code, height=600, scrolling=True)
+        components.html(html_code, height=650, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
