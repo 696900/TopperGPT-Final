@@ -92,59 +92,79 @@ if st.session_state.user_data is None:
     st.stop()
 
 # --- 4. SIDEBAR (FOUNDER EDITION) ---
+# --- 4. SIDEBAR: CINEMATIC WALLET & PREMIUM REFERRAL ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #4CAF50; margin-bottom:0;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
-    st.markdown(f'''<div class="wallet-card"><p style="margin:0; font-size:11px; color:#eab308; font-weight:bold;">BALANCE</p>
-        <h1 style="margin:0; color:white;">{st.session_state.user_data["credits"]} 🔥</h1></div>''', unsafe_allow_html=True)
+    # Wallet Card with Glow effect
+    st.markdown(f'''
+        <div class="wallet-card">
+            <p style="margin:0; font-size:11px; color:#eab308; font-weight:bold; letter-spacing:1px;">AVAILABLE CREDITS</p>
+            <h1 style="margin:5px 0; color:white; font-size:42px; font-weight:900;">{st.session_state.user_data["credits"]} <span style="font-size:20px;">🔥</span></h1>
+            <p style="margin:0; font-size:10px; color:#8b949e;">Plan: Premium Student</p>
+        </div>
+    ''', unsafe_allow_html=True)
 
-    # 🎁 REFERRAL SYSTEM (FIXED)
-    with st.expander("🎁 Get FREE Credits", expanded=True):
-        st.markdown('<div class="referral-container">', unsafe_allow_html=True)
-        st.write("Dosto ko bhej, Dono ko 5-5 credits milenge!")
-        st.code(st.session_state.user_data['referral_code'])
+    # 🎁 REFERRAL SYSTEM: THE "GIFT CARD" DESIGN
+    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-top:20px;'>🎁 REFER & EARN FREE CREDITS</p>", unsafe_allow_html=True)
+    
+    with st.container():
+        st.markdown(f'''
+            <div style="background: rgba(76, 175, 80, 0.08); border: 2px dashed #4CAF50; padding: 15px; border-radius: 15px; text-align: center; margin-bottom: 10px;">
+                <p style="color: #c9d1d9; font-size: 13px; margin-bottom: 5px;">Share this code with a friend. Both get <b>+5 Credits</b>!</p>
+                <div style="background: #0d1117; padding: 10px; border-radius: 8px; border: 1px solid #30363d;">
+                    <code style="color: #4CAF50; font-size: 18px; font-weight: bold;">{st.session_state.user_data['referral_code']}</code>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
         
         if not st.session_state.user_data.get('ref_claimed', False):
-            claim_code = st.text_input("Referral Code?", placeholder="TOPXXXX", key="ref_input")
-            if st.button("Claim Bonus", use_container_width=True):
-                clean_claim = claim_code.strip().upper()
+            claim_input = st.text_input("Friend's Referral Code?", placeholder="Enter TOPXXXX", key="ref_v108")
+            if st.button("Claim My Bonus (+5)", use_container_width=True):
+                clean_claim = claim_input.strip().upper()
+                
                 if not clean_claim:
-                    st.warning("Pehle code toh daal bhai!")
+                    st.warning("Pehle code toh dalo bhai!")
                 elif clean_claim == st.session_state.user_data['referral_code']:
                     st.error("Shaane! Apna hi code daal ke credits badhayega? 😂")
                 else:
+                    # Success Path
                     st.session_state.user_data['credits'] += 5
                     st.session_state.user_data['ref_claimed'] = True
-                    st.success("Success! +5 Credits added. 🔥")
+                    st.balloons()
+                    st.success("Boom! +5 Credits added. 🔥")
                     st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:12px;'>💎 REFILL PACKS</p>", unsafe_allow_html=True)
     
-    payment_links = {
-        "Weekly (70 Credits) @ ₹59": "https://rzp.io/rzp/FmwE0Ms6",
-        "Jugaad (150 Credits) @ ₹99": "https://rzp.io/rzp/AWiyLxEi",
-        "Monthly (350 Credits) @ ₹149": "https://rzp.io/rzp/hXcR54E"
-    }
+    # 💎 REFILL PACKS: DYNAMIC CARDS
+    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-bottom:15px;'>💎 PREMIUM REFILL PACKS</p>", unsafe_allow_html=True)
     
-    # Cinematic Radio Selector
-    choice = st.radio("Select Pack:", list(payment_links.keys()), label_visibility="collapsed")
-    
-    st.markdown(f'''
-        <a href="{payment_links[choice]}" target="_blank" style="text-decoration:none;">
-            <div style="width:100%; background:linear-gradient(135deg, #eab308 0%, #ca8a04 100%); 
-            color:black; text-align:center; padding:12px 0; border-radius:10px; font-weight:bold; border:1px solid black;">
-                🚀 BUY: {choice.split(" @ ")[0]}
-            </div>
-        </a>
-    ''', unsafe_allow_html=True)
+    refill_packs = [
+        {"name": "Weekly Sureshot", "credits": "70 Credits", "price": "₹59", "url": "https://rzp.io/rzp/FmwE0Ms6"},
+        {"name": "Jugaad Pack", "credits": "150 Credits", "price": "₹99", "url": "https://rzp.io/rzp/AWiyLxEi"},
+        {"name": "Monthly Pro", "credits": "350 Credits", "price": "₹149", "url": "https://rzp.io/rzp/hXcR54E"}
+    ]
+
+    for pack in refill_packs:
+        st.markdown(f'''
+            <a href="{pack['url']}" target="_blank" style="text-decoration: none;">
+                <div class="pay-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color:#4CAF50; font-weight:bold;">{pack['name']}</span>
+                        <span style="color:white; font-weight:bold;">{pack['price']}</span>
+                    </div>
+                    <div style="text-align: left; font-size: 11px; color: #8b949e; margin-top: 5px;">
+                        Instant {pack['credits']} Added to Wallet
+                    </div>
+                </div>
+            </a>
+        ''', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔓 Logout", use_container_width=True):
+    if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
-
 # --- 5. MAIN TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
