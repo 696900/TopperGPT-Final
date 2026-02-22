@@ -203,64 +203,56 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 # --- TAB 1: SMART PDF MENTOR (V133 - MODEL NAME & KEY FIX) ---
-# --- TAB 1: SMART PDF MENTOR (V134 - MULTI-SCAN FIX) ---
+# --- TAB 1: SMART PDF MENTOR (V136 - ISOLATED & STABLE) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("Upload Engineering Textbook (PDF)", type="pdf")
+    uploaded_file = st.file_uploader("Upload Engineering Textbook (PDF)", type="pdf", key="pdf_main_v1")
     
     if uploaded_file:
-        import fitz  # PyMuPDF
-        with st.spinner("Scanning Document..."):
-            doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-            full_text = ""
-            for page in doc:
-                full_text += page.get_text()
-            
-            # Agar text nahi mila, matlab scanned image hai
-            if len(full_text.strip()) < 10:
-                st.warning("⚠️ Ye scanned PDF lag rahi hai. Text extraction limited ho sakta hai.")
-            
-            st.session_state.pdf_context = full_text
-            st.success(f"Successfully loaded {len(doc)} pages!")
+        import fitz  
+        # Session state mein context save karte hain taaki baaki tabs disturb na hon
+        if "pdf_context" not in st.session_state:
+            with st.spinner("Deep Scanning textbook..."):
+                doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+                full_text = ""
+                for page in doc:
+                    full_text += page.get_text()
+                st.session_state.pdf_context = full_text
+                st.session_state.pdf_pages = len(doc)
+            st.success(f"Successfully loaded {st.session_state.pdf_pages} pages!")
 
-    if prompt := st.chat_input("Ask anything from the PDF..."):
-        api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-        
-        if not api_key:
-            st.error("Bhai, Secrets mein key check kar!")
-        elif "pdf_context" not in st.session_state:
-            st.error("Pehle PDF toh upload kar le!")
+    # Chat Interface (Sirf Tab 1 ke liye isolated messages)
+    if "pdf_chat_history" not in st.session_state:
+        st.session_state.pdf_chat_history = []
+
+    for msg in st.session_state.pdf_chat_history:
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+
+    if prompt := st.chat_input("Ask from PDF...", key="pdf_input_v1"):
+        if "pdf_context" not in st.session_state:
+            st.error("Pehle PDF upload kar bhai!")
         else:
+            st.session_state.pdf_chat_history.append({"role": "user", "content": prompt})
+            with st.chat_message("user"): st.markdown(prompt)
+
             with st.chat_message("assistant"):
                 try:
-                    import google.generativeai as genai
+                    # ✅ FIXED: Use the key name YOU saved in Secrets
+                    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
                     genai.configure(api_key=api_key)
                     
-                    # ✅ FIXED: Using 'gemini-1.5-flash' WITHOUT 'models/' to avoid 404
+                    # Gemini 1.5 Flash - No LlamaIndex connection needed
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    system_prompt = f"""
-                    Tu ek expert Engineering Professor hai. 
-                    Is PDF Context se detailed jawab de. Agar data text-based nahi hai, 
-                    toh apne knowledge se student ki help kar.
+                    # Direct Context Injection
+                    sys_prompt = f"Tu expert Professor hai. Is PDF se jawab de: {st.session_state.pdf_context[:800000]}"
+                    response = model.generate_content([sys_prompt, prompt])
                     
-                    CONTEXT:
-                    {st.session_state.pdf_context[:900000]}
-                    """
-                    
-                    # Direct generation call
-                    response = model.generate_content(f"{system_prompt}\n\nUser Question: {prompt}")
                     st.markdown(response.text)
-                    
+                    st.session_state.pdf_chat_history.append({"role": "assistant", "content": response.text})
                 except Exception as e:
-                    # Agar 404 aaye, toh alternative name try karo
-                    if "404" in str(e):
-                        model = genai.GenerativeModel('gemini-pro') # Fallback to Pro
-                        response = model.generate_content(f"{system_prompt}\n\nUser Question: {prompt}")
-                        st.markdown(response.text)
-                    else:
-                        st.error(f"Logic Error: {e}")
+                    st.error(f"Tab 1 Error: {e}. Baaki tabs sahi chalenge!")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
