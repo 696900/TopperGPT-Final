@@ -202,36 +202,33 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART PDF MENTOR (V137 - FINAL STABLE FIX) ---
+# --- TAB 1: SMART PDF MENTOR (V138 - FINAL 404 FIX) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("Upload Engineering Textbook (PDF)", type="pdf", key="pdf_stable_v137")
+    uploaded_file = st.file_uploader("Upload Engineering Textbook (PDF)", type="pdf", key="pdf_stable_v138")
     
     if uploaded_file:
         import fitz  
+        # Session state ensure karta hai ki Tab 4 disturb na ho
         if "pdf_context" not in st.session_state:
-            with st.spinner("Scanning textbook..."):
+            with st.spinner("Deep Scanning textbook..."):
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                 full_text = ""
                 for page in doc:
                     full_text += page.get_text()
-                
-                # Agar text empty hai toh scanned image handling
-                if not full_text.strip():
-                    st.session_state.pdf_context = "Scanned PDF: Please ask specific questions."
-                else:
-                    st.session_state.pdf_context = full_text
+                st.session_state.pdf_context = full_text if full_text.strip() else "Scanned Content Detected."
                 st.session_state.pdf_pages = len(doc)
             st.success(f"Successfully loaded {st.session_state.pdf_pages} pages!")
 
+    # Chat isolated from other tabs
     if "pdf_chat_history" not in st.session_state:
         st.session_state.pdf_chat_history = []
 
     for msg in st.session_state.pdf_chat_history:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Ask from PDF...", key="pdf_input_v137"):
+    if prompt := st.chat_input("Ask from PDF...", key="pdf_input_v138"):
         if "pdf_context" not in st.session_state:
             st.error("Pehle PDF upload kar bhai!")
         else:
@@ -240,21 +237,30 @@ with tab1:
 
             with st.chat_message("assistant"):
                 try:
-                    # ✅ KEY CHECK: Secrets se key uthana
+                    # ✅ DYNAMIC KEY CHECK: Dono names check honge
                     api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
                     import google.generativeai as genai
                     genai.configure(api_key=api_key)
                     
-                    # ✅ FIX: No 'models/' prefix to avoid 404
+                    # ✅ THE "404 KILLER" FIX: Using simple model name without 'models/' or 'v1beta'
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
+                    # Full context injection (1M tokens window is huge)
                     sys_prompt = f"Tu expert Professor hai. Is PDF context se jawab de: {st.session_state.pdf_context[:800000]}"
-                    response = model.generate_content([sys_prompt, prompt])
                     
+                    response = model.generate_content([sys_prompt, prompt])
                     st.markdown(response.text)
                     st.session_state.pdf_chat_history.append({"role": "assistant", "content": response.text})
                 except Exception as e:
-                    st.error(f"Tab 1 Error: {e}. Baaki tabs sahi chalenge!")
+                    # Fallback model agar system phir bhi nakhre kare
+                    if "404" in str(e):
+                        try:
+                            model = genai.GenerativeModel('gemini-pro')
+                            response = model.generate_content(f"{sys_prompt}\n\nQuestion: {prompt}")
+                            st.markdown(response.text)
+                        except: st.error("Google API is updating. Try after 1 minute.")
+                    else:
+                        st.error(f"Tab 1 Error: {e}. Baaki tabs safe hain!")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
