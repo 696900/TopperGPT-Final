@@ -218,16 +218,13 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# ==========================================
-# --- TAB 1: SMART PDF MENTOR (V145 - STABLE) ---
-# ==========================================
+# --- TAB 1: SMART PDF MENTOR (V146 - FORCE STABLE) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="pdf_stable_v145")
+    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="pdf_stable_v146")
 
     if uploaded_file:
-        import fitz  
         if "pdf_context" not in st.session_state:
             with st.spinner("TopperGPT is scanning..."):
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
@@ -241,7 +238,7 @@ with tab1:
     for msg in st.session_state.pdf_chat_history:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Ex: 'Solve all questions from PDF'"):
+    if prompt := st.chat_input("Ex: 'Summarize this PDF'"):
         if "pdf_context" not in st.session_state:
             st.error("Pehle PDF upload kar bhai!")
         elif use_credits(1):
@@ -250,13 +247,16 @@ with tab1:
 
             with st.chat_message("assistant"):
                 try:
-                    # 🚀 THE CRITICAL FIX: Direct call to stable 'gemini-1.5-flash'
-                    # Prefix 'models/' aur 'v1beta' connection yahan se bypass hoga
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+                    genai.configure(api_key=api_key)
                     
-                    full_prompt = f"Context: {st.session_state.pdf_context[:600000]}\n\nQuestion: {prompt}"
+                    # ✅ THE FINAL FIX: Using ONLY the most stable model name
+                    # No 'models/' prefix, No 'v1beta'
+                    model = genai.GenerativeModel('gemini-1.5-flash-8b') # 8b is ultra-fast & stable
                     
-                    # Generation call
+                    full_prompt = f"Context: {st.session_state.pdf_context[:500000]}\n\nQuestion: {prompt}"
+                    
+                    # Force calling the stable generation
                     response = model.generate_content(full_prompt)
                     
                     st.markdown(response.text)
@@ -264,13 +264,13 @@ with tab1:
                     st.rerun()
                 
                 except Exception as e:
-                    # Fallback to Pro if Flash is doing nakhre
-                    if "404" in str(e):
-                        model_fallback = genai.GenerativeModel('gemini-pro')
-                        res = model_fallback.generate_content(f"Answer: {prompt}")
-                        st.markdown(res.text)
-                    else:
-                        st.error(f"API Error: {e}")
+                    # Final Backup with the latest Pro model
+                    try:
+                        model_pro = genai.GenerativeModel('gemini-1.5-pro')
+                        response = model_pro.generate_content(prompt)
+                        st.markdown(response.text)
+                    except:
+                        st.error(f"Error: {e}. Please Reboot the app from Streamlit Dashboard.")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
