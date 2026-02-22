@@ -202,7 +202,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART PDF MENTOR (V132 - API NAME FIX) ---
+# --- TAB 1: SMART PDF MENTOR (V133 - MODEL NAME & KEY FIX) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
@@ -211,6 +211,7 @@ with tab1:
     if uploaded_file:
         import fitz  # PyMuPDF
         with st.spinner("Deep Scanning textbook..."):
+            # Resetting context for new upload
             doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
             full_text = ""
             for page_num in range(len(doc)):
@@ -218,7 +219,6 @@ with tab1:
                 full_text += page.get_text()
             
             st.session_state.pdf_context = full_text
-            # Ab ye asli page count dikhayega
             st.success(f"Successfully loaded {len(doc)} pages! Taiyyar ho jao marks phodne ke liye.")
 
     if "pdf_messages" not in st.session_state:
@@ -228,11 +228,11 @@ with tab1:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
     if prompt := st.chat_input("Ask anything from the PDF..."):
-        # ✅ DYNAMIC KEY CHECK: Dono names check honge
+        # ✅ NAME CHECK: Using the key you saved as 'GEMINI_API_KEY'
         api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
         
         if not api_key:
-            st.error("Bhai, Streamlit Secrets mein key nahi mili! Ek baar check kar.")
+            st.error("Error: Streamlit Secrets mein 'GEMINI_API_KEY' nahi mili!")
         elif "pdf_context" not in st.session_state:
             st.error("Pehle PDF upload kar le bhai!")
         else:
@@ -243,19 +243,26 @@ with tab1:
                 try:
                     import google.generativeai as genai
                     genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # Full context injection for better answers
+                    # ✅ FIXED MODEL NAME: Adding 'models/' prefix to fix 404
+                    model = genai.GenerativeModel('models/gemini-1.5-flash')
+                    
                     system_prompt = f"""
-                    Tu ek expert Engineering Mentor hai. 
-                    Neeche diye gaye PDF Context se hi detail mein jawab de.
-                    CONTEXT: {st.session_state.pdf_context[:800000]}
+                    Tu ek expert Engineering Professor hai. 
+                    Neeche diye gaye PDF Context ka use karke user ke sawal ka technical aur detail mein jawab de.
+                    Agar context mein answer nahi hai toh apne engineering knowledge se bata.
+                    
+                    CONTEXT:
+                    {st.session_state.pdf_context[:900000]}
                     """
                     
                     response = model.generate_content([system_prompt, prompt])
-                    st.markdown(response.text)
-                    st.session_state.pdf_messages.append({"role": "assistant", "content": response.text})
+                    res_text = response.text
+                    
+                    st.markdown(res_text)
+                    st.session_state.pdf_messages.append({"role": "assistant", "content": res_text})
                 except Exception as e:
+                    # Specific error handling for clear debugging
                     st.error(f"API Error: {e}")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
