@@ -26,28 +26,27 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 🛠️ MASTER AI SETUP (V142 - STABLE ENDPOINTS) ---
-api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+# --- 🛠️ MASTER AI SETUP (V147 - FORCE STABLE) ---
+api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 api_key_groq = st.secrets.get("GROQ_API_KEY")
 
 if api_key_gemini:
     import google.generativeai as genai
     genai.configure(api_key=api_key_gemini)
     
-    # LlamaIndex Settings (For Syllabus Tracker)
-    # Prefix "models/" sirf embedding mein chalta hai, generation mein nahi
+    # LlamaIndex Settings (Stable Embedding)
+    from llama_index.embeddings.gemini import GeminiEmbedding
+    from llama_index.core import Settings
     Settings.embed_model = GeminiEmbedding(
         model_name="models/text-embedding-004", 
         api_key=api_key_gemini
     )
-    
+
 if api_key_groq:
     from llama_index.llms.groq import Groq as LlamaGroq
+    from groq import Groq
     Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
     groq_client = Groq(api_key=api_key_groq)
-
-Settings.chunk_size = 512
-Settings.chunk_overlap = 50
 # ==========================================
 # --- STEP 1: GLOBAL STABLE AI SETUP (FIXED) ---
 # ==========================================
@@ -218,13 +217,14 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART PDF MENTOR (V146 - FORCE STABLE) ---
+# --- TAB 1: SMART PDF MENTOR (V147 - NO MORE 404) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="pdf_stable_v146")
+    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="pdf_stable_v147")
 
     if uploaded_file:
+        import fitz  
         if "pdf_context" not in st.session_state:
             with st.spinner("TopperGPT is scanning..."):
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
@@ -238,7 +238,7 @@ with tab1:
     for msg in st.session_state.pdf_chat_history:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Ex: 'Summarize this PDF'"):
+    if prompt := st.chat_input("Ex: 'Give answers of all questions'"):
         if "pdf_context" not in st.session_state:
             st.error("Pehle PDF upload kar bhai!")
         elif use_credits(1):
@@ -247,16 +247,12 @@ with tab1:
 
             with st.chat_message("assistant"):
                 try:
-                    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-                    genai.configure(api_key=api_key)
+                    # ✅ FIXED: Plain stable model name
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # ✅ THE FINAL FIX: Using ONLY the most stable model name
-                    # No 'models/' prefix, No 'v1beta'
-                    model = genai.GenerativeModel('gemini-1.5-flash-8b') # 8b is ultra-fast & stable
+                    full_prompt = f"Context: {st.session_state.pdf_context[:600000]}\n\nQuestion: {prompt}"
                     
-                    full_prompt = f"Context: {st.session_state.pdf_context[:500000]}\n\nQuestion: {prompt}"
-                    
-                    # Force calling the stable generation
+                    # Direct generation without beta endpoints
                     response = model.generate_content(full_prompt)
                     
                     st.markdown(response.text)
@@ -264,13 +260,7 @@ with tab1:
                     st.rerun()
                 
                 except Exception as e:
-                    # Final Backup with the latest Pro model
-                    try:
-                        model_pro = genai.GenerativeModel('gemini-1.5-pro')
-                        response = model_pro.generate_content(prompt)
-                        st.markdown(response.text)
-                    except:
-                        st.error(f"Error: {e}. Please Reboot the app from Streamlit Dashboard.")
+                    st.error(f"System Busy: {e}. Please Reboot App from Dashboard.")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
