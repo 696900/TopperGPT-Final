@@ -202,34 +202,36 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART PDF MENTOR (V133 - MODEL NAME & KEY FIX) ---
-# --- TAB 1: SMART PDF MENTOR (V136 - ISOLATED & STABLE) ---
+# --- TAB 1: SMART PDF MENTOR (V137 - FINAL STABLE FIX) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("Upload Engineering Textbook (PDF)", type="pdf", key="pdf_main_v1")
+    uploaded_file = st.file_uploader("Upload Engineering Textbook (PDF)", type="pdf", key="pdf_stable_v137")
     
     if uploaded_file:
         import fitz  
-        # Session state mein context save karte hain taaki baaki tabs disturb na hon
         if "pdf_context" not in st.session_state:
-            with st.spinner("Deep Scanning textbook..."):
+            with st.spinner("Scanning textbook..."):
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                 full_text = ""
                 for page in doc:
                     full_text += page.get_text()
-                st.session_state.pdf_context = full_text
+                
+                # Agar text empty hai toh scanned image handling
+                if not full_text.strip():
+                    st.session_state.pdf_context = "Scanned PDF: Please ask specific questions."
+                else:
+                    st.session_state.pdf_context = full_text
                 st.session_state.pdf_pages = len(doc)
             st.success(f"Successfully loaded {st.session_state.pdf_pages} pages!")
 
-    # Chat Interface (Sirf Tab 1 ke liye isolated messages)
     if "pdf_chat_history" not in st.session_state:
         st.session_state.pdf_chat_history = []
 
     for msg in st.session_state.pdf_chat_history:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Ask from PDF...", key="pdf_input_v1"):
+    if prompt := st.chat_input("Ask from PDF...", key="pdf_input_v137"):
         if "pdf_context" not in st.session_state:
             st.error("Pehle PDF upload kar bhai!")
         else:
@@ -238,15 +240,15 @@ with tab1:
 
             with st.chat_message("assistant"):
                 try:
-                    # ✅ FIXED: Use the key name YOU saved in Secrets
+                    # ✅ KEY CHECK: Secrets se key uthana
                     api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+                    import google.generativeai as genai
                     genai.configure(api_key=api_key)
                     
-                    # Gemini 1.5 Flash - No LlamaIndex connection needed
+                    # ✅ FIX: No 'models/' prefix to avoid 404
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # Direct Context Injection
-                    sys_prompt = f"Tu expert Professor hai. Is PDF se jawab de: {st.session_state.pdf_context[:800000]}"
+                    sys_prompt = f"Tu expert Professor hai. Is PDF context se jawab de: {st.session_state.pdf_context[:800000]}"
                     response = model.generate_content([sys_prompt, prompt])
                     
                     st.markdown(response.text)
