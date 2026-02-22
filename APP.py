@@ -26,28 +26,28 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 🛠️ MASTER AI SETUP (STABLE HYBRID ENGINE) ---
+# --- 🛠️ MASTER AI SETUP (V142 - STABLE ENDPOINTS) ---
 api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 api_key_groq = st.secrets.get("GROQ_API_KEY")
 
-if api_key_gemini and api_key_groq:
-    from llama_index.llms.groq import Groq as LlamaGroq
-    from llama_index.embeddings.gemini import GeminiEmbedding
-    from llama_index.core import Settings
+if api_key_gemini:
+    import google.generativeai as genai
+    genai.configure(api_key=api_key_gemini)
     
-    # Brain (LLM) shifted to Groq to avoid Gemini v1beta crashes
-    Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
-    
-    # Search (Embedding) kept on Gemini stable endpoint
+    # LlamaIndex Settings (For Syllabus Tracker)
+    # Prefix "models/" sirf embedding mein chalta hai, generation mein nahi
     Settings.embed_model = GeminiEmbedding(
         model_name="models/text-embedding-004", 
-        api_key=api_key_gemini,
-        transport="rest"
+        api_key=api_key_gemini
     )
-    Settings.chunk_size = 512
-    Settings.chunk_overlap = 50
+    
+if api_key_groq:
+    from llama_index.llms.groq import Groq as LlamaGroq
+    Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
+    groq_client = Groq(api_key=api_key_groq)
 
-groq_client = Groq(api_key=api_key_groq)
+Settings.chunk_size = 512
+Settings.chunk_overlap = 50
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
 def use_credits(amount):
     """Checks and deducts credits from session state."""
@@ -202,72 +202,49 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART PDF MENTOR (V141 - FINAL API FIX) ---
+# --- TAB 1: SMART PDF MENTOR (V142 - NO MORE 404) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="stable_pdf_v141")
+    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="pdf_fix_v142")
 
     if uploaded_file:
-        import fitz  # PyMuPDF
+        import fitz  
         if "pdf_context" not in st.session_state:
-            with st.spinner("TopperGPT is reading every page..."):
+            with st.spinner("TopperGPT is reading..."):
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                full_text = ""
-                for page in doc:
-                    full_text += page.get_text()
-                
-                # Context save logic
-                st.session_state.pdf_context = full_text if full_text.strip() else "Scanned PDF (Limited text)"
+                st.session_state.pdf_context = "".join([page.get_text() for page in doc])
                 st.session_state.pdf_pages = len(doc)
-            st.success(f"✅ Loaded {st.session_state.pdf_pages} pages! Poocho kya poochna hai.")
+            st.success(f"✅ Loaded {st.session_state.pdf_pages} pages!")
 
-    # Isolated Chat UI
+    # Chat UI Isolated
     if "pdf_chat_history" not in st.session_state:
         st.session_state.pdf_chat_history = []
 
     for msg in st.session_state.pdf_chat_history:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Ex: 'Give answer of all questions from pdf'"):
+    if prompt := st.chat_input("Ex: 'Summarize this PDF'"):
         if "pdf_context" not in st.session_state:
             st.error("Pehle PDF upload kar bhai!")
-        elif use_credits(1): # Deduct 1 credit for chat
+        elif use_credits(1):
             st.session_state.pdf_chat_history.append({"role": "user", "content": prompt})
             with st.chat_message("user"): st.markdown(prompt)
 
             with st.chat_message("assistant"):
                 try:
-                    # ✅ API KEY RECOVERY: Checks both possible secret names
-                    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-                    import google.generativeai as genai
-                    genai.configure(api_key=api_key)
-                    
-                    # ✅ THE "404/NOT FOUND" KILLER: Using the plain stable model name
+                    # ✅ THE FIX: Direct call without 'models/' or 'v1beta'
+                    # Google API automatically routes this to the stable endpoint
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    sys_prompt = f"""
-                    Tu ek Expert Engineering Professor hai. 
-                    Neeche diye gaye PDF Context ko padh aur student ke sawal ka detail mein jawab de.
-                    Hinglish (Hindi+English) ka use kar.
+                    full_prompt = f"Context: {st.session_state.pdf_context[:500000]}\n\nQuestion: {prompt}"
+                    response = model.generate_content(full_prompt)
                     
-                    CONTEXT:
-                    {st.session_state.pdf_context[:800000]}
-                    """
-                    
-                    # Direct API call
-                    response = model.generate_content([sys_prompt, prompt])
                     st.markdown(response.text)
                     st.session_state.pdf_chat_history.append({"role": "assistant", "content": response.text})
                     st.rerun()
                 except Exception as e:
-                    # Automatic Fallback if first model fails
-                    try:
-                        model_fallback = genai.GenerativeModel('gemini-pro')
-                        response = model_fallback.generate_content(f"Context: {st.session_state.pdf_context[:10000]}\n\nUser: {prompt}")
-                        st.markdown(response.text)
-                    except:
-                        st.error(f"System Overload: {e}")
+                    st.error(f"API Update in progress, please try again: {e}")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
