@@ -202,77 +202,67 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: TOPPERGPT EXAM CHAT (V128 - STABLE & SMART) ---
+# --- TAB 1: SMART PDF MENTOR (STABLE DIRECT-CONTEXT) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Exam Chat Engine</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
-    import fitz
-    from llama_index.core import VectorStoreIndex, Document
-
-    # --- 📂 STEP 1: SMART INDEXING ---
-    st.markdown("### 📂 Step 1: Upload Exam Material (PDF)")
-    up_col, btn_col = st.columns([0.7, 0.3])
-    uploaded_file = up_col.file_uploader("Upload Chapter/PYQ PDF", type="pdf", key="pdf_v128")
+    uploaded_file = st.file_uploader("Upload Engineering Textbook (PDF)", type="pdf")
     
-    if uploaded_file and btn_col.button("🚀 Index for Exam", use_container_width=True):
-        with st.spinner("Decoding PDF... mapping technical concepts"):
-            try:
-                # Fast Stream Processing
-                doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                documents = []
-                for i, page in enumerate(doc):
-                    text = page.get_text().strip() or f"Scan/Diagram on Page {i+1}"
-                    documents.append(Document(text=text, metadata={"page_label": str(i+1)}))
-                
-                # Using Global Settings (v1 Stable)
-                st.session_state.current_index = VectorStoreIndex.from_documents(documents)
-                st.success("✅ System Ready! Phod de exam.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Indexing Error: {str(e)}")
+    if uploaded_file:
+        import fitz  # PyMuPDF
+        with st.spinner("Reading Textbook..."):
+            # Step 1: Extract Text Simply
+            doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+            full_text = ""
+            for page in doc:
+                full_text += page.get_text()
+            
+            # Store in session state so we don't re-read every time
+            st.session_state.pdf_context = full_text
+            st.success(f"Successfully loaded {len(doc)} pages!")
 
-    st.divider()
+    # Chat Interface
+    st.markdown("---")
+    if "pdf_messages" not in st.session_state:
+        st.session_state.pdf_messages = []
 
-    # --- 💬 STEP 2: SMART EXAM CHAT ---
-    if "chat_history" not in st.session_state: st.session_state.chat_history = []
+    # Display Chat
+    for msg in st.session_state.pdf_messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-    for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+    if prompt := st.chat_input("Ask anything from the PDF..."):
+        if "pdf_context" not in st.session_state:
+            st.error("Pehle PDF upload kar bhai!")
+        else:
+            st.session_state.pdf_messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-    if st.session_state.get("current_index"):
-        if user_query := st.chat_input("Ex: 'Explain this concept in Hinglish'"):
-            if use_credits(1):
-                st.session_state.chat_history.append({"role": "user", "content": user_query})
-                with st.chat_message("user"): st.markdown(user_query)
-
-                with st.chat_message("assistant"):
-                    with st.spinner("Searching Textbook..."):
-                        try:
-                            # similarity_top_k=5 for better context (As per Pro Advice)
-                            qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            
-                            # The "Topper" Master Prompt
-                            custom_prompt = f"""
-                            You are TopperGPT. Answer using the PDF context.
-                            1. Answer in Hinglish (Roman script).
-                            2. Cite Page Numbers clearly.
-                            3. Add a 'PRO TIP' at the end on how to write this in exams to score 10/10.
-                            4. Use LaTeX $ $ for all formulas.
-                            
-                            Question: {user_query}
-                            """
-                            response = qe.query(custom_prompt)
-                            
-                            st.markdown(response.response)
-                            st.session_state.chat_history.append({"role": "assistant", "content": response.response})
-                            st.rerun()
-                        except Exception as e:
-                            st.session_state.user_data['credits'] += 1 # Refund
-                            st.error(f"System Busy: {e}")
-            else:
-                st.error("❌ Low Credits! Sidebar se refill karlo.")
-    else:
-        st.info("👆 Pehle PDF upload karke 'Index for Exam' dabao!")
+            with st.chat_message("assistant"):
+                try:
+                    # ✅ THE "TOPPER" LOGIC: Direct Injection to Gemini
+                    # Hum Gemini 1.5 Flash use kar rahe hain jo 1 million tokens handle kar sakta hai
+                    import google.generativeai as genai
+                    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    system_prompt = f"""
+                    Tu ek expert Engineering Mentor hai. 
+                    Neeche diye gaye PDF Context ka use karke user ke sawal ka detail mein jawab de.
+                    Agar jawab context mein nahi hai, toh apne knowledge se bata par mention kar de.
+                    
+                    CONTEXT:
+                    {st.session_state.pdf_context[:500000]} # Sending up to 500k chars safely
+                    """
+                    
+                    response = model.generate_content([system_prompt, prompt])
+                    full_res = response.text
+                    
+                    st.markdown(full_res)
+                    st.session_state.pdf_messages.append({"role": "assistant", "content": full_res})
+                except Exception as e:
+                    st.error(f"Error: {e}")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
