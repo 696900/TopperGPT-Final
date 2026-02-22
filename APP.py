@@ -202,7 +202,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART PDF MENTOR (STABLE DIRECT-CONTEXT) ---
+# --- TAB 1: SMART PDF MENTOR (V132 - API NAME FIX) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
@@ -210,59 +210,53 @@ with tab1:
     
     if uploaded_file:
         import fitz  # PyMuPDF
-        with st.spinner("Reading Textbook..."):
-            # Step 1: Extract Text Simply
+        with st.spinner("Deep Scanning textbook..."):
             doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
             full_text = ""
-            for page in doc:
+            for page_num in range(len(doc)):
+                page = doc.load_page(page_num)
                 full_text += page.get_text()
             
-            # Store in session state so we don't re-read every time
             st.session_state.pdf_context = full_text
-            st.success(f"Successfully loaded {len(doc)} pages!")
+            # Ab ye asli page count dikhayega
+            st.success(f"Successfully loaded {len(doc)} pages! Taiyyar ho jao marks phodne ke liye.")
 
-    # Chat Interface
-    st.markdown("---")
     if "pdf_messages" not in st.session_state:
         st.session_state.pdf_messages = []
 
-    # Display Chat
     for msg in st.session_state.pdf_messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
     if prompt := st.chat_input("Ask anything from the PDF..."):
-        if "pdf_context" not in st.session_state:
-            st.error("Pehle PDF upload kar bhai!")
+        # ✅ DYNAMIC KEY CHECK: Dono names check honge
+        api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+        
+        if not api_key:
+            st.error("Bhai, Streamlit Secrets mein key nahi mili! Ek baar check kar.")
+        elif "pdf_context" not in st.session_state:
+            st.error("Pehle PDF upload kar le bhai!")
         else:
             st.session_state.pdf_messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
+            with st.chat_message("user"): st.markdown(prompt)
 
             with st.chat_message("assistant"):
                 try:
-                    # ✅ THE "TOPPER" LOGIC: Direct Injection to Gemini
-                    # Hum Gemini 1.5 Flash use kar rahe hain jo 1 million tokens handle kar sakta hai
                     import google.generativeai as genai
-                    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+                    genai.configure(api_key=api_key)
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
+                    # Full context injection for better answers
                     system_prompt = f"""
                     Tu ek expert Engineering Mentor hai. 
-                    Neeche diye gaye PDF Context ka use karke user ke sawal ka detail mein jawab de.
-                    Agar jawab context mein nahi hai, toh apne knowledge se bata par mention kar de.
-                    
-                    CONTEXT:
-                    {st.session_state.pdf_context[:500000]} # Sending up to 500k chars safely
+                    Neeche diye gaye PDF Context se hi detail mein jawab de.
+                    CONTEXT: {st.session_state.pdf_context[:800000]}
                     """
                     
                     response = model.generate_content([system_prompt, prompt])
-                    full_res = response.text
-                    
-                    st.markdown(full_res)
-                    st.session_state.pdf_messages.append({"role": "assistant", "content": full_res})
+                    st.markdown(response.text)
+                    st.session_state.pdf_messages.append({"role": "assistant", "content": response.text})
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"API Error: {e}")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
