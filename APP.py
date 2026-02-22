@@ -544,15 +544,30 @@ with tab4:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- 🎭 THE RENDERER: ZERO CODE, FULL VISUALS ---
+    # --- 🎭 THE RENDERER: NO CUT, AUTO-CENTERED (V140) ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # Double curly braces {{ }} fix the JS vs f-string conflict
+        # Isme maine justify-content aur flex-direction ko mobile-responsive banaya hai
         html_code = f"""
-        <div id="capture_area" style="background:#0d1117; padding:30px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center; overflow-x:auto;">
-            <div class="mermaid" style="min-width:1200px;">
+        <div id="capture_area" style="
+            background: #0d1117; 
+            padding: 20px; 
+            border-radius: 15px; 
+            border: 2px solid #4CAF50; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            overflow: auto;
+            min-height: 500px;
+        ">
+            <div class="mermaid" style="
+                width: 100%; 
+                display: flex; 
+                justify-content: center;
+                transform-origin: top center;
+            ">
             {st.session_state.last_mm_code}
             </div>
         </div>
@@ -562,8 +577,18 @@ with tab4:
                 startOnLoad: true, 
                 theme: 'dark',
                 securityLevel: 'loose',
-                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis' }}
+                flowchart: {{ 
+                    useMaxWidth: true, 
+                    htmlLabels: true, 
+                    curve: 'basis',
+                    padding: 50 
+                }}
             }});
+            // Auto-scroll logic to keep it centered on load
+            window.onload = () => {{
+                const container = document.getElementById('capture_area');
+                container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
+            }};
         </script>
         """
         components.html(html_code, height=700, scrolling=True)
