@@ -480,15 +480,15 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V130 - DEEP TECHNICAL ARCHITECT) ---
+# --- TAB 4: CONCEPT MINDMAP (V139 - THE BILLIONAIRE BIBLE EDITION) ---
 with tab4:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Billionaire Edition)</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
     
     incoming_topic = st.session_state.get('active_topic', "")
     col_in, col_opt = st.columns([0.7, 0.3])
     
     with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v130", placeholder="e.g. PN Junction Diode")
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v139", placeholder="e.g. PN Junction Diode")
     with col_opt:
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
 
@@ -497,24 +497,26 @@ with tab4:
     if st.button(f"🚀 Generate Deep Technical Map ({mm_cost} Credits)"):
         if mm_input:
             if use_credits(mm_cost):
-                with st.spinner("Decoding technical depths..."):
+                with st.spinner("Decoding technical depths for full marks..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            context_res = qe.query(f"Explain {mm_input} deeply: internal physics, working mechanism, and components.")
-                            context = f"Context: {context_res.response}"
+                            context_res = qe.query(f"Explain {mm_input} like a textbook: working physics, internal mechanisms, and core components.")
+                            context = f"PDF Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Strictly for DEEP & CONNECTED Technical Content
+                        # ✅ MASTER PROMPT: Strictly for EXPLAINED TECHNICAL CONTENT
                         prompt = f"""
-                        Create a Mermaid flowchart for: '{mm_input}'. {context}
+                        Act as an Engineering Professor. Create a Mermaid flowchart for: '{mm_input}'. {context}
                         Rules for "Bible" Quality:
-                        1. Start with 'graph LR' (Left to Right) for best laptop/mobile fit.
+                        1. Start with 'graph LR'.
                         2. ROOT is 'ROOT(({mm_input}))'.
-                        3. Branches must connect deeply: ROOT --> DEF --> D1, ROOT --> WORK --> W1.
-                        4. Each Node MUST explain the term. Format: NODE[Term: 1-line detail].
-                        5. NO generic points. Use engineering language.
-                        6. Syntax: NO special characters inside []. Max 6 words per node.
+                        3. Branches: 'DEF[Definition]', 'WORK[Working Mechanism]', 'COMP[Key Components]', 'APP[Applications]'.
+                        4. Each sub-node MUST connect deeply and EXPLAIN the term. 
+                           Format: NODE[Term: 1-line simple explanation].
+                           Example: DIFF[Diffusion: Movement of carriers from high to low concentration].
+                        5. Connect sub-nodes in levels: DEF --> D1[Explanation], WORK --> W1[Process Step 1] --> W2[Step 2].
+                        6. Syntax: NO special characters (&, !, :, -) inside []. Max 10 words per node.
                         7. Output ONLY code, NO markdown backticks.
                         """
                         
@@ -527,13 +529,14 @@ with tab4:
                         clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
                         if not clean_code.startswith("graph"): clean_code = "graph LR\n" + clean_code
                             
-                        # Manual Vibrant Class Injection
+                        # Manual Vibrant Class Injection for Cinematic Look
                         vibrant_styles = """
                         classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
                         classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
                         classDef workStyle fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
                         classDef compStyle fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
-                        class DEF,Definition defStyle; class WORK,Working workStyle; class COMP,Components compStyle;
+                        classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
+                        class DEF,Definition defStyle; class WORK,Working workStyle; class COMP,Components compStyle; class APP,Applications appStyle;
                         """
                         st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
                         st.rerun() 
@@ -546,10 +549,10 @@ with tab4:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        #         # Double curly braces {{ }} fix the JS vs f-string conflict
+        # Double curly braces {{ }} fix the JS vs f-string conflict
         html_code = f"""
-        <div id="capture_area" style="background:#0d1117; padding:30px; border-radius:15px; border:2px solid #4CAF50; overflow-x:auto;">
-            <div class="mermaid" style="min-width:1000px; display:flex; justify-content:center;">
+        <div id="capture_area" style="background:#0d1117; padding:30px; border-radius:15px; border:2px solid #4CAF50; display:flex; justify-content:center; overflow-x:auto;">
+            <div class="mermaid" style="min-width:1200px;">
             {st.session_state.last_mm_code}
             </div>
         </div>
@@ -563,7 +566,7 @@ with tab4:
             }});
         </script>
         """
-        components.html(html_code, height=650, scrolling=True)
+        components.html(html_code, height=700, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
 with tab5:
