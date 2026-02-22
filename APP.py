@@ -48,6 +48,22 @@ if api_key_groq:
 
 Settings.chunk_size = 512
 Settings.chunk_overlap = 50
+# ==========================================
+# --- STEP 1: GLOBAL STABLE AI SETUP (FIXED) ---
+# ==========================================
+api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+
+if api_key_gemini:
+    import google.generativeai as genai
+    genai.configure(api_key=api_key_gemini)
+    
+    # LlamaIndex ke liye stable embedding model (Syllabus Tracker Fix)
+    from llama_index.embeddings.gemini import GeminiEmbedding
+    from llama_index.core import Settings
+    Settings.embed_model = GeminiEmbedding(
+        model_name="models/text-embedding-004", 
+        api_key=api_key_gemini
+    )
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
 def use_credits(amount):
     """Checks and deducts credits from session state."""
@@ -202,29 +218,30 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART PDF MENTOR (V142 - NO MORE 404) ---
+# ==========================================
+# --- TAB 1: SMART PDF MENTOR (V145 - STABLE) ---
+# ==========================================
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="pdf_fix_v142")
+    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="pdf_stable_v145")
 
     if uploaded_file:
         import fitz  
         if "pdf_context" not in st.session_state:
-            with st.spinner("TopperGPT is reading..."):
+            with st.spinner("TopperGPT is scanning..."):
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                 st.session_state.pdf_context = "".join([page.get_text() for page in doc])
                 st.session_state.pdf_pages = len(doc)
             st.success(f"✅ Loaded {st.session_state.pdf_pages} pages!")
 
-    # Chat UI Isolated
     if "pdf_chat_history" not in st.session_state:
         st.session_state.pdf_chat_history = []
 
     for msg in st.session_state.pdf_chat_history:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Ex: 'Summarize this PDF'"):
+    if prompt := st.chat_input("Ex: 'Solve all questions from PDF'"):
         if "pdf_context" not in st.session_state:
             st.error("Pehle PDF upload kar bhai!")
         elif use_credits(1):
@@ -233,18 +250,27 @@ with tab1:
 
             with st.chat_message("assistant"):
                 try:
-                    # ✅ THE FIX: Direct call without 'models/' or 'v1beta'
-                    # Google API automatically routes this to the stable endpoint
+                    # 🚀 THE CRITICAL FIX: Direct call to stable 'gemini-1.5-flash'
+                    # Prefix 'models/' aur 'v1beta' connection yahan se bypass hoga
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    full_prompt = f"Context: {st.session_state.pdf_context[:500000]}\n\nQuestion: {prompt}"
+                    full_prompt = f"Context: {st.session_state.pdf_context[:600000]}\n\nQuestion: {prompt}"
+                    
+                    # Generation call
                     response = model.generate_content(full_prompt)
                     
                     st.markdown(response.text)
                     st.session_state.pdf_chat_history.append({"role": "assistant", "content": response.text})
                     st.rerun()
+                
                 except Exception as e:
-                    st.error(f"API Update in progress, please try again: {e}")
+                    # Fallback to Pro if Flash is doing nakhre
+                    if "404" in str(e):
+                        model_fallback = genai.GenerativeModel('gemini-pro')
+                        res = model_fallback.generate_content(f"Answer: {prompt}")
+                        st.markdown(res.text)
+                    else:
+                        st.error(f"API Error: {e}")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
