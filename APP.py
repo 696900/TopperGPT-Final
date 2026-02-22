@@ -202,60 +202,72 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
+# --- TAB 1: SMART PDF MENTOR (V141 - FINAL API FIX) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>💬 TopperGPT: Smart Exam Chat</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
-    # 1. Simple File Uploader
-    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="simple_chat_v1")
+    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="stable_pdf_v141")
 
     if uploaded_file:
-        # 2. FAST Extraction (No Indexing needed)
-        with st.spinner("Reading PDF..."):
-            doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-            full_text = ""
-            for page in doc:
-                full_text += page.get_text()
-            
-            # Text ko session state mein save karo taaki baar baar read na karna pade
-            st.session_state.pdf_context = full_text
-            st.success("✅ PDF Loaded! Poocho kya poochna hai.")
-
-    # 3. Chat Interface
-    if "pdf_context" in st.session_state:
-        user_query = st.chat_input("Ex: 'Is chapter ke main 5 questions batao'")
-        
-        if user_query:
-            if st.session_state.user_data['credits'] >= 1:
-                with st.chat_message("user"):
-                    st.markdown(user_query)
+        import fitz  # PyMuPDF
+        if "pdf_context" not in st.session_state:
+            with st.spinner("TopperGPT is reading every page..."):
+                doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+                full_text = ""
+                for page in doc:
+                    full_text += page.get_text()
                 
-                with st.chat_message("assistant"):
-                    with st.spinner("TopperGPT is thinking..."):
-                        # --- THE MAGIC PROMPT ---
-                        prompt = f"""
-                        Tu ek Expert Engineering Professor hai. 
-                        Neeche diye gaye PDF Context ko padh aur student ke sawal ka jawab de.
-                        
-                        RULES:
-                        1. Agar jawab context mein nahi hai, toh bol de "Bhai ye is PDF mein nahi mila".
-                        2. Hinglish (Hindi + English) ka use kar.
-                        3. Important points ko bold kar.
-                        
-                        CONTEXT:
-                        {st.session_state.pdf_context[:30000]}  # 30k characters safety ke liye
-                        
-                        STUDENT QUERY:
-                        {user_query}
-                        """
-                        
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        response = model.generate_content(prompt)
-                        
+                # Context save logic
+                st.session_state.pdf_context = full_text if full_text.strip() else "Scanned PDF (Limited text)"
+                st.session_state.pdf_pages = len(doc)
+            st.success(f"✅ Loaded {st.session_state.pdf_pages} pages! Poocho kya poochna hai.")
+
+    # Isolated Chat UI
+    if "pdf_chat_history" not in st.session_state:
+        st.session_state.pdf_chat_history = []
+
+    for msg in st.session_state.pdf_chat_history:
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+
+    if prompt := st.chat_input("Ex: 'Give answer of all questions from pdf'"):
+        if "pdf_context" not in st.session_state:
+            st.error("Pehle PDF upload kar bhai!")
+        elif use_credits(1): # Deduct 1 credit for chat
+            st.session_state.pdf_chat_history.append({"role": "user", "content": prompt})
+            with st.chat_message("user"): st.markdown(prompt)
+
+            with st.chat_message("assistant"):
+                try:
+                    # ✅ API KEY RECOVERY: Checks both possible secret names
+                    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+                    import google.generativeai as genai
+                    genai.configure(api_key=api_key)
+                    
+                    # ✅ THE "404/NOT FOUND" KILLER: Using the plain stable model name
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    sys_prompt = f"""
+                    Tu ek Expert Engineering Professor hai. 
+                    Neeche diye gaye PDF Context ko padh aur student ke sawal ka detail mein jawab de.
+                    Hinglish (Hindi+English) ka use kar.
+                    
+                    CONTEXT:
+                    {st.session_state.pdf_context[:800000]}
+                    """
+                    
+                    # Direct API call
+                    response = model.generate_content([sys_prompt, prompt])
+                    st.markdown(response.text)
+                    st.session_state.pdf_chat_history.append({"role": "assistant", "content": response.text})
+                    st.rerun()
+                except Exception as e:
+                    # Automatic Fallback if first model fails
+                    try:
+                        model_fallback = genai.GenerativeModel('gemini-pro')
+                        response = model_fallback.generate_content(f"Context: {st.session_state.pdf_context[:10000]}\n\nUser: {prompt}")
                         st.markdown(response.text)
-                        st.session_state.user_data['credits'] -= 1
-                        st.rerun()
-            else:
-                st.error("Credits khatam ho gaye bhai!")
+                    except:
+                        st.error(f"System Overload: {e}")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
