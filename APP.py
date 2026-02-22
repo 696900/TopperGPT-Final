@@ -203,6 +203,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 # --- TAB 1: SMART PDF MENTOR (V133 - MODEL NAME & KEY FIX) ---
+# --- TAB 1: SMART PDF MENTOR (V134 - MULTI-SCAN FIX) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
@@ -210,60 +211,56 @@ with tab1:
     
     if uploaded_file:
         import fitz  # PyMuPDF
-        with st.spinner("Deep Scanning textbook..."):
-            # Resetting context for new upload
+        with st.spinner("Scanning Document..."):
             doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
             full_text = ""
-            for page_num in range(len(doc)):
-                page = doc.load_page(page_num)
+            for page in doc:
                 full_text += page.get_text()
             
+            # Agar text nahi mila, matlab scanned image hai
+            if len(full_text.strip()) < 10:
+                st.warning("⚠️ Ye scanned PDF lag rahi hai. Text extraction limited ho sakta hai.")
+            
             st.session_state.pdf_context = full_text
-            st.success(f"Successfully loaded {len(doc)} pages! Taiyyar ho jao marks phodne ke liye.")
-
-    if "pdf_messages" not in st.session_state:
-        st.session_state.pdf_messages = []
-
-    for msg in st.session_state.pdf_messages:
-        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+            st.success(f"Successfully loaded {len(doc)} pages!")
 
     if prompt := st.chat_input("Ask anything from the PDF..."):
-        # ✅ NAME CHECK: Using the key you saved as 'GEMINI_API_KEY'
         api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
         
         if not api_key:
-            st.error("Error: Streamlit Secrets mein 'GEMINI_API_KEY' nahi mili!")
+            st.error("Bhai, Secrets mein key check kar!")
         elif "pdf_context" not in st.session_state:
-            st.error("Pehle PDF upload kar le bhai!")
+            st.error("Pehle PDF toh upload kar le!")
         else:
-            st.session_state.pdf_messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"): st.markdown(prompt)
-
             with st.chat_message("assistant"):
                 try:
                     import google.generativeai as genai
                     genai.configure(api_key=api_key)
                     
-                    # ✅ FIXED MODEL NAME: Adding 'models/' prefix to fix 404
-                    model = genai.GenerativeModel('models/gemini-1.5-flash')
+                    # ✅ FIXED: Using 'gemini-1.5-flash' WITHOUT 'models/' to avoid 404
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     system_prompt = f"""
                     Tu ek expert Engineering Professor hai. 
-                    Neeche diye gaye PDF Context ka use karke user ke sawal ka technical aur detail mein jawab de.
-                    Agar context mein answer nahi hai toh apne engineering knowledge se bata.
+                    Is PDF Context se detailed jawab de. Agar data text-based nahi hai, 
+                    toh apne knowledge se student ki help kar.
                     
                     CONTEXT:
                     {st.session_state.pdf_context[:900000]}
                     """
                     
-                    response = model.generate_content([system_prompt, prompt])
-                    res_text = response.text
+                    # Direct generation call
+                    response = model.generate_content(f"{system_prompt}\n\nUser Question: {prompt}")
+                    st.markdown(response.text)
                     
-                    st.markdown(res_text)
-                    st.session_state.pdf_messages.append({"role": "assistant", "content": res_text})
                 except Exception as e:
-                    # Specific error handling for clear debugging
-                    st.error(f"API Error: {e}")
+                    # Agar 404 aaye, toh alternative name try karo
+                    if "404" in str(e):
+                        model = genai.GenerativeModel('gemini-pro') # Fallback to Pro
+                        response = model.generate_content(f"{system_prompt}\n\nUser Question: {prompt}")
+                        st.markdown(response.text)
+                    else:
+                        st.error(f"Logic Error: {e}")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
