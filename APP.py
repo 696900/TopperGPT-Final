@@ -137,12 +137,11 @@ if st.session_state.user_data is None:
             st.rerun()
     st.stop()
 
-# --- 4. SIDEBAR (FOUNDER EDITION) ---
-# --- 4. SIDEBAR: CINEMATIC WALLET & PREMIUM REFERRAL ---
+# --- 4. SIDEBAR: CINEMATIC WALLET & REVENUE SYSTEM ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic;'>🎓 TopperGPT Pro</h2>", unsafe_allow_html=True)
     
-    # Wallet Card with Glow effect
+    # Wallet Card
     st.markdown(f'''
         <div class="wallet-card">
             <p style="margin:0; font-size:11px; color:#eab308; font-weight:bold; letter-spacing:1px;">AVAILABLE CREDITS</p>
@@ -151,40 +150,8 @@ with st.sidebar:
         </div>
     ''', unsafe_allow_html=True)
 
-    # 🎁 REFERRAL SYSTEM: THE "GIFT CARD" DESIGN
-    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-top:20px;'>🎁 REFER & EARN FREE CREDITS</p>", unsafe_allow_html=True)
-    
-    with st.container():
-        st.markdown(f'''
-            <div style="background: rgba(76, 175, 80, 0.08); border: 2px dashed #4CAF50; padding: 15px; border-radius: 15px; text-align: center; margin-bottom: 10px;">
-                <p style="color: #c9d1d9; font-size: 13px; margin-bottom: 5px;">Share this code with a friend. Both get <b>+5 Credits</b>!</p>
-                <div style="background: #0d1117; padding: 10px; border-radius: 8px; border: 1px solid #30363d;">
-                    <code style="color: #4CAF50; font-size: 18px; font-weight: bold;">{st.session_state.user_data['referral_code']}</code>
-                </div>
-            </div>
-        ''', unsafe_allow_html=True)
-        
-        if not st.session_state.user_data.get('ref_claimed', False):
-            claim_input = st.text_input("Friend's Referral Code?", placeholder="Enter TOPXXXX", key="ref_v108")
-            if st.button("Claim My Bonus (+5)", use_container_width=True):
-                clean_claim = claim_input.strip().upper()
-                
-                if not clean_claim:
-                    st.warning("Pehle code toh dalo bhai!")
-                elif clean_claim == st.session_state.user_data['referral_code']:
-                    st.error("Shaane! Apna hi code daal ke credits badhayega? 😂")
-                else:
-                    # Success Path
-                    st.session_state.user_data['credits'] += 5
-                    st.session_state.user_data['ref_claimed'] = True
-                    st.balloons()
-                    st.success("Boom! +5 Credits added. 🔥")
-                    st.rerun()
-
-    st.markdown("---")
-    
-    # 💎 REFILL PACKS: DYNAMIC CARDS
-    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-bottom:15px;'>💎 PREMIUM REFILL PACKS</p>", unsafe_allow_html=True)
+    # 💎 REFILL PACKS (Moved UP for better Visibility)
+    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-top:10px; margin-bottom:15px;'>💎 PREMIUM REFILL PACKS</p>", unsafe_allow_html=True)
     
     refill_packs = [
         {"name": "Weekly Sureshot", "credits": "70 Credits", "price": "₹59", "url": "https://rzp.io/rzp/FmwE0Ms6"},
@@ -207,10 +174,36 @@ with st.sidebar:
             </a>
         ''', unsafe_allow_html=True)
 
+    st.markdown("---")
+
+    # 🎁 REFERRAL SYSTEM
+    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px;'>🎁 REFER & EARN FREE CREDITS</p>", unsafe_allow_html=True)
+    
+    with st.container():
+        st.markdown(f'''
+            <div style="background: rgba(76, 175, 80, 0.08); border: 2px dashed #4CAF50; padding: 15px; border-radius: 15px; text-align: center; margin-bottom: 10px;">
+                <p style="color: #c9d1d9; font-size: 13px; margin-bottom: 5px;">Share code. Both get <b>+5 Credits</b>!</p>
+                <div style="background: #0d1117; padding: 10px; border-radius: 8px; border: 1px solid #30363d;">
+                    <code style="color: #4CAF50; font-size: 18px; font-weight: bold;">{st.session_state.user_data['referral_code']}</code>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+        
+        if not st.session_state.user_data.get('ref_claimed', False):
+            claim_input = st.text_input("Friend's Referral Code?", placeholder="TOPXXXX", key="ref_v108")
+            if st.button("Claim My Bonus (+5)", use_container_width=True):
+                clean_claim = claim_input.strip().upper()
+                if clean_claim and clean_claim != st.session_state.user_data['referral_code']:
+                    st.session_state.user_data['credits'] += 5
+                    st.session_state.user_data['ref_claimed'] = True
+                    st.balloons()
+                    st.rerun()
+
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
+
 # --- 5. MAIN TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
