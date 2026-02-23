@@ -217,81 +217,93 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART MULTIMODAL MENTOR (PDF + IMAGE SUPPORT) ---
+# --- TAB 1: ALL-IN-ONE SMART MENTOR (WITH CLEAR & PODCAST) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Mentor Pro</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Mentor Pro + Audio</h2>", unsafe_allow_html=True)
     
-    # --- LANGUAGE SELECTOR ---
-    st.markdown("### 🌐 Preferred Language")
+    # --- TOP CONTROL BAR ---
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🧹 Clear & New", use_container_width=True):
+            # Sab delete kar do taaki naya upload ho sake
+            for key in ["pdf_context", "pdf_chat_history", "is_image", "last_audio"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
+
+    # --- LANGUAGE & MODE SELECTOR ---
     selected_lang = st.radio(
-        "Response kis language mein chahiye?",
+        "Response Language:",
         ["Mix (Hinglish/Marathi-English)", "Proper English", "Marathi Only"],
-        horizontal=True, key="lang_v2"
+        horizontal=True, key="lang_v3"
     )
 
-    # File uploader for both PDF and Images
-    uploaded_file = st.file_uploader("Upload Notes (PDF or Image)", type=["pdf", "jpg", "png", "jpeg"], key="multi_v1")
+    # File uploader
+    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="multi_v2")
 
-    if uploaded_file:
+    if uploaded_file and "pdf_context" not in st.session_state:
         file_type = uploaded_file.type
-        
         if "pdf" in file_type:
             import fitz  
-            if "pdf_context" not in st.session_state:
-                with st.spinner("Scanning PDF Text..."):
-                    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                    st.session_state.pdf_context = "".join([page.get_text() for page in doc])
-                    st.session_state.is_image = False
-                st.success(f"✅ PDF Loaded!")
+            with st.spinner("Reading PDF..."):
+                doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+                st.session_state.pdf_context = "".join([page.get_text() for page in doc])
+                st.session_state.is_image = False
+            st.success("✅ PDF Loaded!")
         else:
-            # Handle Image Upload
+            from PIL import Image
             img = Image.open(uploaded_file).convert("RGB")
-            st.image(img, caption="Image Detected", width=300)
             st.session_state.pdf_context = img
             st.session_state.is_image = True
-            st.success("✅ Image Detected! Vision Engine ready.")
+            st.image(img, caption="Image Loaded", width=250)
+            st.success("✅ Image Loaded!")
 
+    # --- CHAT UI ---
     if "pdf_chat_history" not in st.session_state:
         st.session_state.pdf_chat_history = []
 
-    for msg in st.session_state.pdf_chat_history:
-        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+    for idx, msg in enumerate(st.session_state.pdf_chat_history):
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+            # PODCAST BUTTON: Har assistant message ke niche
+            if msg["role"] == "assistant":
+                if st.button(f"🔊 Listen Podcast", key=f"audio_{idx}"):
+                    from gtts import gTTS
+                    import io
+                    # Text to Speech conversion
+                    tts = gTTS(text=msg["content"][:500], lang='hi' if "Mix" in selected_lang else 'en')
+                    fp = io.BytesIO()
+                    tts.write_to_fp(fp)
+                    st.audio(fp, format="audio/mp3")
 
-    if prompt := st.chat_input("Poocho kya poochna hai..."):
+    if prompt := st.chat_input("Poocho apne sawaal..."):
         if "pdf_context" not in st.session_state:
-            st.error("Pehle kuch upload toh karlo bhai!")
+            st.error("Bhai, pehle file toh upload kar!")
         elif use_credits(1):
             st.session_state.pdf_chat_history.append({"role": "user", "content": prompt})
             with st.chat_message("user"): st.markdown(prompt)
 
             with st.chat_message("assistant"):
                 try:
-                    # Language Logic
-                    lang_map = {
-                        "Mix (Hinglish/Marathi-English)": "Mix Hindi/Marathi/English",
-                        "Proper English": "Formal Professional English",
-                        "Marathi Only": "Strictly Marathi"
-                    }
-                    
-                    # Vision Engine ke liye hum Gemini use karenge (kyunki Llama-3 vision images ko process nahi karta itne achhe se)
                     import google.generativeai as genai
-                    genai.configure(api_key=st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY"))
+                    # API Key management
+                    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+                    genai.configure(api_key=api_key)
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    sys_prompt = f"Tu Engineering Professor hai. {lang_map[selected_lang]} mein jawab de. PDF/Image context se detail mein samjha."
-                    
+                    lang_instr = "Answer in Hinglish/Marathi mix." if "Mix" in selected_lang else "Answer in Formal English."
+                    sys_prompt = f"Tu Engineering Mentor hai. {lang_instr} Context se detail answer de."
+
                     if st.session_state.is_image:
-                        # VISION MODE: Direct image feed
                         response = model.generate_content([sys_prompt, st.session_state.pdf_context, prompt])
                     else:
-                        # TEXT MODE: PDF text feed
-                        response = model.generate_content(f"{sys_prompt}\nContext: {st.session_state.pdf_context[:500000]}\nQuestion: {prompt}")
+                        response = model.generate_content(f"{sys_prompt}\nContext: {st.session_state.pdf_context[:30000]}\nQ: {prompt}")
                     
                     st.markdown(response.text)
                     st.session_state.pdf_chat_history.append({"role": "assistant", "content": response.text})
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error: {e}. Try refreshing.")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
