@@ -217,30 +217,39 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART PDF MENTOR (PROFESSIONAL EDITION) ---
+# --- TAB 1: SMART MULTIMODAL MENTOR (PDF + IMAGE SUPPORT) ---
 with tab1:
-    # UI se 'Groq' hata diya
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Mentor Pro</h2>", unsafe_allow_html=True)
     
     # --- LANGUAGE SELECTOR ---
     st.markdown("### 🌐 Preferred Language")
     selected_lang = st.radio(
         "Response kis language mein chahiye?",
         ["Mix (Hinglish/Marathi-English)", "Proper English", "Marathi Only"],
-        horizontal=True,
-        key="lang_v1"
+        horizontal=True, key="lang_v2"
     )
 
-    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="pdf_v_final")
+    # File uploader for both PDF and Images
+    uploaded_file = st.file_uploader("Upload Notes (PDF or Image)", type=["pdf", "jpg", "png", "jpeg"], key="multi_v1")
 
     if uploaded_file:
-        import fitz  
-        if "pdf_context" not in st.session_state:
-            with st.spinner("TopperGPT is scanning document..."):
-                doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                st.session_state.pdf_context = "".join([page.get_text() for page in doc])
-                st.session_state.pdf_pages = len(doc)
-            st.success(f"✅ Loaded {st.session_state.pdf_pages} pages!")
+        file_type = uploaded_file.type
+        
+        if "pdf" in file_type:
+            import fitz  
+            if "pdf_context" not in st.session_state:
+                with st.spinner("Scanning PDF Text..."):
+                    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+                    st.session_state.pdf_context = "".join([page.get_text() for page in doc])
+                    st.session_state.is_image = False
+                st.success(f"✅ PDF Loaded!")
+        else:
+            # Handle Image Upload
+            img = Image.open(uploaded_file).convert("RGB")
+            st.image(img, caption="Image Detected", width=300)
+            st.session_state.pdf_context = img
+            st.session_state.is_image = True
+            st.success("✅ Image Detected! Vision Engine ready.")
 
     if "pdf_chat_history" not in st.session_state:
         st.session_state.pdf_chat_history = []
@@ -250,51 +259,39 @@ with tab1:
 
     if prompt := st.chat_input("Poocho kya poochna hai..."):
         if "pdf_context" not in st.session_state:
-            st.error("Pehle PDF upload karle bhai!")
+            st.error("Pehle kuch upload toh karlo bhai!")
         elif use_credits(1):
             st.session_state.pdf_chat_history.append({"role": "user", "content": prompt})
             with st.chat_message("user"): st.markdown(prompt)
 
             with st.chat_message("assistant"):
                 try:
-                    from groq import Groq
-                    # Backend hidden: User ko Groq ka pata nahi chalega
-                    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                    # Language Logic
+                    lang_map = {
+                        "Mix (Hinglish/Marathi-English)": "Mix Hindi/Marathi/English",
+                        "Proper English": "Formal Professional English",
+                        "Marathi Only": "Strictly Marathi"
+                    }
                     
-                    # Language Logic for Prompt
-                    lang_instruction = ""
-                    if selected_lang == "Mix (Hinglish/Marathi-English)":
-                        lang_instruction = "Use a mix of Hindi, Marathi, and English (Hinglish/Marathlish) like a friendly senior."
-                    elif selected_lang == "Proper English":
-                        lang_instruction = "Respond in strictly professional and formal English only."
+                    # Vision Engine ke liye hum Gemini use karenge (kyunki Llama-3 vision images ko process nahi karta itne achhe se)
+                    import google.generativeai as genai
+                    genai.configure(api_key=st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY"))
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    sys_prompt = f"Tu Engineering Professor hai. {lang_map[selected_lang]} mein jawab de. PDF/Image context se detail mein samjha."
+                    
+                    if st.session_state.is_image:
+                        # VISION MODE: Direct image feed
+                        response = model.generate_content([sys_prompt, st.session_state.pdf_context, prompt])
                     else:
-                        lang_instruction = "Respond in pure Marathi language."
-
-                    sys_prompt = f"""
-                    Tu ek Engineering Professor hai. 
-                    {lang_instruction}
-                    Neeche diye gaye PDF Context se student ke sawal ka detail mein jawab de.
-                    Agar context mein answer nahi hai, toh apne engineering knowledge se sahi jawab bata.
+                        # TEXT MODE: PDF text feed
+                        response = model.generate_content(f"{sys_prompt}\nContext: {st.session_state.pdf_context[:500000]}\nQuestion: {prompt}")
                     
-                    CONTEXT:
-                    {st.session_state.pdf_context[:28000]}
-                    """
-                    
-                    response = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[
-                            {"role": "system", "content": sys_prompt},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.5
-                    )
-                    
-                    res_text = response.choices[0].message.content
-                    st.markdown(res_text)
-                    st.session_state.pdf_chat_history.append({"role": "assistant", "content": res_text})
+                    st.markdown(response.text)
+                    st.session_state.pdf_chat_history.append({"role": "assistant", "content": response.text})
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Engine is busy, please try in 10 seconds.")
+                    st.error(f"Error: {e}")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
