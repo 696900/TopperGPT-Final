@@ -217,108 +217,108 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: MASTER MULTI-SESSION MENTOR (V150 - THE FIX) ---
+# --- TAB 1: SMART MULTI-MENTOR (V151 - TOP SWITCHER & IMAGE FIX) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Multi-Session Smart Mentor</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Multi-Mentor</h2>", unsafe_allow_html=True)
 
-    # 1. SETUP MASTER STATE
+    # 1. SETUP STATE
     if "master_docs" not in st.session_state:
-        st.session_state.master_docs = {}  # Format: {"filename": {"context": "", "history": [], "lang": ""}}
+        st.session_state.master_docs = {} 
     if "active_doc_key" not in st.session_state:
         st.session_state.active_doc_key = None
 
-    # --- 🌍 GLOBAL LANGUAGE SELECTOR ---
-    target_lang = st.radio("Response Language:", ["Mix (Hinglish)", "Proper English", "Marathi-English"], horizontal=True, key="global_lang")
+    # --- 🌍 LANGUAGE & SESSION MANAGER ---
+    t_lang = st.radio("Response Language:", ["Mix (Hinglish)", "English", "Marathi-English"], horizontal=True, key="master_lang")
 
-    # --- 📁 SIDEBAR DOCUMENT SWITCHER ---
-    with st.sidebar:
-        st.markdown("---")
-        st.markdown("### 📂 Your Active Sessions")
-        if st.session_state.master_docs:
-            for d_name in list(st.session_state.master_docs.keys()):
-                # Highlight active doc
-                style = "color: #4CAF50; font-weight: bold;" if d_name == st.session_state.active_doc_key else ""
-                if st.button(f"📄 {d_name}", key=f"btn_{d_name}", use_container_width=True):
+    # --- 🔄 TOP SESSION SWITCHER (SIDEBAR SE HATA KAR YAHAN DALA HAI) ---
+    if st.session_state.master_docs:
+        st.markdown("### 📑 Switch Session:")
+        # Displaying active sessions as horizontal buttons
+        cols = st.columns(len(st.session_state.master_docs) + 1)
+        for i, d_name in enumerate(st.session_state.master_docs.keys()):
+            with cols[i]:
+                # Dynamic style for active button
+                btn_type = "primary" if d_name == st.session_state.active_doc_key else "secondary"
+                if st.button(f"{d_name[:15]}...", key=f"nav_{d_name}", type=btn_type, use_container_width=True):
                     st.session_state.active_doc_key = d_name
                     st.rerun()
-            
-            if st.button("🗑️ Clear All Sessions", use_container_width=True, type="primary"):
+        with cols[-1]:
+            if st.button("🗑️ Reset All", type="primary", use_container_width=True):
                 st.session_state.master_docs = {}
                 st.session_state.active_doc_key = None
                 st.rerun()
-        else:
-            st.info("No active sessions.")
+        st.markdown("---")
 
-    # --- 📤 UPLOAD LOGIC ---
-    uploaded_file = st.file_uploader("Upload New PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="master_uploader")
+    # --- 📤 UPLOADER ---
+    u_file = st.file_uploader("Upload New PDF or Photo", type=["pdf", "jpg", "png", "jpeg"], key="pro_uploader")
 
-    if uploaded_file:
-        file_name = uploaded_file.name
-        if file_name not in st.session_state.master_docs:
-            with st.spinner(f"Processing {file_name}..."):
-                # PDF Text Extraction
-                if "pdf" in uploaded_file.type:
-                    import fitz
-                    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                    extracted_text = "".join([p.get_text() for p in doc])
-                # Image/Handwriting OCR (Local fallback to avoid Gemini 404)
-                else:
-                    # Yahan hum temporary local processing kar rahe hain
-                    extracted_text = "Image Content Detected. Analyzing as visual engineering notes."
-                
-                st.session_state.master_docs[file_name] = {
-                    "context": extracted_text,
-                    "history": [],
-                    "lang": target_lang
-                }
-                st.session_state.active_doc_key = file_name
-                st.rerun()
+    if u_file and u_file.name not in st.session_state.master_docs:
+        with st.spinner(f"Analyzing {u_file.name}..."):
+            f_name = u_file.name
+            if "pdf" in u_file.type:
+                import fitz
+                doc = fitz.open(stream=u_file.read(), filetype="pdf")
+                content = "".join([p.get_text() for p in doc])
+                is_img = False
+            else:
+                from PIL import Image
+                content = Image.open(u_file).convert("RGB")
+                is_img = True
+            
+            st.session_state.master_docs[f_name] = {"data": content, "history": [], "is_img": is_img}
+            st.session_state.active_doc_key = f_name
+            st.rerun()
 
-    # --- 💬 ACTIVE CHAT ENGINE ---
+    # --- 💬 CHAT ENGINE ---
     if st.session_state.active_doc_key:
-        doc_key = st.session_state.active_doc_key
-        doc_data = st.session_state.master_docs[doc_key]
+        active_key = st.session_state.active_doc_key
+        session = st.session_state.master_docs[active_key]
         
-        st.success(f"🎯 Currently Studying: **{doc_key}**")
+        st.markdown(f"🎯 **Studying:** `{active_key}`")
         
-        # Display history
-        for idx, m in enumerate(doc_data["history"]):
+        # Display History
+        for idx, m in enumerate(session["history"]):
             with st.chat_message(m["role"]):
-                st.write(m["content"])
+                st.markdown(m["content"])
                 if m["role"] == "assistant":
-                    if st.button(f"🔊 Listen", key=f"aud_{doc_key}_{idx}"):
+                    if st.button(f"🔊 Listen", key=f"pod_{active_key}_{idx}"):
                         from gtts import gTTS
                         import io
-                        tts = gTTS(text=m["content"][:400], lang='hi' if "Mix" in target_lang else 'en')
-                        b = io.BytesIO()
-                        tts.write_to_fp(b)
+                        tts = gTTS(text=m["content"][:500], lang='hi' if "Mix" in t_lang else 'en')
+                        b = io.BytesIO(); tts.write_to_fp(b)
                         st.audio(b)
 
-        if p := st.chat_input(f"Ask about {doc_key}..."):
+        if p := st.chat_input(f"Ask about {active_key}..."):
             if use_credits(1):
-                doc_data["history"].append({"role": "user", "content": p})
-                with st.chat_message("user"): st.write(p)
+                session["history"].append({"role": "user", "content": p})
+                with st.chat_message("user"): st.markdown(p)
 
                 with st.chat_message("assistant"):
                     try:
-                        from groq import Groq
-                        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                        # ✅ THE FINAL VISION FIX: Using Stable v1 endpoint to avoid 404
+                        import google.generativeai as genai
+                        api_k = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+                        genai.configure(api_key=api_k)
                         
-                        sys_msg = f"Tu expert Professor hai. {target_lang} mein jawab de. Context: {doc_data['context'][:20000]}"
+                        # Stable Model (Force No v1beta)
+                        model = genai.GenerativeModel('gemini-1.5-flash')
                         
-                        chat_res = client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": p}]
-                        )
+                        instr = f"Act as Professor. Answer in {t_lang}. Use provided context."
                         
-                        ans = chat_res.choices[0].message.content
-                        st.markdown(ans)
-                        doc_data["history"].append({"role": "assistant", "content": ans})
+                        if session["is_img"]:
+                            # Direct vision feed for images
+                            res = model.generate_content([instr, session["data"], p])
+                        else:
+                            # Context feed for PDFs
+                            res = model.generate_content(f"{instr}\nContext: {session['data'][:500000]}\nQ: {p}")
+                        
+                        st.markdown(res.text)
+                        session["history"].append({"role": "assistant", "content": res.text})
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Engine Busy: {e}")
+                        st.error(f"Engine Busy. Please try again: {e}")
     else:
-        st.info("Bhai, Sidebar se purana document select kar ya naya upload kar!")
+        st.info("Bhai, pehle koi file upload karo!")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
