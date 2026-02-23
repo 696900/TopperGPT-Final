@@ -80,7 +80,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 🖋️ PROFESSIONAL UI STYLES (RESTORED)
+# 🖋️ PROFESSIONAL UI STYLES
 EVAL_CSS = """
 <style>
 .block-container { max-width: 92% !important; padding-top: 2rem !important; }
@@ -107,11 +107,17 @@ st.markdown(EVAL_CSS, unsafe_allow_html=True)
 # --- 2. GLOBAL LOGIC & KEYS ---
 if "user_data" not in st.session_state: st.session_state.user_data = None
 
-# 🛠️ AI SETUP
+# 🛠️ AI SETUP (Fixed to avoid 404 errors)
 api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 if api_key:
+    import google.generativeai as genai
     genai.configure(api_key=api_key)
+    # LlamaIndex Settings
+    from llama_index.embeddings.gemini import GeminiEmbedding
+    from llama_index.core import Settings
     Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key)
+
+from groq import Groq
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # --- 3. LOGIN PAGE ---
@@ -130,7 +136,7 @@ if st.session_state.user_data is None:
             st.rerun()
     st.stop()
 
-# --- 4. SIDEBAR: ORIGINAL LAYOUT ---
+# --- 4. SIDEBAR: ORIGINAL FLOW ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
     
@@ -143,13 +149,13 @@ with st.sidebar:
         </div>
     ''', unsafe_allow_html=True)
 
-    # 🎁 REFERRAL SYSTEM (Back to its original place)
+    # 🎁 REFERRAL SYSTEM
     st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-top:20px;'>🎁 REFER & EARN FREE CREDITS</p>", unsafe_allow_html=True)
     
     with st.container():
         st.markdown(f'''
             <div style="background: rgba(76, 175, 80, 0.08); border: 2px dashed #4CAF50; padding: 15px; border-radius: 15px; text-align: center; margin-bottom: 10px;">
-                <p style="color: #c9d1d9; font-size: 13px; margin-bottom: 5px;">Share this code with a friend. Both get <b>+5 Credits</b>!</p>
+                <p style="color: #c9d1d9; font-size: 13px; margin-bottom: 5px;">Both get <b>+5 Credits</b> on invite!</p>
                 <div style="background: #0d1117; padding: 10px; border-radius: 8px; border: 1px solid #30363d;">
                     <code style="color: #4CAF50; font-size: 18px; font-weight: bold;">{st.session_state.user_data['referral_code']}</code>
                 </div>
@@ -157,8 +163,8 @@ with st.sidebar:
         ''', unsafe_allow_html=True)
         
         if not st.session_state.user_data.get('ref_claimed', False):
-            claim_input = st.text_input("Friend's Referral Code?", placeholder="Enter TOPXXXX", key="ref_v108")
-            if st.button("Claim My Bonus (+5)", use_container_width=True):
+            claim_input = st.text_input("Friend's Code?", placeholder="Enter TOPXXXX", key="ref_v108")
+            if st.button("Claim Bonus (+5)", use_container_width=True):
                 clean_claim = claim_input.strip().upper()
                 if clean_claim and clean_claim != st.session_state.user_data['referral_code']:
                     st.session_state.user_data['credits'] += 5
@@ -168,8 +174,8 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # 💎 REFILL PACKS (At the bottom)
-    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-bottom:15px;'>💎 PREMIUM REFILL PACKS</p>", unsafe_allow_html=True)
+    # 💎 REFILL PACKS (Payment Gateway)
+    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-bottom:15px;'>💎 REFILL PACKS</p>", unsafe_allow_html=True)
     
     refill_packs = [
         {"name": "Weekly Sureshot", "credits": "70 Credits", "price": "₹59", "url": "https://rzp.io/rzp/FmwE0Ms6"},
@@ -190,7 +196,7 @@ with st.sidebar:
         ''', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔓 Secure Logout", use_container_width=True):
+    if st.button("🔓 Logout", use_container_width=True):
         st.session_state.user_data = None
         st.rerun()
 
