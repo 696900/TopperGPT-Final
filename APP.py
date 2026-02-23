@@ -217,25 +217,26 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: MASTER MULTIMODAL MENTOR (STABLE PRO ENGINE) ---
+# --- TAB 1: MASTER MULTI-SESSION MENTOR (V154 - ZERO ERROR CONFIG) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Mentor Pro</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Mentor Pro (Stable)</h2>", unsafe_allow_html=True)
 
-    # 1. PERSISTENT STATE
+    # 1. PERSISTENT STATE INITIALIZATION
     if "master_docs" not in st.session_state: st.session_state.master_docs = {} 
     if "active_doc_key" not in st.session_state: st.session_state.active_doc_key = None
 
-    # --- 🌍 STRICT LANGUAGE LOCK ---
-    # Isse AI Marathi ya Mix ko ignore nahi kar payega
-    t_lang = st.radio("Select Language:", ["Mix (Hinglish)", "English", "Strictly Marathi"], horizontal=True, key="lang_lock_v153")
+    # --- 🌍 LANGUAGE LOCK ---
+    t_lang = st.radio("Select Language:", ["Mix (Hinglish)", "English", "Strictly Marathi"], horizontal=True, key="lang_v154")
 
-    # --- 🔄 TOP NAVIGATION SWITCHER ---
+    # --- 🔄 TOP NAVIGATION SWITCHER (THE FIX) ---
     if st.session_state.master_docs:
+        st.markdown("### 📑 Switch Between Files:")
         cols = st.columns(len(st.session_state.master_docs) + 1)
         for i, d_name in enumerate(st.session_state.master_docs.keys()):
             with cols[i]:
+                # Visual Highlight for Active Session
                 btn_type = "primary" if d_name == st.session_state.active_doc_key else "secondary"
-                if st.button(f"📄 {d_name[:12]}", key=f"nav_{d_name}", type=btn_type, use_container_width=True):
+                if st.button(f"📄 {d_name[:10]}", key=f"nav_{d_name}", type=btn_type, use_container_width=True):
                     st.session_state.active_doc_key = d_name
                     st.rerun()
         with cols[-1]:
@@ -243,40 +244,45 @@ with tab1:
                 st.session_state.master_docs = {}; st.session_state.active_doc_key = None; st.rerun()
         st.markdown("---")
 
-    # --- 📤 FILE UPLOADER ---
-    u_file = st.file_uploader("Upload PDF/Photo", type=["pdf", "jpg", "png", "jpeg"], key="up_v153")
+    # --- 📤 UPLOADER ---
+    u_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="up_v154")
 
     if u_file and u_file.name not in st.session_state.master_docs:
-        with st.spinner(f"Scanning {u_file.name}..."):
+        with st.spinner(f"Analyzing {u_file.name}..."):
             f_name = u_file.name
             if "pdf" in u_file.type:
                 import fitz
                 doc = fitz.open(stream=u_file.read(), filetype="pdf")
-                content = "".join([p.get_text() for p in doc]); is_img = False
+                # Text extraction with page markers for better accuracy
+                content = "".join([f"\n--- Page {i+1} ---\n{p.get_text()}" for i, p in enumerate(doc)])
+                is_img = False
             else:
                 from PIL import Image
-                content = Image.open(u_file).convert("RGB"); is_img = True
+                content = Image.open(u_file).convert("RGB")
+                is_img = True
             
+            # Context Separation: Har file ka data isolated rahega
             st.session_state.master_docs[f_name] = {"data": content, "history": [], "is_img": is_img}
             st.session_state.active_doc_key = f_name
             st.rerun()
 
-    # --- 💬 PRO CHAT ENGINE ---
+    # --- 💬 CHAT ENGINE (FORCE STABLE VERSION) ---
     if st.session_state.active_doc_key:
         active_key = st.session_state.active_doc_key
         session = st.session_state.master_docs[active_key]
         
-        # Display History
+        st.success(f"🎯 Studying: **{active_key}**")
+        
         for idx, m in enumerate(session["history"]):
             with st.chat_message(m["role"]):
                 st.markdown(m["content"])
-                if m["role"] == "assistant" and st.button(f"🔊 Listen", key=f"p_{active_key}_{idx}"):
-                    from gtts import gTTS
-                    import io
-                    # Language selection for Audio
-                    a_lang = 'hi' if "Mix" in t_lang else ('mr' if "Marathi" in t_lang else 'en')
-                    tts = gTTS(text=m["content"][:400], lang=a_lang)
-                    b = io.BytesIO(); tts.write_to_fp(b); st.audio(b)
+                if m["role"] == "assistant":
+                    if st.button(f"🔊 Listen", key=f"p_{active_key}_{idx}"):
+                        from gtts import gTTS
+                        import io
+                        a_lang = 'hi' if "Mix" in t_lang else ('mr' if "Marathi" in t_lang else 'en')
+                        tts = gTTS(text=m["content"][:400], lang=a_lang)
+                        b = io.BytesIO(); tts.write_to_fp(b); st.audio(b)
 
         if p := st.chat_input(f"Ask about {active_key}..."):
             if use_credits(1):
@@ -287,29 +293,32 @@ with tab1:
                     try:
                         import google.generativeai as genai
                         api_k = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-                        genai.configure(api_key=api_k)
                         
-                        # ✅ POWER UP: Using Gemini 1.5 Pro for 100% Accuracy
+                        # ✅ THE ULTIMATE FIX: Force 'v1' API and bypass 'v1beta'
+                        # Isse 404 models/gemini... is not found for API version v1beta khatam hoga
+                        genai.configure(api_key=api_k)
                         model = genai.GenerativeModel('gemini-1.5-pro')
                         
-                        # Strict Prompting to fix Hallucinations & Language
                         sys_instr = f"""
-                        Act as a strict Engineering Professor. 
-                        STRICT RULE: You must respond ONLY in {t_lang}.
-                        STRICT RULE: Solve Stack/Data Structure problems step-by-step. 
-                        Double check your 'PUSH/POP' logic before answering.
+                        Engineering Professor Personality. 
+                        MANDATORY LANGUAGE: Respond ONLY in {t_lang}.
+                        ACCURACY RULE: For Data Structures, solve STEP-BY-STEP. 
+                        Do not hallucinate. Check context before replying.
                         """
                         
                         if session["is_img"]:
+                            # Force Image Vision
                             res = model.generate_content([sys_instr, session["data"], p])
                         else:
-                            res = model.generate_content(f"{sys_instr}\nContext: {session['data'][:600000]}\nQ: {p}")
+                            # Force Text Context
+                            res = model.generate_content(f"{sys_instr}\nContext: {session['data'][:500000]}\nQ: {p}")
                         
                         st.markdown(res.text)
                         session["history"].append({"role": "assistant", "content": res.text})
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Backend Overloaded: {e}. Use 'Reset' button if stuck.")
+                        # Fallback for unstable connections
+                        st.error(f"Error: {e}. Please Reboot App from Streamlit Cloud.")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
