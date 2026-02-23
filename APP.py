@@ -217,99 +217,94 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: HYBRID MULTI-SESSION MENTOR (V155 - STABLE) ---
+# --- TAB 1: STABLE TEXT-BASED MENTOR (MOBILE OPTIMIZED) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Mentor Pro (Hybrid)</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor (Stable)</h2>", unsafe_allow_html=True)
 
-    # 1. SETUP STATE
+    # 1. CLEAN PERSISTENT STATE
     if "master_docs" not in st.session_state: st.session_state.master_docs = {} 
     if "active_doc_key" not in st.session_state: st.session_state.active_doc_key = None
 
-    # --- 🌍 LANGUAGE SELECTOR ---
-    t_lang = st.radio("Select Language:", ["Mix (Hinglish)", "English", "Strictly Marathi"], horizontal=True, key="lang_v155")
+    # --- 🌍 LANGUAGE LOCK ---
+    t_lang = st.radio("Response Language:", ["Mix (Hinglish)", "English", "Marathi-English"], horizontal=True, key="lang_v156")
 
-    # --- 🔄 TOP NAVIGATION SWITCHER (Instant Switching) ---
+    # --- 🔄 TOP SESSION SWITCHER (MOBILE FRIENDLY) ---
     if st.session_state.master_docs:
-        cols = st.columns(len(st.session_state.master_docs) + 1)
+        st.markdown("### 📑 Switch PDF Session:")
+        # Horizontal buttons for easy mobile tapping
+        nav_cols = st.columns(len(st.session_state.master_docs) + 1)
         for i, d_name in enumerate(st.session_state.master_docs.keys()):
-            with cols[i]:
-                btn_type = "primary" if d_name == st.session_state.active_doc_key else "secondary"
-                if st.button(f"📄 {d_name[:10]}", key=f"nav_{d_name}", type=btn_type, use_container_width=True):
+            with nav_cols[i]:
+                # Active Highlight Logic
+                b_type = "primary" if d_name == st.session_state.active_doc_key else "secondary"
+                if st.button(f"📄 {d_name[:8]}..", key=f"nav_{d_name}", type=b_type, use_container_width=True):
                     st.session_state.active_doc_key = d_name
                     st.rerun()
-        with cols[-1]:
+        with nav_cols[-1]:
             if st.button("🗑️ Reset", type="primary", use_container_width=True):
                 st.session_state.master_docs = {}; st.session_state.active_doc_key = None; st.rerun()
         st.markdown("---")
 
-    # --- 📤 UPLOADER ---
-    u_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="up_v155")
+    # --- 📤 PDF ONLY UPLOADER ---
+    # Image support removed to stop 404 errors
+    u_file = st.file_uploader("Upload Exam PDF", type=["pdf"], key="pdf_only_v156")
 
     if u_file and u_file.name not in st.session_state.master_docs:
-        with st.spinner(f"Analyzing {u_file.name}..."):
-            f_name = u_file.name
-            if "pdf" in u_file.type:
-                import fitz
-                doc = fitz.open(stream=u_file.read(), filetype="pdf")
-                content = "".join([f"\n[Page {i+1}]\n{p.get_text()}" for i, p in enumerate(doc)])
-                is_img = False
-            else:
-                from PIL import Image
-                content = Image.open(u_file).convert("RGB")
-                is_img = True
+        with st.spinner(f"Reading {u_file.name}..."):
+            import fitz
+            doc = fitz.open(stream=u_file.read(), filetype="pdf")
+            # Text extraction only for stability
+            content = "".join([f"\n[Page {i+1}]\n{p.get_text()}" for i, p in enumerate(doc)])
             
-            st.session_state.master_docs[f_name] = {"data": content, "history": [], "is_img": is_img}
-            st.session_state.active_doc_key = f_name
+            st.session_state.master_docs[u_file.name] = {"data": content, "history": []}
+            st.session_state.active_doc_key = u_file.name
             st.rerun()
 
-    # --- 💬 HYBRID CHAT ENGINE ---
+    # --- 💬 STABLE TEXT ENGINE (GROQ) ---
     if st.session_state.active_doc_key:
         active_key = st.session_state.active_doc_key
         session = st.session_state.master_docs[active_key]
-        st.success(f"🎯 Studying: **{active_key}**")
+        st.success(f"🎯 Currently Studying: **{active_key}**")
         
+        # Chat History with Revenue-Friendly Design
         for idx, m in enumerate(session["history"]):
             with st.chat_message(m["role"]):
                 st.markdown(m["content"])
-                if m["role"] == "assistant" and st.button(f"🔊 Listen", key=f"p_{active_key}_{idx}"):
-                    from gtts import gTTS
-                    import io
-                    a_lang = 'hi' if "Mix" in t_lang else ('mr' if "Marathi" in t_lang else 'en')
-                    tts = gTTS(text=m["content"][:400], lang=a_lang)
-                    b = io.BytesIO(); tts.write_to_fp(b); st.audio(b)
+                # Audio Feature retained
+                if m["role"] == "assistant":
+                    if st.button(f"🔊 Listen", key=f"pod_{active_key}_{idx}"):
+                        from gtts import gTTS
+                        import io
+                        a_lang = 'hi' if "Mix" in t_lang else ('mr' if "Marathi" in t_lang else 'en')
+                        tts = gTTS(text=m["content"][:400], lang=a_lang)
+                        b = io.BytesIO(); tts.write_to_fp(b); st.audio(b)
 
-        if p := st.chat_input(f"Ask about {active_key}..."):
+        if p := st.chat_input(f"Ask anything about {active_key}..."):
+            # 💰 REVENUE LOOP: 1 Credit per question
             if use_credits(1):
                 session["history"].append({"role": "user", "content": p})
                 with st.chat_message("user"): st.markdown(p)
 
                 with st.chat_message("assistant"):
                     try:
-                        if session["is_img"]:
-                            # --- VISION MODE (STABLE GEMINI) ---
-                            import google.generativeai as genai
-                            api_k = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-                            genai.configure(api_key=api_k)
-                            model = genai.GenerativeModel('gemini-1.5-flash') # Force Stable
-                            instr = f"Act as Engineering Professor. Respond ONLY in {t_lang}."
-                            res = model.generate_content([instr, session["data"], p])
-                            ans_text = res.text
-                        else:
-                            # --- TEXT MODE (NO-FAIL GROQ) ---
-                            from groq import Groq
-                            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-                            sys_msg = f"Tu expert Professor hai. {t_lang} mein jawab de. Context: {session['data'][:30000]}"
-                            chat_res = client.chat.completions.create(
-                                model="llama-3.3-70b-versatile",
-                                messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": p}]
-                            )
-                            ans_text = chat_res.choices[0].message.content
+                        from groq import Groq
+                        # Groq is 100% stable for text, no 404 models/gemini errors
+                        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                        sys_msg = f"Tu Expert Professor hai. {t_lang} mein jawab de. Context: {session['data'][:30000]}"
                         
-                        st.markdown(ans_text)
-                        session["history"].append({"role": "assistant", "content": ans_text})
+                        chat_res = client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": p}]
+                        )
+                        
+                        ans = chat_res.choices[0].message.content
+                        st.markdown(ans)
+                        session["history"].append({"role": "assistant", "content": ans})
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Engine Busy. Please try again: {e}")
+                        st.error(f"Backend Busy. Please try again in 5 seconds.")
+    else:
+        st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
