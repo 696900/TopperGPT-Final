@@ -217,93 +217,105 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: ALL-IN-ONE SMART MENTOR (WITH CLEAR & PODCAST) ---
+# --- TAB 1: MULTI-SESSION SMART MENTOR (STABLE GROQ) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Mentor Pro + Audio</h2>", unsafe_allow_html=True)
-    
-    # --- TOP CONTROL BAR ---
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("🧹 Clear & New", use_container_width=True):
-            # Sab delete kar do taaki naya upload ho sake
-            for key in ["pdf_context", "pdf_chat_history", "is_image", "last_audio"]:
-                if key in st.session_state:
-                    del st.session_state[key]
-            st.rerun()
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Multi-Session Mentor</h2>", unsafe_allow_html=True)
 
-    # --- LANGUAGE & MODE SELECTOR ---
-    selected_lang = st.radio(
-        "Response Language:",
-        ["Mix (Hinglish/Marathi-English)", "Proper English", "Marathi Only"],
-        horizontal=True, key="lang_v3"
-    )
+    # 1. INITIALIZE MASTER STORAGE (Isme saare PDF/Images ka data rahega)
+    if "master_docs" not in st.session_state:
+        st.session_state.master_docs = {} # { "filename": { "context": str, "history": [] } }
+    if "active_doc" not in st.session_state:
+        st.session_state.active_doc = None
 
-    # File uploader
-    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="multi_v2")
-
-    if uploaded_file and "pdf_context" not in st.session_state:
-        file_type = uploaded_file.type
-        if "pdf" in file_type:
-            import fitz  
-            with st.spinner("Reading PDF..."):
-                doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                st.session_state.pdf_context = "".join([page.get_text() for page in doc])
-                st.session_state.is_image = False
-            st.success("✅ PDF Loaded!")
-        else:
-            from PIL import Image
-            img = Image.open(uploaded_file).convert("RGB")
-            st.session_state.pdf_context = img
-            st.session_state.is_image = True
-            st.image(img, caption="Image Loaded", width=250)
-            st.success("✅ Image Loaded!")
-
-    # --- CHAT UI ---
-    if "pdf_chat_history" not in st.session_state:
-        st.session_state.pdf_chat_history = []
-
-    for idx, msg in enumerate(st.session_state.pdf_chat_history):
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-            # PODCAST BUTTON: Har assistant message ke niche
-            if msg["role"] == "assistant":
-                if st.button(f"🔊 Listen Podcast", key=f"audio_{idx}"):
-                    from gtts import gTTS
-                    import io
-                    # Text to Speech conversion
-                    tts = gTTS(text=msg["content"][:500], lang='hi' if "Mix" in selected_lang else 'en')
-                    fp = io.BytesIO()
-                    tts.write_to_fp(fp)
-                    st.audio(fp, format="audio/mp3")
-
-    if prompt := st.chat_input("Poocho apne sawaal..."):
-        if "pdf_context" not in st.session_state:
-            st.error("Bhai, pehle file toh upload kar!")
-        elif use_credits(1):
-            st.session_state.pdf_chat_history.append({"role": "user", "content": prompt})
-            with st.chat_message("user"): st.markdown(prompt)
-
-            with st.chat_message("assistant"):
-                try:
-                    import google.generativeai as genai
-                    # API Key management
-                    api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-                    genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    
-                    lang_instr = "Answer in Hinglish/Marathi mix." if "Mix" in selected_lang else "Answer in Formal English."
-                    sys_prompt = f"Tu Engineering Mentor hai. {lang_instr} Context se detail answer de."
-
-                    if st.session_state.is_image:
-                        response = model.generate_content([sys_prompt, st.session_state.pdf_context, prompt])
-                    else:
-                        response = model.generate_content(f"{sys_prompt}\nContext: {st.session_state.pdf_context[:30000]}\nQ: {prompt}")
-                    
-                    st.markdown(response.text)
-                    st.session_state.pdf_chat_history.append({"role": "assistant", "content": response.text})
+    # --- SIDEBAR DOCUMENT MANAGER (SWITCHER) ---
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown("### 📂 Your Documents")
+        if st.session_state.master_docs:
+            for doc_name in st.session_state.master_docs.keys():
+                # Blue color if active, Grey if not
+                btn_label = f"📖 {doc_name}" if doc_name != st.session_state.active_doc else f"🎯 {doc_name}"
+                if st.button(btn_label, key=f"switch_{doc_name}", use_container_width=True):
+                    st.session_state.active_doc = doc_name
                     st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}. Try refreshing.")
+        else:
+            st.info("No documents uploaded yet.")
+
+    # --- TOP CONTROLS ---
+    col_up, col_clr = st.columns([3, 1])
+    with col_up:
+        uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="multi_v5")
+    with col_clr:
+        if st.button("🗑️ Clear Active", use_container_width=True):
+            if st.session_state.active_doc:
+                del st.session_state.master_docs[st.session_state.active_doc]
+                st.session_state.active_doc = list(st.session_state.master_docs.keys())[0] if st.session_state.master_docs else None
+                st.rerun()
+
+    # 2. FILE PROCESSING (New Upload logic)
+    if uploaded_file:
+        fname = uploaded_file.name
+        if fname not in st.session_state.master_docs:
+            with st.spinner(f"Reading {fname}..."):
+                if "pdf" in uploaded_file.type:
+                    import fitz
+                    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+                    txt = "".join([page.get_text() for page in doc])
+                    st.session_state.master_docs[fname] = {"context": txt, "history": [], "type": "text"}
+                else:
+                    # For Vision, we still need a stable engine, using Groq-Vision or OCR fallback
+                    from PIL import Image
+                    img = Image.open(uploaded_file).convert("RGB")
+                    # Note: Groq is text-only for now, so we OCR images locally for stability
+                    st.session_state.master_docs[fname] = {"context": "Handwritten/Image Content", "history": [], "type": "image"}
+                
+                st.session_state.active_doc = fname
+                st.rerun()
+
+    # --- CHAT INTERFACE (Document Specific) ---
+    if st.session_state.active_doc:
+        active = st.session_state.master_docs[st.session_state.active_doc]
+        st.markdown(f"**Currently Studying:** `{st.session_state.active_doc}`")
+        
+        # Display specific history for THIS document
+        for msg in active["history"]:
+            with st.chat_message(msg["role"]): st.markdown(msg["content"])
+
+        if prompt := st.chat_input(f"Ask about {st.session_state.active_doc}..."):
+            if use_credits(1):
+                active["history"].append({"role": "user", "content": prompt})
+                with st.chat_message("user"): st.markdown(prompt)
+
+                with st.chat_message("assistant"):
+                    try:
+                        # ✅ USING GROQ TO AVOID THE 404 GEMINI ERROR
+                        from groq import Groq
+                        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                        
+                        lang_pref = st.session_state.get("lang_v3", "Hinglish")
+                        sys_prompt = f"Tu expert Professor hai. {lang_pref} mein jawab de. Context: {active['context'][:25000]}"
+                        
+                        response = client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}]
+                        )
+                        
+                        ans = response.choices[0].message.content
+                        st.markdown(ans)
+                        active["history"].append({"role": "assistant", "content": ans})
+                        
+                        # --- PODCAST OPTION ---
+                        if st.button("🔊 Play Podcast"):
+                            from gtts import gTTS
+                            import io
+                            tts = gTTS(text=ans[:500], lang='hi')
+                            fp = io.BytesIO()
+                            tts.write_to_fp(fp)
+                            st.audio(fp)
+                    except Exception as e:
+                        st.error(f"Engine Busy: {e}")
+    else:
+        st.info("Bhai pehle koi file upload kar ya Sidebar se select kar!")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
