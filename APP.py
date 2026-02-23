@@ -217,57 +217,67 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART PDF MENTOR (GROQ ENGINE - NO MORE GEMINI ERRORS) ---
+# --- TAB 1: SMART PDF MENTOR (PROFESSIONAL EDITION) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor (Groq Edition)</h2>", unsafe_allow_html=True)
+    # UI se 'Groq' hata diya
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor</h2>", unsafe_allow_html=True)
     
-    # 1. File Uploader
-    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="groq_pdf_v1")
+    # --- LANGUAGE SELECTOR ---
+    st.markdown("### 🌐 Preferred Language")
+    selected_lang = st.radio(
+        "Response kis language mein chahiye?",
+        ["Mix (Hinglish/Marathi-English)", "Proper English", "Marathi Only"],
+        horizontal=True,
+        key="lang_v1"
+    )
+
+    uploaded_file = st.file_uploader("Upload Exam PDF", type="pdf", key="pdf_v_final")
 
     if uploaded_file:
-        import fitz  # PyMuPDF
+        import fitz  
         if "pdf_context" not in st.session_state:
-            with st.spinner("TopperGPT (Groq) is reading document..."):
+            with st.spinner("TopperGPT is scanning document..."):
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                # Sari pages ka text nikal lo
-                text = ""
-                for page in doc:
-                    text += page.get_text()
-                st.session_state.pdf_context = text
+                st.session_state.pdf_context = "".join([page.get_text() for page in doc])
                 st.session_state.pdf_pages = len(doc)
-            st.success(f"✅ Loaded {st.session_state.pdf_pages} pages using Groq Engine!")
+            st.success(f"✅ Loaded {st.session_state.pdf_pages} pages!")
 
-    # 2. Chat UI
     if "pdf_chat_history" not in st.session_state:
         st.session_state.pdf_chat_history = []
 
     for msg in st.session_state.pdf_chat_history:
-        with st.chat_message(msg["role"]): 
-            st.markdown(msg["content"])
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
     if prompt := st.chat_input("Poocho kya poochna hai..."):
         if "pdf_context" not in st.session_state:
-            st.error("Pehle PDF toh upload karle bhai!")
+            st.error("Pehle PDF upload karle bhai!")
         elif use_credits(1):
             st.session_state.pdf_chat_history.append({"role": "user", "content": prompt})
-            with st.chat_message("user"): 
-                st.markdown(prompt)
+            with st.chat_message("user"): st.markdown(prompt)
 
             with st.chat_message("assistant"):
                 try:
-                    # ✅ GEMINI KO CHHODO, GROQ USE KARO
                     from groq import Groq
+                    # Backend hidden: User ko Groq ka pata nahi chalega
                     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                     
-                    # Technical Prompt
+                    # Language Logic for Prompt
+                    lang_instruction = ""
+                    if selected_lang == "Mix (Hinglish/Marathi-English)":
+                        lang_instruction = "Use a mix of Hindi, Marathi, and English (Hinglish/Marathlish) like a friendly senior."
+                    elif selected_lang == "Proper English":
+                        lang_instruction = "Respond in strictly professional and formal English only."
+                    else:
+                        lang_instruction = "Respond in pure Marathi language."
+
                     sys_prompt = f"""
                     Tu ek Engineering Professor hai. 
-                    Neeche diye gaye PDF Context se student ke sawal ka technical jawab de.
-                    Agar context mein nahi hai, toh apne knowledge se bata but mention kar de.
-                    Hinglish use kar.
+                    {lang_instruction}
+                    Neeche diye gaye PDF Context se student ke sawal ka detail mein jawab de.
+                    Agar context mein answer nahi hai, toh apne engineering knowledge se sahi jawab bata.
                     
                     CONTEXT:
-                    {st.session_state.pdf_context[:25000]} # Llama-3 70b has 128k context window
+                    {st.session_state.pdf_context[:28000]}
                     """
                     
                     response = client.chat.completions.create(
@@ -276,8 +286,7 @@ with tab1:
                             {"role": "system", "content": sys_prompt},
                             {"role": "user", "content": prompt}
                         ],
-                        temperature=0.5,
-                        max_tokens=1500
+                        temperature=0.5
                     )
                     
                     res_text = response.choices[0].message.content
@@ -285,7 +294,7 @@ with tab1:
                     st.session_state.pdf_chat_history.append({"role": "assistant", "content": res_text})
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Groq Error: {e}")
+                    st.error(f"Engine is busy, please try in 10 seconds.")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
