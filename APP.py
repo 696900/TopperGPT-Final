@@ -217,24 +217,22 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: MASTER MULTI-SESSION MENTOR (V154 - ZERO ERROR CONFIG) ---
+# --- TAB 1: HYBRID MULTI-SESSION MENTOR (V155 - STABLE) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Mentor Pro (Stable)</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Mentor Pro (Hybrid)</h2>", unsafe_allow_html=True)
 
-    # 1. PERSISTENT STATE INITIALIZATION
+    # 1. SETUP STATE
     if "master_docs" not in st.session_state: st.session_state.master_docs = {} 
     if "active_doc_key" not in st.session_state: st.session_state.active_doc_key = None
 
-    # --- 🌍 LANGUAGE LOCK ---
-    t_lang = st.radio("Select Language:", ["Mix (Hinglish)", "English", "Strictly Marathi"], horizontal=True, key="lang_v154")
+    # --- 🌍 LANGUAGE SELECTOR ---
+    t_lang = st.radio("Select Language:", ["Mix (Hinglish)", "English", "Strictly Marathi"], horizontal=True, key="lang_v155")
 
-    # --- 🔄 TOP NAVIGATION SWITCHER (THE FIX) ---
+    # --- 🔄 TOP NAVIGATION SWITCHER (Instant Switching) ---
     if st.session_state.master_docs:
-        st.markdown("### 📑 Switch Between Files:")
         cols = st.columns(len(st.session_state.master_docs) + 1)
         for i, d_name in enumerate(st.session_state.master_docs.keys()):
             with cols[i]:
-                # Visual Highlight for Active Session
                 btn_type = "primary" if d_name == st.session_state.active_doc_key else "secondary"
                 if st.button(f"📄 {d_name[:10]}", key=f"nav_{d_name}", type=btn_type, use_container_width=True):
                     st.session_state.active_doc_key = d_name
@@ -245,7 +243,7 @@ with tab1:
         st.markdown("---")
 
     # --- 📤 UPLOADER ---
-    u_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="up_v154")
+    u_file = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png", "jpeg"], key="up_v155")
 
     if u_file and u_file.name not in st.session_state.master_docs:
         with st.spinner(f"Analyzing {u_file.name}..."):
@@ -253,36 +251,32 @@ with tab1:
             if "pdf" in u_file.type:
                 import fitz
                 doc = fitz.open(stream=u_file.read(), filetype="pdf")
-                # Text extraction with page markers for better accuracy
-                content = "".join([f"\n--- Page {i+1} ---\n{p.get_text()}" for i, p in enumerate(doc)])
+                content = "".join([f"\n[Page {i+1}]\n{p.get_text()}" for i, p in enumerate(doc)])
                 is_img = False
             else:
                 from PIL import Image
                 content = Image.open(u_file).convert("RGB")
                 is_img = True
             
-            # Context Separation: Har file ka data isolated rahega
             st.session_state.master_docs[f_name] = {"data": content, "history": [], "is_img": is_img}
             st.session_state.active_doc_key = f_name
             st.rerun()
 
-    # --- 💬 CHAT ENGINE (FORCE STABLE VERSION) ---
+    # --- 💬 HYBRID CHAT ENGINE ---
     if st.session_state.active_doc_key:
         active_key = st.session_state.active_doc_key
         session = st.session_state.master_docs[active_key]
-        
         st.success(f"🎯 Studying: **{active_key}**")
         
         for idx, m in enumerate(session["history"]):
             with st.chat_message(m["role"]):
                 st.markdown(m["content"])
-                if m["role"] == "assistant":
-                    if st.button(f"🔊 Listen", key=f"p_{active_key}_{idx}"):
-                        from gtts import gTTS
-                        import io
-                        a_lang = 'hi' if "Mix" in t_lang else ('mr' if "Marathi" in t_lang else 'en')
-                        tts = gTTS(text=m["content"][:400], lang=a_lang)
-                        b = io.BytesIO(); tts.write_to_fp(b); st.audio(b)
+                if m["role"] == "assistant" and st.button(f"🔊 Listen", key=f"p_{active_key}_{idx}"):
+                    from gtts import gTTS
+                    import io
+                    a_lang = 'hi' if "Mix" in t_lang else ('mr' if "Marathi" in t_lang else 'en')
+                    tts = gTTS(text=m["content"][:400], lang=a_lang)
+                    b = io.BytesIO(); tts.write_to_fp(b); st.audio(b)
 
         if p := st.chat_input(f"Ask about {active_key}..."):
             if use_credits(1):
@@ -291,34 +285,31 @@ with tab1:
 
                 with st.chat_message("assistant"):
                     try:
-                        import google.generativeai as genai
-                        api_k = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-                        
-                        # ✅ THE ULTIMATE FIX: Force 'v1' API and bypass 'v1beta'
-                        # Isse 404 models/gemini... is not found for API version v1beta khatam hoga
-                        genai.configure(api_key=api_k)
-                        model = genai.GenerativeModel('gemini-1.5-pro')
-                        
-                        sys_instr = f"""
-                        Engineering Professor Personality. 
-                        MANDATORY LANGUAGE: Respond ONLY in {t_lang}.
-                        ACCURACY RULE: For Data Structures, solve STEP-BY-STEP. 
-                        Do not hallucinate. Check context before replying.
-                        """
-                        
                         if session["is_img"]:
-                            # Force Image Vision
-                            res = model.generate_content([sys_instr, session["data"], p])
+                            # --- VISION MODE (STABLE GEMINI) ---
+                            import google.generativeai as genai
+                            api_k = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+                            genai.configure(api_key=api_k)
+                            model = genai.GenerativeModel('gemini-1.5-flash') # Force Stable
+                            instr = f"Act as Engineering Professor. Respond ONLY in {t_lang}."
+                            res = model.generate_content([instr, session["data"], p])
+                            ans_text = res.text
                         else:
-                            # Force Text Context
-                            res = model.generate_content(f"{sys_instr}\nContext: {session['data'][:500000]}\nQ: {p}")
+                            # --- TEXT MODE (NO-FAIL GROQ) ---
+                            from groq import Groq
+                            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                            sys_msg = f"Tu expert Professor hai. {t_lang} mein jawab de. Context: {session['data'][:30000]}"
+                            chat_res = client.chat.completions.create(
+                                model="llama-3.3-70b-versatile",
+                                messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": p}]
+                            )
+                            ans_text = chat_res.choices[0].message.content
                         
-                        st.markdown(res.text)
-                        session["history"].append({"role": "assistant", "content": res.text})
+                        st.markdown(ans_text)
+                        session["history"].append({"role": "assistant", "content": ans_text})
                         st.rerun()
                     except Exception as e:
-                        # Fallback for unstable connections
-                        st.error(f"Error: {e}. Please Reboot App from Streamlit Cloud.")
+                        st.error(f"Engine Busy. Please try again: {e}")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
