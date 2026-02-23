@@ -72,7 +72,7 @@ def use_credits(amount):
             st.session_state.user_data['credits'] -= amount
             return True
     return False
-# --- 1. CONFIGURATION: CLEAN MODE ---
+# --- 1. CONFIGURATION: CLEAN TOPPERGPT ---
 st.set_page_config(
     page_title="TopperGPT", 
     layout="wide", 
@@ -80,39 +80,43 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 🖋️ PROFESSIONAL UI STYLES
+# 🖋️ ULTRALIGHT UI STYLES (NO LAG)
 EVAL_CSS = """
 <style>
-.block-container { max-width: 92% !important; padding-top: 2rem !important; }
+.block-container { max-width: 92% !important; padding-top: 1rem !important; }
 .stApp { background-color: #0d1117 !important; color: #ffffff !important; }
 
 /* Sidebar & Wallet */
 [data-testid="stSidebar"] { background-color: #161b22 !important; border-right: 1px solid #30363d; }
 .wallet-card { 
     background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
-    padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; 
-    text-align: center; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    padding: 15px; border-radius: 12px; border: 1px solid #4CAF50; 
+    text-align: center; margin-bottom: 10px;
 }
 
+/* Payment Card Optimized */
 .pay-card {
     background: #1c2128; border: 1px solid #30363d;
-    padding: 12px; border-radius: 10px; margin-bottom: 10px;
-    transition: 0.3s; cursor: pointer;
+    padding: 12px; border-radius: 10px; margin-bottom: 8px;
+    transition: 0.2s; cursor: pointer;
 }
 .pay-card:hover { border-color: #4CAF50; background: #22272e; }
+
+.price-badge {
+    background: #4CAF50; color: white; padding: 2px 8px; 
+    border-radius: 5px; font-size: 13px; font-weight: bold;
+}
 </style>
 """
 st.markdown(EVAL_CSS, unsafe_allow_html=True)
 
-# --- 2. GLOBAL LOGIC & KEYS ---
+# --- 2. GLOBAL LOGIC & AI SETUP ---
 if "user_data" not in st.session_state: st.session_state.user_data = None
 
-# 🛠️ AI SETUP (Fixed to avoid 404 errors)
 api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 if api_key:
     import google.generativeai as genai
     genai.configure(api_key=api_key)
-    # LlamaIndex Settings
     from llama_index.embeddings.gemini import GeminiEmbedding
     from llama_index.core import Settings
     Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key)
@@ -129,6 +133,7 @@ if st.session_state.user_data is None:
                     '<p style="color:#8b949e; letter-spacing: 1px;">UNIVERSITY RESEARCH PORTAL</p>'
                     '<hr style="border-color:#30363d;"><p style="color:#4CAF50; font-weight:bold;">🎁 +15 FREE Credits on Login</p></div>', unsafe_allow_html=True)
         if st.button("🔴 Secure Google Login", use_container_width=True):
+            import time
             st.session_state.user_data = {
                 "email": "student@mu.edu", "credits": 15, 
                 "referral_code": "TOP" + str(int(time.time()))[-4:], "ref_claimed": False
@@ -136,46 +141,20 @@ if st.session_state.user_data is None:
             st.rerun()
     st.stop()
 
-# --- 4. SIDEBAR: ORIGINAL FLOW ---
+# --- 4. SIDEBAR: REVENUE FIRST LAYOUT ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #4CAF50; margin-bottom:5px; font-style:italic;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
     
-    # Wallet Card
+    # Wallet Card (Available Balance)
     st.markdown(f'''
         <div class="wallet-card">
-            <p style="margin:0; font-size:11px; color:#eab308; font-weight:bold; letter-spacing:1px;">AVAILABLE CREDITS</p>
-            <h1 style="margin:5px 0; color:white; font-size:42px; font-weight:900;">{st.session_state.user_data["credits"]} <span style="font-size:20px;">🔥</span></h1>
-            <p style="margin:0; font-size:10px; color:#8b949e;">Plan: Student Member</p>
+            <p style="margin:0; font-size:10px; color:#eab308; font-weight:bold; letter-spacing:1px;">AVAILABLE CREDITS</p>
+            <h2 style="margin:5px 0; color:white; font-size:32px;">{st.session_state.user_data["credits"]} 🔥</h2>
         </div>
     ''', unsafe_allow_html=True)
 
-    # 🎁 REFERRAL SYSTEM
-    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-top:20px;'>🎁 REFER & EARN FREE CREDITS</p>", unsafe_allow_html=True)
-    
-    with st.container():
-        st.markdown(f'''
-            <div style="background: rgba(76, 175, 80, 0.08); border: 2px dashed #4CAF50; padding: 15px; border-radius: 15px; text-align: center; margin-bottom: 10px;">
-                <p style="color: #c9d1d9; font-size: 13px; margin-bottom: 5px;">Both get <b>+5 Credits</b> on invite!</p>
-                <div style="background: #0d1117; padding: 10px; border-radius: 8px; border: 1px solid #30363d;">
-                    <code style="color: #4CAF50; font-size: 18px; font-weight: bold;">{st.session_state.user_data['referral_code']}</code>
-                </div>
-            </div>
-        ''', unsafe_allow_html=True)
-        
-        if not st.session_state.user_data.get('ref_claimed', False):
-            claim_input = st.text_input("Friend's Code?", placeholder="Enter TOPXXXX", key="ref_v108")
-            if st.button("Claim Bonus (+5)", use_container_width=True):
-                clean_claim = claim_input.strip().upper()
-                if clean_claim and clean_claim != st.session_state.user_data['referral_code']:
-                    st.session_state.user_data['credits'] += 5
-                    st.session_state.user_data['ref_claimed'] = True
-                    st.balloons()
-                    st.rerun()
-
-    st.markdown("---")
-    
-    # 💎 REFILL PACKS (Payment Gateway)
-    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-bottom:15px;'>💎 REFILL PACKS</p>", unsafe_allow_html=True)
+    # 💎 REFILL PACKS (Face Par - Clear Value)
+    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:13px; margin-bottom:10px;'>💎 REFILL YOUR CREDITS</p>", unsafe_allow_html=True)
     
     refill_packs = [
         {"name": "Weekly Sureshot", "credits": "70 Credits", "price": "₹59", "url": "https://rzp.io/rzp/FmwE0Ms6"},
@@ -188,12 +167,37 @@ with st.sidebar:
             <a href="{pack['url']}" target="_blank" style="text-decoration: none;">
                 <div class="pay-card">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color:#4CAF50; font-weight:bold;">{pack['name']}</span>
-                        <span style="color:white; font-weight:bold;">{pack['price']}</span>
+                        <span style="color:white; font-size:14px; font-weight:bold;">{pack['name']}</span>
+                        <span class="price-badge">{pack['price']}</span>
                     </div>
+                    <p style="margin:5px 0 0 0; font-size:12px; color:#4CAF50; font-weight:bold;">
+                        ✅ Get {pack['credits']} Instantly
+                    </p>
                 </div>
             </a>
         ''', unsafe_allow_html=True)
+
+    st.markdown("---")
+    
+    # 🎁 REFERRAL SYSTEM (Shifted down)
+    with st.expander("🎁 Refer & Earn FREE Credits"):
+        st.markdown(f'''
+            <div style="text-align: center;">
+                <p style="color: #c9d1d9; font-size: 12px; margin-bottom: 5px;">Share code. Both get <b>+5 Credits</b>!</p>
+                <div style="background: #0d1117; padding: 10px; border-radius: 8px; border: 1px solid #30363d;">
+                    <code style="color: #4CAF50; font-size: 18px; font-weight: bold;">{st.session_state.user_data['referral_code']}</code>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+        
+        claim_input = st.text_input("Friend's Code?", placeholder="Enter TOPXXXX", key="ref_v200")
+        if st.button("Claim Bonus (+5)", use_container_width=True):
+            clean_claim = claim_input.strip().upper()
+            if clean_claim and clean_claim != st.session_state.user_data['referral_code']:
+                st.session_state.user_data['credits'] += 5
+                st.session_state.user_data['ref_claimed'] = True
+                st.balloons()
+                st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🔓 Logout", use_container_width=True):
