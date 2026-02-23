@@ -217,9 +217,9 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: SMART MULTI-MENTOR (V151 - TOP SWITCHER & IMAGE FIX) ---
+# --- TAB 1: SMART MULTI-MENTOR (V152 - FINAL VISION & TEXT FIX) ---
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Multi-Mentor</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart Multi-Mentor Pro</h2>", unsafe_allow_html=True)
 
     # 1. SETUP STATE
     if "master_docs" not in st.session_state:
@@ -228,18 +228,17 @@ with tab1:
         st.session_state.active_doc_key = None
 
     # --- 🌍 LANGUAGE & SESSION MANAGER ---
-    t_lang = st.radio("Response Language:", ["Mix (Hinglish)", "English", "Marathi-English"], horizontal=True, key="master_lang")
+    t_lang = st.radio("Response Language:", ["Mix (Hinglish)", "English", "Marathi-English"], horizontal=True, key="master_lang_v152")
 
     # --- 🔄 TOP SESSION SWITCHER (SIDEBAR SE HATA KAR YAHAN DALA HAI) ---
     if st.session_state.master_docs:
-        st.markdown("### 📑 Switch Session:")
-        # Displaying active sessions as horizontal buttons
+        st.markdown("### 📑 Your Active Files (Click to Switch):")
         cols = st.columns(len(st.session_state.master_docs) + 1)
         for i, d_name in enumerate(st.session_state.master_docs.keys()):
             with cols[i]:
-                # Dynamic style for active button
+                # Active file highlight style
                 btn_type = "primary" if d_name == st.session_state.active_doc_key else "secondary"
-                if st.button(f"{d_name[:15]}...", key=f"nav_{d_name}", type=btn_type, use_container_width=True):
+                if st.button(f"📄 {d_name[:10]}...", key=f"nav_{d_name}", type=btn_type, use_container_width=True):
                     st.session_state.active_doc_key = d_name
                     st.rerun()
         with cols[-1]:
@@ -250,7 +249,7 @@ with tab1:
         st.markdown("---")
 
     # --- 📤 UPLOADER ---
-    u_file = st.file_uploader("Upload New PDF or Photo", type=["pdf", "jpg", "png", "jpeg"], key="pro_uploader")
+    u_file = st.file_uploader("Upload New PDF or Photo", type=["pdf", "jpg", "png", "jpeg"], key="final_uploader_v152")
 
     if u_file and u_file.name not in st.session_state.master_docs:
         with st.spinner(f"Analyzing {u_file.name}..."):
@@ -265,6 +264,7 @@ with tab1:
                 content = Image.open(u_file).convert("RGB")
                 is_img = True
             
+            # Har document ki apni history aur context
             st.session_state.master_docs[f_name] = {"data": content, "history": [], "is_img": is_img}
             st.session_state.active_doc_key = f_name
             st.rerun()
@@ -273,7 +273,6 @@ with tab1:
     if st.session_state.active_doc_key:
         active_key = st.session_state.active_doc_key
         session = st.session_state.master_docs[active_key]
-        
         st.markdown(f"🎯 **Studying:** `{active_key}`")
         
         # Display History
@@ -285,8 +284,7 @@ with tab1:
                         from gtts import gTTS
                         import io
                         tts = gTTS(text=m["content"][:500], lang='hi' if "Mix" in t_lang else 'en')
-                        b = io.BytesIO(); tts.write_to_fp(b)
-                        st.audio(b)
+                        b = io.BytesIO(); tts.write_to_fp(b); st.audio(b)
 
         if p := st.chat_input(f"Ask about {active_key}..."):
             if use_credits(1):
@@ -295,30 +293,31 @@ with tab1:
 
                 with st.chat_message("assistant"):
                     try:
-                        # ✅ THE FINAL VISION FIX: Using Stable v1 endpoint to avoid 404
-                        import google.generativeai as genai
-                        api_k = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-                        genai.configure(api_key=api_k)
-                        
-                        # Stable Model (Force No v1beta)
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        
-                        instr = f"Act as Professor. Answer in {t_lang}. Use provided context."
-                        
+                        # ✅ THE FIX: Groq for PDFs (Text) and Gemini Stable for Images (Vision)
                         if session["is_img"]:
-                            # Direct vision feed for images
+                            import google.generativeai as genai
+                            api_k = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+                            genai.configure(api_key=api_k)
+                            # Force Stable v1 Model (Avoids 404/v1beta error)
+                            model = genai.GenerativeModel('gemini-1.5-flash')
+                            instr = f"Act as Professor. Answer in {t_lang}. Image context analysis."
                             res = model.generate_content([instr, session["data"], p])
+                            ans_text = res.text
                         else:
-                            # Context feed for PDFs
-                            res = model.generate_content(f"{instr}\nContext: {session['data'][:500000]}\nQ: {p}")
+                            from groq import Groq
+                            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                            sys_msg = f"Tu expert Professor hai. {t_lang} mein jawab de. Context: {session['data'][:30000]}"
+                            chat_res = client.chat.completions.create(
+                                model="llama-3.3-70b-versatile",
+                                messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": p}]
+                            )
+                            ans_text = chat_res.choices[0].message.content
                         
-                        st.markdown(res.text)
-                        session["history"].append({"role": "assistant", "content": res.text})
+                        st.markdown(ans_text)
+                        session["history"].append({"role": "assistant", "content": ans_text})
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Engine Busy. Please try again: {e}")
-    else:
-        st.info("Bhai, pehle koi file upload karo!")
+                        st.error(f"Backend Busy: {e}. Try refreshing.")
 # ==========================================
 # --- GLOBAL UTILITY: SYLLABUS FILTERS ---
 # ==========================================
