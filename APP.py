@@ -724,7 +724,7 @@ with tab5:
             st.session_state.flash_cards_list = None
             st.rerun()
     # --- TAB 6: UNIVERSITY VERIFIED PYQS (RESTORED) ---
-# --- TAB 6: UNIVERSITY VERIFIED PYQS (V114 - REVENUE SYNCED) ---
+# --- TAB 6: UNIVERSITY VERIFIED PYQS (STRICT EXAM MODE) ---
 with tab6:
     st.subheader("❓ University Previous Year Questions")
     
@@ -743,7 +743,7 @@ with tab6:
     with col3:
         semester = st.selectbox("Semester:", [f"Sem {i}" for i in range(1, 9)], key="pyq_sem_v2")
 
-    subj_name = st.text_input("Enter Subject Name:", key="pyq_sub_v2")
+    subj_name = st.text_input("Enter Subject Name:", key="pyq_sub_v2", placeholder="e.g. Applied Mathematics-II")
 
     # 💰 Cost for University Research
     pyq_cost = 1
@@ -752,8 +752,19 @@ with tab6:
         if subj_name:
             # --- START REVENUE LOOP ---
             if use_credits(pyq_cost):
-                with st.spinner(f"Fetching {subj_name} Question Bank..."):
-                    prompt = f"Act as a Paper Setter for {univ}. Provide 5 Repeated PYQs and 2 Expected questions for {subj_name} ({branch}, {semester}). Format: Clear and Professional."
+                with st.spinner(f"Accessing {univ} Exam Archives..."):
+                    # ✅ UPDATED PROMPT: Force AI to act as an Examiner and provide real frequency
+                    prompt = f"""
+                    You are a Senior Paper Setter and Moderator for {univ}. 
+                    Subject: {subj_name} for {branch} Engineering, {semester}.
+                    
+                    STRICT INSTRUCTIONS:
+                    1. Identify 5 questions that have appeared MOST FREQUENTLY (at least 3-4 times) in the last 10 years of {univ} exams.
+                    2. Provide 2 'Sure-Shot' expected questions based on current weightage trends.
+                    3. Format each question clearly: [Question Text] - (Month/Year appeared, Marks).
+                    4. Ensure technical accuracy as per {branch} engineering standards.
+                    5. Use a professional examiner tone.
+                    """
                     
                     try:
                         res = groq_client.chat.completions.create(
@@ -780,11 +791,18 @@ with tab6:
     # DISPLAY LOGIC
     if st.session_state.pyq_result:
         st.markdown("---")
-        st.success(f"Result for {st.session_state.pyq_subject_last}")
-        st.markdown(st.session_state.pyq_result)
+        st.success(f"Verified PYQs & Expected Questions for {st.session_state.pyq_subject_last}")
         
+        # Displaying with a nice clean box
+        st.markdown(f"""
+        <div style="background: #1c2128; border: 1px solid #4CAF50; padding: 20px; border-radius: 10px;">
+            {st.session_state.pyq_result}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
         st.download_button(
-            label="📥 Download This Bank",
+            label="📥 Download This Question Bank (TXT)",
             data=st.session_state.pyq_result,
             file_name=f"{st.session_state.pyq_subject_last}_PYQs.txt",
             use_container_width=True
