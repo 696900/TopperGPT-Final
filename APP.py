@@ -631,7 +631,7 @@ with tab4:
         """
         components.html(html_code, height=700, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
-# --- TAB 5: TOPPERGPT CINEMATIC CARDS (REVENUE SYNCED) ---
+# --- TAB 5: TOPPERGPT CINEMATIC CARDS (STRICT SYLLABUS MODE) ---
 with tab5:
     st.markdown("<h3 style='text-align: center; color: #4CAF50;'>🎬 Cinematic Revision Deck</h3>", unsafe_allow_html=True)
     
@@ -648,10 +648,11 @@ with tab5:
         if use_credits(card_cost):
             with st.spinner("AI is crafting visual cards..."):
                 try:
+                    # ✅ UPDATED: Added Strict Engineering Professor Context
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[
-                            {"role": "system", "content": "Engineering Professor mode. Create 10 precise flashcards. Format: TITLE | One line definition. Max 15 words. NO bold stars."},
+                            {"role": "system", "content": "You are a strict Engineering Professor. Create 10 precise flashcards based ONLY on university syllabus and standard engineering textbooks. Ensure technical accuracy for exam scoring. Format: TITLE | One line technical definition. Max 15 words. NO bold stars."},
                             {"role": "user", "content": f"Topic: {t_input}"}
                         ]
                     )
@@ -710,7 +711,7 @@ with tab5:
                 card_img = create_hd_card(title, content, i)
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.download_button(f"📥 Download HD {i+1}", card_img, f"TopperCard_{i+1}.png", "image/png", use_container_width=True)
+                    st.download_button(f"📥 Download HD {i+1}", card_img, f"TopperCard_{i+1}.png", "image/png", use_container_width=True, key=f"dl_{i}")
                 with c2:
                     wa_url = f"https://wa.me/?text=Bhai ye dekh {title} ka revision card! Pehle download kar fir status par laga le."
                     st.markdown(f'<a href="{wa_url}" target="_blank" style="text-decoration:none;"><div style="background:#25D366; color:white; text-align:center; padding:10px; border-radius:10px; font-weight:bold; font-size: 0.9rem;">📲 Share on WA</div></a>', unsafe_allow_html=True)
