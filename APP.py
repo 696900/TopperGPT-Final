@@ -214,6 +214,9 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 # --- TAB 1: STABLE TEXT-BASED MENTOR (MOBILE OPTIMIZED) ---
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor (Stable)</h2>", unsafe_allow_html=True)
+    
+    # ✅ ADDED: Professional Warning for Users
+    st.warning("⚠️ Note: Only Text-based PDFs are supported. Scanned images or handwritten PDFs will not work.")
 
     # 1. CLEAN PERSISTENT STATE
     if "master_docs" not in st.session_state: st.session_state.master_docs = {} 
@@ -225,11 +228,9 @@ with tab1:
     # --- 🔄 TOP SESSION SWITCHER (MOBILE FRIENDLY) ---
     if st.session_state.master_docs:
         st.markdown("### 📑 Switch PDF Session:")
-        # Horizontal buttons for easy mobile tapping
         nav_cols = st.columns(len(st.session_state.master_docs) + 1)
         for i, d_name in enumerate(st.session_state.master_docs.keys()):
             with nav_cols[i]:
-                # Active Highlight Logic
                 b_type = "primary" if d_name == st.session_state.active_doc_key else "secondary"
                 if st.button(f"📄 {d_name[:8]}..", key=f"nav_{d_name}", type=b_type, use_container_width=True):
                     st.session_state.active_doc_key = d_name
@@ -240,14 +241,12 @@ with tab1:
         st.markdown("---")
 
     # --- 📤 PDF ONLY UPLOADER ---
-    # Image support removed to stop 404 errors
     u_file = st.file_uploader("Upload Exam PDF", type=["pdf"], key="pdf_only_v156")
 
     if u_file and u_file.name not in st.session_state.master_docs:
         with st.spinner(f"Reading {u_file.name}..."):
             import fitz
             doc = fitz.open(stream=u_file.read(), filetype="pdf")
-            # Text extraction only for stability
             content = "".join([f"\n[Page {i+1}]\n{p.get_text()}" for i, p in enumerate(doc)])
             
             st.session_state.master_docs[u_file.name] = {"data": content, "history": []}
@@ -260,11 +259,9 @@ with tab1:
         session = st.session_state.master_docs[active_key]
         st.success(f"🎯 Currently Studying: **{active_key}**")
         
-        # Chat History with Revenue-Friendly Design
         for idx, m in enumerate(session["history"]):
             with st.chat_message(m["role"]):
                 st.markdown(m["content"])
-                # Audio Feature retained
                 if m["role"] == "assistant":
                     if st.button(f"🔊 Listen", key=f"pod_{active_key}_{idx}"):
                         from gtts import gTTS
@@ -274,7 +271,6 @@ with tab1:
                         b = io.BytesIO(); tts.write_to_fp(b); st.audio(b)
 
         if p := st.chat_input(f"Ask anything about {active_key}..."):
-            # 💰 REVENUE LOOP: 1 Credit per question
             if use_credits(1):
                 session["history"].append({"role": "user", "content": p})
                 with st.chat_message("user"): st.markdown(p)
@@ -282,15 +278,12 @@ with tab1:
                 with st.chat_message("assistant"):
                     try:
                         from groq import Groq
-                        # Groq is 100% stable for text, no 404 models/gemini errors
                         client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                         sys_msg = f"Tu Expert Professor hai. {t_lang} mein jawab de. Context: {session['data'][:30000]}"
-                        
                         chat_res = client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": p}]
                         )
-                        
                         ans = chat_res.choices[0].message.content
                         st.markdown(ans)
                         session["history"].append({"role": "assistant", "content": ans})
