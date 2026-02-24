@@ -813,7 +813,7 @@ with tab6:
             st.rerun()
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
 # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
-# --- TAB 7: TOPIC RESEARCH (PRO VISUALS WITH GRAPHVIZ) ---
+# --- TAB 7: TOPIC RESEARCH (STRICT PROFESSOR MODE) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
     st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
@@ -827,21 +827,23 @@ with tab7:
 
     col_q, col_d = st.columns([0.7, 0.3])
     query = col_q.text_input("Enter Engineering Topic (e.g. Transformer):", key="search_final_absolute_v1")
+    from datetime import datetime
     exam_date = col_d.date_input("Target Exam Date", key="roadmap_date_v1")
     
     if st.button("Deep Research", key="btn_absolute_v1") and query:
         if st.session_state.user_data['credits'] >= search_cost:
-            with st.spinner(f"Analyzing '{query}'..."):
-                # Updated Prompt: Mermaid ko nikal kar Graphviz DOT code mangwaya hai
+            with st.spinner(f"PhD Mentor is analyzing '{query}'..."):
+                # ✅ UPDATED PROMPT: Added strict University Syllabus & Exam accuracy rules
                 prompt = f"""
-                Act as an Engineering Professor. Provide a comprehensive report for: '{query}'.
+                Act as a PhD Engineering Professor and Senior Moderator. Provide an academically accurate report for: '{query}'.
+                Rules: Use only standard university terminology. Ensure definitions are exam-scorable.
                 Use these markers exactly:
-                [1_DEF] for technical definition.
-                [2_KEY] for 7-10 technical keywords.
-                [3_CXP] for detailed technical breakdown/working.
-                [4_SMP] for a simple 2-line explanation.
-                [5_DOT] for ONLY Graphviz DOT code (digraph G {{...}}) showing its architecture. Use clean labels.
-                [6_PYQ] for at least 15 REAL university exam questions.
+                [1_DEF] for technical definition based on standard textbooks (G.V. Kumbhojkar/Techmax style).
+                [2_KEY] for 7-10 essential technical keywords required for full marks.
+                [3_CXP] for detailed technical working/mechanism with step-by-step logic.
+                [4_SMP] for a simple 'for-dummies' conceptual summary.
+                [5_DOT] for ONLY Graphviz DOT code (digraph G {{...}}) showing its internal architecture or flow.
+                [6_PYQ] for at least 15 ACTUAL exam questions from MU, SPPU, and GTU archives (Last 10 years).
                 """
                 try:
                     res = groq_client.chat.completions.create(
@@ -853,6 +855,8 @@ with tab7:
                     st.session_state.user_data['credits'] -= search_cost 
                     st.rerun()
                 except Exception as e: st.error(f"System Busy. Error: {e}")
+        else:
+            st.error("Bhai credits khatam! Sidebar se recharge karle.")
 
     if st.session_state.research_data:
         out = st.session_state.research_data
@@ -868,43 +872,42 @@ with tab7:
             except: return "Section error."
 
         st.markdown(f"## 📘 Technical Report: {q_name}")
-        st.info(f"**1. Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
+        st.info(f"**1. University Standard Definition:**\n\n{get_sec('[1_DEF]', '[2_KEY]')}")
         
         c1, c2 = st.columns(2)
-        with c1: st.write(f"**2. Technical Keywords:**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
-        with c2: st.success(f"**4. Simple Explanation:**\n\n{get_sec('[4_SMP]', '[5_DOT]')}")
+        with c1: st.write(f"**2. Essential Keywords (Exam Scoring):**\n\n{get_sec('[2_KEY]', '[3_CXP]')}")
+        with c2: st.success(f"**4. Simple Concept Summary:**\n\n{get_sec('[4_SMP]', '[5_DOT]')}")
         
-        st.warning(f"**3. Technical Breakdown:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
+        st.warning(f"**3. Technical Breakdown & Working:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
 
-        # --- HD GRAPHVIZ FLOWCHART (Better than Mermaid) ---
+        # --- HD GRAPHVIZ FLOWCHART ---
         st.markdown("---")
-        st.markdown("### 📊 5. Architecture Flowchart")
+        st.markdown("### 📊 5. Architecture Flowchart (Graphviz HD)")
         dot_code = get_sec('[5_DOT]', '[6_PYQ]')
         if "digraph" in dot_code:
-            # Graphviz is built-in to Streamlit and renders beautiful SVGs
             st.graphviz_chart(dot_code, use_container_width=True)
         else:
             st.info("Generating architecture visuals...")
         
         st.markdown("---")
-        st.markdown("### ❓ 6. Expected Exam Questions (15+ PYQs)")
+        st.markdown("### ❓ 6. Expected Exam Questions (15+ Verified PYQs)")
         st.write(get_sec('[6_PYQ]'))
 
         # --- PREMIUM ROADMAP VIEW ---
         st.markdown("---")
-        st.markdown("### 📅 Personalized Study Roadmap")
+        st.markdown("### 📅 Personalized 360° Study Roadmap")
         days_left = (exam_date - datetime.now().date()).days
         
         if st.button(f"Generate Plan for {days_left} Days ({roadmap_cost} Credits)"):
             if st.session_state.user_data['credits'] >= roadmap_cost:
-                with st.spinner("AI Mentor is planning..."):
-                    rm_prompt = f"Create a Day-by-Day study plan for: {q_name}. Days left: {days_left}. Use 'Day X:' format."
+                with st.spinner("AI Mentor is creating your battle plan..."):
+                    rm_prompt = f"Create a strict day-by-day engineering study schedule for: {q_name}. Total days available: {days_left}. Focus on high-weightage areas. Use 'Day X:' format."
                     rm_res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": rm_prompt}]
                     )
                     st.session_state.user_data['credits'] -= roadmap_cost
-                    st.success("Plan Generated!")
+                    st.success("Custom Study Plan Ready!")
                     roadmap_text = rm_res.choices[0].message.content
                     days_data = roadmap_text.split("Day")
                     
@@ -917,9 +920,9 @@ with tab7:
                                     <span style="color: #e6edf3;">{d_text.strip()}</span>
                                 </div>
                             """, unsafe_allow_html=True)
-            else: st.error("Credits low hain!")
+            else: st.error("Credits low hain! Top-up karlo.")
 
-        if st.button("Clear Research"):
+        if st.button("🗑️ Clear Research"):
             st.session_state.research_data = None
             st.rerun()
 # --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
