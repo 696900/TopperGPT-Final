@@ -428,7 +428,7 @@ with tab2:
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
-# --- TAB 3: TOPPERGPT PRO EVALUATOR (V120 - HIGH ACCURACY) ---
+# --- TAB 3: TOPPERGPT PRO EVALUATOR (V121 - STABLE VERSION) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator</h2>", unsafe_allow_html=True)
     
@@ -439,26 +439,29 @@ with tab3:
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="v120_file")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="v121_file")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        # ✅ FIX: High-res for better handwriting recognition
+        # ✅ High-res scan for better handwriting decoding
         img.thumbnail((1600, 1600)) 
         st.image(img, caption="Answer Sheet Detected", width=350)
 
-        # --- STEP A: THE EYE (OCR) ---
+        # --- STEP A: THE EYE (STABLE OCR) ---
         if not st.session_state.extracted_text:
             if st.button(f"🔍 Scan Handwriting ({eval_cost} Credits)"):
                 if use_credits(eval_cost):
                     with st.spinner("Moderator is deciphering handwriting..."):
                         try:
-                            # Using stable model for OCR
-                            model = genai.GenerativeModel('gemini-1.5-flash')
+                            # ✅ FIX: Forcing Stable Model Version to avoid 404/v1beta errors
+                            model = genai.GenerativeModel(
+                                model_name='gemini-1.5-flash',
+                                generation_config={"temperature": 0.1}
+                            )
                             
-                            # Robust OCR Prompt
+                            # Stable OCR Prompt
                             response = model.generate_content([
-                                "Act as an expert handwriting decoder. Transcribe all text from this engineering answer sheet exactly as written. If there are equations or diagrams, describe them in text.", 
+                                "Act as an expert handwriting decoder. Transcribe all technical text, equations, and descriptions from this engineering answer sheet exactly as written.", 
                                 img
                             ])
                             
@@ -466,9 +469,9 @@ with tab3:
                                 st.session_state.extracted_text = response.text
                                 st.rerun()
                         except Exception as e:
-                            # Auto-Refund logic
+                            # Auto-Refund on any API failure
                             st.session_state.user_data['credits'] += eval_cost 
-                            st.error(f"Scan failed: {e}. Credits refunded.")
+                            st.error(f"Scan failed: Stable connection error. Credits refunded.")
                 else:
                     st.error("Bhai credits khatam! Sidebar se top-up kar lo.")
 
@@ -476,7 +479,7 @@ with tab3:
     if st.session_state.extracted_text and not st.session_state.eval_result:
         st.success("✅ Handwriting Scanned Successfully!")
         
-        # Human-in-the-loop: Correction before marking
+        # User review to ensure trust
         st.markdown("### 📝 Review Scanned Content")
         edited_text = st.text_area("AI ne ye padha hai. Kuch galat ho toh sahi kar do:", 
                                   value=st.session_state.extracted_text, height=250)
@@ -488,16 +491,16 @@ with tab3:
                     Evaluate this Engineering Answer based on University Marking Schemes.
                     ANSWER CONTENT: {edited_text}
                     
-                    Strict Instructions:
-                    1. Assign marks out of 10 based on keywords, technical accuracy, and structure.
-                    2. Provide critical feedback on what is missing.
-                    3. Suggest 3 bullet points for improvement to reach 10/10.
+                    Instructions:
+                    1. Marks out of 10 based on keywords and technical accuracy.
+                    2. Provide critical feedback.
+                    3. Suggest 3 points for improvement.
                     
-                    Return ONLY a JSON object with keys:
-                    {{"question": "Identify topic name", "marks": int, "feedback": "string", "improvement": "string"}}
+                    Return ONLY JSON:
+                    {{"question": "string", "marks": int, "feedback": "string", "improvement": "string"}}
                     """
                     
-                    # Using Groq for high-speed logical marking
+                    # Using Groq for reasoning stability
                     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                     res = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
@@ -508,14 +511,13 @@ with tab3:
                     st.session_state.eval_result = json.loads(res.choices[0].message.content)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Marking Error: {e}. Try again.")
+                    st.error("Marking Engine busy. Please try again.")
 
     # --- FINAL DISPLAY: THE MARK SHEET ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
         st.markdown("---")
         
-        # Cinematic Score UI
         c1, c2 = st.columns([0.4, 0.6])
         with c1:
             score = res.get("marks", 0)
@@ -524,16 +526,16 @@ with tab3:
                 <div style="background: #1c2128; border: 2px solid {color}; padding: 30px; border-radius: 20px; text-align: center;">
                     <p style="color: #8b949e; font-size: 0.8rem; margin: 0;">OFFICIAL SCORE</p>
                     <h1 style="color: {color}; font-size: 4rem; margin: 10px 0;">{score}/10</h1>
-                    <p style="color: {color}; font-weight: bold;">{"EXCELLENT" if score > 7 else "NEED WORK"}</p>
+                    <p style="color: {color}; font-weight: bold;">{"PASS" if score >= 4 else "FAIL"}</p>
                 </div>
             """, unsafe_allow_html=True)
             
         with c2:
             st.markdown(f"### 🎯 Topic: `{res.get('question', 'N/A')}`")
             st.info(f"**Professor's Feedback:**\n\n{res.get('feedback', 'N/A')}")
-            st.warning(f"**Roadmap to Full Marks:**\n\n{res.get('improvement', 'N/A')}")
+            st.warning(f"**How to score full marks:**\n\n{res.get('improvement', 'N/A')}")
         
-        if st.button("🔄 Evaluate Another Answer", use_container_width=True):
+        if st.button("🔄 New Evaluation", use_container_width=True):
             st.session_state.extracted_text = None
             st.session_state.eval_result = None
             st.rerun()
