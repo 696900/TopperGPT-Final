@@ -806,7 +806,7 @@ with tab6:
             st.rerun()
     # --- TAB 7: ADVANCED TOPIC SEARCH (FINAL COLLEGE FIX) ---
 # --- TAB 7: TOPIC SEARCH (THE ULTIMATE BULLETPROOF VERSION) ---
-# --- TAB 7: TOPIC RESEARCH (STRICT PROFESSOR MODE) ---
+# --- TAB 7: TOPIC RESEARCH (STRICT PROFESSOR MODE - V161 FIX) ---
 with tab7:
     st.subheader("🔍 Engineering Topic Research")
     st.write("Instant 360° Analysis: Detailed Report, Architecture Flowchart, & 15+ PYQs.")
@@ -826,28 +826,33 @@ with tab7:
     if st.button("Deep Research", key="btn_absolute_v1") and query:
         if st.session_state.user_data['credits'] >= search_cost:
             with st.spinner(f"PhD Mentor is analyzing '{query}'..."):
-                # ✅ UPDATED PROMPT: Added strict University Syllabus & Exam accuracy rules
+                # ✅ MASTER PROMPT FIX: Strictly forcing double quotes for Graphviz labels to prevent Syntax Errors
                 prompt = f"""
-                Act as a PhD Engineering Professor and Senior Moderator. Provide an academically accurate report for: '{query}'.
-                Rules: Use only standard university terminology. Ensure definitions are exam-scorable.
+                Act as a PhD Engineering Professor. Provide an academically accurate report for: '{query}'.
                 Use these markers exactly:
-                [1_DEF] for technical definition based on standard textbooks (G.V. Kumbhojkar/Techmax style).
-                [2_KEY] for 7-10 essential technical keywords required for full marks.
-                [3_CXP] for detailed technical working/mechanism with step-by-step logic.
-                [4_SMP] for a simple 'for-dummies' conceptual summary.
-                [5_DOT] for ONLY Graphviz DOT code (digraph G {{...}}) showing its internal architecture or flow.
-                [6_PYQ] for at least 15 ACTUAL exam questions from MU, SPPU, and GTU archives (Last 10 years).
+                [1_DEF] technical definition (University Standard).
+                [2_KEY] 7-10 essential technical keywords.
+                [3_CXP] detailed technical working with step-by-step logic.
+                [4_SMP] simple conceptual summary.
+                [5_DOT] ONLY Graphviz DOT code (digraph G {{...}}). 
+                STRICT RULE FOR [5_DOT]: Every node label MUST be inside double quotes like [label="My Label"]. 
+                Do NOT use special characters outside quotes.
+                [6_PYQ] at least 15 ACTUAL exam questions from MU, SPPU, and GTU archives.
                 """
                 try:
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", 
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    st.session_state.research_data = res.choices[0].message.content
-                    st.session_state.research_query = query
-                    st.session_state.user_data['credits'] -= search_cost 
-                    st.rerun()
-                except Exception as e: st.error(f"System Busy. Error: {e}")
+                    # Revenue deduction happens before call, but we wrap in try-except for safety
+                    if use_credits(search_cost):
+                        res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile", 
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                        st.session_state.research_data = res.choices[0].message.content
+                        st.session_state.research_query = query
+                        st.rerun()
+                except Exception as e: 
+                    # Refund logic in case of API failure
+                    st.session_state.user_data['credits'] += search_cost
+                    st.error(f"System Busy. Error: {e}")
         else:
             st.error("Bhai credits khatam! Sidebar se recharge karle.")
 
@@ -861,6 +866,7 @@ with tab7:
                 if len(parts) < 2: return "Data missing."
                 content = parts[1]
                 if m2 and m2 in content: content = content.split(m2)[0]
+                # Cleaning common AI code block kachra
                 return content.strip().replace("```dot", "").replace("```", "").replace("```gv", "")
             except: return "Section error."
 
@@ -873,12 +879,15 @@ with tab7:
         
         st.warning(f"**3. Technical Breakdown & Working:**\n\n{get_sec('[3_CXP]', '[4_SMP]')}")
 
-        # --- HD GRAPHVIZ FLOWCHART ---
+        # --- HD GRAPHVIZ FLOWCHART (SYNTAX ERROR PROTECTED) ---
         st.markdown("---")
         st.markdown("### 📊 5. Architecture Flowchart (Graphviz HD)")
         dot_code = get_sec('[5_DOT]', '[6_PYQ]')
         if "digraph" in dot_code:
-            st.graphviz_chart(dot_code, use_container_width=True)
+            try:
+                st.graphviz_chart(dot_code, use_container_width=True)
+            except Exception:
+                st.error("Visualization syntax error. Try clicking Research again.")
         else:
             st.info("Generating architecture visuals...")
         
@@ -893,26 +902,26 @@ with tab7:
         
         if st.button(f"Generate Plan for {days_left} Days ({roadmap_cost} Credits)"):
             if st.session_state.user_data['credits'] >= roadmap_cost:
-                with st.spinner("AI Mentor is creating your battle plan..."):
-                    rm_prompt = f"Create a strict day-by-day engineering study schedule for: {q_name}. Total days available: {days_left}. Focus on high-weightage areas. Use 'Day X:' format."
-                    rm_res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": rm_prompt}]
-                    )
-                    st.session_state.user_data['credits'] -= roadmap_cost
-                    st.success("Custom Study Plan Ready!")
-                    roadmap_text = rm_res.choices[0].message.content
-                    days_data = roadmap_text.split("Day")
-                    
-                    for day in days_data:
-                        if day.strip() and ":" in day:
-                            d_num, d_text = day.split(':', 1)
-                            st.markdown(f"""
-                                <div style="background: #1a1c23; padding: 12px; border-radius: 8px; border-left: 4px solid #4CAF50; margin-bottom: 8px; border: 1px solid #30363d;">
-                                    <span style="color: #4CAF50; font-weight: bold;">DAY {d_num.strip()}</span>: 
-                                    <span style="color: #e6edf3;">{d_text.strip()}</span>
-                                </div>
-                            """, unsafe_allow_html=True)
+                if use_credits(roadmap_cost):
+                    with st.spinner("AI Mentor is creating your battle plan..."):
+                        rm_prompt = f"Create a strict day-by-day engineering study schedule for: {q_name}. Total days available: {days_left}. Focus on high-weightage areas. Use 'Day X:' format."
+                        rm_res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "user", "content": rm_prompt}]
+                        )
+                        st.success("Custom Study Plan Ready!")
+                        roadmap_text = rm_res.choices[0].message.content
+                        days_data = roadmap_text.split("Day")
+                        
+                        for day in days_data:
+                            if day.strip() and ":" in day:
+                                d_num, d_text = day.split(':', 1)
+                                st.markdown(f"""
+                                    <div style="background: #1a1c23; padding: 12px; border-radius: 8px; border-left: 4px solid #4CAF50; margin-bottom: 8px; border: 1px solid #30363d;">
+                                        <span style="color: #4CAF50; font-weight: bold;">DAY {d_num.strip()}</span>: 
+                                        <span style="color: #e6edf3;">{d_text.strip()}</span>
+                                    </div>
+                                """, unsafe_allow_html=True)
             else: st.error("Credits low hain! Top-up karlo.")
 
         if st.button("🗑️ Clear Research"):
