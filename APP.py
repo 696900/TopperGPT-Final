@@ -26,7 +26,7 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 🛠️ MASTER AI SETUP (V147 - FORCE STABLE) ---
+# --- 🛠️ MASTER AI SETUP (V148 - STABLE VISION & ENGINE FIX) ---
 api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 api_key_groq = st.secrets.get("GROQ_API_KEY")
 
@@ -34,7 +34,14 @@ if api_key_gemini:
     import google.generativeai as genai
     genai.configure(api_key=api_key_gemini)
     
-    # LlamaIndex Settings (Stable Embedding)
+    # ✅ STABLE MODEL CONFIG (Added for Tab 3 & Vision Fix)
+    # Isse v1beta ka 404 error hamesha ke liye khatam ho jayega
+    model = genai.GenerativeModel(
+        model_name='gemini-1.5-flash', 
+        generation_config={"temperature": 0.1}
+    )
+    
+    # LlamaIndex Settings (Stable Embedding - Kept Intact)
     from llama_index.embeddings.gemini import GeminiEmbedding
     from llama_index.core import Settings
     Settings.embed_model = GeminiEmbedding(
@@ -45,6 +52,7 @@ if api_key_gemini:
 if api_key_groq:
     from llama_index.llms.groq import Groq as LlamaGroq
     from groq import Groq
+    # Groq Setup (Kept Intact)
     Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
     groq_client = Groq(api_key=api_key_groq)
 # ==========================================
@@ -428,54 +436,51 @@ with tab2:
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
-# --- TAB 3: TOPPERGPT PRO EVALUATOR (FULL-LENGTH STABLE V124) ---
+# --- TAB 3: TOPPERGPT PRO EVALUATOR (STABLE VERSION - NO MORE 404) ---
 with tab3:
-    st.markdown(EVAL_CSS, unsafe_allow_html=True) # UI Style Barkarar
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator</h2>", unsafe_allow_html=True)
     
-    # 💰 REVENUE LOOP: Master Cost
+    # 💰 REVENUE LOOP
     eval_cost = 5
 
-    # Step-by-step state management (Persistent logic)
+    # Step-by-step state management
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="v124_file")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="stable_eval_v1")
     
     if ans_file:
         img = Image.open(ans_file).convert("RGB")
-        # Step 1: PIL Image Resize for High-Res Clarity
         img.thumbnail((1600, 1600)) 
         st.image(img, caption="Answer Sheet Detected", width=350)
 
-        # --- STEP A: THE EYE (OCR WITH FAILOVER LOGIC) ---
+        # --- STEP A: THE EYE (STABLE OCR LOGIC) ---
         if not st.session_state.extracted_text:
             if st.button(f"🔍 Scan Handwriting ({eval_cost} Credits)"):
                 if use_credits(eval_cost):
-                    with st.spinner("Moderator is scanning (Primary Engine)..."):
+                    with st.spinner("Moderator is scanning..."):
+                        # 🚀 FIX: Trying Stable Model First
                         try:
-                            # Engine 1: Stable Flash
+                            # Hum v1beta suffix use nahi karenge taaki error na aaye
                             model = genai.GenerativeModel('gemini-1.5-flash')
                             response = model.generate_content([
-                                "Act as an expert handwriting decoder. Transcribe all technical text, equations, and descriptions from this engineering answer sheet exactly as written.", 
+                                "Act as an expert handwriting decoder. Transcribe all text from this engineering answer sheet exactly.", 
                                 img
                             ])
-                            
                             if response.text:
                                 st.session_state.extracted_text = response.text
                                 st.rerun()
                         except Exception as e:
-                            # Engine 2: Pro Backup (If Flash fails/404)
-                            with st.spinner("Switching to Backup Engine..."):
-                                try:
-                                    model_pro = genai.GenerativeModel('gemini-1.5-pro')
-                                    response = model_pro.generate_content(["OCR Engineering Notes:", img])
-                                    st.session_state.extracted_text = response.text
-                                    st.rerun()
-                                except:
-                                    # Final Auto-Refund on complete failure
-                                    st.session_state.user_data['credits'] += eval_cost 
-                                    st.error("University Servers Busy. Credits Refunded. Please try in 10s.")
+                            # 🔄 BACKUP: Agar Flash fail hua toh Pro model try karega
+                            try:
+                                model_pro = genai.GenerativeModel('gemini-1.5-pro')
+                                response = model_pro.generate_content(["OCR this handwriting:", img])
+                                st.session_state.extracted_text = response.text
+                                st.rerun()
+                            except Exception as e2:
+                                # 💸 REFUND: Agar dono fail ho gaye
+                                st.session_state.user_data['credits'] += eval_cost 
+                                st.error(f"University Servers Busy. Credits Refunded. Error: {str(e2)[:50]}")
                 else:
                     st.error("Bhai credits khatam! Sidebar se top-up kar lo.")
 
@@ -483,22 +488,20 @@ with tab3:
     if st.session_state.extracted_text and not st.session_state.eval_result:
         st.success("✅ Handwriting Scanned Successfully!")
         
-        # User review to build trust (Don't remove this!)
         st.markdown("### 📝 Review Scanned Content")
-        edited_text = st.text_area("AI Scan Review (Edit if needed):", 
+        edited_text = st.text_area("AI ne ye padha hai. Kuch galat ho toh sahi kar do:", 
                                   value=st.session_state.extracted_text, height=250)
         
         if st.button("📝 Finalize & Grade Answer"):
-            with st.spinner("University Professor is marking..."):
+            with st.spinner("University Professor is evaluating..."):
                 try:
                     marking_prompt = f"""
-                    Evaluate this Engineering Answer based on University Marking Schemes.
-                    ANSWER CONTENT: {edited_text}
+                    Evaluate this Engineering Answer (Out of 10) based on technical accuracy: {edited_text}
                     Return ONLY JSON:
-                    {{"question": "string", "marks": int, "feedback": "string", "improvement": "string"}}
+                    {{"question": "Identify topic", "marks": int, "feedback": "string", "improvement": "string"}}
                     """
                     
-                    # Using Groq (Llama 3.3) for logic - Much more stable than Gemini for text
+                    # Groq for fast reasoning
                     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                     res = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
@@ -509,7 +512,7 @@ with tab3:
                     st.session_state.eval_result = json.loads(res.choices[0].message.content)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Marking Error: {e}. Click again.")
+                    st.error("Marking Engine busy. Try again.")
 
     # --- FINAL DISPLAY: THE MARK SHEET ---
     if st.session_state.eval_result:
@@ -519,21 +522,20 @@ with tab3:
         c1, c2 = st.columns([0.4, 0.6])
         with c1:
             score = res.get("marks", 0)
-            color = "#4CAF50" if score > 6 else "#eab308" if score > 3 else "#ff4b4b"
+            color = "#4CAF50" if score > 6 else "#ff4b4b"
             st.markdown(f"""
                 <div style="background: #1c2128; border: 2px solid {color}; padding: 30px; border-radius: 20px; text-align: center;">
                     <p style="color: #8b949e; font-size: 0.8rem; margin: 0;">OFFICIAL SCORE</p>
                     <h1 style="color: {color}; font-size: 4rem; margin: 10px 0;">{score}/10</h1>
-                    <p style="color: {color}; font-weight: bold;">{"PASS" if score >= 4 else "FAIL"}</p>
                 </div>
             """, unsafe_allow_html=True)
             
         with c2:
             st.markdown(f"### 🎯 Topic: `{res.get('question', 'N/A')}`")
-            st.info(f"**Professor's Feedback:**\n\n{res.get('feedback', 'N/A')}")
-            st.warning(f"**Roadmap to Full Marks:**\n\n{res.get('improvement', 'N/A')}")
+            st.info(f"**Feedback:**\n\n{res.get('feedback', 'N/A')}")
+            st.warning(f"**Improvement:**\n\n{res.get('improvement', 'N/A')}")
         
-        if st.button("🔄 Evaluate Another Answer", use_container_width=True):
+        if st.button("🔄 Evaluate Another Answer"):
             st.session_state.extracted_text = None
             st.session_state.eval_result = None
             st.rerun()
