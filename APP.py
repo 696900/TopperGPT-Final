@@ -540,130 +540,80 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V139 - THE BILLIONAIRE BIBLE EDITION) ---
-
+# --- TAB 4: CONCEPT MINDMAP (V148 - VALIDATION & QUOTE PROTECTION) ---
 with tab4:
-
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
 
-   
-
     incoming_topic = st.session_state.get('active_topic', "")
-
     col_in, col_opt = st.columns([0.7, 0.3])
 
-   
-
     with col_in:
-
         mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v139", placeholder="e.g. PN Junction Diode")
-
     with col_opt:
-
         use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
-
-
 
     mm_cost = 2
 
-
-
     if st.button(f"🚀 Generate Deep Technical Map ({mm_cost} Credits)"):
-
-        if mm_input:
-
+        # 🛡️ Instant length check for junk like 'p'
+        if len(mm_input.strip()) < 3:
+            st.error("❌ Topic bohot chota hai. Please ek valid engineering topic dalo.")
+        else:
             if use_credits(mm_cost):
-
                 with st.spinner("Decoding technical depths for full marks..."):
-
                     try:
-
                         context = ""
-
                         if use_pdf and st.session_state.get('current_index'):
-
                             qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-
                             context_res = qe.query(f"Explain {mm_input} like a textbook: working physics, internal mechanisms, and core components.")
-
                             context = f"PDF Context: {context_res.response}"
 
-
-
-                        # ✅ MASTER PROMPT: Strictly for EXPLAINED TECHNICAL CONTENT
-
+                        # ✅ MASTER PROMPT: Strictly forcing EXPLAINED TECHNICAL CONTENT & VALIDATION
                         prompt = f"""
-
-                        Act as an Engineering Professor. Create a Mermaid flowchart for: '{mm_input}'. {context}
-
+                        Act as an Engineering Professor. Task: Create a Mermaid flowchart for: '{mm_input}'. 
+                        
+                        VALIDATION: If '{mm_input}' is nonsense, a single letter, or non-educational, return ONLY 'INVALID_TOPIC'.
+                        
                         Rules for "Bible" Quality:
-
                         1. Start with 'graph LR'.
-
                         2. ROOT is 'ROOT(({mm_input}))'.
-
                         3. Branches: 'DEF[Definition]', 'WORK[Working Mechanism]', 'COMP[Key Components]', 'APP[Applications]'.
-
                         4. Each sub-node MUST connect deeply and EXPLAIN the term.
-
-                           Format: NODE[Term: 1-line simple explanation].
-
-                           Example: DIFF[Diffusion: Movement of carriers from high to low concentration].
-
-                        5. Connect sub-nodes in levels: DEF --> D1[Explanation], WORK --> W1[Process Step 1] --> W2[Step 2].
-
-                        6. Syntax: NO special characters (&, !, :, -) inside []. Max 10 words per node.
-
-                        7. Output ONLY code, NO markdown backticks.
-
+                        5. IMPORTANT: All labels MUST be inside double quotes "". Example: NODE["Term: 1-line explanation"].
+                        6. Connect sub-nodes in levels: DEF --> D1["..."], WORK --> W1["..."] --> W2["..."].
+                        7. Context: {context}
+                        8. Output ONLY code or 'INVALID_TOPIC'. No markdown backticks.
                         """
-
-                       
 
                         res = groq_client.chat.completions.create(
-
                             model="llama-3.3-70b-versatile",
-
                             messages=[{"role": "user", "content": prompt}]
-
                         )
 
-                       
+                        raw_output = res.choices[0].message.content.strip()
+                        
+                        # 💸 Refund if the input was junk
+                        if "INVALID_TOPIC" in raw_output.upper():
+                            st.session_state.user_data['credits'] += mm_cost
+                            st.error(f"❌ '{mm_input}' koi valid engineering topic nahi lag raha. Credits Refunded.")
+                        else:
+                            clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
+                            if not clean_code.startswith("graph"): clean_code = "graph LR\n" + clean_code
 
-                        raw_output = res.choices[0].message.content
-
-                        clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
-
-                        if not clean_code.startswith("graph"): clean_code = "graph LR\n" + clean_code
-
-                           
-
-                        # Manual Vibrant Class Injection for Cinematic Look
-
-                        vibrant_styles = """
-
-                        classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
-
-                        classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
-
-                        classDef workStyle fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
-
-                        classDef compStyle fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
-
-                        classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
-
-                        class DEF,Definition defStyle; class WORK,Working workStyle; class COMP,Components compStyle; class APP,Applications appStyle;
-
-                        """
-
-                        st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
-
-                        st.rerun()
+                            # Manual Vibrant Class Injection for Cinematic Look
+                            vibrant_styles = """
+                            classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
+                            classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
+                            classDef workStyle fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
+                            classDef compStyle fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
+                            classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
+                            class DEF,Definition defStyle; class WORK,Working workStyle; class COMP,Components compStyle; class APP,Applications appStyle;
+                            """
+                            st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
+                            st.rerun()
 
                     except Exception as e:
-
                         st.session_state.user_data['credits'] += mm_cost
-
                         st.error(f"Logic Error: {e}")
 
     # --- 🎭 RENDERER (Optimized Height & Zoom) ---
