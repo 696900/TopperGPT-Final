@@ -540,74 +540,42 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V144 - THE TECHNICAL BIBLE - FINAL FIX) ---
+# --- TAB 4: CONCEPT MINDMAP (V145 - ZERO SYNTAX ERROR) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
     
-    incoming_topic = st.session_state.get('active_topic', "")
-    col_in, col_opt = st.columns([0.7, 0.3])
-    
-    with col_in:
-        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v139", placeholder="e.g. PN Junction Diode")
-    with col_opt:
-        use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
-
+    mm_input = st.text_input("Concept Name:", key="mm_v139", placeholder="e.g. PN Junction Diode")
     mm_cost = 2
 
     if st.button(f"🚀 Generate Deep Technical Map ({mm_cost} Credits)"):
-        # 🛡️ SHIELD 1: Validation
         if len(mm_input.strip()) < 3:
-            st.error("❌ Topic bohot chota hai. Please ek valid engineering topic dalo.")
+            st.error("❌ Topic bohot chota hai. Sahi engineering topic dalo.")
         else:
             if use_credits(mm_cost):
-                with st.spinner("Decoding technical depths for full marks..."):
+                with st.spinner("Decoding technical depths..."):
                     try:
-                        context = ""
-                        if use_pdf and st.session_state.get('current_index'):
-                            qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
-                            context_res = qe.query(f"Explain {mm_input} like a textbook: working physics, internal mechanisms, and core components.")
-                            context = f"PDF Context: {context_res.response}"
-
-                        # 🧠 MASTER PROMPT: Strictly forcing DEEP details for each node
+                        # ✅ MASTER PROMPT: Strictly forcing safe syntax
                         prompt = f"""
-                        Act as an Engineering Professor. Create an ADVANCED Mermaid flowchart for: '{mm_input}'. 
-                        
-                        VALIDATION: If '{mm_input}' is nonsense or random letters like 'p', return 'INVALID_TOPIC'. 
-                        
-                        BIBLIE RULES:
-                        1. Start with 'graph LR'.
+                        Act as an Engineering Professor. Create a Mermaid flowchart for: '{mm_input}'. 
+                        RULES FOR STABILITY:
+                        1. Use 'graph LR'.
                         2. ROOT is 'ROOT(({mm_input}))'.
-                        3. Branches: 'DEF[Standard Definition]', 'WORK[Step-by-Step Working]', 'COMP[Key Components]', 'APP[Real-world Apps]'.
-                        4. DETAIL RULE: Every sub-node MUST be in this format: NODE[Technical Term: Detailed explanation of how it works in 10 words].
-                        5. LEVELS: ROOT must have at least 3 levels of depth (ROOT -> Main Branch -> Detail Node -> Sub-Detail).
-                        6. SYNTAX: No special characters inside []. Use quotes "" if needed.
-                        7. Context: {context}
+                        3. VERY IMPORTANT: All labels MUST be inside double quotes "". Example: NODE["Label: Explanation"].
+                        4. Avoid special characters like &, !, :, - inside labels unless quoted.
+                        5. Output ONLY code. No markdown backticks.
                         """
-                        
                         res = groq_client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=[{"role": "user", "content": prompt}]
                         )
-                        
                         raw_output = res.choices[0].message.content.strip()
                         
-                        if "INVALID_TOPIC" in raw_output.upper():
-                            st.session_state.user_data['credits'] += mm_cost 
-                            st.error(f"❌ '{mm_input}' valid topic nahi hai. Credits Refunded.")
-                        else:
-                            clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
-                            if not clean_code.startswith("graph"): clean_code = "graph LR\n" + clean_code
-                                
-                            vibrant_styles = """
-                            classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
-                            classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
-                            classDef workStyle fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
-                            classDef compStyle fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
-                            classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
-                            class DEF,Definition defStyle; class WORK,Working workStyle; class COMP,Components compStyle; class APP,Applications appStyle;
-                            """
-                            st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
-                            st.rerun() 
+                        # Clean-up: Ensuring no backticks ruin the render
+                        clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
+                        if not clean_code.startswith("graph"): clean_code = "graph LR\n" + clean_code
+                        
+                        st.session_state.last_mm_code = clean_code
+                        st.rerun() 
                     except Exception as e:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
