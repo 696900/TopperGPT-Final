@@ -540,7 +540,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V139 - THE BILLIONAIRE BIBLE EDITION) ---
+# --- TAB 4: CONCEPT MINDMAP (V142 - VALIDATION & TYPO FIX) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
     
@@ -555,9 +555,12 @@ with tab4:
     mm_cost = 2
 
     if st.button(f"🚀 Generate Deep Technical Map ({mm_cost} Credits)"):
-        if mm_input:
+        # ✅ FIX 1: Instant rejection for single letters or empty input
+        if len(mm_input.strip()) < 3:
+            st.error("❌ Topic bohot chota hai. Please ek valid engineering topic dalo (e.g., 'Transformer').")
+        else:
             if use_credits(mm_cost):
-                with st.spinner("Decoding technical depths for full marks..."):
+                with st.spinner("Validating & Decoding technical depths..."):
                     try:
                         context = ""
                         if use_pdf and st.session_state.get('current_index'):
@@ -565,19 +568,19 @@ with tab4:
                             context_res = qe.query(f"Explain {mm_input} like a textbook: working physics, internal mechanisms, and core components.")
                             context = f"PDF Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Strictly for EXPLAINED TECHNICAL CONTENT
+                        # ✅ FIX 2: MASTER PROMPT WITH VALIDATION & AUTO-CORRECT
                         prompt = f"""
-                        Act as an Engineering Professor. Create a Mermaid flowchart for: '{mm_input}'. {context}
-                        Rules for "Bible" Quality:
-                        1. Start with 'graph LR'.
-                        2. ROOT is 'ROOT(({mm_input}))'.
-                        3. Branches: 'DEF[Definition]', 'WORK[Working Mechanism]', 'COMP[Key Components]', 'APP[Applications]'.
-                        4. Each sub-node MUST connect deeply and EXPLAIN the term. 
-                           Format: NODE[Term: 1-line simple explanation].
-                           Example: DIFF[Diffusion: Movement of carriers from high to low concentration].
-                        5. Connect sub-nodes in levels: DEF --> D1[Explanation], WORK --> W1[Process Step 1] --> W2[Step 2].
-                        6. Syntax: NO special characters (&, !, :, -) inside []. Max 10 words per node.
-                        7. Output ONLY code, NO markdown backticks.
+                        Act as an Engineering Professor. 
+                        Task: Create a Mermaid flowchart for: '{mm_input}'. 
+                        
+                        STRICT RULES:
+                        1. If '{mm_input}' is random noise, a single letter, or non-educational, start your response with 'INVALID_TOPIC'.
+                        2. If there is a typo (e.g., 'deep learnign'), auto-correct it to the right term.
+                        3. Rules for "Bible" Quality: Start with 'graph LR'. ROOT is 'ROOT(({mm_input}))'.
+                        4. Branches: 'DEF[Definition]', 'WORK[Working Mechanism]', 'COMP[Key Components]', 'APP[Applications]'.
+                        5. Syntax: NO special characters (&, !, :, -) inside []. Max 10 words per node.
+                        6. Context: {context}
+                        7. Output ONLY code or 'INVALID_TOPIC'. No markdown.
                         """
                         
                         res = groq_client.chat.completions.create(
@@ -585,21 +588,26 @@ with tab4:
                             messages=[{"role": "user", "content": prompt}]
                         )
                         
-                        raw_output = res.choices[0].message.content
-                        clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
-                        if not clean_code.startswith("graph"): clean_code = "graph LR\n" + clean_code
-                            
-                        # Manual Vibrant Class Injection for Cinematic Look
-                        vibrant_styles = """
-                        classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
-                        classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
-                        classDef workStyle fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
-                        classDef compStyle fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
-                        classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
-                        class DEF,Definition defStyle; class WORK,Working workStyle; class COMP,Components compStyle; class APP,Applications appStyle;
-                        """
-                        st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
-                        st.rerun() 
+                        raw_output = res.choices[0].message.content.strip()
+                        
+                        # ✅ FIX 3: Refund Logic if input is trash
+                        if "INVALID_TOPIC" in raw_output.upper():
+                            st.session_state.user_data['credits'] += mm_cost # Refund credits
+                            st.error(f"❌ '{mm_input}' koi valid engineering topic nahi lag raha. Please sahi topic dalo!")
+                        else:
+                            clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
+                            if not clean_code.startswith("graph"): clean_code = "graph LR\n" + clean_code
+                                
+                            vibrant_styles = """
+                            classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
+                            classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
+                            classDef workStyle fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
+                            classDef compStyle fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
+                            classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
+                            class DEF,Definition defStyle; class WORK,Working workStyle; class COMP,Components compStyle; class APP,Applications appStyle;
+                            """
+                            st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
+                            st.rerun() 
                     except Exception as e:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
@@ -609,7 +617,6 @@ with tab4:
         st.markdown("---")
         import streamlit.components.v1 as components
         
-        # Isme maine justify-content aur flex-direction ko mobile-responsive banaya hai
         html_code = f"""
         <div id="capture_area" style="
             background: #0d1117; 
@@ -644,7 +651,6 @@ with tab4:
                     padding: 50 
                 }}
             }});
-            // Auto-scroll logic to keep it centered on load
             window.onload = () => {{
                 const container = document.getElementById('capture_area');
                 container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
