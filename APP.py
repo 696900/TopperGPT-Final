@@ -540,40 +540,45 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V145 - ZERO SYNTAX ERROR) ---
+# --- TAB 4: CONCEPT MINDMAP (STRICT TECHNICAL DEPTH V146) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
     
-    mm_input = st.text_input("Concept Name:", key="mm_v139", placeholder="e.g. PN Junction Diode")
+    mm_input = st.text_input("Concept Name:", key="mm_v146", placeholder="e.g. BJT Working")
     mm_cost = 2
 
     if st.button(f"🚀 Generate Deep Technical Map ({mm_cost} Credits)"):
+        # Shield against junk like 'p'
         if len(mm_input.strip()) < 3:
-            st.error("❌ Topic bohot chota hai. Sahi engineering topic dalo.")
+            st.error("Bhai, valid topic toh dalo! Itne chote naam ka koi engineering concept nahi hota.")
         else:
             if use_credits(mm_cost):
-                with st.spinner("Decoding technical depths..."):
+                with st.spinner("Decoding technical depths for full marks..."):
                     try:
-                        # ✅ MASTER PROMPT: Strictly forcing safe syntax
+                        # ✅ MASTER PROMPT: Strictly forcing Multi-Level Branching
                         prompt = f"""
-                        Act as an Engineering Professor. Create a Mermaid flowchart for: '{mm_input}'. 
-                        RULES FOR STABILITY:
-                        1. Use 'graph LR'.
+                        Act as an Engineering Professor. Create a COMPLEX Mermaid flowchart for: '{mm_input}'. 
+                        
+                        STRICT RULES FOR DEPTH:
+                        1. Start with 'graph TD'.
                         2. ROOT is 'ROOT(({mm_input}))'.
-                        3. VERY IMPORTANT: All labels MUST be inside double quotes "". Example: NODE["Label: Explanation"].
-                        4. Avoid special characters like &, !, :, - inside labels unless quoted.
-                        5. Output ONLY code. No markdown backticks.
+                        3. BRANCHES: You MUST create at least 4 main branches: DEF[Definition], WORK[Working Mechanism], COMP[Key Components], EXAM[Exam Special Points].
+                        4. SUB-NODES: Each main branch MUST have 3-4 detailed sub-nodes.
+                        5. EXPLANATION: Every node label MUST explain the term. Format: NODE["Term: 1-line engineering explanation"].
+                        6. SYNTAX: Use double quotes "" for ALL labels to avoid syntax errors. No special chars.
+                        7. Output ONLY code.
                         """
+                        
                         res = groq_client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=[{"role": "user", "content": prompt}]
                         )
                         raw_output = res.choices[0].message.content.strip()
                         
-                        # Clean-up: Ensuring no backticks ruin the render
+                        # Syntax Protection
                         clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
-                        if not clean_code.startswith("graph"): clean_code = "graph LR\n" + clean_code
-                        
+                        if not clean_code.startswith("graph"): clean_code = "graph TD\n" + clean_code
+                            
                         st.session_state.last_mm_code = clean_code
                         st.rerun() 
                     except Exception as e:
