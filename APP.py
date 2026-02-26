@@ -540,49 +540,130 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (STRICT TECHNICAL DEPTH V146) ---
+# --- TAB 4: CONCEPT MINDMAP (V139 - THE BILLIONAIRE BIBLE EDITION) ---
+
 with tab4:
+
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
-    
-    mm_input = st.text_input("Concept Name:", key="mm_v146", placeholder="e.g. BJT Working")
+
+   
+
+    incoming_topic = st.session_state.get('active_topic', "")
+
+    col_in, col_opt = st.columns([0.7, 0.3])
+
+   
+
+    with col_in:
+
+        mm_input = st.text_input("Concept Name:", value=incoming_topic, key="mm_v139", placeholder="e.g. PN Junction Diode")
+
+    with col_opt:
+
+        use_pdf = st.checkbox("Deep PDF Scan", value=True if st.session_state.get('current_index') else False)
+
+
+
     mm_cost = 2
 
+
+
     if st.button(f"🚀 Generate Deep Technical Map ({mm_cost} Credits)"):
-        # Shield against junk like 'p'
-        if len(mm_input.strip()) < 3:
-            st.error("Bhai, valid topic toh dalo! Itne chote naam ka koi engineering concept nahi hota.")
-        else:
+
+        if mm_input:
+
             if use_credits(mm_cost):
+
                 with st.spinner("Decoding technical depths for full marks..."):
+
                     try:
-                        # ✅ MASTER PROMPT: Strictly forcing Multi-Level Branching
+
+                        context = ""
+
+                        if use_pdf and st.session_state.get('current_index'):
+
+                            qe = st.session_state.current_index.as_query_engine(similarity_top_k=5)
+
+                            context_res = qe.query(f"Explain {mm_input} like a textbook: working physics, internal mechanisms, and core components.")
+
+                            context = f"PDF Context: {context_res.response}"
+
+
+
+                        # ✅ MASTER PROMPT: Strictly for EXPLAINED TECHNICAL CONTENT
+
                         prompt = f"""
-                        Act as an Engineering Professor. Create a COMPLEX Mermaid flowchart for: '{mm_input}'. 
-                        
-                        STRICT RULES FOR DEPTH:
-                        1. Start with 'graph TD'.
+
+                        Act as an Engineering Professor. Create a Mermaid flowchart for: '{mm_input}'. {context}
+
+                        Rules for "Bible" Quality:
+
+                        1. Start with 'graph LR'.
+
                         2. ROOT is 'ROOT(({mm_input}))'.
-                        3. BRANCHES: You MUST create at least 4 main branches: DEF[Definition], WORK[Working Mechanism], COMP[Key Components], EXAM[Exam Special Points].
-                        4. SUB-NODES: Each main branch MUST have 3-4 detailed sub-nodes.
-                        5. EXPLANATION: Every node label MUST explain the term. Format: NODE["Term: 1-line engineering explanation"].
-                        6. SYNTAX: Use double quotes "" for ALL labels to avoid syntax errors. No special chars.
-                        7. Output ONLY code.
+
+                        3. Branches: 'DEF[Definition]', 'WORK[Working Mechanism]', 'COMP[Key Components]', 'APP[Applications]'.
+
+                        4. Each sub-node MUST connect deeply and EXPLAIN the term.
+
+                           Format: NODE[Term: 1-line simple explanation].
+
+                           Example: DIFF[Diffusion: Movement of carriers from high to low concentration].
+
+                        5. Connect sub-nodes in levels: DEF --> D1[Explanation], WORK --> W1[Process Step 1] --> W2[Step 2].
+
+                        6. Syntax: NO special characters (&, !, :, -) inside []. Max 10 words per node.
+
+                        7. Output ONLY code, NO markdown backticks.
+
                         """
-                        
+
+                       
+
                         res = groq_client.chat.completions.create(
+
                             model="llama-3.3-70b-versatile",
+
                             messages=[{"role": "user", "content": prompt}]
+
                         )
-                        raw_output = res.choices[0].message.content.strip()
-                        
-                        # Syntax Protection
+
+                       
+
+                        raw_output = res.choices[0].message.content
+
                         clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
-                        if not clean_code.startswith("graph"): clean_code = "graph TD\n" + clean_code
-                            
-                        st.session_state.last_mm_code = clean_code
-                        st.rerun() 
+
+                        if not clean_code.startswith("graph"): clean_code = "graph LR\n" + clean_code
+
+                           
+
+                        # Manual Vibrant Class Injection for Cinematic Look
+
+                        vibrant_styles = """
+
+                        classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
+
+                        classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
+
+                        classDef workStyle fill:#2a5298,stroke:#eab308,color:#fff,stroke-width:2px;
+
+                        classDef compStyle fill:#4CAF50,stroke:#fff,color:#fff,stroke-width:2px;
+
+                        classDef appStyle fill:#eab308,stroke:#1c2128,color:#1c2128,font-weight:bold;
+
+                        class DEF,Definition defStyle; class WORK,Working workStyle; class COMP,Components compStyle; class APP,Applications appStyle;
+
+                        """
+
+                        st.session_state.last_mm_code = clean_code + "\n" + vibrant_styles
+
+                        st.rerun()
+
                     except Exception as e:
+
                         st.session_state.user_data['credits'] += mm_cost
+
                         st.error(f"Logic Error: {e}")
 
     # --- 🎭 RENDERER (Optimized Height & Zoom) ---
