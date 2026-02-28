@@ -25,6 +25,10 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
+# Login ke turant baad ye alert daal do (Tab 1 ke upar)
+if st.session_state.user_data:
+    st.info(f"💡 Welcome Topper! Your Wallet: **{st.session_state.user_data['credits']} Credits** available. (Check Sidebar for Top-up)")
+
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 # --- 🛠️ MASTER AI SETUP (V148 - STABLE VISION & ENGINE FIX) ---
 api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
@@ -540,7 +544,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V148 - VALIDATION & QUOTE PROTECTION) ---
+# --- TAB 4: CONCEPT MINDMAP (V151 - LARGE RENDER & SCROLL FIX) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
 
@@ -555,7 +559,6 @@ with tab4:
     mm_cost = 2
 
     if st.button(f"🚀 Generate Deep Technical Map ({mm_cost} Credits)"):
-        # 🛡️ Instant length check for junk like 'p'
         if len(mm_input.strip()) < 3:
             st.error("❌ Topic bohot chota hai. Please ek valid engineering topic dalo.")
         else:
@@ -577,7 +580,7 @@ with tab4:
                         Rules for "Bible" Quality:
                         1. Start with 'graph LR'.
                         2. ROOT is 'ROOT(({mm_input}))'.
-                        3. Branches: 'DEF[Definition]', 'WORK[Working Mechanism]', 'COMP[Key Components]', 'APP[Applications]'.
+                        3. Branches: 'DEF["Definition"]', 'WORK["Working Mechanism"]', 'COMP["Key Components"]', 'APP["Applications"]'.
                         4. Each sub-node MUST connect deeply and EXPLAIN the term.
                         5. IMPORTANT: All labels MUST be inside double quotes "". Example: NODE["Term: 1-line explanation"].
                         6. Connect sub-nodes in levels: DEF --> D1["..."], WORK --> W1["..."] --> W2["..."].
@@ -592,7 +595,6 @@ with tab4:
 
                         raw_output = res.choices[0].message.content.strip()
                         
-                        # 💸 Refund if the input was junk
                         if "INVALID_TOPIC" in raw_output.upper():
                             st.session_state.user_data['credits'] += mm_cost
                             st.error(f"❌ '{mm_input}' koi valid engineering topic nahi lag raha. Credits Refunded.")
@@ -600,7 +602,6 @@ with tab4:
                             clean_code = raw_output.replace("```mermaid", "").replace("```", "").strip()
                             if not clean_code.startswith("graph"): clean_code = "graph LR\n" + clean_code
 
-                            # Manual Vibrant Class Injection for Cinematic Look
                             vibrant_styles = """
                             classDef default fill:#1c2128,stroke:#4CAF50,color:#fff;
                             classDef defStyle fill:#1e3c72,stroke:#fff,color:#fff,stroke-width:2px;
@@ -616,22 +617,38 @@ with tab4:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- 🎭 RENDERER (Optimized Height & Zoom) ---
+    # --- 🎭 THE RENDERER: LARGE-SCALE VIEW ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
+        # Added Marathi-Feedback Fix: Download Guide
+        st.success("📸 **Topper Tip:** Diagram ko bada dekhne ke liye scroll karein. Download karne ke liye Right-Click karke 'Save Image' karein.")
+        
         import streamlit.components.v1 as components
         
-        # Height increased to 800 for better view
+        # Fixed the compression by setting min-width to 1500px
         html_code = f"""
-        <div id="capture_area" style="background: #0d1117; padding: 20px; border-radius: 15px; border: 1px solid #30363d; overflow: auto; min-height: 600px;">
-            <div class="mermaid" style="display: flex; justify-content: center;">
+        <div id="capture_area" style="
+            background: #0d1117; 
+            padding: 30px; 
+            border-radius: 15px; 
+            border: 2px solid #4CAF50; 
+            overflow: auto; 
+            width: 100%;
+        ">
+            <div class="mermaid" style="
+                min-width: 1500px; 
+                display: flex; 
+                justify-content: center;
+            ">
             {st.session_state.last_mm_code}
             </div>
         </div>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             mermaid.initialize({{ 
-                startOnLoad: true, theme: 'dark', securityLevel: 'loose',
+                startOnLoad: true, 
+                theme: 'dark', 
+                securityLevel: 'loose',
                 flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis' }}
             }});
         </script>
