@@ -481,11 +481,10 @@ with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official Moderator</h2>", unsafe_allow_html=True)
     
     eval_cost = 5
-    # Step-by-step state management
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="gcv_eval_v2")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="gcv_eval_v3")
     
     if ans_file:
         img_raw = Image.open(ans_file).convert("RGB")
@@ -498,20 +497,23 @@ with tab3:
                     placeholder.info("🚀 Connecting to Google Enterprise Servers...")
                     
                     try:
-                        # Converting image to Bytes for Google API
-                        img_byte_arr = io.BytesIO()
-                        img_raw.save(img_byte_arr, format='JPEG')
-                        content = img_byte_arr.getvalue()
-
-                        # ✅ SAFE KEY RETRIEVAL: Isse Tab 2 aur baaki features nahi phatenge
-                        # Pehle Vision Enterprise Key dhundega, nahi mili toh purani Google Key
-                        api_key_vision = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY")
+                        # 1. Key Verification (Isse 'Missing in Secrets' error khatam hoga)
+                        api_key_vision = st.secrets.get("VISION_ENTERPRISE_KEY")
                         
                         if not api_key_vision:
-                            raise Exception("API Key missing in Secrets!")
+                            # Fallback to Google key if enterprise is missing
+                            api_key_vision = st.secrets.get("GOOGLE_API_KEY")
 
+                        if not api_key_vision:
+                            raise Exception("API Key not found in Streamlit Secrets! Please add VISION_ENTERPRISE_KEY.")
+
+                        # 2. Image Processing
+                        img_byte_arr = io.BytesIO()
+                        img_raw.save(img_byte_arr, format='JPEG', quality=85)
+                        content = img_byte_arr.getvalue()
+
+                        # 3. Google API Call
                         url = f"https://vision.googleapis.com/v1/images:annotate?key={api_key_vision}"
-                        
                         payload = {
                             "requests": [{
                                 "image": {"content": base64.b64encode(content).decode('utf-8')},
@@ -519,17 +521,12 @@ with tab3:
                             }]
                         }
                         
-                        response = requests.post(url, json=payload)
+                        response = requests.post(url, json=payload, timeout=20)
                         data = response.json()
                         
-                        # Check for API errors (like billing not enabled)
                         if 'error' in data:
-                            error_msg = data['error'].get('message', 'API Error')
-                            if "billing" in error_msg.lower():
-                                raise Exception("Billing not active. Check Google Console.")
-                            raise Exception(error_msg)
+                            raise Exception(data['error'].get('message', 'API Error'))
 
-                        # Extracting text from Google's response
                         texts = data['responses'][0].get('fullTextAnnotation', {}).get('text', "")
                         
                         if texts:
@@ -537,44 +534,34 @@ with tab3:
                             placeholder.success("✅ Enterprise Scan Successful!")
                             st.rerun()
                         else:
-                            raise Exception("Google couldn't find any text.")
+                            raise Exception("Google vision couldn't find any text. Image clear nahi hai.")
 
                     except Exception as e:
                         st.session_state.user_data['credits'] += eval_cost # Refund
-                        st.error(f"❌ Connection Error. Credits Refunded. Details: {str(e)[:70]}")
+                        st.error(f"❌ Connection Error. Credits Refunded. Details: {str(e)}")
                 else:
                     st.error("Bhai credits khatam!")
 
-    # --- BRAIN SECTION (GROQ - LOGIC) ---
+    # --- BRAIN SECTION (Marking Logic) ---
     if st.session_state.extracted_text and not st.session_state.eval_result:
-        st.markdown("### 📝 Scanned Content")
-        edited_text = st.text_area("Final Review (You can edit this):", value=st.session_state.extracted_text, height=200)
-        
+        edited_text = st.text_area("Final Review:", value=st.session_state.extracted_text, height=200)
         if st.button("📝 Finalize & Grade"):
             with st.spinner("AI Professor is marking..."):
                 try:
-                    marking_prompt = f"Evaluate this engineering answer (Out of 10): {edited_text}"
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": marking_prompt}],
+                        messages=[{"role": "user", "content": f"Grade this answer out of 10 as JSON: {edited_text}"}],
                         response_format={"type": "json_object"}
                     )
                     st.session_state.eval_result = json.loads(res.choices[0].message.content)
                     st.rerun()
-                except Exception:
-                    st.error("Marking Engine busy.")
+                except: st.error("Marking Engine busy.")
 
-    # --- DISPLAY RESULT ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
-        score = res.get("marks", 0)
-        st.success(f"### Score: {score}/10")
-        st.write(f"**Feedback:** {res.get('feedback', '')}")
-        
+        st.success(f"### SCORE: {res.get('marks', 0)}/10")
         if st.button("🔄 New Scan"):
-            st.session_state.extracted_text = None
-            st.session_state.eval_result = None
-            st.rerun()
+            st.session_state.extracted_text = None; st.session_state.eval_result = None; st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V153 - REAL DOWNLOAD & MOBILE FIX) ---
 with tab4:
