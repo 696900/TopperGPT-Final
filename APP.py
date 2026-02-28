@@ -475,92 +475,85 @@ with tab2:
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
-# --- TAB 3: ZERO-FAIL PRO EVALUATOR (MOBILE & SLOW NET OPTIMIZED) ---
+# --- TAB 3: INVINCIBLE PRO EVALUATOR (GROQ VISION ENGINE) ---
 with tab3:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator (Ultra Fast)</h2>", unsafe_allow_html=True)
     
     eval_cost = 5
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="ultra_stable_v1")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="ultra_v157")
     
     if ans_file:
-        # ✅ STEP 1: ULTRA COMPRESSION (Slow Net Fix)
-        # Isse upload speed 5x badh jayegi
+        # Compression for Speed
         img = Image.open(ans_file).convert("RGB")
-        img.thumbnail((1200, 1200), Image.Resampling.LANCZOS) # Quality maintain, size kam
-        
-        st.image(img, caption="Sheet Optimized for Scanning", width=300)
+        img.thumbnail((1000, 1000))
+        st.image(img, caption="Sheet Ready for Instant Scan", width=300)
 
         if not st.session_state.extracted_text:
             if st.button(f"🔍 Scan Handwriting ({eval_cost} Credits)"):
+                # Credit check & instant deduction
                 if use_credits(eval_cost):
-                    placeholder = st.empty()
-                    placeholder.info("⏳ Connecting to University Servers...")
-                    
-                    # ✅ STEP 2: RETRY LOGIC (Timeout Fix)
-                    success = False
-                    for attempt in range(3): # 3 baar try karega
+                    with st.spinner("⚡ Groq Vision is decoding (No-Wait Mode)..."):
                         try:
-                            vision_model = genai.GenerativeModel('gemini-1.5-flash')
-                            # Request timeout handle karne ke liye simple call
-                            response = vision_model.generate_content([
-                                "Transcribe this engineering answer precisely. Ignore background noise.", 
-                                img
-                            ])
-                            if response.text:
-                                st.session_state.extracted_text = response.text
-                                success = True
-                                break
-                        except Exception:
-                            placeholder.warning(f"⚠️ Slow Connection... Retrying ({attempt+1}/3)")
-                            time.sleep(2) # 2 sec ka gap taaki net stable ho jaye
-                    
-                    if success:
-                        placeholder.success("✅ Scan Complete!")
-                        st.rerun()
-                    else:
-                        st.session_state.user_data['credits'] += eval_cost # Refund
-                        st.error("❌ High Latency. Please check your internet and try again. Credits Refunded.")
+                            # Converting image to base64 for Groq
+                            buffered = io.BytesIO()
+                            img.save(buffered, format="JPEG")
+                            base64_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+                            # ✅ SWITCHING TO GROQ VISION (Zero-Error Path)
+                            response = groq_client.chat.completions.create(
+                                model="llama-3.2-11b-vision-preview", # Fast & Stable
+                                messages=[
+                                    {
+                                        "role": "user",
+                                        "content": [
+                                            {"type": "text", "text": "Transcribe this engineering handwriting exactly. Be precise with technical terms."},
+                                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                                        ],
+                                    }
+                                ],
+                            )
+                            
+                            st.session_state.extracted_text = response.choices[0].message.content
+                            st.rerun()
+
+                        except Exception as e:
+                            # 🛡️ THE REFUND GUARD: Crash hote hi paisa wapas
+                            st.session_state.user_data['credits'] += eval_cost
+                            st.error(f"⚠️ Scan Failed. Credits Refunded. Error: {str(e)[:50]}")
                 else:
                     st.error("Bhai credits khatam!")
 
-    # --- STEP B: EVALUATION ENGINE (GROQ - FASTEST) ---
+    # --- BRAIN & RESULT SECTION (Kept Intact for Topper Quality) ---
     if st.session_state.extracted_text and not st.session_state.eval_result:
         st.markdown("### 📝 Scanned Content")
-        edited_text = st.text_area("AI ne ye padha (Edit if needed):", value=st.session_state.extracted_text, height=200)
+        edited_text = st.text_area("Review Transcription:", value=st.session_state.extracted_text, height=200)
         
         if st.button("📝 Finalize & Grade"):
-            with st.spinner("Professor is marking..."):
+            with st.spinner("AI Professor is marking..."):
                 try:
-                    # Groq is much faster than Gemini for text, so no timeout here
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": f"Grade this answer out of 10 with feedback: {edited_text}"}],
+                        messages=[{"role": "user", "content": f"Grade this engineering answer out of 10 as JSON: {edited_text}"}],
                         response_format={"type": "json_object"}
                     )
                     st.session_state.eval_result = json.loads(res.choices[0].message.content)
                     st.rerun()
                 except:
-                    st.error("Marking Engine busy. Try again.")
+                    st.error("Server busy. Try again.")
 
-    # --- FINAL SCORECARD ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
-        st.markdown("---")
-        score = res.get("marks", 0)
         st.markdown(f"""
             <div style="background: #1c2128; border: 2px solid #4CAF50; padding: 20px; border-radius: 15px; text-align: center;">
-                <h1 style="color: #4CAF50; margin:0;">SCORE: {score}/10</h1>
-                <p style="color: white; margin-top:10px;"><b>Feedback:</b> {res.get('feedback', '')}</p>
+                <h1 style="color: #4CAF50;">SCORE: {res.get('marks', 0)}/10</h1>
+                <p style='color:white;'>{res.get('feedback', '')}</p>
             </div>
         """, unsafe_allow_html=True)
-        
         if st.button("🔄 New Scan"):
-            st.session_state.extracted_text = None
-            st.session_state.eval_result = None
-            st.rerun()
+            st.session_state.extracted_text = None; st.session_state.eval_result = None; st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V153 - REAL DOWNLOAD & MOBILE FIX) ---
 with tab4:
