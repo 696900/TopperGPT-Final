@@ -353,104 +353,79 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- GLOBAL UTILITY: SYLLABUS FILTERS ---
-# ==========================================
-
-def get_clean_json_v2(text):
-    try:
-        # AI ke kachre se sirf { } wala part nikalne ke liye
-        json_match = re.search(r"\{.*\}", text, re.DOTALL)
-        if json_match:
-            clean_str = json_match.group(0)
-            return json.loads(clean_str)
-        return {}
-    except Exception:
-        return {}
-
-def get_semester_text_v2(doc, sem_name):
-    # Sirf wahi pages uthata hai jahan Semester ka naam ho (Fixes Physics-Mechanics mixup)
-    full_txt = ""
-    for page in doc:
-        txt = page.get_text()
-        if sem_name.lower() in txt.lower():
-            full_txt += txt
-    return full_txt
-
-def get_subject_specific_text(doc, sub_name):
-    # Subject wise laser focus extraction
-    sub_text = ""
-    start_found = False
-    for page in doc:
-        text = page.get_text()
-        if sub_name.lower() in text.lower():
-            start_found = True
-        if start_found:
-            sub_text += text
-            # Limit to 10 pages to avoid mixing with other subjects
-            if len(sub_text) > 15000: break 
-    return sub_text
-
-# ==========================================
-# --- TAB 2: PRECISION SYLLABUS MANAGER ---
+# --- TAB 2: PRECISION SYLLABUS MANAGER (V2 - ULTRA STABLE) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
     if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
 
-    # 1. TOP DASHBOARD (Metrics)
+    # 1. Dashboard Metrics
     if st.session_state.master_tracker:
-        cols = st.columns(3)
-        all_t = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
-        total = len(all_t)
-        done = sum(1 for t in all_t if t.get('status') == 'Completed')
-        with cols[0]: st.metric("Overall Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
-        with cols[2]: st.metric("Total Topics", total)
+        all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
+        total = len(all_topics)
+        done = sum(1 for t in all_topics if t.get('status') == 'Completed')
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Overall Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
+        c2.metric("Pending Topics", total - done)
+        c3.metric("Total Subjects", len(next(iter(st.session_state.master_tracker.values())).keys()) if total > 0 else 0)
         st.divider()
 
-    # 2. BUILD ENGINE (Hard-Filtered Subject Detection)
+    # 2. Build Engine
     with st.expander("📤 Build Your Semester Tracker", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="final_stable_v100")
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syllabus_v2_final")
         
-        c1, c2 = st.columns(2)
-        with c1:
-            target_sem = st.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV"])
-        with c2:
-            st.session_state.exam_date = st.date_input("Exam Start Date", value=datetime.now().date())
+        col_s1, col_s2 = st.columns(2)
+        target_sem = col_s1.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V", "Semester VI", "Semester VII", "Semester VIII"])
+        exam_date = col_s2.date_input("Target Exam Date", value=datetime.now().date())
         
-        if up_pdf and st.button("🚀 Step 1: Detect & Build Tracker"):
-            with st.spinner(f"Filtering {target_sem} Data..."):
+        if up_pdf and st.button("🚀 Build Tracker (Optimized)"):
+            with st.spinner(f"Filtering {target_sem} Main Subjects..."):
                 try:
                     pdf_bytes = up_pdf.read()
                     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                     
-                    # SEMESTER SPECIFIC FILTER: Sirf relevant pages scan karega
+                    # SEMESTER FILTER: Sirf usi sem ka text uthayega
                     relevant_txt = ""
                     for page in doc:
                         text = page.get_text()
                         if target_sem.lower() in text.lower():
                             relevant_txt += text
                     
-                    # THEORY ONLY PROMPT: Labs aur extra electives ko block karne ke liye
-                    llm_main = LlamaGroq(model="llama-3.3-70b-versatile", api_key=st.secrets["GROQ_API_KEY"])
+                    # STRICT PROMPT: AI ko bandh diya hai taaki faltu cheezein na aayein
                     prompt = f"""
-                    Engineering Professor Mode. From this text for '{target_sem}':
-                    1. List ONLY the 5-6 MAIN THEORY subjects (e.g., Maths, Physics, Chemistry, Mechanics).
-                    2. IGNORE ALL Labs, Practical subjects, and Workshop.
-                    3. For each subject, extract exactly 6 Units and their sub-topics.
-                    4. IMPORTANT: No duplicate subjects or extra elective inputs.
+                    Act as an Engineering Academic Moderator.
+                    Task: Extract ONLY the core Theory Subjects for '{target_sem}'.
                     
-                    Return ONLY valid JSON: 
-                    {{ "Subject Name": {{ "Unit 1": ["Topic A", "Topic B"] }} }}
+                    STRICT RULES:
+                    1. IGNORE all Labs, Practicals, Workshops, Seminars, and Credits-only subjects.
+                    2. Extract exactly 5-6 MAIN Subjects (e.g., Applied Maths, Physics, Mechanics, etc.)
+                    3. For each subject, extract exactly 6 Units with 3-4 key topics each.
+                    4. Output must be a clean JSON object ONLY.
                     
-                    Text: {relevant_txt[:12000]}
+                    Format:
+                    {{
+                      "Subject Name": {{
+                        "Unit 1: Name": ["Topic 1", "Topic 2"],
+                        "Unit 2: Name": ["Topic 1"]
+                      }}
+                    }}
+
+                    Syllabus Text: {relevant_txt[:12000]}
                     """
                     
-                    res = llm_main.complete(prompt)
-                    clean_data = get_clean_json_v2(res.text)
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": prompt}],
+                        response_format={"type": "json_object"}
+                    )
+                    
+                    # JSON Clean up using your utility
+                    clean_data = json.loads(res.choices[0].message.content)
                     
                     if clean_data:
-                        # Converting to Tracker Format with Status
+                        # Converting to Tracker Format
                         st.session_state.master_tracker = {target_sem: {}}
                         for sub, mods in clean_data.items():
                             st.session_state.master_tracker[target_sem][sub] = {
@@ -460,28 +435,32 @@ with tab2:
                         st.balloons()
                         st.rerun()
                     else:
-                        st.error("AI couldn't extract subjects. Text clear nahi hai.")
-                        
-                except Exception as e: st.error(f"Scan Error: {e}")
+                        st.error("AI output blank. PDF text clear nahi hai.")
 
-    # 3. INTERACTIVE UI (Double Column Layout)
+                except Exception as e:
+                    st.error(f"Scan Error: {str(e)}")
+
+    # 3. Interactive UI (The Checklist)
     if st.session_state.master_tracker:
         for sem, subs in st.session_state.master_tracker.items():
-            st.markdown(f"### 📊 {sem} Tracker")
+            st.markdown(f"### 📊 {sem} Study Progress")
+            
             for sub_name, modules in subs.items():
-                with st.expander(f"📘 {sub_name}", expanded=True):
+                with st.expander(f"📘 {sub_name}", expanded=False):
                     for mod_name, topics in modules.items():
                         st.markdown(f"**📂 {mod_name}**")
-                        for i, t in enumerate(topics):
-                            u_hash = hashlib.md5(f"{sub_name}_{mod_name}_{t['name']}".encode()).hexdigest()
-                            c1, c2 = st.columns([0.7, 0.3])
-                            with c1: st.write(f"🔹 {t['name']}")
-                            with c2:
-                                s = st.selectbox("Status", ["Not Started", "Completed"], key=u_hash, 
-                                               index=0 if t['status']=="Not Started" else 1, label_visibility="collapsed")
-                                if s != t['status']: 
-                                    t['status'] = s
-                                    st.rerun()
+                        for t in topics:
+                            # Unique ID generator for checkboxes
+                            u_id = hashlib.md5(f"{sub_name}{mod_name}{t['name']}".encode()).hexdigest()
+                            
+                            c1, c2 = st.columns([0.85, 0.15])
+                            c1.write(f"🔹 {t['name']}")
+                            
+                            # Interactive checkbox with state sync
+                            is_done = c2.checkbox("Done", value=(t['status'] == "Completed"), key=u_id)
+                            if is_done != (t['status'] == "Completed"):
+                                t['status'] = "Completed" if is_done else "Not Started"
+                                st.rerun()
 
         if st.button("🗑️ Reset Tracker"):
             st.session_state.master_tracker = {}
