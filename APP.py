@@ -223,28 +223,32 @@ with st.sidebar:
         st.session_state.user_data = None; st.rerun()
 
 # --- 💎 THE FRONT-FACE CREDIT BOX (Saamne Dikhega!) ---
+# --- 💎 THE COMPACT CREDIT BANNER (V155 - SPACE SAVER) ---
 if st.session_state.get("user_data"):
-    # Mobile notch aur header se bachne ke liye container aur margin
     with st.container():
         st.markdown(f"""
         <div style="
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            padding: 20px;
-            border-radius: 15px;
-            border: 2px solid #4CAF50;
+            background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 1px solid #4CAF50;
             text-align: center;
-            margin: 10px 0px 25px 0px;
-            box-shadow: 0px 10px 30px rgba(0,0,0,0.5);
+            margin: 5px 0px 15px 0px;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
         ">
-            <p style="margin: 0; color: #4CAF50; font-weight: bold; font-size: 12px; letter-spacing: 2px; text-transform: uppercase;">
-                🎓 Topper Account Active
-            </p>
-            <h2 style="margin: 10px 0; color: white; font-size: 32px; font-weight: 800;">
+            <span style="color: #4CAF50; font-weight: bold; font-size: 13px; letter-spacing: 1px;">
+                🎓 TOPPER STATUS:
+            </span>
+            <span style="color: white; font-size: 20px; font-weight: 800;">
                 {st.session_state.user_data['credits']} Credits
-            </h2>
-            <p style="margin: 0; color: #8b949e; font-size: 13px;">
-                Handwriting Scan & MindMaps ke liye ready! 🚀
-            </p>
+            </span>
+            <span style="color: #8b949e; font-size: 11px; font-style: italic; margin-left: 10px;">
+                Ready to Scan & Research 🚀
+            </span>
         </div>
         """, unsafe_allow_html=True)
 
