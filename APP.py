@@ -475,117 +475,89 @@ with tab2:
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
-# --- TAB 3: TOPPERGPT PRO EVALUATOR (STABLE & FINAL FIX) ---
+# --- TAB 3: ZERO-FAIL PRO EVALUATOR (MOBILE & SLOW NET OPTIMIZED) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator</h2>", unsafe_allow_html=True)
     
     eval_cost = 5
-
-    # State Persistence
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="stable_eval_v2")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="ultra_stable_v1")
     
     if ans_file:
+        # ✅ STEP 1: ULTRA COMPRESSION (Slow Net Fix)
+        # Isse upload speed 5x badh jayegi
         img = Image.open(ans_file).convert("RGB")
-        # Optimization for AI Vision
-        img.thumbnail((2000, 2000)) 
-        st.image(img, caption="Answer Sheet Detected", width=400)
+        img.thumbnail((1200, 1200), Image.Resampling.LANCZOS) # Quality maintain, size kam
+        
+        st.image(img, caption="Sheet Optimized for Scanning", width=300)
 
-        # --- STEP A: THE VISION SCANNER ---
         if not st.session_state.extracted_text:
             if st.button(f"🔍 Scan Handwriting ({eval_cost} Credits)"):
                 if use_credits(eval_cost):
-                    with st.spinner("Professor is decoding your handwriting..."):
-                        success = False
-                        # 🚀 TRY 1: GEMINI 1.5 FLASH (Fastest)
+                    placeholder = st.empty()
+                    placeholder.info("⏳ Connecting to University Servers...")
+                    
+                    # ✅ STEP 2: RETRY LOGIC (Timeout Fix)
+                    success = False
+                    for attempt in range(3): # 3 baar try karega
                         try:
                             vision_model = genai.GenerativeModel('gemini-1.5-flash')
+                            # Request timeout handle karne ke liye simple call
                             response = vision_model.generate_content([
-                                "You are a specialized OCR for engineering handwriting. Transcribe everything exactly as written.", 
+                                "Transcribe this engineering answer precisely. Ignore background noise.", 
                                 img
                             ])
                             if response.text:
                                 st.session_state.extracted_text = response.text
                                 success = True
-                        except Exception as e:
-                            # 🔄 TRY 2: GEMINI 1.5 PRO (Backup)
-                            try:
-                                backup_model = genai.GenerativeModel('gemini-1.5-pro')
-                                response = backup_model.generate_content(["OCR this handwriting:", img])
-                                st.session_state.extracted_text = response.text
-                                success = True
-                            except Exception as e2:
-                                # 💸 REFUND LOGIC
-                                st.session_state.user_data['credits'] += eval_cost
-                                st.error("University Servers Busy. Credits Refunded. Try again in 10s.")
-                        
-                        if success:
-                            st.rerun()
+                                break
+                        except Exception:
+                            placeholder.warning(f"⚠️ Slow Connection... Retrying ({attempt+1}/3)")
+                            time.sleep(2) # 2 sec ka gap taaki net stable ho jaye
+                    
+                    if success:
+                        placeholder.success("✅ Scan Complete!")
+                        st.rerun()
+                    else:
+                        st.session_state.user_data['credits'] += eval_cost # Refund
+                        st.error("❌ High Latency. Please check your internet and try again. Credits Refunded.")
                 else:
-                    st.error("Bhai credits khatam! Sidebar se top-up kar lo.")
+                    st.error("Bhai credits khatam!")
 
-    # --- STEP B: THE BRAIN (PROFESSOR EVALUATION) ---
+    # --- STEP B: EVALUATION ENGINE (GROQ - FASTEST) ---
     if st.session_state.extracted_text and not st.session_state.eval_result:
-        st.success("✅ Handwriting Scanned Successfully!")
+        st.markdown("### 📝 Scanned Content")
+        edited_text = st.text_area("AI ne ye padha (Edit if needed):", value=st.session_state.extracted_text, height=200)
         
-        st.markdown("### 📝 Review & Edit Scanned Text")
-        # User can fix OCR mistakes here
-        edited_text = st.text_area("Correct if AI misread anything:", 
-                                  value=st.session_state.extracted_text, height=200)
-        
-        if st.button("📝 Finalize & Grade Answer"):
-            with st.spinner("AI Professor is grading..."):
+        if st.button("📝 Finalize & Grade"):
+            with st.spinner("Professor is marking..."):
                 try:
-                    marking_prompt = f"""
-                    Evaluate this Engineering Answer based on technical accuracy and university standards.
-                    Max Marks: 10.
-                    Answer Text: {edited_text}
-                    
-                    Return ONLY a JSON object:
-                    {{
-                        "question": "Name of the topic",
-                        "marks": integer_score,
-                        "feedback": "constructive feedback",
-                        "improvement": "how to get more marks"
-                    }}
-                    """
-                    
-                    # Groq Llama 3.3 for high-speed grading
+                    # Groq is much faster than Gemini for text, so no timeout here
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": marking_prompt}],
+                        messages=[{"role": "user", "content": f"Grade this answer out of 10 with feedback: {edited_text}"}],
                         response_format={"type": "json_object"}
                     )
-                    
                     st.session_state.eval_result = json.loads(res.choices[0].message.content)
                     st.rerun()
-                except Exception as e:
-                    st.error("Marking Engine busy. Try in 5 seconds.")
+                except:
+                    st.error("Marking Engine busy. Try again.")
 
-    # --- FINAL DISPLAY: THE MARK SHEET ---
+    # --- FINAL SCORECARD ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
         st.markdown("---")
+        score = res.get("marks", 0)
+        st.markdown(f"""
+            <div style="background: #1c2128; border: 2px solid #4CAF50; padding: 20px; border-radius: 15px; text-align: center;">
+                <h1 style="color: #4CAF50; margin:0;">SCORE: {score}/10</h1>
+                <p style="color: white; margin-top:10px;"><b>Feedback:</b> {res.get('feedback', '')}</p>
+            </div>
+        """, unsafe_allow_html=True)
         
-        col_res1, col_res2 = st.columns([0.4, 0.6])
-        with col_res1:
-            score = res.get("marks", 0)
-            score_color = "#4CAF50" if score >= 6 else "#FF4B4B"
-            st.markdown(f"""
-                <div style="background: #1c2128; border: 3px solid {score_color}; padding: 30px; border-radius: 25px; text-align: center;">
-                    <p style="color: #8b949e; font-size: 1rem; margin: 0; font-weight: bold;">OFFICIAL SCORE</p>
-                    <h1 style="color: {score_color}; font-size: 5rem; margin: 10px 0;">{score}/10</h1>
-                </div>
-            """, unsafe_allow_html=True)
-            
-        with col_res2:
-            st.markdown(f"### 🎯 Topic: `{res.get('question', 'Analyzing...')}`")
-            st.info(f"**Professor's Feedback:**\n\n{res.get('feedback', 'No feedback provided.')}")
-            st.warning(f"**How to Improve:**\n\n{res.get('improvement', 'Keep practicing.')}")
-        
-        if st.button("🔄 Grade Another Sheet"):
+        if st.button("🔄 New Scan"):
             st.session_state.extracted_text = None
             st.session_state.eval_result = None
             st.rerun()
