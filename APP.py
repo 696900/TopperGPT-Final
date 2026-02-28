@@ -27,7 +27,7 @@ from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 # --- 🛠️ MASTER AI SETUP (V148 - STABLE VISION & ENGINE FIX) ---
-api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+api_key_gemini = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY")
 api_key_groq = st.secrets.get("GROQ_API_KEY")
 
 if api_key_gemini:
