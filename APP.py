@@ -475,72 +475,74 @@ with tab2:
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
-# --- TAB 3: TOPPERGPT PRO EVALUATOR (V161 - HYBRID VISION ENGINE) ---
+# --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
 with tab3:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Pro Moderator (Stable)</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official Moderator</h2>", unsafe_allow_html=True)
     
-    # 💰 REVENUE LOOP
     eval_cost = 5
-
     # Step-by-step state management
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="hybrid_eval_v161")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="gcv_eval_v1")
     
     if ans_file:
-        # ✅ STEP 1: Image Pre-processing for Vision Clarity
         img_raw = Image.open(ans_file).convert("RGB")
-        img_raw.thumbnail((1200, 1200)) # Net speed ke liye optimized
         st.image(img_raw, caption="Answer Sheet Detected", width=350)
 
-        # --- STEP A: THE VISION EYE (Llama-3.2-90B Vision) ---
         if not st.session_state.extracted_text:
             if st.button(f"🔍 Scan Handwriting ({eval_cost} Credits)"):
                 if use_credits(eval_cost):
                     placeholder = st.empty()
-                    placeholder.info("⚡ Neural Scanner is decoding (Fast Mode)...")
+                    placeholder.info("🚀 Connecting to Google Enterprise Servers...")
                     
                     try:
-                        # Converting image for Groq Vision
-                        buffered = io.BytesIO()
-                        img_raw.save(buffered, format="JPEG", quality=85)
-                        b64_img = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                        # Converting image to Bytes for Google API
+                        img_byte_arr = io.BytesIO()
+                        img_raw.save(img_byte_arr, format='JPEG')
+                        content = img_byte_arr.getvalue()
 
-                        # ✅ USING THE 90B GIANT (Sabse powerful handwriting model)
-                        response = groq_client.chat.completions.create(
-                            model="llama-3.2-90b-vision-preview",
-                            messages=[{
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": "Transcribe this engineering handwriting exactly. Do not add any conversational text, just the transcription."},
-                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"}}
-                                ]
-                            }]
-                        )
+                        # ✅ GOOGLE CLOUD VISION API CALL
+                        # Iske liye st.secrets["GOOGLE_CLOUD_API_KEY"] hona zaroori hai
+                        api_key = st.secrets["GOOGLE_API_KEY"] # Ya alag GCV key
+                        url = f"https://vision.googleapis.com/v1/images:annotate?key={api_key}"
                         
-                        st.session_state.extracted_text = response.choices[0].message.content
-                        placeholder.success("✅ Handwriting Decoded!")
-                        st.rerun()
+                        payload = {
+                            "requests": [{
+                                "image": {"content": base64.b64encode(content).decode('utf-8')},
+                                "features": [{"type": "DOCUMENT_TEXT_DETECTION"}]
+                            }]
+                        }
+                        
+                        response = requests.post(url, json=payload)
+                        data = response.json()
+                        
+                        # Extracting text from Google's response
+                        texts = data['responses'][0].get('fullTextAnnotation', {}).get('text', "")
+                        
+                        if texts:
+                            st.session_state.extracted_text = texts
+                            placeholder.success("✅ Enterprise Scan Successful!")
+                            st.rerun()
+                        else:
+                            raise Exception("Google couldn't find any text.")
 
                     except Exception as e:
-                        # 🛡️ THE REFUND GUARD
-                        st.session_state.user_data['credits'] += eval_cost
-                        st.error(f"⚠️ Scan Blocked by Server. Credits Refunded. Error: {str(e)[:50]}")
+                        st.session_state.user_data['credits'] += eval_cost # Refund
+                        st.error(f"❌ Connection Error. Credits Refunded. Details: {str(e)[:50]}")
                 else:
-                    st.error("Bhai credits khatam! Sidebar se top-up kar lo.")
+                    st.error("Bhai credits khatam!")
 
-    # --- BRAIN & RESULT SECTION (Kept Intact for Topper Quality) ---
+    # --- BRAIN SECTION (GROQ - LOGIC KE LIYE MAST HAI) ---
     if st.session_state.extracted_text and not st.session_state.eval_result:
         st.markdown("### 📝 Scanned Content")
-        edited_text = st.text_area("AI ne ye padha hai (Edit if needed):", 
-                                  value=st.session_state.extracted_text, height=200)
+        edited_text = st.text_area("Final Review:", value=st.session_state.extracted_text, height=200)
         
         if st.button("📝 Finalize & Grade"):
-            with st.spinner("University Professor is marking..."):
+            with st.spinner("AI Professor is marking..."):
                 try:
                     # Llama-3.3-70B for the actual logic/grading
-                    marking_prompt = f"Evaluate this engineering answer (Out of 10) based on technical accuracy: {edited_text}"
+                    marking_prompt = f"Evaluate this engineering answer (Out of 10): {edited_text}"
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": marking_prompt}],
@@ -549,29 +551,7 @@ with tab3:
                     st.session_state.eval_result = json.loads(res.choices[0].message.content)
                     st.rerun()
                 except Exception:
-                    st.error("Marking Engine busy. Try again.")
-
-    # --- FINAL SCORECARD ---
-    if st.session_state.eval_result:
-        res = st.session_state.eval_result
-        st.markdown("---")
-        score = res.get("marks", 0)
-        color = "#4CAF50" if score > 6 else "#ff4b4b"
-        
-        st.markdown(f"""
-            <div style="background: #1c2128; border: 2px solid {color}; padding: 25px; border-radius: 20px; text-align: center;">
-                <p style="color: #8b949e; font-size: 0.9rem; margin: 0;">OFFICIAL SCORE</p>
-                <h1 style="color: {color}; font-size: 4rem; margin: 10px 0;">{score}/10</h1>
-                <hr style="border-color: #30363d;">
-                <p style="color: white; text-align: left;"><b>Feedback:</b> {res.get('feedback', 'N/A')}</p>
-                <p style="color: #eab308; text-align: left;"><b>Improvement:</b> {res.get('improvement', 'N/A')}</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("🔄 Evaluate Another Answer"):
-            st.session_state.extracted_text = None
-            st.session_state.eval_result = None
-            st.rerun()
+                    st.error("Marking Engine busy.")
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V153 - REAL DOWNLOAD & MOBILE FIX) ---
 with tab4:
