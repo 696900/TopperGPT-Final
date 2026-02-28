@@ -214,33 +214,42 @@ with st.sidebar:
         st.session_state.user_data = None; st.rerun()
 
 # --- 💎 THE FRONT-FACE CREDIT BOX (Saamne Dikhega!) ---
-# --- 💎 THE COMPACT CREDIT BANNER (V155 - SPACE SAVER) ---
+# --- 💎 THE SLIM WELCOME BANNER (V156 - TOPPER EDITION) ---
 if st.session_state.get("user_data"):
     with st.container():
         st.markdown(f"""
         <div style="
             background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-            padding: 12px 20px;
-            border-radius: 12px;
+            padding: 10px 20px;
+            border-radius: 10px;
             border: 1px solid #4CAF50;
             text-align: center;
-            margin: 5px 0px 15px 0px;
-            box-shadow: 0px 4px 12px rgba(0,0,0,0.4);
+            margin: 0px 0px 15px 0px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
-            gap: 15px;
         ">
-            <span style="color: #4CAF50; font-weight: bold; font-size: 13px; letter-spacing: 1px;">
-                🎓 TOPPER STATUS:
-            </span>
-            <span style="color: white; font-size: 20px; font-weight: 800;">
-                {st.session_state.user_data['credits']} Credits
-            </span>
-            <span style="color: #8b949e; font-size: 11px; font-style: italic; margin-left: 10px;">
-                Ready to Scan & Research 🚀
-            </span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🎓</span>
+                <span style="color: white; font-weight: bold; font-size: 15px; letter-spacing: 0.5px;">
+                    Welcome, <span style="color: #4CAF50;">Topper!</span>
+                </span>
+            </div>
+            <div style="background: rgba(76, 175, 80, 0.1); padding: 5px 15px; border-radius: 20px; border: 1px solid #4CAF50;">
+                <span style="color: white; font-weight: 800; font-size: 16px;">
+                    {st.session_state.user_data['credits']} Credits
+                </span>
+            </div>
+            <div style="color: #8b949e; font-size: 11px; font-weight: 500; display: class-desktop;">
+                Ready to Ace Exams? 🚀
+            </div>
         </div>
+        <style>
+            @media (max-width: 600px) {{
+                .class-desktop {{ display: none; }}
+            }}
+        </style>
         """, unsafe_allow_html=True)
 
 # --- 5. MAIN TABS (RESTORED TITLES) ---
