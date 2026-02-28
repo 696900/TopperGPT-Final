@@ -222,6 +222,32 @@ with st.sidebar:
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None; st.rerun()
 
+# --- 💎 THE FRONT-FACE CREDIT BOX (Saamne Dikhega!) ---
+if st.session_state.get("user_data"):
+    # Mobile notch aur header se bachne ke liye container aur margin
+    with st.container():
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #4CAF50;
+            text-align: center;
+            margin: 10px 0px 25px 0px;
+            box-shadow: 0px 10px 30px rgba(0,0,0,0.5);
+        ">
+            <p style="margin: 0; color: #4CAF50; font-weight: bold; font-size: 12px; letter-spacing: 2px; text-transform: uppercase;">
+                🎓 Topper Account Active
+            </p>
+            <h2 style="margin: 10px 0; color: white; font-size: 32px; font-weight: 800;">
+                {st.session_state.user_data['credits']} Credits
+            </h2>
+            <p style="margin: 0; color: #8b949e; font-size: 13px;">
+                Handwriting Scan & MindMaps ke liye ready! 🚀
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
 # --- 5. MAIN TABS (RESTORED TITLES) ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
