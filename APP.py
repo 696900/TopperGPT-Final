@@ -122,7 +122,8 @@ st.markdown(EVAL_CSS, unsafe_allow_html=True)
 if "user_data" not in st.session_state: st.session_state.user_data = None
 
 # 🛠️ AI SETUP
-api_key = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+# 🛠️ AI SETUP (Modified for Enterprise Key Support)
+api_key = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 if api_key:
     import google.generativeai as genai
     genai.configure(api_key=api_key)
@@ -502,10 +503,14 @@ with tab3:
                         img_raw.save(img_byte_arr, format='JPEG')
                         content = img_byte_arr.getvalue()
 
-                        # ✅ GOOGLE CLOUD VISION API CALL (Using the New Name)
-                        # Make sure to name it 'VISION_ENTERPRISE_KEY' in your secrets!
-                        api_key = st.secrets["VISION_ENTERPRISE_KEY"] 
-                        url = f"https://vision.googleapis.com/v1/images:annotate?key={api_key}"
+                        # ✅ SAFE KEY RETRIEVAL: Isse Tab 2 aur baaki features nahi phatenge
+                        # Pehle Vision Enterprise Key dhundega, nahi mili toh purani Google Key
+                        api_key_vision = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY")
+                        
+                        if not api_key_vision:
+                            raise Exception("API Key missing in Secrets!")
+
+                        url = f"https://vision.googleapis.com/v1/images:annotate?key={api_key_vision}"
                         
                         payload = {
                             "requests": [{
@@ -519,7 +524,10 @@ with tab3:
                         
                         # Check for API errors (like billing not enabled)
                         if 'error' in data:
-                            raise Exception(data['error'].get('message', 'API Error'))
+                            error_msg = data['error'].get('message', 'API Error')
+                            if "billing" in error_msg.lower():
+                                raise Exception("Billing not active. Check Google Console.")
+                            raise Exception(error_msg)
 
                         # Extracting text from Google's response
                         texts = data['responses'][0].get('fullTextAnnotation', {}).get('text', "")
@@ -540,7 +548,7 @@ with tab3:
     # --- BRAIN SECTION (GROQ - LOGIC) ---
     if st.session_state.extracted_text and not st.session_state.eval_result:
         st.markdown("### 📝 Scanned Content")
-        edited_text = st.text_area("Final Review:", value=st.session_state.extracted_text, height=200)
+        edited_text = st.text_area("Final Review (You can edit this):", value=st.session_state.extracted_text, height=200)
         
         if st.button("📝 Finalize & Grade"):
             with st.spinner("AI Professor is marking..."):
