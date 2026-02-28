@@ -484,7 +484,7 @@ with tab3:
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="gcv_eval_v1")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="gcv_eval_v2")
     
     if ans_file:
         img_raw = Image.open(ans_file).convert("RGB")
@@ -502,9 +502,9 @@ with tab3:
                         img_raw.save(img_byte_arr, format='JPEG')
                         content = img_byte_arr.getvalue()
 
-                        # ✅ GOOGLE CLOUD VISION API CALL
-                        # Iske liye st.secrets["GOOGLE_CLOUD_API_KEY"] hona zaroori hai
-                        api_key = st.secrets["GOOGLE_API_KEY"] # Ya alag GCV key
+                        # ✅ GOOGLE CLOUD VISION API CALL (Using the New Name)
+                        # Make sure to name it 'VISION_ENTERPRISE_KEY' in your secrets!
+                        api_key = st.secrets["VISION_ENTERPRISE_KEY"] 
                         url = f"https://vision.googleapis.com/v1/images:annotate?key={api_key}"
                         
                         payload = {
@@ -517,6 +517,10 @@ with tab3:
                         response = requests.post(url, json=payload)
                         data = response.json()
                         
+                        # Check for API errors (like billing not enabled)
+                        if 'error' in data:
+                            raise Exception(data['error'].get('message', 'API Error'))
+
                         # Extracting text from Google's response
                         texts = data['responses'][0].get('fullTextAnnotation', {}).get('text', "")
                         
@@ -529,11 +533,11 @@ with tab3:
 
                     except Exception as e:
                         st.session_state.user_data['credits'] += eval_cost # Refund
-                        st.error(f"❌ Connection Error. Credits Refunded. Details: {str(e)[:50]}")
+                        st.error(f"❌ Connection Error. Credits Refunded. Details: {str(e)[:70]}")
                 else:
                     st.error("Bhai credits khatam!")
 
-    # --- BRAIN SECTION (GROQ - LOGIC KE LIYE MAST HAI) ---
+    # --- BRAIN SECTION (GROQ - LOGIC) ---
     if st.session_state.extracted_text and not st.session_state.eval_result:
         st.markdown("### 📝 Scanned Content")
         edited_text = st.text_area("Final Review:", value=st.session_state.extracted_text, height=200)
@@ -541,7 +545,6 @@ with tab3:
         if st.button("📝 Finalize & Grade"):
             with st.spinner("AI Professor is marking..."):
                 try:
-                    # Llama-3.3-70B for the actual logic/grading
                     marking_prompt = f"Evaluate this engineering answer (Out of 10): {edited_text}"
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
@@ -552,6 +555,18 @@ with tab3:
                     st.rerun()
                 except Exception:
                     st.error("Marking Engine busy.")
+
+    # --- DISPLAY RESULT ---
+    if st.session_state.eval_result:
+        res = st.session_state.eval_result
+        score = res.get("marks", 0)
+        st.success(f"### Score: {score}/10")
+        st.write(f"**Feedback:** {res.get('feedback', '')}")
+        
+        if st.button("🔄 New Scan"):
+            st.session_state.extracted_text = None
+            st.session_state.eval_result = None
+            st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V153 - REAL DOWNLOAD & MOBILE FIX) ---
 with tab4:
