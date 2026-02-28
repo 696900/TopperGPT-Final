@@ -25,15 +25,6 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
-# ✅ FIXED: Alert tabhi dikhega jab user_data sach mein exist karega
-# Purana 'if st.session_state.user_data' wala alert delete kar aur ye daal:
-if st.session_state.get("user_data"):
-    st.markdown(f"""
-    <div style="background: rgba(30, 60, 114, 0.4); padding: 10px; border-radius: 10px; border: 1px solid #4CAF50; text-align: center; margin-bottom: 20px;">
-        🎓 <span style="color: #4CAF50; font-weight: bold;">Topper Status:</span> 
-        You have <b>{st.session_state.user_data['credits']} Credits</b> in your wallet.
-    </div>
-    """, unsafe_allow_html=True)
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 # --- 🛠️ MASTER AI SETUP (V148 - STABLE VISION & ENGINE FIX) ---
 api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
