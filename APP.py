@@ -26,9 +26,14 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # ✅ FIXED: Alert tabhi dikhega jab user_data sach mein exist karega
-if st.session_state.get("user_data") is not None:
-    st.info(f"💡 Welcome Topper! Your Wallet: **{st.session_state.user_data['credits']} Credits** available. (Check Sidebar for Top-up)")
-
+# Purana 'if st.session_state.user_data' wala alert delete kar aur ye daal:
+if st.session_state.get("user_data"):
+    st.markdown(f"""
+    <div style="background: rgba(30, 60, 114, 0.4); padding: 10px; border-radius: 10px; border: 1px solid #4CAF50; text-align: center; margin-bottom: 20px;">
+        🎓 <span style="color: #4CAF50; font-weight: bold;">Topper Status:</span> 
+        You have <b>{st.session_state.user_data['credits']} Credits</b> in your wallet.
+    </div>
+    """, unsafe_allow_html=True)
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 # --- 🛠️ MASTER AI SETUP (V148 - STABLE VISION & ENGINE FIX) ---
 api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
@@ -544,7 +549,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V151 - LARGE RENDER & SCROLL FIX) ---
+# --- TAB 4: CONCEPT MINDMAP (V153 - REAL DOWNLOAD & MOBILE FIX) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
 
@@ -617,11 +622,22 @@ with tab4:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- 🎭 THE RENDERER: LARGE-SCALE VIEW ---
+    # --- 🎭 THE RENDERER: LARGE-SCALE VIEW WITH DOWNLOAD ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
-        # Added Marathi-Feedback Fix: Download Guide
-        st.success("📸 **Topper Tip:** Diagram ko bada dekhne ke liye scroll karein. Download karne ke liye Right-Click karke 'Save Image' karein.")
+        
+        # ✅ NEW: Proper Download & Mobile Layout
+        down_col1, down_col2 = st.columns([0.7, 0.3])
+        with down_col1:
+            st.success("📸 **Topper Tip:** Diagram bada dekhne ke liye scroll karein.")
+        with down_col2:
+            st.download_button(
+                label="📥 Download Map",
+                data=st.session_state.last_mm_code,
+                file_name=f"TopperGPT_{mm_input}.mmd",
+                mime="text/plain",
+                use_container_width=True
+            )
         
         import streamlit.components.v1 as components
         
