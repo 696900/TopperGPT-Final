@@ -25,8 +25,8 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
-# Login ke turant baad ye alert daal do (Tab 1 ke upar)
-if st.session_state.user_data:
+# ✅ FIXED: Alert tabhi dikhega jab user_data sach mein exist karega
+if st.session_state.get("user_data") is not None:
     st.info(f"💡 Welcome Topper! Your Wallet: **{st.session_state.user_data['credits']} Credits** available. (Check Sidebar for Top-up)")
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
