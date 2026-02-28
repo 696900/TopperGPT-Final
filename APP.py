@@ -26,35 +26,47 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 🛠️ MASTER AI SETUP (V148 - STABLE VISION & ENGINE FIX) ---
-api_key_gemini = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY")
-api_key_groq = st.secrets.get("GROQ_API_KEY")
+# --- 🛠️ MASTER AI SETUP (V148 - STABLE VISION & ENGINE FIX + LAG-FREE OPTIMIZATION) ---
 
-if api_key_gemini:
-    import google.generativeai as genai
-    genai.configure(api_key=api_key_gemini)
+@st.cache_resource
+def initialize_all_ai():
+    # Keys retrieval (Same logic as yours)
+    api_key_gemini = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+    api_key_groq = st.secrets.get("GROQ_API_KEY")
     
-    # ✅ STABLE MODEL CONFIG (Added for Tab 3 & Vision Fix)
-    # Isse v1beta ka 404 error hamesha ke liye khatam ho jayega
-    model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash', 
-        generation_config={"temperature": 0.1}
-    )
-    
-    # LlamaIndex Settings (Stable Embedding - Kept Intact)
-    from llama_index.embeddings.gemini import GeminiEmbedding
-    from llama_index.core import Settings
-    Settings.embed_model = GeminiEmbedding(
-        model_name="models/text-embedding-004", 
-        api_key=api_key_gemini
-    )
+    loaded_model = None
+    loaded_groq_client = None
 
-if api_key_groq:
-    from llama_index.llms.groq import Groq as LlamaGroq
-    from groq import Groq
-    # Groq Setup (Kept Intact)
-    Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
-    groq_client = Groq(api_key=api_key_groq)
+    if api_key_gemini:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key_gemini)
+        
+        # ✅ STABLE MODEL CONFIG (Added for Tab 3 & Vision Fix)
+        loaded_model = genai.GenerativeModel(
+            model_name='gemini-1.5-flash', 
+            generation_config={"temperature": 0.1}
+        )
+        
+        # LlamaIndex Settings (Stable Embedding - Kept Intact)
+        from llama_index.embeddings.gemini import GeminiEmbedding
+        from llama_index.core import Settings
+        Settings.embed_model = GeminiEmbedding(
+            model_name="models/text-embedding-004", 
+            api_key=api_key_gemini
+        )
+
+    if api_key_groq:
+        from llama_index.llms.groq import Groq as LlamaGroq
+        from groq import Groq
+        from llama_index.core import Settings
+        # Groq Setup (Kept Intact)
+        Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
+        loaded_groq_client = Groq(api_key=api_key_groq)
+        
+    return loaded_model, loaded_groq_client
+
+# MASTER CALL: Ab ye objects poore app mein use honge bina lag ke
+model, groq_client = initialize_all_ai()
 # ==========================================
 # --- STEP 1: GLOBAL STABLE AI SETUP (FIXED) ---
 # ==========================================
@@ -481,11 +493,10 @@ with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official Moderator</h2>", unsafe_allow_html=True)
     
     eval_cost = 5
-    # Step-by-step state management
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="gcv_eval_vfinal")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="gcv_final_fix")
     
     if ans_file:
         img_raw = Image.open(ans_file).convert("RGB")
@@ -498,20 +509,16 @@ with tab3:
                     placeholder.info("🚀 Connecting to Google Enterprise Servers...")
                     
                     try:
-                        # ✅ FIXED KEY LOGIC: Secrets ke hisaab se prioritize kiya hai
-                        api_key_vision = st.secrets.get("GEMINI_API_KEY") or \
-                                         st.secrets.get("VISION_ENTERPRISE_KEY") or \
-                                         st.secrets.get("GOOGLE_API_KEY")
+                        # ✅ KEY LOGIC
+                        api_key_vision = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GEMINI_API_KEY")
                         
                         if not api_key_vision:
-                            raise Exception("API Key missing! Please check Streamlit Secrets.")
+                            raise Exception("API Key missing! Check Streamlit Secrets.")
 
-                        # Image Conversion for API
                         img_byte_arr = io.BytesIO()
                         img_raw.save(img_byte_arr, format='JPEG', quality=90)
                         content = img_byte_arr.getvalue()
 
-                        # Google Vision API Call
                         url = f"https://vision.googleapis.com/v1/images:annotate?key={api_key_vision}"
                         payload = {
                             "requests": [{
@@ -524,9 +531,11 @@ with tab3:
                         data = response.json()
                         
                         if 'error' in data:
-                            raise Exception(data['error'].get('message', 'API Error'))
+                            msg = data['error'].get('message', '')
+                            if "billing" in msg.lower():
+                                raise Exception("Billing account not linked. Enable it in Google Console.")
+                            raise Exception(msg)
 
-                        # Extracting Text
                         texts = data['responses'][0].get('fullTextAnnotation', {}).get('text', "")
                         
                         if texts:
@@ -545,14 +554,12 @@ with tab3:
     # --- BRAIN SECTION (MARKING LOGIC) ---
     if st.session_state.extracted_text and not st.session_state.eval_result:
         st.markdown("### 📝 Scanned Content")
-        edited_text = st.text_area("Final Review (Edit if needed):", value=st.session_state.extracted_text, height=200)
+        edited_text = st.text_area("Final Review:", value=st.session_state.extracted_text, height=200)
         
         if st.button("📝 Finalize & Grade"):
-            with st.spinner("University Professor is marking..."):
+            with st.spinner("AI Professor is marking..."):
                 try:
-                    # Llama-3.3-70B for the actual logic/grading
-                    marking_prompt = f"""Evaluate this engineering answer (Out of 10) based on technical accuracy. 
-                    Provide result in JSON format with 'marks' (int) and 'feedback' (string).
+                    marking_prompt = f"""Evaluate this answer (Out of 10). Return JSON with 'marks' and 'feedback'.
                     Answer: {edited_text}"""
                     
                     res = groq_client.chat.completions.create(
@@ -563,22 +570,14 @@ with tab3:
                     st.session_state.eval_result = json.loads(res.choices[0].message.content)
                     st.rerun()
                 except Exception:
-                    st.error("Marking Engine busy. Try again.")
+                    st.error("Marking Engine busy.")
 
-    # --- SCORECARD DISPLAY ---
+    # --- SCORECARD ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
-        score = res.get("marks", 0)
-        color = "#4CAF50" if score > 5 else "#ff4b4b"
-        
-        st.markdown(f"""
-            <div style="background: #1c2128; border: 2px solid {color}; padding: 20px; border-radius: 15px; text-align: center;">
-                <h3 style="color: {color}; margin: 0;">OFFICIAL SCORE: {score}/10</h3>
-                <p style="color: white; font-size: 0.9rem; margin-top: 10px;"><b>Feedback:</b> {res.get('feedback', 'N/A')}</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("🔄 Evaluate Another Answer"):
+        st.success(f"### SCORE: {res.get('marks', 0)}/10")
+        st.info(f"**Feedback:** {res.get('feedback', '')}")
+        if st.button("🔄 New Scan"):
             st.session_state.extracted_text = None
             st.session_state.eval_result = None
             st.rerun()
