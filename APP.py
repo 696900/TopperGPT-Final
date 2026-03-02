@@ -564,7 +564,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V154 - IMAGE DOWNLOAD FIX) ---
+# --- TAB 4: CONCEPT MINDMAP (V155 - SVG DOWNLOAD FIX - NO DELETIONS) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
 
@@ -591,9 +591,12 @@ with tab4:
                             context_res = qe.query(f"Explain {mm_input} like a textbook: working physics, internal mechanisms, and core components.")
                             context = f"PDF Context: {context_res.response}"
 
+                        # ✅ MASTER PROMPT: Strictly forcing EXPLAINED TECHNICAL CONTENT & VALIDATION
                         prompt = f"""
                         Act as an Engineering Professor. Task: Create a Mermaid flowchart for: '{mm_input}'. 
+                        
                         VALIDATION: If '{mm_input}' is nonsense, a single letter, or non-educational, return ONLY 'INVALID_TOPIC'.
+                        
                         Rules for "Bible" Quality:
                         1. Start with 'graph LR'.
                         2. ROOT is 'ROOT(({mm_input}))'.
@@ -634,40 +637,58 @@ with tab4:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
 
+    # --- 🎭 THE RENDERER: SVG FIX VERSION (NO SIDE-CUTTING) ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
-        
-        # ✅ FIX: Button ab direct image download trigger karega browser script ke throw
-        st.info("📸 **Topper Tip:** Diagram ko image ke roop mein save karne ke liye niche wala button dabayein.")
+        st.info("📸 **Topper Tip:** Poora diagram bina kate save karne ke liye 'Download as SVG' dabayein.")
         
         import streamlit.components.v1 as components
         
-        # Optimized HTML with html2canvas for Image Download
+        # New HTML using Mermaid.render for full SVG capture to avoid side cutting
         html_code = f"""
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        <div id="capture_area" style="background:#0d1117; padding:30px; border-radius:15px; border:2px solid #4CAF50; overflow:auto; width:100%;">
-            <div class="mermaid" style="min-width:1200px; display:flex; justify-content:center;">
-            {st.session_state.last_mm_code}
+        <div id="graphDiv" style="background:#0d1117; padding:20px; border-radius:15px; border:2px solid #4CAF50; overflow:auto; width:100%;">
             </div>
-        </div>
         <br>
-        <button onclick="downloadImage()" style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold; width:100%;">
-            📥 Download as PNG Image
+        <button id="downloadBtn" style="background:#4CAF50; color:white; border:none; padding:12px 20px; border-radius:8px; cursor:pointer; font-weight:bold; width:100%; font-size:16px;">
+            📥 Download as SVG (Full High Quality)
         </button>
 
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({{ startOnLoad:true, theme:'dark', securityLevel:'loose', flowchart:{{useMaxWidth:false, htmlLabels:true, curve:'basis'}}}});
+            mermaid.initialize({{ 
+                startOnLoad: false, 
+                theme: 'dark', 
+                securityLevel: 'loose', 
+                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis' }}
+            }});
             
-            window.downloadImage = function() {{
-                const area = document.getElementById('capture_area');
-                html2canvas(area, {{ backgroundColor: "#0d1117", scale: 2 }}).then(canvas => {{
-                    const link = document.createElement('a');
-                    link.download = 'TopperGPT_MindMap_{mm_input}.png';
-                    link.href = canvas.toDataURL("image/png");
-                    link.click();
-                }});
-            }};
+            const graphDefinition = `{st.session_state.last_mm_code}`;
+            const graphDiv = document.getElementById('graphDiv');
+
+            // Render logic to prevent cutting
+            try {{
+                const {{ svg }} = await mermaid.render('mermaid-svg', graphDefinition);
+                graphDiv.innerHTML = svg;
+                
+                // Adjustment for full visibility
+                const svgElement = graphDiv.querySelector('svg');
+                svgElement.style.maxWidth = 'none';
+                svgElement.style.height = 'auto';
+            }} catch (e) {{
+                graphDiv.innerHTML = "<p style='color:red;'>Diagram Render Error. Please try again.</p>";
+            }}
+
+            // SVG Download (Full Detection)
+            document.getElementById('downloadBtn').addEventListener('click', () => {{
+                const svgContent = graphDiv.innerHTML;
+                const blob = new Blob([svgContent], {{type: 'image/svg+xml'}});
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'TopperGPT_MindMap_{mm_input}.svg';
+                link.click();
+                URL.revokeObjectURL(url);
+            }});
         </script>
         """
         components.html(html_code, height=850, scrolling=True)
