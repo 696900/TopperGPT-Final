@@ -30,7 +30,7 @@ from llama_index.core import Settings
 
 @st.cache_resource
 def initialize_all_ai():
-    # Keys retrieval (Same logic as yours)
+    # Keys retrieval (Same logic as yours - 100% Intact)
     api_key_gemini = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
     
@@ -41,7 +41,7 @@ def initialize_all_ai():
         import google.generativeai as genai
         genai.configure(api_key=api_key_gemini)
         
-        # ✅ STABLE MODEL CONFIG (Added for Tab 3 & Vision Fix)
+        # ✅ STABLE MODEL CONFIG (Added for Tab 3 & Vision Fix - Kept Intact)
         loaded_model = genai.GenerativeModel(
             model_name='gemini-1.5-flash', 
             generation_config={"temperature": 0.1}
@@ -59,13 +59,16 @@ def initialize_all_ai():
         from llama_index.llms.groq import Groq as LlamaGroq
         from groq import Groq
         from llama_index.core import Settings
+        
         # Groq Setup (Kept Intact)
+        # Isko Settings mein initialize karne se RAG features (Tab 1, 7) fast ho jayenge
         Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
         loaded_groq_client = Groq(api_key=api_key_groq)
         
     return loaded_model, loaded_groq_client
 
 # MASTER CALL: Ab ye objects poore app mein use honge bina lag ke
+# initialize_all_ai() ko ek baar call karke models ko cache (memory) mein lock kar diya hai
 model, groq_client = initialize_all_ai()
 # ==========================================
 # --- STEP 1: GLOBAL STABLE AI SETUP (FIXED) ---
