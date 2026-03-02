@@ -564,7 +564,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V153 - REAL DOWNLOAD & MOBILE FIX) ---
+# --- TAB 4: CONCEPT MINDMAP (V154 - IMAGE DOWNLOAD FIX) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
 
@@ -591,12 +591,9 @@ with tab4:
                             context_res = qe.query(f"Explain {mm_input} like a textbook: working physics, internal mechanisms, and core components.")
                             context = f"PDF Context: {context_res.response}"
 
-                        # ✅ MASTER PROMPT: Strictly forcing EXPLAINED TECHNICAL CONTENT & VALIDATION
                         prompt = f"""
                         Act as an Engineering Professor. Task: Create a Mermaid flowchart for: '{mm_input}'. 
-                        
                         VALIDATION: If '{mm_input}' is nonsense, a single letter, or non-educational, return ONLY 'INVALID_TOPIC'.
-                        
                         Rules for "Bible" Quality:
                         1. Start with 'graph LR'.
                         2. ROOT is 'ROOT(({mm_input}))'.
@@ -637,54 +634,43 @@ with tab4:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- 🎭 THE RENDERER: LARGE-SCALE VIEW WITH DOWNLOAD ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
         
-        # ✅ NEW: Proper Download & Mobile Layout
-        down_col1, down_col2 = st.columns([0.7, 0.3])
-        with down_col1:
-            st.success("📸 **Topper Tip:** Diagram bada dekhne ke liye scroll karein.")
-        with down_col2:
-            st.download_button(
-                label="📥 Download Map",
-                data=st.session_state.last_mm_code,
-                file_name=f"TopperGPT_{mm_input}.mmd",
-                mime="text/plain",
-                use_container_width=True
-            )
+        # ✅ FIX: Button ab direct image download trigger karega browser script ke throw
+        st.info("📸 **Topper Tip:** Diagram ko image ke roop mein save karne ke liye niche wala button dabayein.")
         
         import streamlit.components.v1 as components
         
-        # Fixed the compression by setting min-width to 1500px
+        # Optimized HTML with html2canvas for Image Download
         html_code = f"""
-        <div id="capture_area" style="
-            background: #0d1117; 
-            padding: 30px; 
-            border-radius: 15px; 
-            border: 2px solid #4CAF50; 
-            overflow: auto; 
-            width: 100%;
-        ">
-            <div class="mermaid" style="
-                min-width: 1500px; 
-                display: flex; 
-                justify-content: center;
-            ">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <div id="capture_area" style="background:#0d1117; padding:30px; border-radius:15px; border:2px solid #4CAF50; overflow:auto; width:100%;">
+            <div class="mermaid" style="min-width:1200px; display:flex; justify-content:center;">
             {st.session_state.last_mm_code}
             </div>
         </div>
+        <br>
+        <button onclick="downloadImage()" style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold; width:100%;">
+            📥 Download as PNG Image
+        </button>
+
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({{ 
-                startOnLoad: true, 
-                theme: 'dark', 
-                securityLevel: 'loose',
-                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis' }}
-            }});
+            mermaid.initialize({{ startOnLoad:true, theme:'dark', securityLevel:'loose', flowchart:{{useMaxWidth:false, htmlLabels:true, curve:'basis'}}}});
+            
+            window.downloadImage = function() {{
+                const area = document.getElementById('capture_area');
+                html2canvas(area, {{ backgroundColor: "#0d1117", scale: 2 }}).then(canvas => {{
+                    const link = document.createElement('a');
+                    link.download = 'TopperGPT_MindMap_{mm_input}.png';
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                }});
+            }};
         </script>
         """
-        components.html(html_code, height=800, scrolling=True)
+        components.html(html_code, height=850, scrolling=True)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (STRICT SYLLABUS MODE) ---
 with tab5:
