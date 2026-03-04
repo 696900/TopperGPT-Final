@@ -1024,8 +1024,10 @@ with tab8:
     m_col1, m_col2, m_col3 = st.columns(3)
     m_col1.metric("Online Now", "142")
     m_col2.metric("Doubts Solved", "1.3K")
-    # Yahan Hall of Fame wala rank/credits dikhega
-    m_col3.metric("Community Karma", "12 XP") 
+    
+    # ✅ DYNAMIC XP DISPLAY: Ab session state se real XP uthayega
+    current_user_xp = st.session_state.user_data.get('xp', 0) if st.session_state.user_data else 0
+    m_col3.metric("Community Karma", f"{current_user_xp} XP") 
     st.divider()
 
     # --- 🎯 SQUAD SELECTION ---
@@ -1036,14 +1038,11 @@ with tab8:
     db_path = f"{clean_name}_squad"
 
     # --- 📂 RESOURCE SWAP SPECIAL FEATURE ---
-    # Sirf Resource Swap squad mein hi file uploader dikhega
     if "Resource" in selected_group:
         st.info("📤 **Resource Swap:** Yahan apne notes ya PDF share karo!")
         uploaded_file = st.file_uploader("Upload Notes (PDF/Img)", type=['pdf', 'png', 'jpg', 'jpeg'])
         if uploaded_file:
             if st.button("🚀 Share to Community"):
-                # Abhi ke liye hum file name as a message bhej rahe hain
-                # Monday ko Firebase Storage link yahan aayega
                 file_msg = f"📂 Shared a Resource: {uploaded_file.name} (Ready to download)"
                 requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps({"user": "You", "msg": file_msg}))
                 st.success("File shared successfully!")
@@ -1068,18 +1067,39 @@ with tab8:
         except:
             st.warning("Connecting to community server...")
 
-    # --- ⌨️ INPUT & AI AUTO-MODERATOR ---
+    # --- ⌨️ INPUT & AI AUTO-MODERATOR (WITH REWARD LOOP) ---
     st.markdown("---")
     if u_input := st.chat_input(f"Message in {selected_group}..."):
-        # Post User Message
+        # 1. Post User Message
         requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps({"user": "You", "msg": u_input}))
         
-        # Trigger AI
+        # 🌟 NEW: Karma (XP) Reward Logic
+        if st.session_state.user_data:
+            email_clean = st.session_state.user_data['email'].replace(".", "_")
+            old_xp = st.session_state.user_data.get('xp', 0)
+            new_xp = old_xp + 2 # +2 XP per message
+            
+            # Update Firebase & Session State
+            try:
+                requests.patch(f"{FB_URL}/users/{email_clean}.json", data=json.dumps({"xp": new_xp}))
+                st.session_state.user_data['xp'] = new_xp
+                
+                # 🎁 Milestone Gift: Har 100 XP pe +5 Credits
+                if new_xp > 0 and new_xp % 100 == 0:
+                    old_credits = st.session_state.user_data.get('credits', 0)
+                    new_credits = old_credits + 5
+                    requests.patch(f"{FB_URL}/users/{email_clean}.json", data=json.dumps({"credits": new_credits}))
+                    st.session_state.user_data['credits'] = new_credits
+                    st.toast("🎁 Mastery Reward: +5 Free Credits for helping the community!", icon="🔥")
+            except:
+                pass
+
+        # 2. Trigger AI
         trigger_words = ["?", "how", "what", "explain", "kya", "kaise", "batao"]
         if any(word in u_input.lower() for word in trigger_words):
             with st.spinner("TopperGPT is typing..."):
                 try:
-                    ai_prompt = f"Act as a Mumbai University Topper. Answer this student's doubt concisely for the community chat: {u_input}"
+                    ai_prompt = f"Act as a Mumbai University Topper. Answer this student's doubt concisely: {u_input}"
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": ai_prompt}]
@@ -1095,8 +1115,8 @@ with tab8:
         st.caption("Help others to earn Karma (Contribution Credits)!")
         st.write("1. 🥇 **Rahul.MU** - 540 XP")
         st.write("2. 🥈 **Sneha_IT** - 420 XP")
-        # Yahan tera Karma (12) clear dikhega
-        st.write("3. 🥉 **You** - 12 XP")
+        # Yahan tera real XP dikhega
+        st.write(f"3. 🥉 **You** - {current_user_xp} XP")
 # --- TAB 9: LEGAL & POLICIES ---
 with tab9:
     st.header("⚖️ Legal, Terms & Privacy Policy")
