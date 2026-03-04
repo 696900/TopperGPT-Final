@@ -26,11 +26,9 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
-# --- 🛠️ MASTER AI SETUP (V148 - STABLE VISION & ENGINE FIX + LAG-FREE OPTIMIZATION) ---
-
+# --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 @st.cache_resource
 def initialize_all_ai():
-    # Keys retrieval (Same logic as yours - 100% Intact)
     api_key_gemini = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
     
@@ -40,14 +38,11 @@ def initialize_all_ai():
     if api_key_gemini:
         import google.generativeai as genai
         genai.configure(api_key=api_key_gemini)
-        
-        # ✅ STABLE MODEL CONFIG (Added for Tab 3 & Vision Fix - Kept Intact)
         loaded_model = genai.GenerativeModel(
             model_name='gemini-1.5-flash', 
             generation_config={"temperature": 0.1}
         )
         
-        # LlamaIndex Settings (Stable Embedding - Kept Intact)
         from llama_index.embeddings.gemini import GeminiEmbedding
         from llama_index.core import Settings
         Settings.embed_model = GeminiEmbedding(
@@ -60,16 +55,13 @@ def initialize_all_ai():
         from groq import Groq
         from llama_index.core import Settings
         
-        # Groq Setup (Kept Intact)
-        # Isko Settings mein initialize karne se RAG features (Tab 1, 7) fast ho jayenge
         Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
         loaded_groq_client = Groq(api_key=api_key_groq)
         
     return loaded_model, loaded_groq_client
 
-# MASTER CALL: Ab ye objects poore app mein use honge bina lag ke
-# initialize_all_ai() ko ek baar call karke models ko cache (memory) mein lock kar diya hai
 model, groq_client = initialize_all_ai()
+
 # ==========================================
 # --- STEP 1: GLOBAL STABLE AI SETUP (FIXED) ---
 # ==========================================
@@ -78,23 +70,66 @@ api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_
 if api_key_gemini:
     import google.generativeai as genai
     genai.configure(api_key=api_key_gemini)
-    
-    # LlamaIndex ke liye stable embedding model (Syllabus Tracker Fix)
     from llama_index.embeddings.gemini import GeminiEmbedding
     from llama_index.core import Settings
     Settings.embed_model = GeminiEmbedding(
         model_name="models/text-embedding-004", 
         api_key=api_key_gemini
     )
-# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (MUST BE AT TOP) ---
+
+# --- 🔐 REAL AUTH SYNC (MASTER FUNCTION) ---
+def handle_google_login(email, name):
+    email_clean = email.replace(".", "_")
+    FB_URL = "https://topper-connect-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    
+    try:
+        # 1. Check if User exists in Firebase
+        response = requests.get(f"{FB_URL}/users/{email_clean}.json")
+        user_db = response.json()
+        
+        if user_db:
+            # Purana User: Data Load Karo
+            st.session_state.user_data = user_db
+        else:
+            # Naya User: Naya account banao + 15 Credits
+            new_user = {
+                "email": email,
+                "name": name,
+                "credits": 15,
+                "xp": 0,
+                "referral_code": "TOP" + str(int(time.time()))[-4:],
+                "join_date": str(datetime.now())
+            }
+            requests.put(f"{FB_URL}/users/{email_clean}.json", data=json.dumps(new_user))
+            st.session_state.user_data = new_user
+            st.balloons()
+        return True
+    except:
+        st.error("Auth Server Down! Try again later.")
+        return False
+
+# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (FIREBASE SYNCED) ---
 def use_credits(amount):
-    """Checks and deducts credits from session state."""
+    """Checks and deducts credits from session state & Firebase."""
     if "user_data" in st.session_state and st.session_state.user_data is not None:
+        email_clean = st.session_state.user_data['email'].replace(".", "_")
         current_credits = st.session_state.user_data.get('credits', 0)
+        
         if current_credits >= amount:
-            st.session_state.user_data['credits'] -= amount
-            return True
+            new_credits = current_credits - amount
+            # 1. Update Local Session
+            st.session_state.user_data['credits'] = new_credits
+            
+            # 2. Sync to Firebase (Permanent Save)
+            try:
+                FB_URL = "https://topper-connect-default-rtdb.asia-southeast1.firebasedatabase.app/"
+                requests.patch(f"{FB_URL}/users/{email_clean}.json", 
+                             data=json.dumps({"credits": new_credits}))
+                return True
+            except:
+                st.error("Database Sync Error!")
     return False
+
 # --- 1. CONFIGURATION ---
 st.set_page_config(
     page_title="TopperGPT", 
@@ -108,23 +143,18 @@ EVAL_CSS = """
 <style>
 .block-container { max-width: 92% !important; padding-top: 2rem !important; }
 .stApp { background-color: #0d1117 !important; color: #ffffff !important; }
-
-/* Sidebar & Wallet */
 [data-testid="stSidebar"] { background-color: #161b22 !important; border-right: 1px solid #30363d; }
 .wallet-card { 
     background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
     padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; 
     text-align: center; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
-
-/* Payment Option Styles */
 .pay-card {
     background: #1c2128; border: 1px solid #30363d;
     padding: 12px; border-radius: 10px; margin-bottom: 10px;
     transition: 0.3s; cursor: pointer;
 }
 .pay-card:hover { border-color: #4CAF50; background: #22272e; }
-
 .price-tag {
     background: #4CAF50; color: white; padding: 2px 8px; 
     border-radius: 5px; font-size: 13px; font-weight: bold;
@@ -136,41 +166,39 @@ st.markdown(EVAL_CSS, unsafe_allow_html=True)
 # --- 2. GLOBAL LOGIC & KEYS ---
 if "user_data" not in st.session_state: st.session_state.user_data = None
 
-# 🛠️ AI SETUP
-# 🛠️ AI SETUP (Modified for Enterprise Key Support)
+# 🛠️ AI SETUP (Enterprise Support)
 api_key = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 if api_key:
-    import google.generativeai as genai
     genai.configure(api_key=api_key)
-    from llama_index.embeddings.gemini import GeminiEmbedding
-    from llama_index.core import Settings
     Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key)
 
-from groq import Groq
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- 3. LOGIN PAGE ---
+# --- 3. LOGIN PAGE (FIREBASE CONNECTED) ---
 if st.session_state.user_data is None:
     _, col_mid, _ = st.columns([1, 1.2, 1])
     with col_mid:
-        st.markdown('<div style="text-align:center; padding:40px; background:#161b22; border-radius:20px; border:1px solid #4CAF50;">'
-                    '<h1 style="color:#4CAF50; font-style:italic; margin:0;">TopperGPT</h1>'
-                    '<p style="color:#8b949e; letter-spacing: 1px;">UNIVERSITY RESEARCH PORTAL</p>'
-                    '<hr style="border-color:#30363d;"><p style="color:#4CAF50; font-weight:bold;">🎁 +15 FREE Credits on Login</p></div>', unsafe_allow_html=True)
+        st.markdown('''
+            <div style="text-align:center; padding:40px; background:#161b22; border-radius:20px; border:1px solid #4CAF50;">
+                <h1 style="color:#4CAF50; font-style:italic; margin:0;">TopperGPT</h1>
+                <p style="color:#8b949e; letter-spacing: 1px;">UNIVERSITY RESEARCH PORTAL</p>
+                <hr style="border-color:#30363d;">
+                <p style="color:#4CAF50; font-weight:bold;">🎁 +15 FREE Credits on Login</p>
+            </div>
+        ''', unsafe_allow_html=True)
+        
         if st.button("🔴 Secure Google Login", use_container_width=True):
-            import time
-            st.session_state.user_data = {
-                "email": "student@mu.edu", "credits": 15, 
-                "referral_code": "TOP" + str(int(time.time()))[-4:], "ref_claimed": False
-            }
-            st.rerun()
+            # Temporary Test Credentials (Monday ko real OAuth jodeinge)
+            test_email = "student_test@mu.edu" 
+            test_name = "Topper Student"
+            if handle_google_login(test_email, test_name):
+                st.rerun()
     st.stop()
 
-# --- 4. SIDEBAR LAYOUT (ORIGINAL ORDER) ---
+# --- 4. SIDEBAR LAYOUT ---
 with st.sidebar:
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
     
-    # Wallet Card
     st.markdown(f'''
         <div class="wallet-card">
             <p style="margin:0; font-size:11px; color:#eab308; font-weight:bold; letter-spacing:1px;">AVAILABLE CREDITS</p>
@@ -178,7 +206,6 @@ with st.sidebar:
         </div>
     ''', unsafe_allow_html=True)
 
-    # 🎁 REFERRAL SYSTEM (Back on top)
     st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-top:20px;'>🎁 REFER & EARN FREE CREDITS</p>", unsafe_allow_html=True)
     with st.container():
         st.markdown(f'''
@@ -200,8 +227,6 @@ with st.sidebar:
                     st.balloons(); st.rerun()
 
     st.markdown("---")
-    
-    # 💎 REFILL PACKS (At the bottom, with clear credit info)
     st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-bottom:15px;'>💎 REFILL YOUR CREDITS</p>", unsafe_allow_html=True)
     
     refill_packs = [
@@ -229,27 +254,20 @@ with st.sidebar:
     if st.button("🔓 Secure Logout", use_container_width=True):
         st.session_state.user_data = None; st.rerun()
 
-# --- 💎 THE FRONT-FACE CREDIT BOX (Saamne Dikhega!) ---
-# --- 💎 THE SLIM WELCOME BANNER (V156 - TOPPER EDITION) ---
+# --- 💎 THE SLIM WELCOME BANNER ---
 if st.session_state.get("user_data"):
     with st.container():
         st.markdown(f"""
         <div style="
             background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-            padding: 10px 20px;
-            border-radius: 10px;
-            border: 1px solid #4CAF50;
-            text-align: center;
-            margin: 0px 0px 15px 0px;
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 10px 20px; border-radius: 10px; border: 1px solid #4CAF50;
+            text-align: center; margin-bottom: 15px; box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+            display: flex; justify-content: space-between; align-items: center;
         ">
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 20px;">🎓</span>
                 <span style="color: white; font-weight: bold; font-size: 15px; letter-spacing: 0.5px;">
-                    Welcome, <span style="color: #4CAF50;">Topper!</span>
+                    Welcome, <span style="color: #4CAF50;">{st.session_state.user_data.get('name', 'Topper')}!</span>
                 </span>
             </div>
             <div style="background: rgba(76, 175, 80, 0.1); padding: 5px 15px; border-radius: 20px; border: 1px solid #4CAF50;">
@@ -257,18 +275,10 @@ if st.session_state.get("user_data"):
                     {st.session_state.user_data['credits']} Credits
                 </span>
             </div>
-            <div style="color: #8b949e; font-size: 11px; font-weight: 500; display: class-desktop;">
-                Ready to Ace Exams? 🚀
-            </div>
         </div>
-        <style>
-            @media (max-width: 600px) {{
-                .class-desktop {{ display: none; }}
-            }}
-        </style>
         """, unsafe_allow_html=True)
 
-# --- 5. MAIN TABS (RESTORED TITLES) ---
+# --- 5. MAIN TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 Syllabus", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
