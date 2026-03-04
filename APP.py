@@ -564,7 +564,7 @@ with tab3:
             st.session_state.eval_result = None
             st.rerun()
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
-# --- TAB 4: CONCEPT MINDMAP (V155 - SVG DOWNLOAD FIX - NO DELETIONS) ---
+# --- TAB 4: CONCEPT MINDMAP (V156 - WATERMARK EDITION) ---
 with tab4:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎨 Deep Concept Architect (Topper Edition)</h2>", unsafe_allow_html=True)
 
@@ -637,17 +637,22 @@ with tab4:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- 🎭 THE RENDERER: AUTO-FIT & ZOOM VERSION (NO CUTTING) ---
+    # --- 🎭 THE RENDERER: AUTO-FIT & ZOOM VERSION (WITH WATERMARK) ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
-        st.info("📸 **Topper Tip:** Diagram bada hai toh mouse se scroll/zoom karein. Download button poora diagram capture karega.")
+        st.info("📸 **Topper Tip:** Background mein watermark added hai. Download button poora diagram capture karega.")
         
         import streamlit.components.v1 as components
         
-        # New HTML with Zoom, Pan and Auto-Fit logic
+        # Updated HTML with Watermark Overlay
         html_code = f"""
         <div id="wrapper" style="position: relative; background:#0d1117; border-radius:15px; border:2px solid #4CAF50; width:100%; height:600px; overflow: hidden;">
-            <div id="graphDiv" style="cursor: grab; width:100%; height:100%;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); 
+                        font-size: 80px; color: rgba(255, 255, 255, 0.05); font-weight: 900; pointer-events: none; white-space: nowrap; z-index: 0;">
+                TOPPERGPT • TOPPERGPT • TOPPERGPT
+            </div>
+            
+            <div id="graphDiv" style="position: relative; cursor: grab; width:100%; height:100%; z-index: 1;">
                 </div>
         </div>
         <br>
@@ -658,7 +663,6 @@ with tab4:
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             
-            // Initialize with responsive settings
             mermaid.initialize({{ 
                 startOnLoad: false, 
                 theme: 'dark', 
@@ -670,7 +674,6 @@ with tab4:
             const graphDiv = document.getElementById('graphDiv');
 
             try {{
-                // Rendering with a unique ID
                 const {{ svg }} = await mermaid.render('mermaid-svg-v2', graphDefinition);
                 graphDiv.innerHTML = svg;
                 
@@ -682,15 +685,13 @@ with tab4:
                 graphDiv.innerHTML = "<p style='color:red; padding:20px;'>Render Error. Try a simpler topic.</p>";
             }}
 
-            // SVG Download Logic (No cutting, captures full scale)
             document.getElementById('downloadBtn').addEventListener('click', () => {{
                 const svgData = graphDiv.innerHTML;
-                const head = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 100 100">'; // Simplified for blob
                 const blob = new Blob([svgData], {{type: 'image/svg+xml;charset=utf-8'}});
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                link.download = 'TopperGPT_Full_Map.svg';
+                link.download = 'TopperGPT_Watermarked_Map.svg';
                 link.click();
                 URL.revokeObjectURL(url);
             }});
