@@ -1003,46 +1003,68 @@ with tab7:
             st.session_state.research_data = None
             st.rerun()
 # --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
+# ==========================================
+# --- TAB 8: TOPPERS CONNECT (V2.0 - COMMUNITY ECOSYSTEM) ---
+# ==========================================
 with tab8:
-    st.subheader("🤝 Topper Connect: Community Hub")
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🤝 Toppers Connect</h2>", unsafe_allow_html=True)
+    st.markdown("<i>Connecting Mumbai University's brightest minds with AI.</i>", unsafe_allow_html=True)
+
+    # 1. TOP STATS (Dopamine Hit for Community)
+    s_col1, s_col2, s_col3 = st.columns(3)
+    s_col1.metric("Online Now", "142")
+    s_col2.metric("Doubts Solved", "1.2K")
+    s_col3.metric("Your Rank", "#12")
     
-    # Session state for temporary chat (Backend storage ke liye Firebase use karenge)
-    if "community_chats" not in st.session_state:
-        st.session_state.community_chats = [
-            {"name": "Rahul (MU)", "msg": "Bhai, Applied Maths 2 ka Fourier Series ka koi shortcut hai?"},
-            {"name": "AI Topper", "msg": "Rahul, Fourier mein symmetry check karo, half calculation bach jayegi!"}
-        ]
+    st.divider()
 
-    chat_col, leader_col = st.columns([2, 1])
+    # 2. GROUP SELECTION (Mobile Optimized Pills)
+    selected_group = st.pills(
+        "Select Your Squad:", 
+        ["🌐 General", "🔢 Maths Squad", "💻 Coding Masters", "📜 MU Updates", "🎁 Resource Swap"],
+        index=0
+    )
+
+    # 3. CHAT DISPLAY (Auto-Scrollable Container)
+    # Note: Monday ko jab card aayega, hum ise Firebase se real-time connect karenge
+    chat_container = st.container(height=450, border=True)
+
+    with chat_container:
+        # Mocking the community vibes (Human + AI)
+        with st.chat_message("user", avatar="👨‍🎓"):
+            st.write("**Aryan (Sem 4)**: Bhai, Applied Maths 4 ke liye Fourier Transform ka koi short trick hai?")
+        
+        with st.chat_message("assistant", avatar="🦁"):
+            st.write("**TopperGPT (AI Moderator)**: Aryan, Fourier Transform ke liye 'Time Shifting Property' ka use karo. Waise, @Rahul (Topper) ne 'Resource Swap' mein ek cheat sheet upload ki hai, check it out!")
+
+        with st.chat_message("user", avatar="🥇"):
+            st.write("**Rahul (Gold Medalist)**: Haan Aryan, maine Unit 2 ke notes daal diye hain. Do check them!")
+
+    # 4. ACTION BAR (Gamified Input)
+    st.markdown("---")
     
-    with chat_col:
-        st.markdown("### 🗨️ Recent Doubts")
+    # Bottom Layout for Input
+    with st.container():
+        c1, c2 = st.columns([0.8, 0.2])
         
-        # Displaying chats from session state
-        for chat in st.session_state.community_chats:
-            st.markdown(f"""
-            <div class="chat-bubble">
-                <b>{chat['name']}:</b> {chat['msg']}
-            </div>
-            """, unsafe_allow_html=True)
+        with c1:
+            u_msg = st.chat_input(f"Message in {selected_group}...")
         
-        # Working Input System
-        with st.form("doubt_form", clear_on_submit=True):
-            new_msg = st.text_input("Type your doubt here...", placeholder="e.g. Working of laser")
-            submit_btn = st.form_submit_button("Post Doubt 🚀")
-            
-            if submit_btn and new_msg:
-                # Adding new doubt to the list
-                user_name = st.session_state.user.split('@')[0].capitalize()
-                st.session_state.community_chats.append({"name": user_name, "msg": new_msg})
-                st.success("Doubt posted on the wall!")
-                st.rerun() # Refreshing to show new message
+        if u_msg:
+            # Placeholder for Instant Feedback
+            st.toast(f"Message sent to {selected_group}!", icon="🚀")
+            # Logic to save to session_state (Temporary until Firebase)
+            if "community_msgs" not in st.session_state:
+                st.session_state.community_msgs = []
+            st.session_state.community_msgs.append({"user": "You", "msg": u_msg})
+            st.rerun()
 
-    with leader_col:
-        st.markdown("### 🏆 Top Contributors")
-        st.success("1. Krishna (85 Points)")
-        st.info("2. Aryan (60 Points)")
-
+    # 5. SIDEBAR / MINI WIDGET: TOP CONTRIBUTORS
+    with st.expander("🏆 Hall of Fame (Top Contributors)"):
+        st.write("1. 🥇 **Rahul.MU** (450 Credits)")
+        st.write("2. 🥈 **Sneha_IT** (380 Credits)")
+        st.write("3. 🥉 **Ishan_MECH** (310 Credits)")
+        st.caption("Help others to earn Credits & Badges!")
 # --- TAB 9: LEGAL & POLICIES ---
 with tab9:
     st.header("⚖️ Legal, Terms & Privacy Policy")
