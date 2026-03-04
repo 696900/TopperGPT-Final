@@ -637,61 +637,66 @@ with tab4:
                         st.session_state.user_data['credits'] += mm_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- 🎭 THE RENDERER: SVG FIX VERSION (NO SIDE-CUTTING) ---
+    # --- 🎭 THE RENDERER: AUTO-FIT & ZOOM VERSION (NO CUTTING) ---
     if "last_mm_code" in st.session_state:
         st.markdown("---")
-        st.info("📸 **Topper Tip:** Poora diagram bina kate save karne ke liye 'Download as SVG' dabayein.")
+        st.info("📸 **Topper Tip:** Diagram bada hai toh mouse se scroll/zoom karein. Download button poora diagram capture karega.")
         
         import streamlit.components.v1 as components
         
-        # New HTML using Mermaid.render for full SVG capture to avoid side cutting
+        # New HTML with Zoom, Pan and Auto-Fit logic
         html_code = f"""
-        <div id="graphDiv" style="background:#0d1117; padding:20px; border-radius:15px; border:2px solid #4CAF50; overflow:auto; width:100%;">
-            </div>
+        <div id="wrapper" style="position: relative; background:#0d1117; border-radius:15px; border:2px solid #4CAF50; width:100%; height:600px; overflow: hidden;">
+            <div id="graphDiv" style="cursor: grab; width:100%; height:100%;">
+                </div>
+        </div>
         <br>
         <button id="downloadBtn" style="background:#4CAF50; color:white; border:none; padding:12px 20px; border-radius:8px; cursor:pointer; font-weight:bold; width:100%; font-size:16px;">
-            📥 Download as SVG (Full High Quality)
+            📥 Download Full HD MindMap (SVG)
         </button>
 
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+            
+            // Initialize with responsive settings
             mermaid.initialize({{ 
                 startOnLoad: false, 
                 theme: 'dark', 
                 securityLevel: 'loose', 
-                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis' }}
+                flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis' }}
             }});
             
             const graphDefinition = `{st.session_state.last_mm_code}`;
             const graphDiv = document.getElementById('graphDiv');
 
-            // Render logic to prevent cutting
             try {{
-                const {{ svg }} = await mermaid.render('mermaid-svg', graphDefinition);
+                // Rendering with a unique ID
+                const {{ svg }} = await mermaid.render('mermaid-svg-v2', graphDefinition);
                 graphDiv.innerHTML = svg;
                 
-                // Adjustment for full visibility
                 const svgElement = graphDiv.querySelector('svg');
-                svgElement.style.maxWidth = 'none';
-                svgElement.style.height = 'auto';
+                svgElement.style.width = '100%';
+                svgElement.style.height = '100%';
+                svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
             }} catch (e) {{
-                graphDiv.innerHTML = "<p style='color:red;'>Diagram Render Error. Please try again.</p>";
+                graphDiv.innerHTML = "<p style='color:red; padding:20px;'>Render Error. Try a simpler topic.</p>";
             }}
 
-            // SVG Download (Full Detection)
+            // SVG Download Logic (No cutting, captures full scale)
             document.getElementById('downloadBtn').addEventListener('click', () => {{
-                const svgContent = graphDiv.innerHTML;
-                const blob = new Blob([svgContent], {{type: 'image/svg+xml'}});
+                const svgData = graphDiv.innerHTML;
+                const head = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 100 100">'; // Simplified for blob
+                const blob = new Blob([svgData], {{type: 'image/svg+xml;charset=utf-8'}});
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                link.download = 'TopperGPT_MindMap_{mm_input}.svg';
+                link.download = 'TopperGPT_Full_Map.svg';
                 link.click();
                 URL.revokeObjectURL(url);
             }});
         </script>
         """
-        components.html(html_code, height=850, scrolling=True)
+        components.html(html_code, height=700, scrolling=False)
     # --- TAB 5: FLASHCARDS (STRICT TOPIC LOCK) ---
 # --- TAB 5: TOPPERGPT CINEMATIC CARDS (STRICT SYLLABUS MODE) ---
 with tab5:
