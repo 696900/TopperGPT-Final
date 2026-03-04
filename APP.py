@@ -1004,7 +1004,7 @@ with tab7:
             st.rerun()
 # --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
 # ==========================================
-# --- TAB 8: TOPPERS CONNECT (V2.0 - COMMUNITY ECOSYSTEM) ---
+# --- TAB 8: TOPPERS CONNECT (V2.0 - COMMUNITY ECOSYSTEM - STABLE) ---
 # ==========================================
 with tab8:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🤝 Toppers Connect</h2>", unsafe_allow_html=True)
@@ -1018,15 +1018,23 @@ with tab8:
     
     st.divider()
 
-    # 2. GROUP SELECTION (Mobile Optimized Pills)
-    selected_group = st.pills(
-        "Select Your Squad:", 
-        ["🌐 General", "🔢 Maths Squad", "💻 Coding Masters", "📜 MU Updates", "🎁 Resource Swap"],
-        index=0
-    )
+    # 2. GROUP SELECTION (Fixed Error: st.pills fallback logic)
+    squad_options = ["🌐 General", "🔢 Maths Squad", "💻 Coding Masters", "📜 MU Updates", "🎁 Resource Swap"]
+    
+    try:
+        # Naye Streamlit versions ke liye
+        selected_group = st.radio(
+            "Select Your Squad:", 
+            squad_options,
+            horizontal=True,
+            index=0,
+            key="squad_stable_v1"
+        )
+    except:
+        # Purane versions ke liye fallback
+        selected_group = st.selectbox("Select Your Squad:", squad_options)
 
     # 3. CHAT DISPLAY (Auto-Scrollable Container)
-    # Note: Monday ko jab card aayega, hum ise Firebase se real-time connect karenge
     chat_container = st.container(height=450, border=True)
 
     with chat_container:
@@ -1040,24 +1048,28 @@ with tab8:
         with st.chat_message("user", avatar="🥇"):
             st.write("**Rahul (Gold Medalist)**: Haan Aryan, maine Unit 2 ke notes daal diye hain. Do check them!")
 
+        # Dynamic messages from session state
+        if "community_msgs" in st.session_state:
+            for msg in st.session_state.community_msgs:
+                with st.chat_message("user"):
+                    st.write(f"**{msg['user']}**: {msg['msg']}")
+
     # 4. ACTION BAR (Gamified Input)
     st.markdown("---")
     
-    # Bottom Layout for Input
-    with st.container():
-        c1, c2 = st.columns([0.8, 0.2])
+    # st.chat_input use karne se layout clean rehta hai
+    u_msg = st.chat_input(f"Message in {selected_group}...")
+    
+    if u_msg:
+        # Placeholder for Instant Feedback
+        st.toast(f"Message sent to {selected_group}!", icon="🚀")
         
-        with c1:
-            u_msg = st.chat_input(f"Message in {selected_group}...")
+        # Logic to save to session_state
+        if "community_msgs" not in st.session_state:
+            st.session_state.community_msgs = []
         
-        if u_msg:
-            # Placeholder for Instant Feedback
-            st.toast(f"Message sent to {selected_group}!", icon="🚀")
-            # Logic to save to session_state (Temporary until Firebase)
-            if "community_msgs" not in st.session_state:
-                st.session_state.community_msgs = []
-            st.session_state.community_msgs.append({"user": "You", "msg": u_msg})
-            st.rerun()
+        st.session_state.community_msgs.append({"user": "You", "msg": u_msg})
+        st.rerun()
 
     # 5. SIDEBAR / MINI WIDGET: TOP CONTRIBUTORS
     with st.expander("🏆 Hall of Fame (Top Contributors)"):
