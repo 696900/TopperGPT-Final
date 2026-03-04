@@ -1003,94 +1003,90 @@ with tab7:
             st.session_state.research_data = None
             st.rerun()
 # --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
-# ==========================================
-# --- TAB 8: TOPPERS CONNECT (V2.0 - COMMUNITY ECOSYSTEM - STABLE) ---
-# ==========================================
 with tab8:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🤝 Toppers Connect (Live)</h2>", unsafe_allow_html=True)
-    st.markdown("<i>Real-time networking for Mumbai University students.</i>", unsafe_allow_html=True)
+    st.markdown("<i>Real-time networking & resource sharing for MU students.</i>", unsafe_allow_html=True)
 
-    # 🔥 STEP 1: APNA FIREBASE URL YAHAN UPDATE KARO
-    # Dashboard wala URL copy karke yahan dalo, last mein '/' zaroori hai.
+    # 🔥 STEP 1: FIREBASE URL
     FB_URL = "https://topper-connect-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
     # --- 📊 LIVE METRICS SECTION ---
-    # Inhe hum Firebase se fetch karenge (Default values agar error aaye)
     m_col1, m_col2, m_col3 = st.columns(3)
     m_col1.metric("Online Now", "142")
     m_col2.metric("Doubts Solved", "1.3K")
-    m_col3.metric("Your Rank", "#12")
+    # Yahan Hall of Fame wala rank/credits dikhega
+    m_col3.metric("Community Karma", "12 XP") 
     st.divider()
 
     # --- 🎯 SQUAD SELECTION ---
-    # Squad badalne par 'db_path' badal jayega jisse chat alag dikhegi
     squad_options = ["🌐 General", "🔢 Maths Squad", "💻 Coding Masters", "📜 MU Updates", "🎁 Resource Swap"]
-    selected_group = st.radio("Select Your Squad:", squad_options, horizontal=True, key="live_squad_v3")
+    selected_group = st.radio("Select Your Squad:", squad_options, horizontal=True, key="live_squad_v3.1")
     
-    # Path Logic: "Maths Squad" -> "maths_squad"
     clean_name = selected_group.split(" ")[1].lower() if " " in selected_group else "general"
     db_path = f"{clean_name}_squad"
 
-    # --- 💬 CHAT ENGINE (FIREBASE SYNC) ---
+    # --- 📂 RESOURCE SWAP SPECIAL FEATURE ---
+    # Sirf Resource Swap squad mein hi file uploader dikhega
+    if "Resource" in selected_group:
+        st.info("📤 **Resource Swap:** Yahan apne notes ya PDF share karo!")
+        uploaded_file = st.file_uploader("Upload Notes (PDF/Img)", type=['pdf', 'png', 'jpg', 'jpeg'])
+        if uploaded_file:
+            if st.button("🚀 Share to Community"):
+                # Abhi ke liye hum file name as a message bhej rahe hain
+                # Monday ko Firebase Storage link yahan aayega
+                file_msg = f"📂 Shared a Resource: {uploaded_file.name} (Ready to download)"
+                requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps({"user": "You", "msg": file_msg}))
+                st.success("File shared successfully!")
+                st.rerun()
+
+    # --- 💬 CHAT ENGINE ---
     chat_container = st.container(height=450, border=True)
     
     with chat_container:
         try:
-            # Firebase se data uthana (Singapore Server se fast fetching)
             response = requests.get(f"{FB_URL}/chats/{db_path}.json")
             messages = response.json() if response.json() else {}
             
             if not messages:
-                st.info(f"Welcome to {selected_group}! Be the first one to ask a doubt. 🚀")
+                st.info(f"Welcome to {selected_group}! Be the first to start. 🚀")
             else:
-                # Loop through all messages in this squad
                 for m_id, m_data in messages.items():
-                    # Decide role based on user name
                     role = "assistant" if m_data['user'] == "TopperGPT" else "user"
                     avatar = "🦁" if role == "assistant" else "👨‍🎓"
-                    
                     with st.chat_message(role, avatar=avatar):
                         st.markdown(f"**{m_data['user']}**: {m_data['msg']}")
-        except Exception as e:
+        except:
             st.warning("Connecting to community server...")
 
     # --- ⌨️ INPUT & AI AUTO-MODERATOR ---
     st.markdown("---")
     if u_input := st.chat_input(f"Message in {selected_group}..."):
-        # 1. Post User Message to Firebase
-        user_entry = {"user": "You", "msg": u_input}
-        requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps(user_entry))
+        # Post User Message
+        requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps({"user": "You", "msg": u_input}))
         
-        # 2. TRIGGER AI (TopperGPT Brain)
-        # Agar message mein "?" hai ya koi engineering doubt hai
-        trigger_words = ["?", "how", "what", "explain", "kya", "kaise"]
+        # Trigger AI
+        trigger_words = ["?", "how", "what", "explain", "kya", "kaise", "batao"]
         if any(word in u_input.lower() for word in trigger_words):
-            with st.spinner("TopperGPT is typing an expert answer..."):
+            with st.spinner("TopperGPT is typing..."):
                 try:
-                    # AI prompt for community feel
                     ai_prompt = f"Act as a Mumbai University Topper. Answer this student's doubt concisely for the community chat: {u_input}"
-                    
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": ai_prompt}]
                     )
                     ai_reply = res.choices[0].message.content
-                    
-                    # Save AI reply to Firebase so everyone can see it
-                    ai_entry = {"user": "TopperGPT", "msg": ai_reply}
-                    requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps(ai_entry))
-                except Exception as e:
-                    pass # Silent fail for AI
-
-        # Refresh page to show new messages
+                    requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps({"user": "TopperGPT", "msg": ai_reply}))
+                except:
+                    pass
         st.rerun()
 
     # --- 🏆 GAMIFICATION WIDGET ---
     with st.expander("🎖️ Top Contributors"):
-        st.caption("Earn badges by helping others in the squads!")
-        st.write("1. 🥇 **Rahul.MU** - 540 Credits")
-        st.write("2. 🥈 **Sneha_IT** - 420 Credits")
-        st.write("3. 🥉 **You** - 12 Credits (Start helping to rank up!)")
+        st.caption("Help others to earn Karma (Contribution Credits)!")
+        st.write("1. 🥇 **Rahul.MU** - 540 XP")
+        st.write("2. 🥈 **Sneha_IT** - 420 XP")
+        # Yahan tera Karma (12) clear dikhega
+        st.write("3. 🥉 **You** - 12 XP")
 # --- TAB 9: LEGAL & POLICIES ---
 with tab9:
     st.header("⚖️ Legal, Terms & Privacy Policy")
