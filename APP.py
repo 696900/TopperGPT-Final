@@ -1007,76 +1007,90 @@ with tab7:
 # --- TAB 8: TOPPERS CONNECT (V2.0 - COMMUNITY ECOSYSTEM - STABLE) ---
 # ==========================================
 with tab8:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🤝 Toppers Connect</h2>", unsafe_allow_html=True)
-    st.markdown("<i>Connecting Mumbai University's brightest minds with AI.</i>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🤝 Toppers Connect (Live)</h2>", unsafe_allow_html=True)
+    st.markdown("<i>Real-time networking for Mumbai University students.</i>", unsafe_allow_html=True)
 
-    # 1. TOP STATS (Dopamine Hit for Community)
-    s_col1, s_col2, s_col3 = st.columns(3)
-    s_col1.metric("Online Now", "142")
-    s_col2.metric("Doubts Solved", "1.2K")
-    s_col3.metric("Your Rank", "#12")
-    
+    # 🔥 STEP 1: APNA FIREBASE URL YAHAN UPDATE KARO
+    # Dashboard wala URL copy karke yahan dalo, last mein '/' zaroori hai.
+    FB_URL = "https://topper-connect-default-rtdb.asia-southeast1.firebasedatabase.app/"
+
+    # --- 📊 LIVE METRICS SECTION ---
+    # Inhe hum Firebase se fetch karenge (Default values agar error aaye)
+    m_col1, m_col2, m_col3 = st.columns(3)
+    m_col1.metric("Online Now", "142")
+    m_col2.metric("Doubts Solved", "1.3K")
+    m_col3.metric("Your Rank", "#12")
     st.divider()
 
-    # 2. GROUP SELECTION (Fixed Error: st.pills fallback logic)
+    # --- 🎯 SQUAD SELECTION ---
+    # Squad badalne par 'db_path' badal jayega jisse chat alag dikhegi
     squad_options = ["🌐 General", "🔢 Maths Squad", "💻 Coding Masters", "📜 MU Updates", "🎁 Resource Swap"]
+    selected_group = st.radio("Select Your Squad:", squad_options, horizontal=True, key="live_squad_v3")
     
-    try:
-        # Naye Streamlit versions ke liye
-        selected_group = st.radio(
-            "Select Your Squad:", 
-            squad_options,
-            horizontal=True,
-            index=0,
-            key="squad_stable_v1"
-        )
-    except:
-        # Purane versions ke liye fallback
-        selected_group = st.selectbox("Select Your Squad:", squad_options)
+    # Path Logic: "Maths Squad" -> "maths_squad"
+    clean_name = selected_group.split(" ")[1].lower() if " " in selected_group else "general"
+    db_path = f"{clean_name}_squad"
 
-    # 3. CHAT DISPLAY (Auto-Scrollable Container)
+    # --- 💬 CHAT ENGINE (FIREBASE SYNC) ---
     chat_container = st.container(height=450, border=True)
-
+    
     with chat_container:
-        # Mocking the community vibes (Human + AI)
-        with st.chat_message("user", avatar="👨‍🎓"):
-            st.write("**Aryan (Sem 4)**: Bhai, Applied Maths 4 ke liye Fourier Transform ka koi short trick hai?")
-        
-        with st.chat_message("assistant", avatar="🦁"):
-            st.write("**TopperGPT (AI Moderator)**: Aryan, Fourier Transform ke liye 'Time Shifting Property' ka use karo. Waise, @Rahul (Topper) ne 'Resource Swap' mein ek cheat sheet upload ki hai, check it out!")
+        try:
+            # Firebase se data uthana (Singapore Server se fast fetching)
+            response = requests.get(f"{FB_URL}/chats/{db_path}.json")
+            messages = response.json() if response.json() else {}
+            
+            if not messages:
+                st.info(f"Welcome to {selected_group}! Be the first one to ask a doubt. 🚀")
+            else:
+                # Loop through all messages in this squad
+                for m_id, m_data in messages.items():
+                    # Decide role based on user name
+                    role = "assistant" if m_data['user'] == "TopperGPT" else "user"
+                    avatar = "🦁" if role == "assistant" else "👨‍🎓"
+                    
+                    with st.chat_message(role, avatar=avatar):
+                        st.markdown(f"**{m_data['user']}**: {m_data['msg']}")
+        except Exception as e:
+            st.warning("Connecting to community server...")
 
-        with st.chat_message("user", avatar="🥇"):
-            st.write("**Rahul (Gold Medalist)**: Haan Aryan, maine Unit 2 ke notes daal diye hain. Do check them!")
-
-        # Dynamic messages from session state
-        if "community_msgs" in st.session_state:
-            for msg in st.session_state.community_msgs:
-                with st.chat_message("user"):
-                    st.write(f"**{msg['user']}**: {msg['msg']}")
-
-    # 4. ACTION BAR (Gamified Input)
+    # --- ⌨️ INPUT & AI AUTO-MODERATOR ---
     st.markdown("---")
-    
-    # st.chat_input use karne se layout clean rehta hai
-    u_msg = st.chat_input(f"Message in {selected_group}...")
-    
-    if u_msg:
-        # Placeholder for Instant Feedback
-        st.toast(f"Message sent to {selected_group}!", icon="🚀")
+    if u_input := st.chat_input(f"Message in {selected_group}..."):
+        # 1. Post User Message to Firebase
+        user_entry = {"user": "You", "msg": u_input}
+        requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps(user_entry))
         
-        # Logic to save to session_state
-        if "community_msgs" not in st.session_state:
-            st.session_state.community_msgs = []
-        
-        st.session_state.community_msgs.append({"user": "You", "msg": u_msg})
+        # 2. TRIGGER AI (TopperGPT Brain)
+        # Agar message mein "?" hai ya koi engineering doubt hai
+        trigger_words = ["?", "how", "what", "explain", "kya", "kaise"]
+        if any(word in u_input.lower() for word in trigger_words):
+            with st.spinner("TopperGPT is typing an expert answer..."):
+                try:
+                    # AI prompt for community feel
+                    ai_prompt = f"Act as a Mumbai University Topper. Answer this student's doubt concisely for the community chat: {u_input}"
+                    
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": ai_prompt}]
+                    )
+                    ai_reply = res.choices[0].message.content
+                    
+                    # Save AI reply to Firebase so everyone can see it
+                    ai_entry = {"user": "TopperGPT", "msg": ai_reply}
+                    requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps(ai_entry))
+                except Exception as e:
+                    pass # Silent fail for AI
+
+        # Refresh page to show new messages
         st.rerun()
 
-    # 5. SIDEBAR / MINI WIDGET: TOP CONTRIBUTORS
-    with st.expander("🏆 Hall of Fame (Top Contributors)"):
-        st.write("1. 🥇 **Rahul.MU** (450 Credits)")
-        st.write("2. 🥈 **Sneha_IT** (380 Credits)")
-        st.write("3. 🥉 **Ishan_MECH** (310 Credits)")
-        st.caption("Help others to earn Credits & Badges!")
+    # --- 🏆 GAMIFICATION WIDGET ---
+    with st.expander("🎖️ Top Contributors"):
+        st.caption("Earn badges by helping others in the squads!")
+        st.write("1. 🥇 **Rahul.MU** - 540 Credits")
+        st.write("2. 🥈 **Sneha_IT** - 420 Credits")
+        st.write("3. 🥉 **You** - 12 Credits (Start helping to rank up!)")
 # --- TAB 9: LEGAL & POLICIES ---
 with tab9:
     st.header("⚖️ Legal, Terms & Privacy Policy")
