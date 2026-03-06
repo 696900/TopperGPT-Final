@@ -24,8 +24,8 @@ from llama_index.llms.groq import Groq as LlamaGroq
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
+from supabase import create_client, Client
 
-# --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 @st.cache_resource
 def initialize_all_ai():
@@ -77,42 +77,46 @@ if api_key_gemini:
         api_key=api_key_gemini
     )
 
-# --- 🔐 REAL AUTH SYNC (MASTER FUNCTION) ---
+# --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
+@st.cache_resource
+def init_supabase():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+supabase = init_supabase()
+
+# --- 🔐 REAL SUPABASE AUTH & DATA SYNC ---
 def handle_google_login(email, name):
-    email_clean = email.replace(".", "_")
-    FB_URL = "https://topper-connect-default-rtdb.asia-southeast1.firebasedatabase.app/"
-    
+    email_clean = email.lower().strip()
     try:
-        # 1. Check if User exists in Firebase
-        response = requests.get(f"{FB_URL}/users/{email_clean}.json")
-        user_db = response.json()
+        # Check if user already exists in Supabase Profiles
+        res = supabase.table("profiles").select("*").eq("email", email_clean).execute()
         
-        if user_db:
+        if res.data:
             # Purana User: Data Load Karo
-            st.session_state.user_data = user_db
+            st.session_state.user_data = res.data[0]
         else:
-            # Naya User: Naya account banao + 15 Credits
+            # Naya User: Profiles table mein entry dalo + 15 Credits
             new_user = {
-                "email": email,
-                "name": name,
+                "email": email_clean,
                 "credits": 15,
                 "xp": 0,
-                "referral_code": "TOP" + str(int(time.time()))[-4:],
-                "join_date": str(datetime.now())
+                "referral_code": "TOP" + str(int(time.time()))[-4:]
             }
-            requests.put(f"{FB_URL}/users/{email_clean}.json", data=json.dumps(new_user))
-            st.session_state.user_data = new_user
+            insert_res = supabase.table("profiles").insert(new_user).execute()
+            st.session_state.user_data = insert_res.data[0]
             st.balloons()
         return True
-    except:
-        st.error("Auth Server Down! Try again later.")
+    except Exception as e:
+        st.error(f"Database Auth Error: {e}")
         return False
 
-# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (FIREBASE SYNCED) ---
+# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (SUPABASE SYNCED) ---
 def use_credits(amount):
-    """Checks and deducts credits from session state & Firebase."""
+    """Checks and deducts credits from session state & Supabase."""
     if "user_data" in st.session_state and st.session_state.user_data is not None:
-        email_clean = st.session_state.user_data['email'].replace(".", "_")
+        user_email = st.session_state.user_data['email']
         current_credits = st.session_state.user_data.get('credits', 0)
         
         if current_credits >= amount:
@@ -120,11 +124,9 @@ def use_credits(amount):
             # 1. Update Local Session
             st.session_state.user_data['credits'] = new_credits
             
-            # 2. Sync to Firebase (Permanent Save)
+            # 2. Sync to Supabase (Permanent Save)
             try:
-                FB_URL = "https://topper-connect-default-rtdb.asia-southeast1.firebasedatabase.app/"
-                requests.patch(f"{FB_URL}/users/{email_clean}.json", 
-                             data=json.dumps({"credits": new_credits}))
+                supabase.table("profiles").update({"credits": new_credits}).eq("email", user_email).execute()
                 return True
             except:
                 st.error("Database Sync Error!")
@@ -174,7 +176,7 @@ if api_key:
 
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- 3. LOGIN PAGE (FIREBASE CONNECTED) ---
+# --- 3. LOGIN PAGE (SUPABASE CONNECTED) ---
 if st.session_state.user_data is None:
     _, col_mid, _ = st.columns([1, 1.2, 1])
     with col_mid:
@@ -188,7 +190,7 @@ if st.session_state.user_data is None:
         ''', unsafe_allow_html=True)
         
         if st.button("🔴 Secure Google Login", use_container_width=True):
-            # Temporary Test Credentials (Monday ko real OAuth jodeinge)
+            # Asli OAuth aane tak test ID use kar rahe hain
             test_email = "student_test@mu.edu" 
             test_name = "Topper Student"
             if handle_google_login(test_email, test_name):
