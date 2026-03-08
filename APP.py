@@ -376,108 +376,125 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: PRECISION SYLLABUS MANAGER (SUPABASE CLOUD) ---
+# --- TAB 2: PRECISION SYLLABUS MANAGER (V3 - DEEP SCAN + CLOUD) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
     u_email = st.session_state.user_data['email']
+    syll_build_cost = 2 # Ek baar syllabus build karne ka cost
 
-    # 1. Fetch Cloud Data
+    # 1. Fetch Cloud Data (Real-time Progress)
     try:
         db_res = supabase.table("syllabus_tracking").select("*").eq("user_email", u_email).execute()
         cloud_data = db_res.data
     except:
         cloud_data = []
 
-    # 2. Dashboard Metrics
+    # 2. Dashboard Metrics (Dynamic)
     if cloud_data:
         total = len(cloud_data)
         done = sum(1 for t in cloud_data if t['is_completed'])
         
         c1, c2, c3 = st.columns(3)
         c1.metric("Overall Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
-        c2.metric("Pending Topics", total - done)
+        c2.metric("Pending Modules", total - done)
         c3.metric("Status", "🔥 Study Mode" if done > 0 else "💤 Planning")
         st.divider()
 
-    # 3. Build Engine (The Heavy Lifter)
+    # 3. Build Engine (Deep Scan Logic)
     with st.expander("📤 Build Your Semester Tracker", expanded=not cloud_data):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syllabus_v3_cloud")
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syllabus_v3_deep")
         
         col_s1, col_s2 = st.columns(2)
         target_sem = col_s1.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V", "Semester VI", "Semester VII", "Semester VIII"])
         
-        if up_pdf and st.button("🚀 Sync to Cloud"):
-            with st.spinner(f"AI Analyzing {target_sem}..."):
-                try:
-                    pdf_bytes = up_pdf.read()
-                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                    
-                    # Search specifically for the Semester block
-                    full_text = ""
-                    for page in doc:
-                        txt = page.get_text()
-                        if target_sem.lower() in txt.lower():
-                            full_text += txt
-                    
-                    if len(full_text) < 100:
-                        st.error("AI ko is semester ka data nahi mila. Photo clear hai?")
-                        st.stop()
+        if up_pdf and st.button("🚀 Build & Sync Tracker (Deep Scan)"):
+            # --- REVENUE CHECK ---
+            if use_credits(syll_build_cost):
+                with st.spinner(f"PhD Moderator is extracting {target_sem} modules..."):
+                    try:
+                        pdf_bytes = up_pdf.read()
+                        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                        
+                        # DEEP SEARCH: Semester ke context mein text uthayega
+                        relevant_txt = ""
+                        for page in doc:
+                            page_txt = page.get_text()
+                            if target_sem.lower() in page_txt.lower():
+                                relevant_txt += page_txt
+                        
+                        if len(relevant_txt) < 100:
+                            st.error(f"AI ko {target_sem} ka text nahi mila. Kya PDF sahi hai?")
+                            st.session_state.user_data['credits'] += syll_build_cost # Refund
+                            st.stop()
 
-                    prompt = f"""
-                    Act as an Engineering Moderator. Extract Subjects for '{target_sem}'.
-                    IGNORE Labs, Practicals, and non-theory credits.
-                    Extract 5 core subjects, each with 5-6 key units.
-                    Output ONLY valid JSON.
-                    Format: {{"Subject Name": ["Unit 1", "Unit 2"]}}
-                    Text: {full_text[:15000]}
-                    """
-                    
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": prompt}],
-                        response_format={"type": "json_object"}
-                    )
-                    
-                    raw_json = json.loads(res.choices[0].message.content)
+                        # ✅ DEEP SCAN PROMPT: Focusing on Module Titles
+                        prompt = f"""
+                        Act as a University Syllabus Auditor. 
+                        Task: Extract Subject Names and their actual MODULE TITLES for '{target_sem}'.
+                        
+                        STRICT RULES:
+                        1. Ignore Labs/Practicals. Focus only on Theory Subjects.
+                        2. Look for headers like 'Module', 'Detailed Contents', or 'Unit Name'.
+                        3. Extract the actual academic chapter names (e.g., 'Beta and Gamma Functions', 'Double Integration') instead of generic terms.
+                        4. Output ONLY a clean JSON object.
+                        
+                        Format: {{"Subject Name": ["Module 1 Title", "Module 2 Title"]}}
+                        Syllabus Text: {relevant_txt[:15000]}
+                        """
+                        
+                        res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "user", "content": prompt}],
+                            response_format={"type": "json_object"}
+                        )
+                        
+                        raw_json = json.loads(res.choices[0].message.content)
 
-                    # --- CLOUD SAVE LOGIC ---
-                    # Pehle purana data saaf karo
-                    supabase.table("syllabus_tracking").delete().eq("user_email", u_email).execute()
-                    
-                    # Naya data insert karo
-                    for sub, units in raw_json.items():
-                        for unit in units:
-                            supabase.table("syllabus_tracking").insert({
-                                "user_email": u_email,
-                                "subject_name": sub,
-                                "topic_name": unit,
-                                "is_completed": False
-                            }).execute()
-                    
-                    st.success("Cloud Sync Complete!")
-                    st.rerun()
+                        # --- SUPABASE PERMANENT SAVE ---
+                        # Purana data delete
+                        supabase.table("syllabus_tracking").delete().eq("user_email", u_email).execute()
+                        
+                        # Naya Deep Data Insert
+                        for sub, chapters in raw_json.items():
+                            for ch_title in chapters:
+                                supabase.table("syllabus_tracking").insert({
+                                    "user_email": u_email,
+                                    "subject_name": sub,
+                                    "topic_name": ch_title,
+                                    "is_completed": False
+                                }).execute()
+                        
+                        st.balloons()
+                        st.success(f"Deep Scan Complete! {syll_build_cost} Credits deducted.")
+                        st.rerun()
 
-                except Exception as e:
-                    st.error(f"Sync Failed: {str(e)}")
+                    except Exception as e:
+                        st.session_state.user_data['credits'] += syll_build_cost # Refund
+                        st.error(f"Scan Error: {str(e)}")
+            else:
+                st.error("Bhai credits khatam! Sidebar se refill kar lo.")
 
-    # 4. Interactive Checklist (Direct DB Update)
+    # 4. Interactive Checklist (Direct Database Update)
     if cloud_data:
-        # Sort data by subject for clean UI
-        subs = sorted(list(set([t['subject_name'] for t in cloud_data])))
+        # Subject-wise grouping
+        subjects = sorted(list(set([t['subject_name'] for t in cloud_data])))
         
-        for s_name in subs:
+        for s_name in subjects:
             with st.expander(f"📘 {s_name}", expanded=True):
-                topics = [t for t in cloud_data if t['subject_name'] == s_name]
-                for t in topics:
-                    c1, c2 = st.columns([0.85, 0.15])
-                    c1.write(f"🔹 {t['topic_name']}")
+                # Us subject ke saare modules dikhao
+                modules = [t for t in cloud_data if t['subject_name'] == s_name]
+                for mod in modules:
+                    c_col1, c_col2 = st.columns([0.85, 0.15])
+                    c_col1.write(f"🔹 {mod['topic_name']}")
                     
-                    # Update Database on click
-                    is_checked = c2.checkbox("Done", value=t['is_completed'], key=f"check_{t['id']}")
-                    if is_checked != t['is_completed']:
-                        supabase.table("syllabus_tracking").update({"is_completed": is_checked}).eq("id", t['id']).execute()
+                    # Checkbox update seedha Supabase mein
+                    u_key = f"db_check_{mod['id']}"
+                    is_done = c_col2.checkbox("Done", value=mod['is_completed'], key=u_key)
+                    
+                    if is_done != mod['is_completed']:
+                        supabase.table("syllabus_tracking").update({"is_completed": is_done}).eq("id", mod['id']).execute()
                         st.rerun()
 
         if st.button("🗑️ Reset All Progress"):
