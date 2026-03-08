@@ -112,6 +112,20 @@ def handle_google_login(email, name):
         st.error(f"Database Auth Error: {e}")
         return False
 
+# --- 🔄 SESSION RECOVERY LOGIC (New: Captures real Google Redirect) ---
+if "user_data" not in st.session_state or st.session_state.user_data is None:
+    try:
+        # Check if URL has access_token (returning from Google)
+        query_params = st.query_params
+        if "access_token" in query_params or "id_token" in query_params:
+            session = supabase.auth.get_session()
+            if session and session.user:
+                u_email = session.user.email
+                u_name = session.user.user_metadata.get("full_name", "Topper")
+                handle_google_login(u_email, u_name)
+    except:
+        pass
+
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (SUPABASE SYNCED) ---
 def use_credits(amount):
     """Checks and deducts credits from session state & Supabase."""
@@ -168,43 +182,56 @@ st.markdown(EVAL_CSS, unsafe_allow_html=True)
 # --- 2. GLOBAL LOGIC & KEYS ---
 if "user_data" not in st.session_state: st.session_state.user_data = None
 
-# 🛠️ AI SETUP (Enterprise Support)
-api_key = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
-    Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key)
-
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- 3. LOGIN PAGE (SUPABASE CONNECTED) ---
+# --- 3. LOGIN PAGE (OFFICIAL BRANDED VERSION) ---
 if st.session_state.user_data is None:
-    _, col_mid, _ = st.columns([1, 1.2, 1])
+    # Sidebar hide for login
+    st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
+    
+    _, col_mid, _ = st.columns([1, 1.4, 1])
+    
     with col_mid:
+        import os
+        if os.path.exists("logo.png"):
+            st.image("logo.png", width=220)
+        else:
+            st.markdown("<h1 style='text-align: center; font-size: 80px;'>🎓</h1>", unsafe_allow_html=True)
+            
         st.markdown('''
-            <div style="text-align:center; padding:40px; background:#161b22; border-radius:20px; border:1px solid #4CAF50;">
-                <h1 style="color:#4CAF50; font-style:italic; margin:0;">TopperGPT</h1>
-                <p style="color:#8b949e; letter-spacing: 1px;">UNIVERSITY RESEARCH PORTAL</p>
+            <div style="text-align:center; padding:35px; background:#161b22; border-radius:20px; border:1px solid #4CAF50; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                <h1 style="color:#4CAF50; font-style:italic; margin:0; font-size: 38px;">TopperGPT</h1>
+                <p style="color:#8b949e; letter-spacing: 2px; font-size: 12px; font-weight: bold;">UNIVERSITY RESEARCH PORTAL</p>
                 <hr style="border-color:#30363d;">
-                <p style="color:#4CAF50; font-weight:bold;">🎁 +15 FREE Credits on Login</p>
+                <p style="color:#ffffff; font-weight:500; font-size: 16px;">🎁 +15 FREE Credits on first login</p>
+                <p style="color:#8b949e; font-size: 13px;">Securely sync your syllabus & data with Google.</p>
             </div>
         ''', unsafe_allow_html=True)
-        
-        if st.button("🔴 Secure Google Login", use_container_width=True):
-            # Asli OAuth aane tak test ID use kar rahe hain
-            test_email = "student_test@mu.edu" 
-            test_name = "Topper Student"
-            if handle_google_login(test_email, test_name):
-                st.rerun()
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        if st.button("🔴 Secure Sign in with Google", use_container_width=True):
+            try:
+                auth_res = supabase.auth.sign_in_with_oauth({
+                    "provider": "google",
+                    "options": {
+                        "redirect_to": "https://toppergpt-final.streamlit.app" # Apna URL check kar lena
+                    }
+                })
+                if auth_res.url:
+                    st.info("🚀 Redirecting to Google Login...")
+                    time.sleep(1)
+                    st.markdown(f'<meta http-equiv="refresh" content="0;url={auth_res.url}">', unsafe_allow_html=True)
+                    st.stop()
+            except Exception as e:
+                st.error(f"Authentication Error: {e}")
     st.stop()
 
 # --- 4. SIDEBAR LAYOUT ---
 with st.sidebar:
-    # ✅ LOGO WITH SAFETY CHECK: Ab ye crash nahi hoga
     import os
     if os.path.exists("logo.png"):
         st.image("logo.png", use_container_width=True)
     else:
-        # Agar file nahi mili toh sirf icon dikhao (No Error)
         st.markdown("<h1 style='text-align: center;'>🎓</h1>", unsafe_allow_html=True)
 
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic; text-align: center;'>TopperGPT</h2>", unsafe_allow_html=True)
@@ -262,6 +289,7 @@ with st.sidebar:
 
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🔓 Secure Logout", use_container_width=True):
+        supabase.auth.sign_out() # Google session bhi clear karo
         st.session_state.user_data = None; st.rerun()
 
 # --- 💎 THE SLIM WELCOME BANNER ---
