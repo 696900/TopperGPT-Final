@@ -199,6 +199,9 @@ if st.session_state.user_data is None:
 
 # --- 4. SIDEBAR LAYOUT ---
 with st.sidebar:
+    # ✅ LOGO ADDED HERE (Sabse Upar)
+    st.image("logo.png", use_container_width=True) 
+
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
     
     st.markdown(f'''
