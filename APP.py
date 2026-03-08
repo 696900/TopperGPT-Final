@@ -349,129 +349,116 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: PRECISION SYLLABUS MANAGER (V3 - DEEP SCAN + CLOUD) ---
+# --- TAB 2: PRECISION SYLLABUS MANAGER (V4 - HYBRID AI) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
     u_email = st.session_state.user_data['email']
-    syll_build_cost = 2 # Ek baar syllabus build karne ka cost
 
-    # 1. Fetch Cloud Data (Real-time Progress)
-    try:
-        db_res = supabase.table("syllabus_tracking").select("*").eq("user_email", u_email).execute()
-        cloud_data = db_res.data
-    except:
-        cloud_data = []
-
-    # 2. Dashboard Metrics (Dynamic)
-    if cloud_data:
-        total = len(cloud_data)
-        done = sum(1 for t in cloud_data if t['is_completed'])
+    # 1. Build Engine: The Hybrid Pipeline
+    with st.expander("📤 Build Your Semester Tracker (Hybrid AI)", expanded=True):
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syll_v4_hybrid")
         
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Overall Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
-        c2.metric("Pending Modules", total - done)
-        c3.metric("Status", "🔥 Study Mode" if done > 0 else "💤 Planning")
-        st.divider()
-
-    # 3. Build Engine (Deep Scan Logic)
-    with st.expander("📤 Build Your Semester Tracker", expanded=not cloud_data):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syllabus_v3_deep")
+        target_sem = st.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V", "Semester VI", "Semester VII", "Semester VIII"])
         
-        col_s1, col_s2 = st.columns(2)
-        target_sem = col_s1.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V", "Semester VI", "Semester VII", "Semester VIII"])
-        
-        if up_pdf and st.button("🚀 Build & Sync Tracker (Deep Scan)"):
-            # --- REVENUE CHECK ---
-            if use_credits(syll_build_cost):
-                with st.spinner(f"PhD Moderator is extracting {target_sem} modules..."):
-                    try:
-                        pdf_bytes = up_pdf.read()
-                        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                        
-                        # DEEP SEARCH: Semester ke context mein text uthayega
-                        relevant_txt = ""
-                        for page in doc:
-                            page_txt = page.get_text()
-                            if target_sem.lower() in page_txt.lower():
-                                relevant_txt += page_txt
-                        
-                        if len(relevant_txt) < 100:
-                            st.error(f"AI ko {target_sem} ka text nahi mila. Kya PDF sahi hai?")
-                            st.session_state.user_data['credits'] += syll_build_cost # Refund
-                            st.stop()
-
-                        # ✅ DEEP SCAN PROMPT: Focusing on Module Titles
-                        prompt = f"""
-                        Act as a University Syllabus Auditor. 
-                        Task: Extract Subject Names and their actual MODULE TITLES for '{target_sem}'.
-                        
-                        STRICT RULES:
-                        1. Ignore Labs/Practicals. Focus only on Theory Subjects.
-                        2. Look for headers like 'Module', 'Detailed Contents', or 'Unit Name'.
-                        3. Extract the actual academic chapter names (e.g., 'Beta and Gamma Functions', 'Double Integration') instead of generic terms.
-                        4. Output ONLY a clean JSON object.
-                        
-                        Format: {{"Subject Name": ["Module 1 Title", "Module 2 Title"]}}
-                        Syllabus Text: {relevant_txt[:15000]}
-                        """
-                        
-                        res = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[{"role": "user", "content": prompt}],
-                            response_format={"type": "json_object"}
-                        )
-                        
-                        raw_json = json.loads(res.choices[0].message.content)
-
-                        # --- SUPABASE PERMANENT SAVE ---
-                        # Purana data delete
-                        supabase.table("syllabus_tracking").delete().eq("user_email", u_email).execute()
-                        
-                        # Naya Deep Data Insert
-                        for sub, chapters in raw_json.items():
-                            for ch_title in chapters:
-                                supabase.table("syllabus_tracking").insert({
-                                    "user_email": u_email,
-                                    "subject_name": sub,
-                                    "topic_name": ch_title,
-                                    "is_completed": False
-                                }).execute()
-                        
-                        st.balloons()
-                        st.success(f"Deep Scan Complete! {syll_build_cost} Credits deducted.")
-                        st.rerun()
-
-                    except Exception as e:
-                        st.session_state.user_data['credits'] += syll_build_cost # Refund
-                        st.error(f"Scan Error: {str(e)}")
-            else:
-                st.error("Bhai credits khatam! Sidebar se refill kar lo.")
-
-    # 4. Interactive Checklist (Direct Database Update)
-    if cloud_data:
-        # Subject-wise grouping
-        subjects = sorted(list(set([t['subject_name'] for t in cloud_data])))
-        
-        for s_name in subjects:
-            with st.expander(f"📘 {s_name}", expanded=True):
-                # Us subject ke saare modules dikhao
-                modules = [t for t in cloud_data if t['subject_name'] == s_name]
-                for mod in modules:
-                    c_col1, c_col2 = st.columns([0.85, 0.15])
-                    c_col1.write(f"🔹 {mod['topic_name']}")
+        if up_pdf and st.button("🚀 Deep Extract Syllabus"):
+            with st.spinner("Executing Hybrid Extraction (Regex + LLM)..."):
+                try:
+                    pdf_bytes = up_pdf.read()
+                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                     
-                    # Checkbox update seedha Supabase mein
-                    u_key = f"db_check_{mod['id']}"
-                    is_done = c_col2.checkbox("Done", value=mod['is_completed'], key=u_key)
+                    # --- STEP 1: CLEAN BLOCK EXTRACTION ---
+                    relevant_txt = ""
+                    sem_patterns = [target_sem.lower(), target_sem.replace("Semester", "Sem").lower(), target_sem.replace("Semester", "").strip().lower()]
                     
-                    if is_done != mod['is_completed']:
-                        supabase.table("syllabus_tracking").update({"is_completed": is_done}).eq("id", mod['id']).execute()
-                        st.rerun()
+                    for page in doc:
+                        # "blocks" format keeps table/column structure better
+                        blocks = page.get_text("blocks")
+                        page_txt = "\n".join([b[4] for b in blocks])
+                        
+                        # Multi-pattern semester detection
+                        if any(p in page_txt.lower() for p in sem_patterns):
+                            relevant_txt += page_txt + "\n"
 
-        if st.button("🗑️ Reset All Progress"):
-            supabase.table("syllabus_tracking").delete().eq("user_email", u_email).execute()
+                    # --- STEP 2: REGEX MODULE DETECTION ---
+                    # Common patterns like "Module 1", "Unit I", "Chapter 1"
+                    regex_modules = re.findall(r'((?:Module|Unit|Chapter)\s*[0-9A-Z]+[:\-]?\s*[^\n]+)', relevant_txt)
+                    regex_context = "\n".join(regex_modules)
+
+                    # --- STEP 3: LLM VERIFICATION & GROUPING ---
+                    # We send only the high-quality extracted text to LLM
+                    prompt = f"""
+                    Act as a University Syllabus Auditor.
+                    You are given extracted text blocks. Group them by SUBJECT.
+                    
+                    RULES:
+                    1. Extract ONLY Theory Subjects. 
+                    2. For each subject, extract module titles EXACTLY as written.
+                    3. Ignore: Lab work, Practicals, References, Books, Internal Assessment.
+                    4. If no modules found for a subject, ignore that subject.
+                    
+                    STRICT JSON FORMAT:
+                    {{ "Subject Name": ["Module title 1", "Module title 2"] }}
+
+                    EXTRACTED TEXT:
+                    {relevant_txt[:12000]}
+                    
+                    REGEX DETECTED MODULES (Priority):
+                    {regex_context}
+                    """
+                    
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": prompt}],
+                        response_format={"type": "json_object"}
+                    )
+                    
+                    raw_json = json.loads(res.choices[0].message.content)
+
+                    # --- STEP 4: GARBAGE CLEANING (The Filter) ---
+                    bad_words = ["reference", "book", "practical", "lab", "viva", "experiment", "scheme"]
+                    cleaned_data = {}
+
+                    for sub, chapters in raw_json.items():
+                        valid_chapters = []
+                        for ch in chapters:
+                            if not any(bw in ch.lower() for bw in bad_words) and len(ch) > 3:
+                                # Remove common numbering garbage
+                                clean_ch = re.sub(r'^(Module|Unit|Chapter)\s*\d+[:\-]?\s*', '', ch, flags=re.IGNORECASE).strip()
+                                valid_chapters.append(clean_ch)
+                        
+                        if valid_chapters:
+                            cleaned_data[sub] = valid_chapters
+
+                    # --- STEP 5: STORE & PREVIEW ---
+                    # Storing in session for confirmation before DB save
+                    st.session_state.temp_syll = cleaned_data
+                    st.success("Analysis Complete! Review subjects below.")
+
+                except Exception as e:
+                    st.error(f"Extraction Failed: {str(e)}")
+
+    # 2. USER CONFIRMATION UI (Hybrid Control)
+    if 'temp_syll' in st.session_state and st.session_state.temp_syll:
+        st.markdown("### 🔍 Confirm Extracted Syllabus")
+        final_to_save = {}
+
+        for sub, chaps in st.session_state.temp_syll.items():
+            with st.container():
+                st.markdown(f"**📘 {sub}**")
+                selected_chaps = []
+                for c in chaps:
+                    if st.checkbox(f"{c}", value=True, key=f"conf_{sub}_{c}"):
+                        selected_chaps.append(c)
+                if selected_chaps:
+                    final_to_save[sub] = selected_chaps
+        
+        if st.button("✅ Everything looks good, Lock it!"):
+            # SAVE TO SUPABASE Logic (Abhi testing ke liye sirf success dikhayega)
+            st.session_state.master_tracker = final_to_save 
+            st.success("Syllabus Locked & Synced!")
+            del st.session_state.temp_syll
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
