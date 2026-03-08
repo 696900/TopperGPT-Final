@@ -86,64 +86,26 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 🔐 REAL SUPABASE AUTH & DATA SYNC ---
-def handle_google_login(email, name):
-    email_clean = email.lower().strip()
-    try:
-        # Check if user already exists in Supabase Profiles
-        res = supabase.table("profiles").select("*").eq("email", email_clean).execute()
-        
-        if res.data:
-            # Purana User: Data Load Karo
-            st.session_state.user_data = res.data[0]
-        else:
-            # Naya User: Profiles table mein entry dalo + 15 Credits
-            new_user = {
-                "email": email_clean,
-                "credits": 15,
-                "xp": 0,
-                "referral_code": "TOP" + str(int(time.time()))[-4:]
-            }
-            insert_res = supabase.table("profiles").insert(new_user).execute()
-            st.session_state.user_data = insert_res.data[0]
-            st.balloons()
-        return True
-    except Exception as e:
-        st.error(f"Database Auth Error: {e}")
-        return False
+# --- 🔐 TEST LOGIN LOGIC (Local-Only Mode for Lab Testing) ---
+def handle_test_login():
+    # Asli data early access ke waqt on karenge, abhi local session use karo
+    st.session_state.user_data = {
+        "email": "krishnaghanabahadur85@gmail.com",
+        "name": "Krishna (Dev)",
+        "credits": 100,
+        "referral_code": "TOPTEST",
+        "ref_claimed": False
+    }
+    return True
 
-# --- 🔄 SESSION RECOVERY LOGIC (New: Captures real Google Redirect) ---
-if "user_data" not in st.session_state or st.session_state.user_data is None:
-    try:
-        # Check if URL has access_token (returning from Google)
-        query_params = st.query_params
-        if "access_token" in query_params or "id_token" in query_params:
-            session = supabase.auth.get_session()
-            if session and session.user:
-                u_email = session.user.email
-                u_name = session.user.user_metadata.get("full_name", "Topper")
-                handle_google_login(u_email, u_name)
-    except:
-        pass
-
-# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (SUPABASE SYNCED) ---
+# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER ---
 def use_credits(amount):
-    """Checks and deducts credits from session state & Supabase."""
+    """Checks and deducts credits locally during testing."""
     if "user_data" in st.session_state and st.session_state.user_data is not None:
-        user_email = st.session_state.user_data['email']
         current_credits = st.session_state.user_data.get('credits', 0)
-        
         if current_credits >= amount:
-            new_credits = current_credits - amount
-            # 1. Update Local Session
-            st.session_state.user_data['credits'] = new_credits
-            
-            # 2. Sync to Supabase (Permanent Save)
-            try:
-                supabase.table("profiles").update({"credits": new_credits}).eq("email", user_email).execute()
-                return True
-            except:
-                st.error("Database Sync Error!")
+            st.session_state.user_data['credits'] -= amount
+            return True
     return False
 
 # --- 1. CONFIGURATION ---
@@ -179,16 +141,11 @@ EVAL_CSS = """
 """
 st.markdown(EVAL_CSS, unsafe_allow_html=True)
 
-# --- 2. GLOBAL LOGIC & KEYS ---
 if "user_data" not in st.session_state: st.session_state.user_data = None
 
-groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-
-# --- 3. LOGIN PAGE (OFFICIAL BRANDED VERSION) ---
+# --- 3. LOGIN PAGE (DIRECT BYPASS MODE) ---
 if st.session_state.user_data is None:
-    # Sidebar hide for login
     st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
-    
     _, col_mid, _ = st.columns([1, 1.4, 1])
     
     with col_mid:
@@ -201,32 +158,19 @@ if st.session_state.user_data is None:
         st.markdown('''
             <div style="text-align:center; padding:35px; background:#161b22; border-radius:20px; border:1px solid #4CAF50; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
                 <h1 style="color:#4CAF50; font-style:italic; margin:0; font-size: 38px;">TopperGPT</h1>
-                <p style="color:#8b949e; letter-spacing: 2px; font-size: 12px; font-weight: bold;">UNIVERSITY RESEARCH PORTAL</p>
+                <p style="color:#8b949e; letter-spacing: 2px; font-size: 11px; font-weight: bold;">UNIVERSITY RESEARCH PORTAL</p>
                 <hr style="border-color:#30363d;">
-                <p style="color:#ffffff; font-weight:500; font-size: 16px;">🎁 +15 FREE Credits on first login</p>
-                <p style="color:#8b949e; font-size: 13px;">Securely sync your syllabus & data with Google.</p>
+                <p style="color:#ffffff; font-weight:500;">Bypass enabled for UI & Feature Testing.</p>
             </div>
         ''', unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        if st.button("🔴 Secure Sign in with Google", use_container_width=True):
-            try:
-                auth_res = supabase.auth.sign_in_with_oauth({
-                    "provider": "google",
-                    "options": {
-                        "redirect_to": "https://toppergpt-final.streamlit.app" # Apna URL check kar lena
-                    }
-                })
-                if auth_res.url:
-                    st.info("🚀 Redirecting to Google Login...")
-                    time.sleep(1)
-                    st.markdown(f'<meta http-equiv="refresh" content="0;url={auth_res.url}">', unsafe_allow_html=True)
-                    st.stop()
-            except Exception as e:
-                st.error(f"Authentication Error: {e}")
+        if st.button("🚀 Enter TopperGPT Lab", use_container_width=True):
+            handle_test_login()
+            st.rerun()
     st.stop()
 
-# --- 4. SIDEBAR LAYOUT ---
+# --- 4. SIDEBAR LAYOUT (ALL FEATURES RESTORED) ---
 with st.sidebar:
     import os
     if os.path.exists("logo.png"):
@@ -236,6 +180,7 @@ with st.sidebar:
 
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic; text-align: center;'>TopperGPT</h2>", unsafe_allow_html=True)
     
+    # 💰 WALLET
     st.markdown(f'''
         <div class="wallet-card">
             <p style="margin:0; font-size:11px; color:#eab308; font-weight:bold; letter-spacing:1px;">AVAILABLE CREDITS</p>
@@ -243,6 +188,7 @@ with st.sidebar:
         </div>
     ''', unsafe_allow_html=True)
 
+    # 🎁 REFER & EARN
     st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-top:20px;'>🎁 REFER & EARN FREE CREDITS</p>", unsafe_allow_html=True)
     with st.container():
         st.markdown(f'''
@@ -264,6 +210,8 @@ with st.sidebar:
                     st.balloons(); st.rerun()
 
     st.markdown("---")
+    
+    # 💎 RAZORPAY REFILL PACKS
     st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-bottom:15px;'>💎 REFILL YOUR CREDITS</p>", unsafe_allow_html=True)
     
     refill_packs = [
@@ -288,8 +236,7 @@ with st.sidebar:
         ''', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔓 Secure Logout", use_container_width=True):
-        supabase.auth.sign_out() # Google session bhi clear karo
+    if st.button("🔓 Exit Lab Mode", use_container_width=True):
         st.session_state.user_data = None; st.rerun()
 
 # --- 💎 THE SLIM WELCOME BANNER ---
@@ -304,9 +251,7 @@ if st.session_state.get("user_data"):
         ">
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 20px;">🎓</span>
-                <span style="color: white; font-weight: bold; font-size: 15px; letter-spacing: 0.5px;">
-                    Welcome, <span style="color: #4CAF50;">{st.session_state.user_data.get('name', 'Topper')}!</span>
-                </span>
+                <span style="color: white; font-weight: bold; font-size: 15px;">Welcome, <span style="color: #4CAF50;">{st.session_state.user_data.get('name', 'Topper')}!</span></span>
             </div>
             <div style="background: rgba(76, 175, 80, 0.1); padding: 5px 15px; border-radius: 20px; border: 1px solid #4CAF50;">
                 <span style="color: white; font-weight: 800; font-size: 16px;">
