@@ -376,66 +376,62 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: PRECISION SYLLABUS MANAGER (V2 - ULTRA STABLE) ---
+# --- TAB 2: PRECISION SYLLABUS MANAGER (SUPABASE CLOUD) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
     
-    if 'master_tracker' not in st.session_state: st.session_state.master_tracker = {}
+    u_email = st.session_state.user_data['email']
 
-    # 1. Dashboard Metrics
-    if st.session_state.master_tracker:
-        all_topics = [t for sem in st.session_state.master_tracker.values() for sub in sem.values() for mod in sub.values() for t in mod]
-        total = len(all_topics)
-        done = sum(1 for t in all_topics if t.get('status') == 'Completed')
+    # 1. Fetch Cloud Data
+    try:
+        db_res = supabase.table("syllabus_tracking").select("*").eq("user_email", u_email).execute()
+        cloud_data = db_res.data
+    except:
+        cloud_data = []
+
+    # 2. Dashboard Metrics
+    if cloud_data:
+        total = len(cloud_data)
+        done = sum(1 for t in cloud_data if t['is_completed'])
         
         c1, c2, c3 = st.columns(3)
         c1.metric("Overall Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
         c2.metric("Pending Topics", total - done)
-        c3.metric("Total Subjects", len(next(iter(st.session_state.master_tracker.values())).keys()) if total > 0 else 0)
+        c3.metric("Status", "🔥 Study Mode" if done > 0 else "💤 Planning")
         st.divider()
 
-    # 2. Build Engine
-    with st.expander("📤 Build Your Semester Tracker", expanded=not st.session_state.master_tracker):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syllabus_v2_final")
+    # 3. Build Engine (The Heavy Lifter)
+    with st.expander("📤 Build Your Semester Tracker", expanded=not cloud_data):
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syllabus_v3_cloud")
         
         col_s1, col_s2 = st.columns(2)
         target_sem = col_s1.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V", "Semester VI", "Semester VII", "Semester VIII"])
-        exam_date = col_s2.date_input("Target Exam Date", value=datetime.now().date())
         
-        if up_pdf and st.button("🚀 Build Tracker (Optimized)"):
-            with st.spinner(f"Filtering {target_sem} Main Subjects..."):
+        if up_pdf and st.button("🚀 Sync to Cloud"):
+            with st.spinner(f"AI Analyzing {target_sem}..."):
                 try:
                     pdf_bytes = up_pdf.read()
                     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                     
-                    # SEMESTER FILTER: Sirf usi sem ka text uthayega
-                    relevant_txt = ""
+                    # Search specifically for the Semester block
+                    full_text = ""
                     for page in doc:
-                        text = page.get_text()
-                        if target_sem.lower() in text.lower():
-                            relevant_txt += text
+                        txt = page.get_text()
+                        if target_sem.lower() in txt.lower():
+                            full_text += txt
                     
-                    # STRICT PROMPT: AI ko bandh diya hai taaki faltu cheezein na aayein
-                    prompt = f"""
-                    Act as an Engineering Academic Moderator.
-                    Task: Extract ONLY the core Theory Subjects for '{target_sem}'.
-                    
-                    STRICT RULES:
-                    1. IGNORE all Labs, Practicals, Workshops, Seminars, and Credits-only subjects.
-                    2. Extract exactly 5-6 MAIN Subjects (e.g., Applied Maths, Physics, Mechanics, etc.)
-                    3. For each subject, extract exactly 6 Units with 3-4 key topics each.
-                    4. Output must be a clean JSON object ONLY.
-                    
-                    Format:
-                    {{
-                      "Subject Name": {{
-                        "Unit 1: Name": ["Topic 1", "Topic 2"],
-                        "Unit 2: Name": ["Topic 1"]
-                      }}
-                    }}
+                    if len(full_text) < 100:
+                        st.error("AI ko is semester ka data nahi mila. Photo clear hai?")
+                        st.stop()
 
-                    Syllabus Text: {relevant_txt[:12000]}
+                    prompt = f"""
+                    Act as an Engineering Moderator. Extract Subjects for '{target_sem}'.
+                    IGNORE Labs, Practicals, and non-theory credits.
+                    Extract 5 core subjects, each with 5-6 key units.
+                    Output ONLY valid JSON.
+                    Format: {{"Subject Name": ["Unit 1", "Unit 2"]}}
+                    Text: {full_text[:15000]}
                     """
                     
                     res = groq_client.chat.completions.create(
@@ -444,49 +440,48 @@ with tab2:
                         response_format={"type": "json_object"}
                     )
                     
-                    # JSON Clean up using your utility
-                    clean_data = json.loads(res.choices[0].message.content)
+                    raw_json = json.loads(res.choices[0].message.content)
+
+                    # --- CLOUD SAVE LOGIC ---
+                    # Pehle purana data saaf karo
+                    supabase.table("syllabus_tracking").delete().eq("user_email", u_email).execute()
                     
-                    if clean_data:
-                        # Converting to Tracker Format
-                        st.session_state.master_tracker = {target_sem: {}}
-                        for sub, mods in clean_data.items():
-                            st.session_state.master_tracker[target_sem][sub] = {
-                                mod: [{"name": t, "status": "Not Started"} for t in topics] 
-                                for mod, topics in mods.items()
-                            }
-                        st.balloons()
-                        st.rerun()
-                    else:
-                        st.error("AI output blank. PDF text clear nahi hai.")
+                    # Naya data insert karo
+                    for sub, units in raw_json.items():
+                        for unit in units:
+                            supabase.table("syllabus_tracking").insert({
+                                "user_email": u_email,
+                                "subject_name": sub,
+                                "topic_name": unit,
+                                "is_completed": False
+                            }).execute()
+                    
+                    st.success("Cloud Sync Complete!")
+                    st.rerun()
 
                 except Exception as e:
-                    st.error(f"Scan Error: {str(e)}")
+                    st.error(f"Sync Failed: {str(e)}")
 
-    # 3. Interactive UI (The Checklist)
-    if st.session_state.master_tracker:
-        for sem, subs in st.session_state.master_tracker.items():
-            st.markdown(f"### 📊 {sem} Study Progress")
-            
-            for sub_name, modules in subs.items():
-                with st.expander(f"📘 {sub_name}", expanded=False):
-                    for mod_name, topics in modules.items():
-                        st.markdown(f"**📂 {mod_name}**")
-                        for t in topics:
-                            # Unique ID generator for checkboxes
-                            u_id = hashlib.md5(f"{sub_name}{mod_name}{t['name']}".encode()).hexdigest()
-                            
-                            c1, c2 = st.columns([0.85, 0.15])
-                            c1.write(f"🔹 {t['name']}")
-                            
-                            # Interactive checkbox with state sync
-                            is_done = c2.checkbox("Done", value=(t['status'] == "Completed"), key=u_id)
-                            if is_done != (t['status'] == "Completed"):
-                                t['status'] = "Completed" if is_done else "Not Started"
-                                st.rerun()
+    # 4. Interactive Checklist (Direct DB Update)
+    if cloud_data:
+        # Sort data by subject for clean UI
+        subs = sorted(list(set([t['subject_name'] for t in cloud_data])))
+        
+        for s_name in subs:
+            with st.expander(f"📘 {s_name}", expanded=True):
+                topics = [t for t in cloud_data if t['subject_name'] == s_name]
+                for t in topics:
+                    c1, c2 = st.columns([0.85, 0.15])
+                    c1.write(f"🔹 {t['topic_name']}")
+                    
+                    # Update Database on click
+                    is_checked = c2.checkbox("Done", value=t['is_completed'], key=f"check_{t['id']}")
+                    if is_checked != t['is_completed']:
+                        supabase.table("syllabus_tracking").update({"is_completed": is_checked}).eq("id", t['id']).execute()
+                        st.rerun()
 
-        if st.button("🗑️ Reset Tracker"):
-            st.session_state.master_tracker = {}
+        if st.button("🗑️ Reset All Progress"):
+            supabase.table("syllabus_tracking").delete().eq("user_email", u_email).execute()
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
