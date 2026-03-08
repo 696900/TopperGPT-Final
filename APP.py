@@ -349,117 +349,94 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: PRECISION SYLLABUS MANAGER (V4 - HYBRID AI) ---
+# --- TAB 2: PRECISION SYLLABUS MANAGER (V5 - FINAL FIX) ---
 # ==========================================
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Precision Syllabus Manager</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Topper Syllabus Tracker</h2>", unsafe_allow_html=True)
     
-    u_email = st.session_state.user_data['email']
-
-    # 1. Build Engine: The Hybrid Pipeline
-    with st.expander("📤 Build Your Semester Tracker (Hybrid AI)", expanded=True):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syll_v4_hybrid")
+    # 1. VISUAL PROGRESS BAR (Top Priority)
+    if 'master_tracker' in st.session_state and st.session_state.master_tracker:
+        all_items = []
+        for sub, chaps in st.session_state.master_tracker.items():
+            for c in chaps:
+                all_items.append(c)
         
-        target_sem = st.selectbox("📅 Select Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V", "Semester VI", "Semester VII", "Semester VIII"])
+        total = len(all_items)
+        done = sum(1 for c in all_items if isinstance(c, dict) and c.get('status') == 'Completed')
+        progress = (done / total) if total > 0 else 0
         
-        if up_pdf and st.button("🚀 Deep Extract Syllabus"):
-            with st.spinner("Executing Hybrid Extraction (Regex + LLM)..."):
-                try:
-                    pdf_bytes = up_pdf.read()
-                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                    
-                    # --- STEP 1: CLEAN BLOCK EXTRACTION ---
-                    relevant_txt = ""
-                    sem_patterns = [target_sem.lower(), target_sem.replace("Semester", "Sem").lower(), target_sem.replace("Semester", "").strip().lower()]
-                    
-                    for page in doc:
-                        # "blocks" format keeps table/column structure better
-                        blocks = page.get_text("blocks")
-                        page_txt = "\n".join([b[4] for b in blocks])
-                        
-                        # Multi-pattern semester detection
-                        if any(p in page_txt.lower() for p in sem_patterns):
-                            relevant_txt += page_txt + "\n"
+        # UI Progress Bar
+        st.markdown(f"### Overall Completion: {int(progress*100)}%")
+        st.progress(progress)
+        st.divider()
 
-                    # --- STEP 2: REGEX MODULE DETECTION ---
-                    # Common patterns like "Module 1", "Unit I", "Chapter 1"
-                    regex_modules = re.findall(r'((?:Module|Unit|Chapter)\s*[0-9A-Z]+[:\-]?\s*[^\n]+)', relevant_txt)
-                    regex_context = "\n".join(regex_modules)
-
-                    # --- STEP 3: LLM VERIFICATION & GROUPING ---
-                    # We send only the high-quality extracted text to LLM
-                    prompt = f"""
-                    Act as a University Syllabus Auditor.
-                    You are given extracted text blocks. Group them by SUBJECT.
-                    
-                    RULES:
-                    1. Extract ONLY Theory Subjects. 
-                    2. For each subject, extract module titles EXACTLY as written.
-                    3. Ignore: Lab work, Practicals, References, Books, Internal Assessment.
-                    4. If no modules found for a subject, ignore that subject.
-                    
-                    STRICT JSON FORMAT:
-                    {{ "Subject Name": ["Module title 1", "Module title 2"] }}
-
-                    EXTRACTED TEXT:
-                    {relevant_txt[:12000]}
-                    
-                    REGEX DETECTED MODULES (Priority):
-                    {regex_context}
-                    """
-                    
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": prompt}],
-                        response_format={"type": "json_object"}
-                    )
-                    
-                    raw_json = json.loads(res.choices[0].message.content)
-
-                    # --- STEP 4: GARBAGE CLEANING (The Filter) ---
-                    bad_words = ["reference", "book", "practical", "lab", "viva", "experiment", "scheme"]
-                    cleaned_data = {}
-
-                    for sub, chapters in raw_json.items():
-                        valid_chapters = []
-                        for ch in chapters:
-                            if not any(bw in ch.lower() for bw in bad_words) and len(ch) > 3:
-                                # Remove common numbering garbage
-                                clean_ch = re.sub(r'^(Module|Unit|Chapter)\s*\d+[:\-]?\s*', '', ch, flags=re.IGNORECASE).strip()
-                                valid_chapters.append(clean_ch)
-                        
-                        if valid_chapters:
-                            cleaned_data[sub] = valid_chapters
-
-                    # --- STEP 5: STORE & PREVIEW ---
-                    # Storing in session for confirmation before DB save
-                    st.session_state.temp_syll = cleaned_data
-                    st.success("Analysis Complete! Review subjects below.")
-
-                except Exception as e:
-                    st.error(f"Extraction Failed: {str(e)}")
-
-    # 2. USER CONFIRMATION UI (Hybrid Control)
-    if 'temp_syll' in st.session_state and st.session_state.temp_syll:
-        st.markdown("### 🔍 Confirm Extracted Syllabus")
-        final_to_save = {}
-
-        for sub, chaps in st.session_state.temp_syll.items():
-            with st.container():
-                st.markdown(f"**📘 {sub}**")
-                selected_chaps = []
-                for c in chaps:
-                    if st.checkbox(f"{c}", value=True, key=f"conf_{sub}_{c}"):
-                        selected_chaps.append(c)
-                if selected_chaps:
-                    final_to_save[sub] = selected_chaps
+    # 2. THE IMPROVED BUILD ENGINE (Regex + Multi-Level Extraction)
+    with st.expander("📤 Upload & Sync Semester PDF", expanded=not st.session_state.get('master_tracker')):
+        up_pdf = st.file_uploader("Upload Official PDF", type="pdf")
+        target_sem = st.selectbox("📅 Semester", ["Semester I", "Semester II", "Semester III", "Semester IV"])
         
-        if st.button("✅ Everything looks good, Lock it!"):
-            # SAVE TO SUPABASE Logic (Abhi testing ke liye sirf success dikhayega)
-            st.session_state.master_tracker = final_to_save 
-            st.success("Syllabus Locked & Synced!")
-            del st.session_state.temp_syll
-            st.rerun()
+        if up_pdf and st.button("🚀 Run Deep Analysis"):
+            with st.spinner("Decoding PDF Structures..."):
+                pdf_bytes = up_pdf.read()
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                
+                raw_text = ""
+                for page in doc:
+                    # BLOCK mode handles tables much better
+                    blocks = page.get_text("blocks")
+                    raw_text += "\n".join([b[4] for b in blocks])
+
+                # Improved Prompt for Exact Module Matching
+                prompt = f"""
+                You are an Engineering Syllabus Parser. 
+                Extract the THEORY subjects and their MODULES for {target_sem}.
+                
+                RULES:
+                1. Skip duplicates and Labs.
+                2. Extract the actual Module Titles (e.g., 'Beta and Gamma Functions').
+                3. Return JSON: {{ "Subject Name": ["Module 1 Title", "Module 2 Title"] }}
+                
+                TEXT: {raw_text[:12000]}
+                """
+                
+                res = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"}
+                )
+                raw_json = json.loads(res.choices[0].message.content)
+                
+                # Setup Tracker Structure
+                formatted_tracker = {}
+                for sub, chaps in raw_json.items():
+                    formatted_tracker[sub] = [{"name": c, "status": "Not Started"} for c in chaps]
+                
+                st.session_state.master_tracker = formatted_tracker
+                st.success("Analysis Complete! Tracker Created.")
+                st.rerun()
+
+    # 3. INTERACTIVE MODULE CHECKLIST (Visual Fix)
+    if 'master_tracker' in st.session_state and st.session_state.master_tracker:
+        for subject, modules in st.session_state.master_tracker.items():
+            with st.expander(f"📘 {subject}", expanded=True):
+                # Calculate subject-wise progress
+                sub_total = len(modules)
+                sub_done = sum(1 for m in modules if m['status'] == 'Completed')
+                st.caption(f"Progress: {sub_done}/{sub_total}")
+                
+                for i, mod in enumerate(modules):
+                    col1, col2 = st.columns([0.85, 0.15])
+                    col1.write(f"🔹 {mod['name']}")
+                    
+                    # Real-time state change
+                    is_done = col2.checkbox("Done", value=(mod['status'] == 'Completed'), key=f"mod_{subject}_{i}")
+                    if is_done != (mod['status'] == 'Completed'):
+                        mod['status'] = "Completed" if is_done else "Not Started"
+                        st.rerun()
+
+    if st.button("🗑️ Reset All Data"):
+        st.session_state.master_tracker = {}
+        st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
