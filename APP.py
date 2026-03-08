@@ -199,10 +199,15 @@ if st.session_state.user_data is None:
 
 # --- 4. SIDEBAR LAYOUT ---
 with st.sidebar:
-    # ✅ LOGO ADDED HERE (Sabse Upar)
-    st.image("logo.png", use_container_width=True) 
+    # ✅ LOGO WITH SAFETY CHECK: Ab ye crash nahi hoga
+    import os
+    if os.path.exists("logo.png"):
+        st.image("logo.png", use_container_width=True)
+    else:
+        # Agar file nahi mili toh sirf icon dikhao (No Error)
+        st.markdown("<h1 style='text-align: center;'>🎓</h1>", unsafe_allow_html=True)
 
-    st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic;'>🎓 TopperGPT</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic; text-align: center;'>TopperGPT</h2>", unsafe_allow_html=True)
     
     st.markdown(f'''
         <div class="wallet-card">
