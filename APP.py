@@ -832,18 +832,20 @@ with tab6:
         if subj_name:
             # --- START REVENUE LOOP ---
             if use_credits(pyq_cost):
-                with st.spinner(f"Accessing {univ} Exam Archives..."):
-                    # ✅ UPDATED PROMPT: Force AI to act as an Examiner and provide real frequency
+                with st.spinner(f"Analyzing {univ} Exam Patterns..."):
+                    # ✅ UPDATED PROMPT: Based on Credibility & Pattern Analysis
                     prompt = f"""
-                    You are a Senior Paper Setter and Moderator for {univ}. 
+                    You are a Senior Academic Moderator for {univ}. 
                     Subject: {subj_name} for {branch} Engineering, {semester}.
                     
                     STRICT INSTRUCTIONS:
-                    1. Identify 5 questions that have appeared MOST FREQUENTLY (at least 3-4 times) in the last 10 years of {univ} exams.
-                    2. Provide 2 'Sure-Shot' expected questions based on current weightage trends.
-                    3. Format each question clearly: [Question Text] - (Month/Year appeared, Marks).
-                    4. Ensure technical accuracy as per {branch} engineering standards.
-                    5. Use a professional examiner tone.
+                    1. List 5 High-Priority Topics that have appeared MOST FREQUENTLY in the last 10 years.
+                    2. Identify 5 specific recurring questions with their Year/Marks reference.
+                    3. Provide 3 'High Probability' topics for practice based on historical weightage trends.
+                    4. Format: [Topic/Question] - (Pattern Frequency: X times, Average Marks: Y).
+                    
+                    IMPORTANT: Do NOT use words like 'Sure-Shot', 'Guaranteed', or 'Exact Prediction'. 
+                    Focus on 'Historical Patterns' and 'High Probability'.
                     """
                     
                     try:
@@ -871,20 +873,27 @@ with tab6:
     # DISPLAY LOGIC
     if st.session_state.pyq_result:
         st.markdown("---")
-        st.success(f"Verified PYQs & Expected Questions for {st.session_state.pyq_subject_last}")
+        st.success(f"Exam Pattern Analysis for {st.session_state.pyq_subject_last}")
         
-        # Displaying with a nice clean box
+        # Displaying with a nice clean box + DISCLAIMER
         st.markdown(f"""
-        <div style="background: #1c2128; border: 1px solid #4CAF50; padding: 20px; border-radius: 10px;">
+        <div style="background: #1c2128; border: 1px solid #4CAF50; padding: 25px; border-radius: 12px; line-height: 1.6;">
             {st.session_state.pyq_result}
+            <br><br>
+            <hr style="border-color: #30363d;">
+            <p style="font-size: 11px; color: #8b949e; font-style: italic; margin-top: 10px;">
+                ⚠️ <b>Disclaimer:</b> This analysis is based on historical exam patterns and trends. 
+                TopperGPT does not guarantee that these exact questions will appear in the upcoming exam. 
+                Students are strongly advised to study the entire syllabus.
+            </p>
         </div>
         """, unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
         st.download_button(
-            label="📥 Download This Question Bank (TXT)",
+            label="📥 Download Pattern Analysis (TXT)",
             data=st.session_state.pyq_result,
-            file_name=f"{st.session_state.pyq_subject_last}_PYQs.txt",
+            file_name=f"{st.session_state.pyq_subject_last}_Analysis.txt",
             use_container_width=True
         )
         
