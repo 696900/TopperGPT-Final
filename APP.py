@@ -349,90 +349,102 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: PRECISION SYLLABUS MANAGER (V5 - FINAL FIX) ---
+# --- TAB 2: PRECISION SYLLABUS MANAGER (V5 - STABLE) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Topper Syllabus Tracker</h2>", unsafe_allow_html=True)
     
-    # 1. VISUAL PROGRESS BAR (Top Priority)
+    # 1. VISUAL PROGRESS BAR (Overall Progress)
     if 'master_tracker' in st.session_state and st.session_state.master_tracker:
-        all_items = []
+        all_modules = []
         for sub, chaps in st.session_state.master_tracker.items():
-            for c in chaps:
-                all_items.append(c)
+            # Check if chaps is actually a list before extending
+            if isinstance(chaps, list):
+                all_modules.extend(chaps)
         
-        total = len(all_items)
-        done = sum(1 for c in all_items if isinstance(c, dict) and c.get('status') == 'Completed')
-        progress = (done / total) if total > 0 else 0
-        
-        # UI Progress Bar
-        st.markdown(f"### Overall Completion: {int(progress*100)}%")
-        st.progress(progress)
-        st.divider()
+        if all_modules:
+            total = len(all_modules)
+            done = sum(1 for c in all_modules if isinstance(c, dict) and c.get('status') == 'Completed')
+            progress = (done / total) if total > 0 else 0
+            
+            st.markdown(f"### Overall Mastery: {int(progress*100)}%")
+            st.progress(progress)
+            st.divider()
 
     # 2. THE IMPROVED BUILD ENGINE (Regex + Multi-Level Extraction)
     with st.expander("📤 Upload & Sync Semester PDF", expanded=not st.session_state.get('master_tracker')):
-        up_pdf = st.file_uploader("Upload Official PDF", type="pdf")
-        target_sem = st.selectbox("📅 Semester", ["Semester I", "Semester II", "Semester III", "Semester IV"])
+        up_pdf = st.file_uploader("Upload Official PDF", type="pdf", key="syll_v5_final")
+        target_sem = st.selectbox("📅 Semester", ["Semester I", "Semester II", "Semester III", "Semester IV", "Semester V", "Semester VI", "Semester VII", "Semester VIII"])
         
         if up_pdf and st.button("🚀 Run Deep Analysis"):
-            with st.spinner("Decoding PDF Structures..."):
-                pdf_bytes = up_pdf.read()
-                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                
-                raw_text = ""
-                for page in doc:
-                    # BLOCK mode handles tables much better
-                    blocks = page.get_text("blocks")
-                    raw_text += "\n".join([b[4] for b in blocks])
+            with st.spinner("Executing Hybrid Extraction..."):
+                try:
+                    pdf_bytes = up_pdf.read()
+                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                    
+                    raw_text = ""
+                    for page in doc:
+                        # BLOCK mode handles tables much better for engineering syllabi
+                        blocks = page.get_text("blocks")
+                        raw_text += "\n".join([b[4] for b in blocks])
 
-                # Improved Prompt for Exact Module Matching
-                prompt = f"""
-                You are an Engineering Syllabus Parser. 
-                Extract the THEORY subjects and their MODULES for {target_sem}.
-                
-                RULES:
-                1. Skip duplicates and Labs.
-                2. Extract the actual Module Titles (e.g., 'Beta and Gamma Functions').
-                3. Return JSON: {{ "Subject Name": ["Module 1 Title", "Module 2 Title"] }}
-                
-                TEXT: {raw_text[:12000]}
-                """
-                
-                res = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": prompt}],
-                    response_format={"type": "json_object"}
-                )
-                raw_json = json.loads(res.choices[0].message.content)
-                
-                # Setup Tracker Structure
-                formatted_tracker = {}
-                for sub, chaps in raw_json.items():
-                    formatted_tracker[sub] = [{"name": c, "status": "Not Started"} for c in chaps]
-                
-                st.session_state.master_tracker = formatted_tracker
-                st.success("Analysis Complete! Tracker Created.")
-                st.rerun()
+                    prompt = f"""
+                    You are an Engineering Syllabus Parser. 
+                    Extract core THEORY subjects and their MODULES for {target_sem}.
+                    
+                    STRICT RULES:
+                    1. Skip Labs, Practicals, and duplicate entries.
+                    2. Extract actual academic module titles (e.g., 'Double Integration', 'Laplace Transform').
+                    3. Return ONLY a valid JSON object.
+                    
+                    Format: {{ "Subject Name": ["Module 1 Title", "Module 2 Title"] }}
+                    TEXT: {raw_text[:15000]}
+                    """
+                    
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": prompt}],
+                        response_format={"type": "json_object"}
+                    )
+                    raw_json = json.loads(res.choices[0].message.content)
+                    
+                    # Convert to Interactive Tracker Structure
+                    formatted_tracker = {}
+                    for sub, chaps in raw_json.items():
+                        if isinstance(chaps, list):
+                            formatted_tracker[sub] = [{"name": str(c), "status": "Not Started"} for c in chaps]
+                    
+                    st.session_state.master_tracker = formatted_tracker
+                    st.success("Syllabus Analysed! Master Tracker Created.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Scan Error: {str(e)}")
 
-    # 3. INTERACTIVE MODULE CHECKLIST (Visual Fix)
+    # 3. INTERACTIVE MODULE CHECKLIST (Visual Fix & Type Safety)
     if 'master_tracker' in st.session_state and st.session_state.master_tracker:
         for subject, modules in st.session_state.master_tracker.items():
-            with st.expander(f"📘 {subject}", expanded=True):
-                # Calculate subject-wise progress
-                sub_total = len(modules)
-                sub_done = sum(1 for m in modules if m['status'] == 'Completed')
-                st.caption(f"Progress: {sub_done}/{sub_total}")
-                
-                for i, mod in enumerate(modules):
-                    col1, col2 = st.columns([0.85, 0.15])
-                    col1.write(f"🔹 {mod['name']}")
+            # Check if we have a valid list of modules to display
+            if isinstance(modules, list) and len(modules) > 0:
+                with st.expander(f"📘 {subject}", expanded=True):
+                    # Subject-wise progress calc
+                    sub_total = len(modules)
+                    sub_done = sum(1 for m in modules if isinstance(m, dict) and m.get('status') == 'Completed')
+                    st.caption(f"Progress: {sub_done}/{sub_total}")
                     
-                    # Real-time state change
-                    is_done = col2.checkbox("Done", value=(mod['status'] == 'Completed'), key=f"mod_{subject}_{i}")
-                    if is_done != (mod['status'] == 'Completed'):
-                        mod['status'] = "Completed" if is_done else "Not Started"
-                        st.rerun()
+                    for i, mod in enumerate(modules):
+                        if isinstance(mod, dict) and 'name' in mod:
+                            c1, c2 = st.columns([0.85, 0.15])
+                            c1.write(f"🔹 {mod['name']}")
+                            
+                            # Clean key for state management
+                            m_key = f"chk_{subject}_{i}".replace(" ", "_")
+                            is_done = c2.checkbox("Done", value=(mod['status'] == 'Completed'), key=m_key)
+                            
+                            if is_done != (mod['status'] == 'Completed'):
+                                mod['status'] = "Completed" if is_done else "Not Started"
+                                st.rerun()
+            else:
+                st.info(f"Scanning for details in {subject}...")
 
     if st.button("🗑️ Reset All Data"):
         st.session_state.master_tracker = {}
