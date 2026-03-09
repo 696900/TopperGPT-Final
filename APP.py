@@ -351,18 +351,24 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: AI EXAM WAR ROOM (V11 - FULL DETAIL) ---
+# --- TAB 2: AI EXAM WAR ROOM (BRAHMASTRA V12) ---
 # ==========================================
 with tab2:
+    # ✅ FIX: Helper function defined inside the tab to avoid NameError
+    def pass_prob_text(r):
+        if r < 40: return "CRITICAL"
+        if r < 75: return "MODERATE"
+        return "BATTLE READY"
+
     if 'war_room' not in st.session_state:
         st.session_state.war_room = None
 
     if st.session_state.war_room:
         wr = st.session_state.war_room
         
-        # ✅ DYNAMIC READINESS LOGIC
-        total_imp = sum(t['importance'] for t in wr['topics'])
-        mastered_imp = sum(t['importance'] for t in wr['topics'] if t.get('done'))
+        # ✅ DYNAMIC READINESS LOGIC: Calculate based on importance
+        total_imp = sum(t['importance'] for t in wr['topics']) if 'topics' in wr else 0
+        mastered_imp = sum(t['importance'] for t in wr['topics'] if t.get('done')) if 'topics' in wr else 0
         readiness = int((mastered_imp / total_imp) * 100) if total_imp > 0 else 0
 
         # --- 1. PRO MISSION CONTROL HEADER ---
@@ -435,30 +441,40 @@ with tab2:
 
         # --- 3. THE BRAHMASTRA DETAIL PLAN (Day-wise Breakdown) ---
         st.markdown("<br>## ⚔️ Detailed Battle Roadmap", unsafe_allow_html=True)
-        for phase in wr['phases']:
-            with st.expander(f"📍 {phase['name']} (Target: {phase['goal']})", expanded=True):
-                st.markdown(f"<p style='color: #4f46e5; font-weight: bold;'>{phase['days_range']}</p>", unsafe_allow_html=True)
-                st.write(phase['desc'])
-                st.markdown("**Core Topics to Master:**")
-                for topic in phase['topics']:
-                    st.markdown(f"- {topic}")
+        if 'phases' in wr:
+            for phase in wr['phases']:
+                with st.expander(f"📍 {phase['name']} (Target: {phase.get('goal', 'N/A')})", expanded=True):
+                    st.markdown(f"<p style='color: #4f46e5; font-weight: bold;'>{phase.get('days_range', '')}</p>", unsafe_allow_html=True)
+                    st.write(phase.get('desc', ''))
+                    st.markdown("**Core Topics to Master:**")
+                    # ✅ Safety check for topics list
+                    topics_list = phase.get('topics', [])
+                    if isinstance(topics_list, list):
+                        for topic in topics_list:
+                            st.markdown(f"- {topic}")
+                    else:
+                        st.markdown(f"- {topics_list}")
 
         # --- 4. TODAY'S MISSIONS ---
         st.markdown("<br>## 🎯 Today's Field Missions", unsafe_allow_html=True)
-        for i, m in enumerate(wr['missions']):
-            cols = st.columns([0.05, 0.8, 0.15])
-            if m['done']:
-                cols[0].markdown("### ✅")
-                cols[1].markdown(f"<p style='text-decoration: line-through; color: #64748b;'><b>{m['task']}</b><br><small>{m['time']} • {m['priority']}</small></p>", unsafe_allow_html=True)
-            else:
-                cols[0].markdown("### 🕒")
-                cols[1].markdown(f"<p style='color: white;'><b>{m['task']}</b><br><small>{m['time']} • {m['priority']}</small></p>", unsafe_allow_html=True)
-                if cols[2].button("Done", key=f"m_v11_{i}"):
-                    m['done'] = True
-                    for t in wr['topics']:
-                        if t['name'] in m['task']: t['done'] = True
-                    st.rerun()
-            st.divider()
+        if 'missions' in wr:
+            for i, m in enumerate(wr['missions']):
+                cols = st.columns([0.05, 0.8, 0.15])
+                if m['done']:
+                    cols[0].markdown("### ✅")
+                    cols[1].markdown(f"<p style='text-decoration: line-through; color: #64748b;'><b>{m['task']}</b><br><small>{m['time']} • {m['priority']}</small></p>", unsafe_allow_html=True)
+                else:
+                    cols[0].markdown("### 🕒")
+                    cols[1].markdown(f"<p style='color: white;'><b>{m['task']}</b><br><small>{m['time']} • {m['priority']}</small></p>", unsafe_allow_html=True)
+                    if cols[2].button("Done", key=f"m_v12_{i}"):
+                        m['done'] = True
+                        # Mark corresponding topic as done
+                        if 'topics' in wr:
+                            for t in wr['topics']:
+                                if t['name'].lower() in m['task'].lower(): 
+                                    t['done'] = True
+                        st.rerun()
+                st.divider()
 
         if st.button("🗑️ Abort Mission & Reset"):
             st.session_state.war_room = None
@@ -471,7 +487,7 @@ with tab2:
         
         c1, c2 = st.columns(2)
         uni = c1.selectbox("Select University", ["Mumbai University", "SPPU (Pune)", "GTU", "AKTU", "Other"])
-        sub_name = c2.text_input("Subject Name", placeholder="e.g. Applied Maths 2")
+        sub_name = c2.text_input("Subject Name", placeholder="e.g. Data Structures")
         
         c3, c4 = st.columns(2)
         days = c3.number_input("Days to Exam", 1, 60, 10)
@@ -479,20 +495,24 @@ with tab2:
 
         if st.button("🔥 GENERATE BRAHMASTRA PLAN", use_container_width=True):
             with st.spinner(f"AI Senior is analyzing {uni} paper patterns..."):
+                # ✅ High-detail prompt for Phase-wise strategy
                 prompt = f"""
                 University: {uni}, Subject: {sub_name}, Days: {days}, Confidence: {conf}/10.
                 Role: Senior Engineering Topper & Strategist.
-                Create a high-detail 'Exam War Room' plan.
+                Divide the roadmap into 4 strategic phases based on {days} days.
+                Identify real high-weightage topics for {uni}.
 
                 Output JSON ONLY:
                 {{
-                  "matrix": {{ "quick_wins": "Topic list", "big_rocks": "Topic list", "fillers": "Topic list" }},
+                  "matrix": {{ "quick_wins": "topic names", "big_rocks": "topic names", "fillers": "topic names" }},
                   "phases": [
-                    {{ "name": "Phase 1: Survival", "goal": "Secure 40 marks", "days_range": "Day 1-3", "desc": "Detailed instructions", "topics": ["T1", "T2"] }},
-                    ... 
+                    {{ "name": "Phase 1: Survival", "goal": "Secure 40 marks", "days_range": "Day 1-3", "desc": "Study instructions", "topics": ["T1", "T2"] }},
+                    {{ "name": "Phase 2: Scoring", "goal": "Reach 60 marks", "days_range": "Day 4-7", "desc": "Study instructions", "topics": ["T3", "T4"] }},
+                    {{ "name": "Phase 3: Mastery", "goal": "Reach 80 marks", "days_range": "Day 8-9", "desc": "Study instructions", "topics": ["T5"] }},
+                    {{ "name": "Phase 4: Drilling", "goal": "Final Revision", "days_range": "Day 10", "desc": "PYQ practice", "topics": ["All"] }}
                   ],
-                  "topics": [ {{"name": "T1", "importance": 10}}, ... ],
-                  "missions": [ {{"task": "Learn T1", "time": "2h", "priority": "CRITICAL"}}, ... ]
+                  "topics": [ {{"name": "Topic name", "importance": 10}}, ... ],
+                  "missions": [ {{"task": "Learn topic name", "time": "2h", "priority": "CRITICAL", "done": false}}, ... ]
                 }}
                 """
                 res = groq_client.chat.completions.create(
@@ -505,15 +525,10 @@ with tab2:
                 st.session_state.war_room = {
                     "university": uni, "subject": sub_name, "days_left": days,
                     "matrix": strategy['matrix'], "phases": strategy['phases'],
-                    "topics": [{**t, "done": False} for t in strategy['topics']],
-                    "missions": [{**m, "done": False} for m in strategy['missions']]
+                    "topics": [{**t, "done": False} for t in strategy.get('topics', [])],
+                    "missions": [{**m, "done": False} for m in strategy.get('missions', [])]
                 }
                 st.rerun()
-
-def pass_prob_text(r):
-    if r < 40: return "CRITICAL"
-    if r < 75: return "MODERATE"
-    return "BATTLE READY"
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
