@@ -354,124 +354,142 @@ with tab1:
 # --- TAB 2: AI EXAM WAR ROOM (THE BRAHMASTRA) ---
 # ==========================================
 with tab2:
-    # --- 1. SESSION INITIALIZATION ---
     if 'war_room' not in st.session_state:
         st.session_state.war_room = None
 
     if st.session_state.war_room:
         wr = st.session_state.war_room
         
-        # ✅ REAL-TIME PROBABILITY ENGINE (Dynamic Logic)
-        total_imp = sum(t.get('importance', 5) for t in wr['topics'])
-        mastered_imp = sum(t.get('importance', 5) for t in wr['topics'] if t.get('done'))
-        
-        # Weighted readiness calculation [cite: 4]
+        # ✅ DYNAMIC READINESS CALCULATION
+        # Logic: Readiness = Sum(Done_Topic_Importance) / Total_Importance
+        total_imp = sum(t['importance'] for t in wr['topics'])
+        mastered_imp = sum(t['importance'] for t in wr['topics'] if t.get('done'))
         readiness = int((mastered_imp / total_imp) * 100) if total_imp > 0 else 0
-        pass_prob = "🔥 HIGH" if readiness > 75 else "🟡 MODERATE" if readiness > 45 else "🔴 CRITICAL"
 
-        # --- UI: BATTLE DASHBOARD ---
+        # --- BATTLE HEADER ---
         st.markdown(f"""
-            <div style="background: #1e293b; padding: 25px; border-radius: 20px; border: 1px solid #4f46e5; margin-bottom: 25px;">
+            <div style="background: #0f172a; padding: 25px; border-radius: 20px; border: 2px solid #ef4444; margin-bottom: 25px; box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h1 style="color: #ef4444; margin: 0; font-size: 32px; font-weight: 900;">EXAM WAR ROOM</h1>
-                        <p style="color: #94a3b8; margin: 5px 0 0 0;"><b>{wr['university']}</b> | {wr['subject']}</p>
+                        <h1 style="color: #ef4444; margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -1px;">BATTLE COMMAND: {wr['subject'].upper()}</h1>
+                        <p style="color: #94a3b8; margin: 5px 0 0 0; font-weight: 600;">{wr['university']} | Target: PASS + SCORE</p>
                     </div>
-                    <div style="text-align: right;">
-                        <div style="color: #ef4444; font-size: 40px; font-weight: 900; line-height: 1;">{wr['days_left']}</div>
-                        <div style="color: #64748b; font-size: 10px; font-weight: bold; letter-spacing: 2px;">DAYS TO BATTLE</div>
+                    <div style="text-align: right; background: rgba(239, 68, 68, 0.1); padding: 10px 20px; border-radius: 15px;">
+                        <div style="color: #ef4444; font-size: 35px; font-weight: 900; line-height: 1;">{wr['days_left']}</div>
+                        <div style="color: #64748b; font-size: 10px; font-weight: bold; letter-spacing: 1px;">DAYS LEFT</div>
                     </div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
-        # --- GRID: PROBABILITY & PHASE STRATEGY ---
-        col_l, col_r = st.columns(2)
+        # --- TOP SECTION: PROBABILITY & MATRIX ---
+        col_l, col_r = st.columns([0.45, 0.55])
         
         with col_l:
-            # Pass Probability Gauge [cite: 32, 38, 41]
+            # Pass Probability Gauge 
+            status_color = "#ef4444" if readiness < 40 else "#f59e0b" if readiness < 75 else "#10b981"
             st.markdown(f"""
-                <div style="background: #0f172a; padding: 25px; border-radius: 20px; border: 1px solid #334155; height: 350px; text-align: center;">
-                    <p style="color: #10b981; font-weight: bold; margin-bottom: 20px; font-size: 18px;">📈 Pass Probability: {pass_prob}</p>
+                <div style="background: #1e293b; padding: 25px; border-radius: 20px; border: 1px solid #334155; height: 380px; text-align: center;">
+                    <p style="color: #94a3b8; font-weight: bold; margin-bottom: 20px;">READINESS STATUS</p>
                     <div style="position: relative; display: inline-block;">
                         <svg width="180" height="180" viewBox="0 0 160 160">
-                            <circle cx="80" cy="80" r="70" fill="none" stroke="#1e293b" stroke-width="12" />
-                            <circle cx="80" cy="80" r="70" fill="none" stroke="#10b981" stroke-width="12" 
+                            <circle cx="80" cy="80" r="70" fill="none" stroke="#0f172a" stroke-width="12" />
+                            <circle cx="80" cy="80" r="70" fill="none" stroke="{status_color}" stroke-width="12" 
                                 stroke-dasharray="440" stroke-dashoffset="{440 - (440 * readiness) / 100}" 
                                 stroke-linecap="round" style="transition: all 1s ease-out;" />
                         </svg>
-                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 35px; font-weight: 900;">{readiness}%</div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 40px; font-weight: 900;">{readiness}%</div>
                     </div>
-                    <p style="color: #94a3b8; font-size: 13px; margin-top: 20px; font-style: italic;">"Master Phase 1 topics to reach {min(readiness + 25, 100)}% Pass Chance"</p>
+                    <h3 style="color: {status_color}; margin-top: 15px;">{"CRITICAL" if readiness < 40 else "MODERATE" if readiness < 75 else "BATTLE READY"}</h3>
+                    <p style="color: #64748b; font-size: 12px; font-style: italic;">Complete 'Quick Wins' to jump to {min(readiness + 20, 100)}%</p>
                 </div>
             """, unsafe_allow_html=True)
 
         with col_r:
-            # ⚔️ PHASE-WISE STRATEGY 
+            # 📊 THE PRIORITY MATRIX (The "Brutal Logic") 
             st.markdown(f"""
-                <div style="background: #0f172a; padding: 25px; border-radius: 20px; border: 1px solid #334155; height: 350px; overflow-y: auto;">
-                    <p style="color: #f97316; font-weight: bold; margin-bottom: 15px; font-size: 18px;">⚔️ Battle Roadmap</p>
-                    {"".join([f"<div style='margin-bottom:12px; padding:12px; background:#1e293b; border-radius:10px; border-left:4px solid #4f46e5;'><b style='color:#4f46e5;'>{p['name']}</b><br><small style='color:#cbd5e1;'>{p['desc']}</small></div>" for p in wr['phases']])}
+                <div style="background: #1e293b; padding: 20px; border-radius: 20px; border: 1px solid #334155; height: 380px;">
+                    <p style="color: #4f46e5; font-weight: bold; margin-bottom: 15px;">⚔️ STRATEGIC BATTLE MAP</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 280px;">
+                        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 12px; padding: 10px;">
+                            <b style="color: #10b981; font-size: 11px;">🚀 QUICK WINS</b><br>
+                            <small style="color: #cbd5e1; font-size: 10px;">Easy + High Weight</small>
+                            <div style="margin-top: 5px; font-size: 11px; color: white;">{wr['matrix']['quick_wins']}</div>
+                        </div>
+                        <div style="background: rgba(79, 70, 229, 0.1); border: 1px solid #4f46e5; border-radius: 12px; padding: 10px;">
+                            <b style="color: #4f46e5; font-size: 11px;">💎 BIG ROCKS</b><br>
+                            <small style="color: #cbd5e1; font-size: 10px;">Hard + High Weight</small>
+                            <div style="margin-top: 5px; font-size: 11px; color: white;">{wr['matrix']['big_rocks']}</div>
+                        </div>
+                        <div style="background: rgba(148, 163, 184, 0.1); border: 1px solid #94a3b8; border-radius: 12px; padding: 10px;">
+                            <b style="color: #94a3b8; font-size: 11px;">🎈 FILLERS</b><br>
+                            <small style="color: #cbd5e1; font-size: 10px;">Easy + Low Weight</small>
+                            <div style="margin-top: 5px; font-size: 11px; color: white;">{wr['matrix']['fillers']}</div>
+                        </div>
+                        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 12px; padding: 10px;">
+                            <b style="color: #ef4444; font-size: 11px;">💀 DANGER ZONE</b><br>
+                            <small style="color: #cbd5e1; font-size: 10px;">Hard + Low Weight</small>
+                            <div style="margin-top: 5px; font-size: 11px; color: white;">SKIP THESE NOW</div>
+                        </div>
+                    </div>
                 </div>
             """, unsafe_allow_html=True)
 
-        # --- TODAY'S MISSION CHECKLIST [cite: 7, 8, 9, 71] ---
-        st.markdown("<br>### 🎯 Active Missions", unsafe_allow_html=True)
+        # --- TODAY'S ACTIVE MISSIONS ---
+        st.markdown("<br>### 🎯 Active Field Missions", unsafe_allow_html=True)
         for i, m in enumerate(wr['missions']):
-            col_icon, col_txt, col_btn = st.columns([0.1, 0.7, 0.2])
+            cols = st.columns([0.05, 0.75, 0.2])
+            status_ico = "✅" if m['done'] else "🕒"
+            cols[0].markdown(f"### {status_ico}")
             
-            # Icon logic [cite: 77]
-            status_icon = "✅" if m['done'] else "🕒"
-            col_icon.markdown(f"### {status_icon}")
+            strike = "text-decoration: line-through; color: #475569;" if m['done'] else "color: white;"
+            cols[1].markdown(f"""
+                <div style='{strike}'>
+                    <b style="font-size: 16px;">{m['task']}</b><br>
+                    <small style="color: #94a3b8;">Est. Time: {m['time']} | Priority: {m['priority']}</small>
+                </div>
+            """, unsafe_allow_html=True)
             
-            # Task details [cite: 79, 80]
-            text_style = "text-decoration: line-through; color: #64748b;" if m['done'] else "color: white;"
-            col_txt.markdown(f"<div style='{text_style}'><b>{m['task']}</b><br><small>{m['duration']} • {m['importance']} Priority</small></div>", unsafe_allow_html=True)
-            
-            # Interactive completion [cite: 83]
             if not m['done']:
-                if col_btn.button("Done", key=f"mission_v9_{i}"):
+                if cols[2].button("Mission Done", key=f"mission_{i}"):
+                    # Update local state
                     m['done'] = True
-                    # Update related topic status
+                    # Sync with topic importance for readiness jump
                     for t in wr['topics']:
                         if t['name'] in m['task']: t['done'] = True
                     st.rerun()
             st.markdown("<hr style='margin: 10px 0; border-color: #334155;'>", unsafe_allow_html=True)
 
-        if st.button("🗑️ Abort Mission & Reset"):
+        if st.button("🗑️ Reset Console"):
             st.session_state.war_room = None
             st.rerun()
 
     else:
-        # --- INITIAL CONFIGURATION (Asli Senior AI Input) ---
+        # --- INITIAL CONFIGURATION ---
         st.markdown("<div style='background: #1e293b; padding: 30px; border-radius: 20px; border: 1px solid #4f46e5; text-align: center;'><h2 style='color: white;'>Deploy AI Exam Strategy</h2></div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
-        uni = c1.selectbox("Select University", ["Mumbai University", "Pune University (SPPU)", "GTU", "AKTU", "Other"])
-        sub_name = c2.text_input("Subject Name", placeholder="e.g. Engineering Maths 2")
+        uni = c1.selectbox("Select University", ["Mumbai University", "SPPU (Pune)", "GTU", "AKTU", "Other"])
+        sub_name = c2.text_input("Subject Name", placeholder="e.g. Applied Maths 2")
         
         c3, c4 = st.columns(2)
-        days_left = c3.number_input("Days to Exam", 1, 60, 10)
-        confidence = c4.select_slider("Confidence (1-10)", options=range(1, 11), value=3)
+        days = c3.number_input("Days to Exam", 1, 60, 10)
+        conf = c4.select_slider("Current Confidence (1-10)", options=range(1, 11), value=3)
 
-        if st.button("🔥 GENERATE BRAHMASTRA STRATEGY", use_container_width=True):
-            with st.spinner(f"Senior Topper AI is analyzing {uni} trends..."):
-                # LLM Brain: Dividing topics by difficulty, time and importance [cite: 4, 18, 23]
+        if st.button("🔥 GENERATE BATTLE STRATEGY", use_container_width=True):
+            with st.spinner(f"Analyzing {uni} Historical Trends..."):
+                # Senior AI logic: Topic categorization
                 prompt = f"""
-                University: {uni}, Subject: {sub_name}, Days: {days_left}, Confidence: {confidence}/10.
-                You are a Senior University Ranker. Create an EXAM SURVIVAL STRATEGY.
-                
-                Rules:
-                1. Identify real high-weightage topics for this subject.
-                2. Divide study into 4 Phases based on {days_left} days.
-                3. Create 3 urgent 'Today's Missions'.
+                University: {uni}, Subject: {sub_name}, Days: {days}, Confidence: {conf}/10.
+                Role: Senior Topper AI. Divide {sub_name} into 4 strategic categories.
+                Identify real topics for {uni}.
                 
                 Output JSON ONLY:
                 {{
-                  "phases": [ {{"name": "Phase 1: Survival", "desc": "Must-do topics"}}, ... ],
+                  "matrix": {{ "quick_wins": "topic names", "big_rocks": "topic names", "fillers": "topic names" }},
                   "topics": [ {{"name": "Topic A", "importance": 10}}, ... ],
-                  "missions": [ {{"task": "Master Topic A", "duration": "1.5h", "importance": "Critical"}}, ... ]
+                  "missions": [ {{"task": "Learn Topic A", "time": "2h", "priority": "CRITICAL"}}, ... ]
                 }}
                 """
                 res = groq_client.chat.completions.create(
@@ -484,8 +502,8 @@ with tab2:
                 st.session_state.war_room = {
                     "university": uni,
                     "subject": sub_name,
-                    "days_left": days_left,
-                    "phases": strategy['phases'],
+                    "days_left": days,
+                    "matrix": strategy['matrix'],
                     "topics": [{**t, "done": False} for t in strategy['topics']],
                     "missions": [{**m, "done": False} for m in strategy['missions']]
                 }
