@@ -351,29 +351,27 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: AI EXAM WAR ROOM (MISSION CONTROL) ---
+# --- TAB 2: AI EXAM WAR ROOM (INTELLIGENT ENGINE) ---
 # ==========================================
 with tab2:
-    # --- 1. THE BRUTAL PROBABILITY LOGIC ---
     if 'war_room' not in st.session_state:
         st.session_state.war_room = None
 
     if st.session_state.war_room:
         wr = st.session_state.war_room
         
-        # Readiness Score Logic [cite: 4]
-        # Weighted importance: High (10), Medium (5), Low (2)
-        total_weight = sum(t['weight'] for t in wr['topics'])
-        mastered_weight = sum(t['weight'] for t in wr['topics'] if t.get('done'))
-        readiness = int((mastered_weight / total_weight) * 100) if total_weight > 0 else 46
+        # 1. BRAIN: Readiness & Probability Logic
+        total_weight = sum(t['importance'] for t in wr['topics'])
+        mastered_weight = sum(t['importance'] for t in wr['topics'] if t.get('done'))
+        readiness = int((mastered_weight / total_weight) * 100) if total_weight > 0 else wr['initial_readiness']
 
-        # --- HEADER: MISSION STATUS [cite: 15, 23] ---
+        # UI: HEADER SECTION
         st.markdown(f"""
             <div style="background: #1e293b; padding: 25px; border-radius: 20px; border: 1px solid #334155; margin-bottom: 25px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h1 style="color: #ef4444; margin: 0; font-size: 32px; font-weight: 900;">EXAM WAR ROOM</h1>
-                        <p style="color: #94a3b8; margin: 5px 0 0 0;">Subject: {wr['subject']}</p>
+                        <p style="color: #94a3b8; margin: 5px 0 0 0;">Strategy for: {wr['subject']}</p>
                     </div>
                     <div style="text-align: right;">
                         <div style="color: #ef4444; font-size: 40px; font-weight: 900; line-height: 1;">{wr['days_left']}</div>
@@ -383,11 +381,9 @@ with tab2:
             </div>
         """, unsafe_allow_html=True)
 
-        # --- DASHBOARD GRID [cite: 28, 29, 47] ---
+        # UI: PROBABILITY & VULNERABILITIES GRID
         col_l, col_r = st.columns(2)
-
         with col_l:
-            # Pass Probability Circle [cite: 32, 41]
             st.markdown(f"""
                 <div style="background: #1e293b; padding: 25px; border-radius: 20px; border: 1px solid #334155; height: 320px; text-align: center;">
                     <p style="color: #10b981; font-weight: bold; margin-bottom: 20px; font-size: 18px;">📈 Pass Probability</p>
@@ -396,82 +392,74 @@ with tab2:
                             <circle cx="80" cy="80" r="70" fill="none" stroke="#0f172a" stroke-width="12" />
                             <circle cx="80" cy="80" r="70" fill="none" stroke="#10b981" stroke-width="12" 
                                 stroke-dasharray="440" stroke-dashoffset="{440 - (440 * readiness) / 100}" 
-                                stroke-linecap="round" style="transition: stroke-dashoffset 1s ease-in-out;" />
+                                stroke-linecap="round" />
                         </svg>
                         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 35px; font-weight: 900;">{readiness}%</div>
                     </div>
-                    <p style="color: #94a3b8; font-size: 13px; margin-top: 20px; font-style: italic;">"Complete today's mission to reach {min(readiness + 12, 100)}%"</p>
+                    <p style="color: #94a3b8; font-size: 13px; margin-top: 20px; font-style: italic;">"Follow Phase 1 to reach {min(readiness + 20, 100)}% Pass Chance"</p>
                 </div>
             """, unsafe_allow_html=True)
 
         with col_r:
-            # Critical Vulnerabilities [cite: 50, 53, 57]
             st.markdown(f"""
-                <div style="background: #1e293b; padding: 25px; border-radius: 20px; border: 1px solid #334155; height: 320px;">
-                    <p style="color: #f97316; font-weight: bold; margin-bottom: 20px; font-size: 18px;">⚠️ Critical Vulnerabilities</p>
-                    <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 12px; border-radius: 10px; margin-bottom: 12px; display: flex; justify-content: space-between;">
-                        <span style="color: #f87171;">{wr['vulnerabilities'][0]}</span>
-                        <span style="color: #ef4444; font-weight: bold;">Priority 1</span>
-                    </div>
-                    <div style="background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.2); padding: 12px; border-radius: 10px; margin-bottom: 40px; display: flex; justify-content: space-between;">
-                        <span style="color: #fb923c;">{wr['vulnerabilities'][1]}</span>
-                        <span style="color: #f97316; font-weight: bold;">Priority 2</span>
-                    </div>
-                    <button style="width: 100%; padding: 14px; background: #4f46e5; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">Recalculate Strategy</button>
+                <div style="background: #1e293b; padding: 25px; border-radius: 20px; border: 1px solid #334155; height: 320px; overflow-y: auto;">
+                    <p style="color: #f97316; font-weight: bold; margin-bottom: 15px; font-size: 18px;">⚔️ Battle Phases</p>
+                    {"".join([f"<div style='margin-bottom:10px; padding:10px; background:#0f172a; border-radius:8px; border-left:4px solid #4f46e5;'><b style='color:#4f46e5;'>{p['name']}</b><br><small style='color:#94a3b8;'>{p['desc']}</small></div>" for p in wr['phases']])}
                 </div>
             """, unsafe_allow_html=True)
 
-        # --- TODAY'S MISSIONS [cite: 7, 8, 9, 71] ---
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("### 🎯 Today's Missions")
-        
+        # UI: TODAY'S MISSIONS (Interactive)
+        st.markdown("<br>### 🎯 Today's Missions", unsafe_allow_html=True)
         for i, m in enumerate(wr['missions']):
             col_icon, col_txt, col_btn = st.columns([0.1, 0.7, 0.2])
             col_icon.markdown("🕒" if not m['done'] else "✅")
-            col_txt.markdown(f"**{m['task']}** \n<span style='color: #64748b; font-size: 12px;'>{m['duration']} • {m['importance']} Importance</span>", unsafe_allow_html=True)
+            col_txt.markdown(f"**{m['task']}** \n<span style='color: #64748b; font-size: 12px;'>{m['duration']} • {m['importance']} Priority</span>", unsafe_allow_html=True)
             if not m['done']:
-                if col_btn.button("Start", key=f"mission_{i}"):
-                    st.toast(f"Starting: {m['task']}")
+                if col_btn.button("Complete", key=f"mission_v8_{i}"):
+                    m['done'] = True
+                    st.rerun()
             st.markdown("<hr style='margin: 10px 0; border-color: #334155;'>", unsafe_allow_html=True)
 
-        if st.button("🗑️ Abort Mission & Reset"):
+        if st.button("🗑️ Reset Engine"):
             st.session_state.war_room = None
             st.rerun()
 
     else:
-        # --- INITIAL CONFIGURATION (NO PDF NEEDED) ---
-        st.markdown("""
-            <div style="background: #1e293b; padding: 30px; border-radius: 20px; border: 1px solid #4f46e5; text-align: center;">
-                <h2 style="color: white; margin-bottom: 10px;">Deploy Battle Strategy</h2>
-                <p style="color: #94a3b8;">Enter details to generate your survival plan</p>
-            </div>
-        """, unsafe_allow_html=True)
+        # --- INITIAL CONFIGURATION (Asli AI Input) ---
+        st.markdown("<div style='background: #1e293b; padding: 30px; border-radius: 20px; border: 1px solid #4f46e5; text-align: center;'><h2>Deploy Battle Strategy</h2></div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
-        c1, c2 = st.columns(2)
-        sub_name = c1.text_input("Subject Name", placeholder="e.g. Data Structures")
-        days_left = c2.number_input("Days to Exam", 1, 60, 12)
-        
-        c3, c4 = st.columns(2)
-        confidence = c3.select_slider("Confidence Level", options=range(1, 11), value=3)
-        hours_per_day = c4.slider("Study Hours/Day", 1, 16, 4)
+        sub_name = st.text_input("Subject Name", placeholder="e.g. Engineering Maths 2")
+        days_left = st.number_input("Days to Exam", 1, 60, 12)
+        confidence = st.select_slider("Confidence (1-10)", options=range(1, 11), value=3)
 
-        if st.button("🔥 GENERATE WAR STRATEGY", use_container_width=True):
+        if st.button("🔥 GENERATE SURVIVAL STRATEGY", use_container_width=True):
             with st.spinner("AI Strategist is calculating pass probability..."):
-                # Simulation logic based on your startup idea
+                # LLM Prompt for REAL topics
+                prompt = f"""
+                Subject: {sub_name}, Days: {days_left}, Confidence: {confidence}/10.
+                Generate a 4-Phase survival strategy for an engineering student.
+                Identify the 3-5 most critical topics (high importance).
+                Output JSON: {{
+                  "phases": [ {{"name": "Phase 1", "desc": "Topics to master"}}, ... ],
+                  "topics": [ {{"name": "Topic A", "importance": 10}}, ... ],
+                  "missions": [ {{"task": "Study Topic A", "duration": "1h", "importance": "High"}}, ... ]
+                }}
+                """
+                res = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"}
+                )
+                strategy = json.loads(res.choices[0].message.content)
+
                 st.session_state.war_room = {
                     "subject": sub_name,
                     "days_left": days_left,
-                    "vulnerabilities": ["Graph Traversal", "AVL Tree Rotations"],
-                    "topics": [
-                        {"name": "Trees", "weight": 10, "done": False},
-                        {"name": "Graphs", "weight": 9, "done": False}
-                    ],
-                    "missions": [
-                        {"task": "Master Binary Trees", "duration": "45 min", "importance": "High", "done": False},
-                        {"task": "Solve 2023 PYQ (Graph Theory)", "duration": "60 min", "importance": "Critical", "done": True},
-                        {"task": "Quick Revision: Arrays", "duration": "15 min", "importance": "Medium", "done": False}
-                    ]
+                    "initial_readiness": confidence * 10,
+                    "phases": strategy['phases'],
+                    "topics": [{**t, "done": False} for t in strategy['topics']],
+                    "missions": [{**m, "done": False} for m in strategy['missions']]
                 }
                 st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
