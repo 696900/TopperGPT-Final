@@ -351,94 +351,113 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: AI EXAM WAR ROOM (STRICT STRATEGY) ---
+# --- TAB 2: AI EXAM WAR ROOM (MISSION CONTROL) ---
 # ==========================================
 with tab2:
-    st.markdown("<h1 style='text-align: center; color: #ff4b4b;'>🚨 EXAM WAR ROOM</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'>MISSION CONTROL: Strategy over Syllabus</p>", unsafe_allow_html=True)
-
-    # 1. THE BRAIN: Importance Database (Historical Data Logic)
-    # Isko Supabase table 'subject_blueprint' se connect karenge
-    def get_subject_blueprint(subject):
-        # Sample blueprint based on your architecture idea
-        return [
-            {"topic": "Trees & Graphs", "weight": 9, "diff": 8, "time": 5},
-            {"topic": "Dynamic Programming", "weight": 10, "diff": 9, "time": 6},
-            {"topic": "Sorting & Hashing", "weight": 6, "diff": 5, "time": 3},
-            {"topic": "Stacks & Queues", "weight": 7, "diff": 4, "time": 2}
-        ]
-
-    # 2. PROBABILITY ENGINE (Brutal Logic)
+    # --- 1. PROBABILITY ENGINE LOGIC ---
     if 'war_room' in st.session_state and st.session_state.war_room:
         wr = st.session_state.war_room
         
-        # Formula: Sum(Topic_Mastery * Topic_Weightage) / Total_Weightage
+        # Readiness Score Calculation [Brutal Logic]
         total_weight = sum(t['weight'] for t in wr['blueprint'])
         mastered_weight = sum(t['weight'] for t in wr['blueprint'] if t.get('mastered'))
-        readiness = int((mastered_weight / total_weight) * 100) if total_weight > 0 else 0
+        readiness = int((mastered_weight / total_weight) * 100) if total_weight > 0 else 46 # Default for demo
 
-        # UI: Dashboard Metrics
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Readiness Score", f"{readiness}%")
-        c2.metric("Days to Battle", wr['days_left'])
-        
-        # Pass Probability Logic
-        prob_color = "🔴 Critical" if readiness < 40 else "🟡 Moderate" if readiness < 75 else "🟢 High"
-        c3.metric("Pass Probability", prob_color)
-        
-        st.progress(readiness / 100)
-        
-        # Dashboard Visuals
-        col_l, col_r = st.columns([0.6, 0.4])
-        
-        with col_l:
-            st.subheader("🎯 Active Missions")
-            for i, task in enumerate(wr['daily_missions']):
-                st.checkbox(f"**Task:** {task}", key=f"mission_{i}")
-        
-        with col_r:
-            st.subheader("⚠️ Critical Vulnerabilities")
-            # Filter High Weight + Not Mastered
-            vulnerabilities = [t for t in wr['blueprint'] if t['weight'] > 7 and not t.get('mastered')]
-            for v in vulnerabilities:
-                st.error(f"**{v['topic']}** (Importance: {v['weight']}/10)")
+        # --- HEADER SECTION ---
+        st.markdown(f"""
+            <div style="background: #1e293b; padding: 25px; border-radius: 20px; border: 1px solid #334155; margin-bottom: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h1 style="color: #ef4444; margin: 0; font-size: 35px; font-weight: 900;">EXAM WAR ROOM</h1>
+                        <p style="color: #94a3b8; margin: 5px 0 0 0;">Subject: {wr['subject']}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="color: #ef4444; font-size: 45px; font-weight: 900; line-height: 1;">{wr['days_left']}</div>
+                        <div style="color: #64748b; font-size: 12px; font-weight: bold; letter-spacing: 1px;">DAYS TO BATTLE</div>
+                    </div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
 
-        st.divider()
+        # --- PROBABILITY & VULNERABILITIES GRID ---
+        col_left, col_right = st.columns(2)
 
-    # 3. MISSION BRIEFING INITIALIZER
-    with st.expander("📡 Deploy New Battle Strategy", expanded=not st.session_state.get('war_room')):
-        up_pdf = st.file_uploader("Upload Exam Blueprint/Syllabus", type="pdf")
+        with col_left:
+            # Pass Probability Circle (Custom HTML/CSS)
+            st.markdown(f"""
+                <div style="background: #1e293b; padding: 25px; border-radius: 20px; border: 1px solid #334155; height: 320px; text-align: center;">
+                    <p style="color: #10b981; font-weight: bold; margin-bottom: 20px;">📈 Pass Probability</p>
+                    <div style="position: relative; display: inline-block;">
+                        <svg width="160" height="160" viewBox="0 0 160 160">
+                            <circle cx="80" cy="80" r="70" fill="none" stroke="#0f172a" stroke-width="12" />
+                            <circle cx="80" cy="80" r="70" fill="none" stroke="#10b981" stroke-width="12" 
+                                stroke-dasharray="440" stroke-dashoffset="{440 - (440 * readiness) / 100}" 
+                                stroke-linecap="round" style="transition: stroke-dashoffset 1s ease-in-out;" />
+                        </svg>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 35px; font-weight: 900;">{readiness}%</div>
+                    </div>
+                    <p style="color: #94a3b8; font-size: 14px; margin-top: 15px; font-style: italic;">"Complete today's mission to reach {min(readiness + 12, 100)}%"</p>
+                </div>
+            """, unsafe_allow_html=True)
+
+        with col_right:
+            st.markdown("""
+                <div style="background: #1e293b; padding: 25px; border-radius: 20px; border: 1px solid #334155; height: 320px;">
+                    <p style="color: #f97316; font-weight: bold; margin-bottom: 20px;">⚠️ Critical Vulnerabilities</p>
+                    <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 12px; border-radius: 10px; margin-bottom: 12px; display: flex; justify-content: space-between;">
+                        <span style="color: #f87171;">Dynamic Programming</span>
+                        <span style="color: #ef4444; font-weight: bold;">Priority 1</span>
+                    </div>
+                    <div style="background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.2); padding: 12px; border-radius: 10px; margin-bottom: 30px; display: flex; justify-content: space-between;">
+                        <span style="color: #fb923c;">AVL Tree Rotations</span>
+                        <span style="color: #f97316; font-weight: bold;">Priority 2</span>
+                    </div>
+                    <button style="width: 100%; padding: 15px; background: #4f46e5; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);">Recalculate Strategy</button>
+                </div>
+            """, unsafe_allow_html=True)
+
+        # --- TODAY'S MISSIONS ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("### 🎯 Today's Missions")
         
-        col_1, col_2 = st.columns(2)
-        sub_name = col_1.text_input("Subject", "Data Structures")
-        exam_date = col_2.date_input("Exam Date")
-        
-        confidence = st.select_slider("Current Confidence", options=range(1, 11), value=3)
+        for m in wr['daily_missions']:
+            # Using Streamlit components inside custom containers
+            with st.container():
+                cols = st.columns([0.1, 0.7, 0.2])
+                cols[0].markdown("🕒")
+                cols[1].markdown(f"**{m['task']}** \n<span style='color: #64748b; font-size: 12px;'>{m['time']} • {m['imp']} Importance</span>", unsafe_allow_html=True)
+                if cols[2].button("Start", key=f"btn_{m['task']}"):
+                    st.toast(f"Starting Mission: {m['task']}")
+            st.markdown("<hr style='margin: 10px 0; border-color: #334155;'>", unsafe_allow_html=True)
 
-        if up_pdf and st.button("🔥 Calculate Battle Plan"):
-            with st.spinner("Gemini AI is analyzing 5-year PYQ trends..."):
-                # Strategy Generator Prompt
-                days = (exam_date - datetime.now().date()).days
-                blueprint = get_subject_blueprint(sub_name) # Replace with DB call
-                
-                # Gemini Handshake
-                prompt = f"Student has exam in {days} days. Mastery is {confidence}/10. Subject {sub_name}. Generate 4-Phase strategy."
-                
-                # Manual entry for dev testing
-                st.session_state.war_room = {
-                    "subject": sub_name,
-                    "days_left": days,
-                    "blueprint": blueprint,
-                    "daily_missions": ["Master Trees & Graphs", "Solve 2023 PYQ", "Revise Stacks"],
-                    "phases": ["Phase 1: Survival (High Weight)", "Phase 2: Scoting", "Phase 3: Revision"]
-                }
-                st.rerun()
-
-    # 4. RESET ACTION
-    if st.session_state.get('war_room'):
-        if st.button("🗑️ Abort Mission & Reset Console"):
+        if st.button("🗑️ Abort Mission & Reset"):
             st.session_state.war_room = None
             st.rerun()
+
+    else:
+        # --- INITIAL SETUP (Only shown when no mission is active) ---
+        st.info("Pehle koi Syllabus PDF upload karo taaki hum Battle Strategy bana sakein!")
+        with st.expander("📡 Deploy New Battle Strategy", expanded=True):
+            up_pdf = st.file_uploader("Drag and drop file here", type="pdf")
+            sub_name = st.text_input("Subject Name", "Data Structures & Analysis")
+            days_to_battle = st.number_input("Days to Battle", 1, 30, 12)
+            
+            if up_pdf and st.button("🔥 Calculate Battle Plan"):
+                # Building the Demo Data (In Early Access, this will come from Gemini + DB)
+                st.session_state.war_room = {
+                    "subject": sub_name,
+                    "days_left": days_to_battle,
+                    "blueprint": [
+                        {"topic": "DP", "weight": 10, "mastered": False},
+                        {"topic": "Trees", "weight": 9, "mastered": False}
+                    ],
+                    "daily_missions": [
+                        {"task": "Master Binary Trees", "time": "45 min", "imp": "High"},
+                        {"task": "Solve 2023 PYQ (Graph)", "time": "60 min", "imp": "Critical"},
+                        {"task": "Quick Revision: Arrays", "time": "15 min", "imp": "Medium"}
+                    ]
+                }
+                st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
