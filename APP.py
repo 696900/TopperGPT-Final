@@ -25,6 +25,8 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import Settings
 from supabase import create_client, Client
+from datetime import datetime, timedelta
+import math
 
 # --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
 @st.cache_resource
@@ -349,122 +351,99 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: AI STUDY ENGINE (V6 - EXAM SURVIVAL) ---
+# --- TAB 2: AI STUDY ENGINE (V7 - STABLE) ---
 # ==========================================
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 AI Study Coach & Planner</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Topper AI Study Coach</h2>", unsafe_allow_html=True)
     
-    # 1. EXAM COUNTDOWN (Survival Mode Header)
+    # ✅ FIX 1: Initialize Exam Date safely
     if 'exam_date' not in st.session_state:
         st.session_state.exam_date = datetime.now().date() + timedelta(days=30)
     
+    # 1. VISUAL PROGRESS & SURVIVAL METRICS
     days_left = (st.session_state.exam_date - datetime.now().date()).days
     
     c1, c2, c3 = st.columns(3)
     c1.metric("Exam Countdown", f"{max(0, days_left)} Days")
     
-    if 'master_tracker' in st.session_state and st.session_state.master_tracker:
-        all_modules = [m for sub in st.session_state.master_tracker.values() for m in sub if isinstance(m, dict)]
-        total = len(all_modules)
-        done = sum(1 for m in all_modules if m.get('status') == 'Completed')
+    if 'master_tracker' in st.session_state and isinstance(st.session_state.master_tracker, dict):
+        all_mods = [m for sub in st.session_state.master_tracker.values() if isinstance(sub, list) for m in sub]
+        total = len(all_mods)
+        done = sum(1 for m in all_mods if isinstance(m, dict) and m.get('status') == 'Completed')
         
         c2.metric("Syllabus Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
-        c3.metric("Daily Target", f"{max(1, math.ceil((total-done)/(days_left if days_left > 0 else 1)))} Chapters")
+        # ✅ FIX 2: Math.ceil safely
+        daily_target = math.ceil((total - done) / (days_left if days_left > 0 else 1))
+        c3.metric("Daily Target", f"{max(1, daily_target)} Chapters")
         
         st.progress(done/total if total > 0 else 0)
     st.divider()
 
-    # 2. THE SMART BUILDER (With Time & Difficulty Estimation)
-    with st.expander("📤 Build Smart Study Plan", expanded=not st.session_state.get('master_tracker')):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="syll_v6")
+    # 2. BUILD ENGINE (Deep Analysis)
+    with st.expander("📤 Generate Smart Study Plan", expanded=not st.session_state.get('master_tracker')):
+        up_pdf = st.file_uploader("Upload Official Syllabus PDF", type="pdf", key="syll_v7")
         col_a, col_b = st.columns(2)
         target_sem = col_a.selectbox("📅 Semester", ["Sem I", "Sem II", "Sem III", "Sem IV", "Sem V", "Sem VI", "Sem VII", "Sem VIII"])
         st.session_state.exam_date = col_b.date_input("Target Exam Date", value=st.session_state.exam_date)
         
-        if up_pdf and st.button("🚀 Generate AI Study Engine"):
-            with st.spinner("AI is calculating difficulty & exam weightage..."):
-                pdf_bytes = up_pdf.read()
-                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                raw_text = "\n".join([page.get_text() for page in doc if target_sem.lower() in page.get_text().lower()])
+        if up_pdf and st.button("🚀 Run AI Study Engine"):
+            with st.spinner("AI is calculating time & weightage..."):
+                try:
+                    pdf_bytes = up_pdf.read()
+                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                    raw_text = "\n".join([page.get_text() for page in doc])
 
-                # PROMPT: Extracting Modules + Metadata (Time, Difficulty, Weightage)
-                prompt = f"""
-                You are a Senior Academic Coach. Extract theory subjects and modules for {target_sem}.
-                For EACH module, estimate:
-                1. Difficulty (Easy, Medium, Hard)
-                2. Estimated Study Time (Hours)
-                3. Exam Weightage (High, Medium, Low) - based on engineering trends.
+                    prompt = f"""
+                    Extract core theory subjects and their ACTUAL modules for {target_sem}.
+                    Metadata required per module:
+                    1. Difficulty (Easy, Medium, Hard)
+                    2. Estimated Study Time (Hours)
+                    3. Exam Weightage (High, Medium, Low)
 
-                Return JSON only:
-                {{ "Subject": [ {{"name": "M1", "diff": "Hard", "time": 4, "weight": "High"}}, ... ] }}
-                TEXT: {raw_text[:12000]}
-                """
-                
-                res = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": prompt}],
-                    response_format={"type": "json_object"}
-                )
-                raw_json = json.loads(res.choices[0].message.content)
-                
-                # Setup Tracker with Metadata
-                formatted_tracker = {}
-                for sub, chaps in raw_json.items():
-                    if isinstance(chaps, list):
-                        formatted_tracker[sub] = [
-                            {**c, "status": "Not Started", "last_revised": None} for c in chaps
-                        ]
-                
-                st.session_state.master_tracker = formatted_tracker
-                st.rerun()
+                    JSON Format: {{ "Subject": [ {{"name": "M1", "diff": "Hard", "time": 4, "weight": "High"}}, ... ] }}
+                    Text: {raw_text[:12000]}
+                    """
+                    
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": prompt}],
+                        response_format={"type": "json_object"}
+                    )
+                    raw_json = json.loads(res.choices[0].message.content)
+                    
+                    # Convert to Interactive Tracker
+                    formatted_tracker = {}
+                    for sub, chaps in raw_json.items():
+                        if isinstance(chaps, list):
+                            formatted_tracker[sub] = [{**c, "status": "Not Started"} for c in chaps if isinstance(c, dict)]
+                    
+                    st.session_state.master_tracker = formatted_tracker
+                    st.success("Study Engine Ready!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Analysis Failed: {str(e)}")
 
-    # 3. INTERACTIVE STUDY PLANNER (The Grid)
+    # 3. INTERACTIVE GRID
     if 'master_tracker' in st.session_state and st.session_state.master_tracker:
-        st.markdown("### 📘 Subject-wise Deep Track")
-        
         for subject, modules in st.session_state.master_tracker.items():
-            with st.expander(f"📖 {subject}"):
-                # Custom Header for the Grid
-                h_col1, h_col2, h_col3, h_col4 = st.columns([0.5, 0.15, 0.15, 0.2])
-                h_col1.markdown("**Module Name**")
-                h_col2.markdown("**Time**")
-                h_col3.markdown("**Weight**")
-                h_col4.markdown("**Status**")
-                
-                for i, mod in enumerate(modules):
-                    r_col1, r_col2, r_col3, r_col4 = st.columns([0.5, 0.15, 0.15, 0.2])
-                    
-                    # Module Name & Difficulty Color
-                    diff_color = {"Easy": "🟢", "Medium": "🟡", "Hard": "🔴"}.get(mod.get('diff'), "⚪")
-                    r_col1.write(f"{diff_color} {mod['name']}")
-                    
-                    # Time & Weightage
-                    r_col2.write(f"⏱️ {mod.get('time', 2)}h")
-                    r_col3.write(f"📊 {mod.get('weight', 'Med')}")
-                    
-                    # Status Checkbox
-                    is_done = r_col4.checkbox("Done", value=(mod['status'] == 'Completed'), key=f"v6_{subject}_{i}")
-                    if is_done != (mod['status'] == 'Completed'):
-                        mod['status'] = "Completed" if is_done else "Not Started"
-                        st.rerun()
+            if isinstance(modules, list):
+                with st.expander(f"📖 {subject}"):
+                    for i, mod in enumerate(modules):
+                        r1, r2, r3, r4 = st.columns([0.5, 0.15, 0.15, 0.2])
+                        diff_icon = {"Easy": "🟢", "Medium": "🟡", "Hard": "🔴"}.get(mod.get('diff'), "⚪")
+                        
+                        r1.write(f"{diff_icon} {mod.get('name', 'Module')}")
+                        r2.write(f"⏱️ {mod.get('time', 2)}h")
+                        r3.write(f"📊 {mod.get('weight', 'Med')}")
+                        
+                        is_done = r4.checkbox("Done", value=(mod.get('status') == 'Completed'), key=f"v7_{subject}_{i}")
+                        if is_done != (mod.get('status') == 'Completed'):
+                            mod['status'] = "Completed" if is_done else "Not Started"
+                            st.rerun()
 
-    # 4. SURVIVAL MODE: TODAY'S TARGETS
-    if 'master_tracker' in st.session_state and st.session_state.master_tracker:
-        st.markdown("---")
-        st.markdown("### ⚡ Today's AI Survival Plan")
-        pending = [ (sub, m) for sub, mods in st.session_state.master_tracker.items() for m in mods if m['status'] != 'Completed' ]
-        
-        # Logic: High Weightage + High Difficulty modules first
-        if pending:
-            # Sort by Weightage (High first) then Time
-            pending.sort(key=lambda x: (x[1].get('weight') == 'High', x[1].get('time', 0)), reverse=True)
-            
-            st.info(f"Based on your exam date, finish these 2 high-priority modules today:")
-            for i in range(min(2, len(pending))):
-                sub, m = pending[i]
-                st.warning(f"🎯 **{sub}**: {m['name']} (Est: {m['time']}h | Priority: {m['weight']})")
-        else:
-            st.success("All targets clear! You are ready for the exam. 🎓")
+    if st.button("🗑️ Reset Tracker"):
+        st.session_state.master_tracker = {}
+        st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
