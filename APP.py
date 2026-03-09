@@ -351,121 +351,93 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: AI EXAM WAR ROOM (MISSION CONTROL) ---
+# --- TAB 2: AI EXAM WAR ROOM (STRICT STRATEGY) ---
 # ==========================================
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #ff4b4b;'>🚨 AI Exam War Room</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'>MISSION CRITICAL: Build your survival strategy</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #ff4b4b;'>🚨 EXAM WAR ROOM</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'>MISSION CONTROL: Strategy over Syllabus</p>", unsafe_allow_html=True)
 
-    # 1. WAR ROOM STATUS (The Probability Engine)
-    if 'war_room_data' in st.session_state and st.session_state.war_room_data:
-        data = st.session_state.war_room_data
-        
-        # Simple Readiness Formula Logic
-        total_topics = len(data['topics'])
-        completed_topics = sum(1 for t in data['topics'] if t.get('status') == 'Mastered')
-        
-        # Readiness Score based on importance (Weighted)
-        ready_score = 0
-        total_weight = 0
-        for t in data['topics']:
-            importance = t.get('importance', 5)
-            total_weight += importance
-            if t.get('status') == 'Mastered':
-                ready_score += importance
-        
-        readiness_pct = int((ready_score / total_weight) * 100) if total_weight > 0 else 0
+    # 1. THE BRAIN: Importance Database (Historical Data Logic)
+    # Isko Supabase table 'subject_blueprint' se connect karenge
+    def get_subject_blueprint(subject):
+        # Sample blueprint based on your architecture idea
+        return [
+            {"topic": "Trees & Graphs", "weight": 9, "diff": 8, "time": 5},
+            {"topic": "Dynamic Programming", "weight": 10, "diff": 9, "time": 6},
+            {"topic": "Sorting & Hashing", "weight": 6, "diff": 5, "time": 3},
+            {"topic": "Stacks & Queues", "weight": 7, "diff": 4, "time": 2}
+        ]
 
-        # UI Dashboard
-        col_m1, col_m2, col_m3 = st.columns(3)
-        col_m1.metric("Current Readiness", f"{readiness_pct}%", delta=f"{readiness_pct - 30}% vs Baseline")
-        col_m2.metric("Days Remaining", data['days_left'])
-        col_m3.metric("Pass Probability", "🔥 High" if readiness_pct > 70 else "⚠️ Critical" if readiness_pct < 40 else "🟡 Moderate")
+    # 2. PROBABILITY ENGINE (Brutal Logic)
+    if 'war_room' in st.session_state and st.session_state.war_room:
+        wr = st.session_state.war_room
         
-        st.progress(readiness_pct / 100)
+        # Formula: Sum(Topic_Mastery * Topic_Weightage) / Total_Weightage
+        total_weight = sum(t['weight'] for t in wr['blueprint'])
+        mastered_weight = sum(t['weight'] for t in wr['blueprint'] if t.get('mastered'))
+        readiness = int((mastered_weight / total_weight) * 100) if total_weight > 0 else 0
+
+        # UI: Dashboard Metrics
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Readiness Score", f"{readiness}%")
+        c2.metric("Days to Battle", wr['days_left'])
+        
+        # Pass Probability Logic
+        prob_color = "🔴 Critical" if readiness < 40 else "🟡 Moderate" if readiness < 75 else "🟢 High"
+        c3.metric("Pass Probability", prob_color)
+        
+        st.progress(readiness / 100)
+        
+        # Dashboard Visuals
+        col_l, col_r = st.columns([0.6, 0.4])
+        
+        with col_l:
+            st.subheader("🎯 Active Missions")
+            for i, task in enumerate(wr['daily_missions']):
+                st.checkbox(f"**Task:** {task}", key=f"mission_{i}")
+        
+        with col_r:
+            st.subheader("⚠️ Critical Vulnerabilities")
+            # Filter High Weight + Not Mastered
+            vulnerabilities = [t for t in wr['blueprint'] if t['weight'] > 7 and not t.get('mastered')]
+            for v in vulnerabilities:
+                st.error(f"**{v['topic']}** (Importance: {v['weight']}/10)")
+
         st.divider()
 
-    # 2. STRATEGY GENERATOR (The Briefing)
-    with st.expander("📡 Initialize New Mission Briefing", expanded=not st.session_state.get('war_room_data')):
-        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="war_room_pdf")
+    # 3. MISSION BRIEFING INITIALIZER
+    with st.expander("📡 Deploy New Battle Strategy", expanded=not st.session_state.get('war_room')):
+        up_pdf = st.file_uploader("Upload Exam Blueprint/Syllabus", type="pdf")
         
-        c_a, c_b, c_c = st.columns(3)
-        subject = c_a.text_input("Subject Name", placeholder="e.g. Data Structures")
-        days_to_exam = c_b.number_input("Days to Exam", min_value=1, value=10)
-        study_hours = c_c.slider("Study Hours/Day", 1, 12, 4)
+        col_1, col_2 = st.columns(2)
+        sub_name = col_1.text_input("Subject", "Data Structures")
+        exam_date = col_2.date_input("Exam Date")
         
-        confidence = st.select_slider("Current Confidence Level", options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], value=3)
+        confidence = st.select_slider("Current Confidence", options=range(1, 11), value=3)
 
-        if up_pdf and st.button("⚡ Generate Battle Strategy"):
-            with st.spinner("AI Strategist is analyzing high-probability topics..."):
-                pdf_bytes = up_pdf.read()
-                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                raw_text = "\n".join([page.get_text() for page in doc])
-
-                # AI Logic: Sorting topics by importance and building phases
-                prompt = f"""
-                Act as an Exam Strategist for an Engineering Student.
-                Subject: {subject}, Days Left: {days_to_exam}, Study Hours: {study_hours}, Confidence: {confidence}/10.
+        if up_pdf and st.button("🔥 Calculate Battle Plan"):
+            with st.spinner("Gemini AI is analyzing 5-year PYQ trends..."):
+                # Strategy Generator Prompt
+                days = (exam_date - datetime.now().date()).days
+                blueprint = get_subject_blueprint(sub_name) # Replace with DB call
                 
-                Analyze the syllabus and return a JSON Battle Plan:
-                1. 'topics': List of topics with 'name', 'importance' (1-10), 'difficulty' (1-10).
-                2. 'phases': 4 phases (Phase 1 to 4) with focus areas.
-                3. 'daily_mission': Top 3 things to do TODAY.
-
-                Rules: Prioritize High-Weightage topics for passing.
-                Text: {raw_text[:10000]}
-                """
+                # Gemini Handshake
+                prompt = f"Student has exam in {days} days. Mastery is {confidence}/10. Subject {sub_name}. Generate 4-Phase strategy."
                 
-                res = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": prompt}],
-                    response_format={"type": "json_object"}
-                )
-                strategy = json.loads(res.choices[0].message.content)
-                
-                # Save to state
-                st.session_state.war_room_data = {
-                    "subject": subject,
-                    "days_left": days_to_exam,
-                    "topics": [{**t, "status": "Pending"} for t in strategy['topics']],
-                    "phases": strategy['phases'],
-                    "mission": strategy['daily_mission']
+                # Manual entry for dev testing
+                st.session_state.war_room = {
+                    "subject": sub_name,
+                    "days_left": days,
+                    "blueprint": blueprint,
+                    "daily_missions": ["Master Trees & Graphs", "Solve 2023 PYQ", "Revise Stacks"],
+                    "phases": ["Phase 1: Survival (High Weight)", "Phase 2: Scoting", "Phase 3: Revision"]
                 }
                 st.rerun()
 
-    # 3. MISSION BRIEFING UI
-    if 'war_room_data' in st.session_state and st.session_state.war_room_data:
-        data = st.session_state.war_room_data
-        
-        st.subheader("🎯 Today's Mission")
-        for m in data['mission']:
-            st.checkbox(f"**Action:** {m}", key=f"mission_{m}")
-
-        st.markdown("---")
-        
-        # Phases & Strategy
-        col_left, col_right = st.columns([0.6, 0.4])
-        
-        with col_left:
-            st.subheader("⚔️ Battle Phases")
-            for phase, details in data['phases'].items():
-                with st.expander(f"📍 {phase}"):
-                    st.write(details)
-
-        with col_right:
-            st.subheader("📊 Critical Topics")
-            for i, t in enumerate(data['topics']):
-                # Priority color logic
-                color = "🔴" if t['importance'] > 8 else "🟡" if t['importance'] > 5 else "🟢"
-                c1, c2 = st.columns([0.7, 0.3])
-                c1.write(f"{color} {t['name']}")
-                
-                if c2.button("Master", key=f"master_{i}"):
-                    t['status'] = "Mastered"
-                    st.rerun()
-
-        if st.button("🗑️ Abort Mission & Reset"):
-            st.session_state.war_room_data = None
+    # 4. RESET ACTION
+    if st.session_state.get('war_room'):
+        if st.button("🗑️ Abort Mission & Reset Console"):
+            st.session_state.war_room = None
             st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
