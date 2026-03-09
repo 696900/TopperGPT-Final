@@ -351,99 +351,122 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: AI STUDY ENGINE (V7 - STABLE) ---
+# --- TAB 2: AI EXAM WAR ROOM (MISSION CONTROL) ---
 # ==========================================
 with tab2:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Topper AI Study Coach</h2>", unsafe_allow_html=True)
-    
-    # ✅ FIX 1: Initialize Exam Date safely
-    if 'exam_date' not in st.session_state:
-        st.session_state.exam_date = datetime.now().date() + timedelta(days=30)
-    
-    # 1. VISUAL PROGRESS & SURVIVAL METRICS
-    days_left = (st.session_state.exam_date - datetime.now().date()).days
-    
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Exam Countdown", f"{max(0, days_left)} Days")
-    
-    if 'master_tracker' in st.session_state and isinstance(st.session_state.master_tracker, dict):
-        all_mods = [m for sub in st.session_state.master_tracker.values() if isinstance(sub, list) for m in sub]
-        total = len(all_mods)
-        done = sum(1 for m in all_mods if isinstance(m, dict) and m.get('status') == 'Completed')
-        
-        c2.metric("Syllabus Mastery", f"{int((done/total)*100 if total > 0 else 0)}%")
-        # ✅ FIX 2: Math.ceil safely
-        daily_target = math.ceil((total - done) / (days_left if days_left > 0 else 1))
-        c3.metric("Daily Target", f"{max(1, daily_target)} Chapters")
-        
-        st.progress(done/total if total > 0 else 0)
-    st.divider()
+    st.markdown("<h2 style='text-align: center; color: #ff4b4b;'>🚨 AI Exam War Room</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'>MISSION CRITICAL: Build your survival strategy</p>", unsafe_allow_html=True)
 
-    # 2. BUILD ENGINE (Deep Analysis)
-    with st.expander("📤 Generate Smart Study Plan", expanded=not st.session_state.get('master_tracker')):
-        up_pdf = st.file_uploader("Upload Official Syllabus PDF", type="pdf", key="syll_v7")
-        col_a, col_b = st.columns(2)
-        target_sem = col_a.selectbox("📅 Semester", ["Sem I", "Sem II", "Sem III", "Sem IV", "Sem V", "Sem VI", "Sem VII", "Sem VIII"])
-        st.session_state.exam_date = col_b.date_input("Target Exam Date", value=st.session_state.exam_date)
+    # 1. WAR ROOM STATUS (The Probability Engine)
+    if 'war_room_data' in st.session_state and st.session_state.war_room_data:
+        data = st.session_state.war_room_data
         
-        if up_pdf and st.button("🚀 Run AI Study Engine"):
-            with st.spinner("AI is calculating time & weightage..."):
-                try:
-                    pdf_bytes = up_pdf.read()
-                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                    raw_text = "\n".join([page.get_text() for page in doc])
+        # Simple Readiness Formula Logic
+        total_topics = len(data['topics'])
+        completed_topics = sum(1 for t in data['topics'] if t.get('status') == 'Mastered')
+        
+        # Readiness Score based on importance (Weighted)
+        ready_score = 0
+        total_weight = 0
+        for t in data['topics']:
+            importance = t.get('importance', 5)
+            total_weight += importance
+            if t.get('status') == 'Mastered':
+                ready_score += importance
+        
+        readiness_pct = int((ready_score / total_weight) * 100) if total_weight > 0 else 0
 
-                    prompt = f"""
-                    Extract core theory subjects and their ACTUAL modules for {target_sem}.
-                    Metadata required per module:
-                    1. Difficulty (Easy, Medium, Hard)
-                    2. Estimated Study Time (Hours)
-                    3. Exam Weightage (High, Medium, Low)
+        # UI Dashboard
+        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1.metric("Current Readiness", f"{readiness_pct}%", delta=f"{readiness_pct - 30}% vs Baseline")
+        col_m2.metric("Days Remaining", data['days_left'])
+        col_m3.metric("Pass Probability", "🔥 High" if readiness_pct > 70 else "⚠️ Critical" if readiness_pct < 40 else "🟡 Moderate")
+        
+        st.progress(readiness_pct / 100)
+        st.divider()
 
-                    JSON Format: {{ "Subject": [ {{"name": "M1", "diff": "Hard", "time": 4, "weight": "High"}}, ... ] }}
-                    Text: {raw_text[:12000]}
-                    """
-                    
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": prompt}],
-                        response_format={"type": "json_object"}
-                    )
-                    raw_json = json.loads(res.choices[0].message.content)
-                    
-                    # Convert to Interactive Tracker
-                    formatted_tracker = {}
-                    for sub, chaps in raw_json.items():
-                        if isinstance(chaps, list):
-                            formatted_tracker[sub] = [{**c, "status": "Not Started"} for c in chaps if isinstance(c, dict)]
-                    
-                    st.session_state.master_tracker = formatted_tracker
-                    st.success("Study Engine Ready!")
+    # 2. STRATEGY GENERATOR (The Briefing)
+    with st.expander("📡 Initialize New Mission Briefing", expanded=not st.session_state.get('war_room_data')):
+        up_pdf = st.file_uploader("Upload Syllabus PDF", type="pdf", key="war_room_pdf")
+        
+        c_a, c_b, c_c = st.columns(3)
+        subject = c_a.text_input("Subject Name", placeholder="e.g. Data Structures")
+        days_to_exam = c_b.number_input("Days to Exam", min_value=1, value=10)
+        study_hours = c_c.slider("Study Hours/Day", 1, 12, 4)
+        
+        confidence = st.select_slider("Current Confidence Level", options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], value=3)
+
+        if up_pdf and st.button("⚡ Generate Battle Strategy"):
+            with st.spinner("AI Strategist is analyzing high-probability topics..."):
+                pdf_bytes = up_pdf.read()
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                raw_text = "\n".join([page.get_text() for page in doc])
+
+                # AI Logic: Sorting topics by importance and building phases
+                prompt = f"""
+                Act as an Exam Strategist for an Engineering Student.
+                Subject: {subject}, Days Left: {days_to_exam}, Study Hours: {study_hours}, Confidence: {confidence}/10.
+                
+                Analyze the syllabus and return a JSON Battle Plan:
+                1. 'topics': List of topics with 'name', 'importance' (1-10), 'difficulty' (1-10).
+                2. 'phases': 4 phases (Phase 1 to 4) with focus areas.
+                3. 'daily_mission': Top 3 things to do TODAY.
+
+                Rules: Prioritize High-Weightage topics for passing.
+                Text: {raw_text[:10000]}
+                """
+                
+                res = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"}
+                )
+                strategy = json.loads(res.choices[0].message.content)
+                
+                # Save to state
+                st.session_state.war_room_data = {
+                    "subject": subject,
+                    "days_left": days_to_exam,
+                    "topics": [{**t, "status": "Pending"} for t in strategy['topics']],
+                    "phases": strategy['phases'],
+                    "mission": strategy['daily_mission']
+                }
+                st.rerun()
+
+    # 3. MISSION BRIEFING UI
+    if 'war_room_data' in st.session_state and st.session_state.war_room_data:
+        data = st.session_state.war_room_data
+        
+        st.subheader("🎯 Today's Mission")
+        for m in data['mission']:
+            st.checkbox(f"**Action:** {m}", key=f"mission_{m}")
+
+        st.markdown("---")
+        
+        # Phases & Strategy
+        col_left, col_right = st.columns([0.6, 0.4])
+        
+        with col_left:
+            st.subheader("⚔️ Battle Phases")
+            for phase, details in data['phases'].items():
+                with st.expander(f"📍 {phase}"):
+                    st.write(details)
+
+        with col_right:
+            st.subheader("📊 Critical Topics")
+            for i, t in enumerate(data['topics']):
+                # Priority color logic
+                color = "🔴" if t['importance'] > 8 else "🟡" if t['importance'] > 5 else "🟢"
+                c1, c2 = st.columns([0.7, 0.3])
+                c1.write(f"{color} {t['name']}")
+                
+                if c2.button("Master", key=f"master_{i}"):
+                    t['status'] = "Mastered"
                     st.rerun()
-                except Exception as e:
-                    st.error(f"Analysis Failed: {str(e)}")
 
-    # 3. INTERACTIVE GRID
-    if 'master_tracker' in st.session_state and st.session_state.master_tracker:
-        for subject, modules in st.session_state.master_tracker.items():
-            if isinstance(modules, list):
-                with st.expander(f"📖 {subject}"):
-                    for i, mod in enumerate(modules):
-                        r1, r2, r3, r4 = st.columns([0.5, 0.15, 0.15, 0.2])
-                        diff_icon = {"Easy": "🟢", "Medium": "🟡", "Hard": "🔴"}.get(mod.get('diff'), "⚪")
-                        
-                        r1.write(f"{diff_icon} {mod.get('name', 'Module')}")
-                        r2.write(f"⏱️ {mod.get('time', 2)}h")
-                        r3.write(f"📊 {mod.get('weight', 'Med')}")
-                        
-                        is_done = r4.checkbox("Done", value=(mod.get('status') == 'Completed'), key=f"v7_{subject}_{i}")
-                        if is_done != (mod.get('status') == 'Completed'):
-                            mod['status'] = "Completed" if is_done else "Not Started"
-                            st.rerun()
-
-    if st.button("🗑️ Reset Tracker"):
-        st.session_state.master_tracker = {}
-        st.rerun()
+        if st.button("🗑️ Abort Mission & Reset"):
+            st.session_state.war_room_data = None
+            st.rerun()
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
