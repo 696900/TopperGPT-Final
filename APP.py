@@ -351,9 +351,10 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: AI EXAM WAR ROOM (FINAL V21) ---
+# --- TAB 2: AI EXAM WAR ROOM (FINAL V22) ---
 # ==========================================
 with tab2:
+    # --- HELPER FUNCTIONS ---
     def get_readiness_label(r):
         if r < 40: return "🔴 CRITICAL"
         if r < 75: return "🟡 MODERATE"
@@ -373,25 +374,27 @@ with tab2:
 
     st.divider()
 
-    # --- 2. BATTLE DASHBOARD ---
+    # --- 2. THE DASHBOARD ENGINE ---
     if active_station != "+ Deploy New Strategy":
-        wr = st.session_state.war_room_vault[active_station]
+        # Safe access to avoid TypeError
+        wr = st.session_state.war_room_vault.get(active_station, {})
         
         # Readiness Calculation based on PYQ Marks
-        total_m = sum(t.get('marks', 10) for t in wr.get('topics', []))
-        done_m = sum(t.get('marks', 10) for t in wr.get('topics', []) if t.get('done'))
+        topics_data = wr.get('topics', [])
+        total_m = sum(t.get('marks', 10) for t in topics_data) if topics_data else 100
+        done_m = sum(t.get('marks', 10) for t in topics_data if t.get('done')) if topics_data else 0
         readiness = int((done_m / total_m) * 100) if total_m > 0 else 0
 
-        # UI: HEADER
+        # UI: HEADER (Pro Dark Mode)
         st.markdown(f"""
             <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px; border-radius: 20px; border: 1px solid #ef4444; margin-bottom: 25px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h1 style="color: #ef4444; margin: 0; font-size: 35px; font-weight: 900;">BATTLE PLAN: {active_station.upper()}</h1>
-                        <p style="color: #94a3b8; margin: 5px 0 0 0;">{wr.get('branch')} | {wr.get('university')} | Marks Secured: {done_m}/{total_m}</p>
+                        <p style="color: #94a3b8; margin: 5px 0 0 0;">{wr.get('branch', 'Engineering')} | {wr.get('university', 'University')} | Marks Secured: {done_m}/{total_m}</p>
                     </div>
                     <div style="text-align: center; background: #ef4444; padding: 15px 25px; border-radius: 15px;">
-                        <div style="color: white; font-size: 35px; font-weight: 900;">{wr.get('days_left')}</div>
+                        <div style="color: white; font-size: 35px; font-weight: 900;">{wr.get('days_left', 0)}</div>
                         <div style="color: white; font-size: 10px; font-weight: bold;">DAYS LEFT</div>
                     </div>
                 </div>
@@ -411,7 +414,7 @@ with tab2:
                             stroke-dasharray="440" stroke-dashoffset="{440 - (440 * readiness) / 100}" 
                             stroke-linecap="round" />
                     </svg>
-                    <div style="margin-top: -115px;">
+                    <div style="margin-top: -125px;">
                         <div style="color: white; font-size: 45px; font-weight: 900;">{readiness}%</div>
                         <div style="color: {g_color}; font-size: 14px; font-weight: bold;">{get_readiness_label(readiness)}</div>
                     </div>
@@ -434,7 +437,7 @@ with tab2:
                         </div>
                         <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 12px; padding: 15px;">
                             <b style="color: #ef4444;">💀 SKIP LIST</b><br>
-                            <small style="color: white;">Hard + Low Frequency</small>
+                            <small style="color: white;">Hard + Low Marks topics</small>
                         </div>
                     </div>
                 </div>
@@ -459,14 +462,14 @@ with tab2:
                 m_c2.markdown(f"""
                     <div style='{strike}'>
                         <b style="font-size: 18px;">{mission['task']}</b><br>
-                        <small style="color: #94a3b8;">Exam Marks: {mission.get('marks', '10M')} | Priority: {mission.get('priority', 'High')}</small>
+                        <small style="color: #94a3b8;">Weightage: {mission.get('marks', '10M')} | Priority: {mission.get('priority', 'High')}</small>
                     </div>
                 """, unsafe_allow_html=True)
                 
                 if not mission.get('done'):
                     if m_c3.button("Quiz", key=f"mcq_{active_station}_{idx}", use_container_width=True):
                         with st.spinner("AI generating PYQ MCQ..."):
-                            q_prompt = f"Generate 1 tough MCQ based on Mumbai University PYQ pattern for {mission['task']}. Branch {wr['branch']}. Provide 4 options and the correct letter (A/B/C/D)."
+                            q_prompt = f"Generate 1 tough MCQ based on Mumbai University PYQ pattern for {mission['task']}. Provide 4 options and the correct letter (A/B/C/D)."
                             res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": q_prompt}], response_format={"type": "json_object"})
                             st.session_state.active_mcq = json.loads(res.choices[0].message.content)
                             st.session_state.active_mcq_meta = {"sub": active_station, "idx": idx, "task": mission['task']}
@@ -475,20 +478,21 @@ with tab2:
 
         # --- MCQ MODAL ---
         if st.session_state.get('active_mcq'):
-            m = st.session_state.active_mcq
+            m_data = st.session_state.active_mcq
             st.markdown(f"""<div style="background: #4f46e5; padding: 25px; border-radius: 15px; border: 2px solid white; margin-bottom: 20px;">
-                <h3 style="color: white; margin: 0;">🛡️ BATTLE QUIZ: {st.session_state.active_mcq_meta['task']}</h3>
+                <h3 style="color: white; margin: 0;">🛡️ BATTLE CHALLENGE: {st.session_state.active_mcq_meta['task']}</h3>
                 <p style="color: #cbd5e1; margin: 5px 0 0 0;">Select correct option for <b>+2 Credits</b>.</p>
             </div>""", unsafe_allow_html=True)
             
-            st.write(f"**Q:** {m.get('question')}")
-            ans = st.radio("Options:", m.get('options', []), key="mcq_radio")
+            st.write(f"**Q:** {m_data.get('question')}")
+            options = m_data.get('options', [])
+            ans_choice = st.radio("Options:", options, key="mcq_radio_v22")
             
             mc1, mc2 = st.columns(2)
             if mc1.button("✅ Verify Answer", use_container_width=True):
-                if ans.startswith(m.get('answer')):
-                    # Update local progress
+                if ans_choice.startswith(m_data.get('answer')):
                     meta = st.session_state.active_mcq_meta
+                    # Update Progress
                     st.session_state.war_room_vault[meta['sub']]['missions'][meta['idx']]['done'] = True
                     for t in st.session_state.war_room_vault[meta['sub']]['topics']:
                         if t['name'].lower() in meta['task'].lower(): t['done'] = True
@@ -498,13 +502,13 @@ with tab2:
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.balloons(); st.success("Correct! +2 Credits Earned."); del st.session_state.active_mcq; st.rerun()
                 else:
-                    st.error("Incorrect! Study again to unlock credits.")
+                    st.error("Incorrect! Study the concept and try again.")
             
             if mc2.button("❌ Close Battle", use_container_width=True):
                 del st.session_state.active_mcq; st.rerun()
 
     else:
-        # --- NEW MISSION DEPLOYMENT (Revenue Loop Connected) ---
+        # --- NEW MISSION DEPLOYMENT ---
         st.markdown("<h2 style='text-align: center;'>Deploy AI Exam Strategist</h2>", unsafe_allow_html=True)
         st.info("💡 Generating a detailed battle plan costs **-5 Credits**.")
         
@@ -527,9 +531,9 @@ with tab2:
                     Return JSON ONLY:
                     {{
                       "matrix": {{ "quick_wins": "Topics", "big_rocks": "Topics" }},
-                      "phases": [ {{ "name": "Phase 1: Survival (40 Marks)", "goal": "Secure Passing", "days_range": "Day 1-3", "desc": "Instructions", "topics": ["T1", "T2", "T3"] }} ],
+                      "phases": [ {{ "name": "Phase 1: Survival (40 Marks)", "goal": "Secure Passing", "days_range": "Day 1-3", "desc": "Steps", "topics": ["T1", "T2"] }} ],
                       "topics": [ {{"name": "T1", "importance": 10, "marks": 10}} ],
-                      "missions": [ {{"task": "Master T1 Concept", "marks": "10M", "priority": "CRITICAL"}} ]
+                      "missions": [ {{"task": "Master T1", "marks": "10M", "priority": "CRITICAL"}} ]
                     }}
                     """
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}], response_format={"type": "json_object"})
@@ -543,7 +547,7 @@ with tab2:
                     }
                     st.rerun()
             else:
-                st.error("Insufficient Credits! Please refill or refer a friend.")
+                st.error("Insufficient Credits! Refill to unlock.")
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
