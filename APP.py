@@ -351,7 +351,7 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: AI EXAM WAR ROOM (FINAL MASTER V25) ---
+# --- TAB 2: AI EXAM WAR ROOM (FINAL MASTER V28) ---
 # ==========================================
 with tab2:
     # --- HELPER FUNCTIONS ---
@@ -362,22 +362,24 @@ with tab2:
 
     # --- 1. CLOUD SYNC & MULTI-SUBJECT VAULT ---
     if 'war_room_vault' not in st.session_state:
+        # Load existing data from Supabase Profile safely
         st.session_state.war_room_vault = st.session_state.user_data.get('war_room_data', {}) if st.session_state.user_data else {}
 
-    top_c1, top_c2 = st.columns([0.7, 0.3])
-    vault_keys = list(st.session_state.war_room_vault.keys())
-    active_station = top_c1.selectbox("📂 Select Battle Station:", ["+ Deploy New Strategy"] + vault_keys)
+    # UI Header: Global Controls
+    v_c1, v_c2 = st.columns([0.7, 0.3])
+    vault_list = list(st.session_state.war_room_vault.keys())
+    active_station = v_c1.selectbox("📂 Switch Battle Station:", ["+ Deploy New Strategy"] + vault_list)
     
-    if top_c2.button("💾 Sync Data to Cloud", use_container_width=True):
+    if v_c2.button("💾 Sync Data to Cloud", use_container_width=True):
         try:
             supabase.table("profiles").update({"war_room_data": st.session_state.war_room_vault}).eq("email", st.session_state.user_data['email']).execute()
             st.toast("Progress Saved to Supabase! ☁️")
         except:
-            st.error("Sync Failed.")
+            st.error("Sync Failed. Check connection.")
 
     st.divider()
 
-    # --- 2. THE DASHBOARD ENGINE ---
+    # --- 2. THE BATTLE DASHBOARD ---
     if active_station != "+ Deploy New Strategy":
         wr = st.session_state.war_room_vault.get(active_station, {})
         
@@ -393,7 +395,7 @@ with tab2:
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h1 style="color: #ef4444; margin: 0; font-size: 35px; font-weight: 900;">BATTLE PLAN: {active_station.upper()}</h1>
-                        <p style="color: #94a3b8; margin: 5px 0 0 0;">{wr.get('branch')} | {wr.get('university')} | Marks Secured: {done_m}/{total_m}</p>
+                        <p style="color: #94a3b8; margin: 5px 0 0 0;">{wr.get('branch', 'Engineering')} | {wr.get('university', 'University')} | Readiness: {readiness}%</p>
                     </div>
                     <div style="text-align: center; background: #ef4444; padding: 15px 25px; border-radius: 15px;">
                         <div style="color: white; font-size: 35px; font-weight: 900;">{wr.get('days_left', 0)}</div>
@@ -403,7 +405,7 @@ with tab2:
             </div>
         """, unsafe_allow_html=True)
 
-        # UI: STATS GRID
+        # UI GRID: GAUGE & MATRIX
         col_g, col_mx = st.columns([0.45, 0.55])
         with col_g:
             g_color = "#ef4444" if readiness < 40 else "#f59e0b" if readiness < 75 else "#10b981"
@@ -427,7 +429,7 @@ with tab2:
             mx = wr.get('matrix', {})
             st.markdown(f"""
                 <div style="background: #1e293b; padding: 25px; border-radius: 20px; border: 1px solid #334155; height: 420px;">
-                    <p style="color: #4f46e5; font-weight: bold; margin-bottom: 20px;">📊 PYQ STRATEGY MATRIX</p>
+                    <p style="color: #4f46e5; font-weight: bold; margin-bottom: 20px;">📊 STRATEGIC STUDY MATRIX</p>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 12px; padding: 15px;">
                             <b style="color: #10b981;">🚀 QUICK WINS</b><br>
@@ -439,26 +441,26 @@ with tab2:
                         </div>
                         <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 12px; padding: 15px;">
                             <b style="color: #ef4444;">💀 SKIP LIST</b><br>
-                            <small style="color: white;">Hard + Low Marks topics</small>
+                            <small style="color: white;">Hard + Low marks frequency topics.</small>
                         </div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
 
-        # --- 3. THE DETAILED ROADMAP (RE-ADDED) ---
-        st.markdown("<br>## ⚔️ Full Detailed Battle Roadmap", unsafe_allow_html=True)
+        # --- 3. THE DETAILED ROADMAP (PHASE-WISE) ---
+        st.markdown("<br>## ⚔️ Detailed Battle Roadmap", unsafe_allow_html=True)
         for phase in wr.get('phases', []):
             with st.expander(f"📍 {phase['name']} (Target: {phase.get('goal', 'Secure Marks')})", expanded=True):
                 st.markdown(f"<p style='color: #4f46e5; font-weight: 800;'>{phase.get('days_range', 'Day X')}</p>", unsafe_allow_html=True)
-                st.write(phase.get('desc', 'Detailed instruction analysis pending...'))
+                st.write(phase.get('desc', 'Instructions pending...'))
                 st.markdown("**Topics to Slay:**")
-                topics_list = phase.get('topics', [])
-                if isinstance(topics_list, list):
-                    for topic in topics_list: st.markdown(f"🔹 {topic}")
-                else: st.write(f"🔹 {topics_list}")
+                t_list = phase.get('topics', [])
+                if isinstance(t_list, list):
+                    for topic in t_list: st.markdown(f"🔹 {topic}")
+                else: st.markdown(f"🔹 {t_list}")
 
-        # --- 4. MCQ MISSIONS (Earn Credits) ---
-        st.markdown("<br>## 🎯 Today's Missions (Solve for +2 Credits)", unsafe_allow_html=True)
+        # --- 4. MCQ MISSIONS (REVENUE LOOP) ---
+        st.markdown("<br>## 🎯 Mission Checklist (Earn Credits)", unsafe_allow_html=True)
         missions_data = wr.get('missions', [])
         for idx, mission in enumerate(missions_data):
             with st.container():
@@ -470,52 +472,46 @@ with tab2:
                 m_c2.markdown(f"""
                     <div style='{strike}'>
                         <b style="font-size: 18px;">{mission['task']}</b><br>
-                        <small style="color: #94a3b8;">Weightage: {mission.get('marks', '10M')} | Priority: {mission.get('priority', 'High')}</small>
+                        <small style="color: #94a3b8;">Exam Weightage: {mission.get('marks', '10M')} | Status: {mission.get('priority', 'Critical')}</small>
                     </div>
                 """, unsafe_allow_html=True)
                 
                 if not mission.get('done'):
-                    if m_c3.button("Quiz", key=f"mcq_v25_{active_station}_{idx}", use_container_width=True):
+                    if m_c3.button("Quiz", key=f"mcq_v28_{active_station}_{idx}", use_container_width=True):
                         with st.spinner("AI generating PYQ MCQ..."):
                             try:
                                 q_prompt = f"""
-                                Generate 1 tough conceptual MCQ for an engineering student on: {mission['task']}.
-                                University: {wr['university']}. Branch: {wr['branch']}.
-                                Return JSON ONLY: {{"question": "text", "options": ["A: x", "B: y", "C: z", "D: w"], "answer": "A"}}
+                                Branch: {wr['branch']}, Topic: {mission['task']}. Generate 1 tough conceptual MCQ based on {wr['university']} patterns.
+                                Instructions: STRICT JSON ONLY. No prose.
+                                JSON: {{"question": "text", "options": ["A: x", "B: y", "C: z", "D: w"], "answer": "A"}}
                                 """
                                 res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": q_prompt}], response_format={"type": "json_object"})
                                 st.session_state.active_mcq = json.loads(res.choices[0].message.content)
                                 st.session_state.active_mcq_meta = {"sub": active_station, "idx": idx, "task": mission['task']}
+                                st.session_state.mcq_lock = False
                                 st.rerun()
                             except:
-                                st.error("AI is busy. Please try clicking Quiz again.")
+                                st.error("AI Busy. Try again.")
 
         # --- MCQ MODAL (STRICT LOCKING) ---
         if st.session_state.get('active_mcq'):
             m_payload = st.session_state.active_mcq
             st.markdown(f"""<div style="background: #4f46e5; padding: 25px; border-radius: 15px; border: 2px solid white; margin-bottom: 20px;">
                 <h3 style="color: white; margin: 0;">🛡️ BATTLE CHALLENGE: {st.session_state.active_mcq_meta['task']}</h3>
-                <p style="color: #cbd5e1; margin: 5px 0 0 0;">Warning: Only one attempt allowed for credits!</p>
+                <p style="color: #cbd5e1; margin: 5px 0 0 0;">Warning: Only the FIRST attempt counts for credits!</p>
             </div>""", unsafe_allow_html=True)
             
             st.write(f"**Q:** {m_payload.get('question')}")
-            opts = m_payload.get('options', [])
-            
-            # Use session state to lock the answer after submission
-            if 'mcq_submitted' not in st.session_state:
-                st.session_state.mcq_submitted = False
-
-            ans_choice = st.radio("Choose carefully:", opts, key="mcq_radio_v25", disabled=st.session_state.mcq_submitted)
+            ans_choice = st.radio("Choose wisely:", m_payload.get('options', []), key="mcq_radio_v28", disabled=st.session_state.get('mcq_lock', False))
             
             mc1, mc2 = st.columns(2)
-            if mc1.button("✅ Lock & Verify Answer", use_container_width=True, disabled=st.session_state.mcq_submitted):
-                st.session_state.mcq_submitted = True
-                correct_letter = m_payload.get('answer', 'A').strip()[0] # Robust letter check
+            if mc1.button("✅ Lock & Verify", use_container_width=True, disabled=st.session_state.get('mcq_lock', False)):
+                st.session_state.mcq_lock = True
+                correct_letter = m_payload.get('answer', 'A').strip()[0]
                 
                 if ans_choice.startswith(correct_letter):
                     meta = st.session_state.active_mcq_meta
                     st.session_state.war_room_vault[meta['sub']]['missions'][meta['idx']]['done'] = True
-                    # Update Progress safely
                     for t in st.session_state.war_room_vault[meta['sub']]['topics']:
                         if t['name'].lower() in meta['task'].lower(): t['done'] = True
                     
@@ -523,20 +519,19 @@ with tab2:
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.balloons(); st.success("Victory! +2 Credits Earned.")
                 else:
-                    st.error(f"Incorrect! The correct answer was {correct_letter}. Better luck next mission.")
+                    st.error(f"Failed! Correct answer was {correct_letter}. Reward forfeited.")
                 
-                st.button("Close Battle Console", on_click=lambda: (st.session_state.pop('active_mcq'), st.session_state.pop('mcq_submitted')))
+                st.button("Close Battle Terminal", on_click=lambda: (st.session_state.pop('active_mcq'), st.session_state.pop('mcq_lock')))
 
             if mc2.button("❌ Close", use_container_width=True):
                 del st.session_state.active_mcq
-                if 'mcq_submitted' in st.session_state: del st.session_state.mcq_submitted
+                if 'mcq_lock' in st.session_state: del st.session_state.mcq_lock
                 st.rerun()
 
     else:
-        # --- NEW MISSION DEPLOYMENT (Revenue Loop) ---
+        # --- NEW MISSION INITIALIZER ---
         st.markdown("<h2 style='text-align: center;'>Deploy AI Exam Strategist</h2>", unsafe_allow_html=True)
-        st.info("💡 Generating a high-detail strategic battle plan costs **-5 Credits**.")
-        
+        st.info("💡 Generating a strategic battle plan costs **-5 Credits**.")
         c1, c2, c3 = st.columns(3)
         u_sel = c1.selectbox("University", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"])
         branch = c2.selectbox("Branch", ["Computer", "IT", "Mechanical", "Civil", "Extc", "AI/DS"])
@@ -545,23 +540,22 @@ with tab2:
         d_left = st.number_input("Days to Battle", 1, 30, 10)
         u_conf = st.select_slider("Confidence (1-10)", options=range(1, 11), value=3)
 
-        if st.button("🔥 GENERATE BRAHMASTRA PLAN (-5 Credits)", use_container_width=True):
+        if st.button("🔥 GENERATE STRATEGY (-5 Credits)", use_container_width=True):
             if use_credits(5):
-                with st.spinner(f"AI Senior analyzing {branch} engineering trends..."):
+                with st.spinner(f"AI Senior analyzing {branch} PYQ trends..."):
                     try:
                         prompt = f"""
                         Analyze {s_name} for {branch} at {u_sel}. Exam in {d_left} days.
-                        Instruction: ONLY provide JSON. Identify 8-10 REAL topics based on 5-year PYQs.
+                        Identify 10 REAL topics based on PYQs with marks. Divide roadmap into 4 phases. 
                         Return JSON: {{
-                          "matrix": {{ "quick_wins": "Topics", "big_rocks": "Topics" }},
-                          "phases": [ {{ "name": "Phase 1: Survival (40 Marks)", "goal": "Security", "days_range": "Day 1-3", "desc": "Instructions", "topics": ["T1", "T2"] }} ],
+                          "matrix": {{ "quick_wins": "topics", "big_rocks": "topics" }},
+                          "phases": [ {{ "name": "Phase 1: Survival", "goal": "40 Marks", "days_range": "Day 1-3", "desc": "Steps", "topics": ["T1"] }} ],
                           "topics": [ {{"name": "Topic A", "importance": 10, "marks": 10}} ],
                           "missions": [ {{"task": "Master Topic A", "marks": "10M", "priority": "CRITICAL"}} ]
                         }}
                         """
                         res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}], response_format={"type": "json_object"})
                         strategy = json.loads(res.choices[0].message.content)
-
                         st.session_state.war_room_vault[s_name] = {
                             "university": u_sel, "branch": branch, "subject": s_name, "days_left": d_left,
                             "matrix": strategy.get('matrix', {}), "phases": strategy.get('phases', []),
@@ -572,7 +566,7 @@ with tab2:
                     except:
                         st.error("Strategy generation failed. AI took too long.")
             else:
-                st.error("Insufficient Credits! Refill to unlock.")
+                st.error("Insufficient Credits!")
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
