@@ -351,145 +351,115 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: AI EXAM WAR ROOM (HYBRID V41) ---
+# --- TAB 2: SMART FORMULA & DERIVATION CHEAT SHEET ---
 # ==========================================
 with tab2:
-    # 1. PREMIUM STARTUP UI (Custom CSS)
+    # 1. PREMIUM UI STYLING
     st.markdown("""
         <style>
-        .stMetric {background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);}
-        .stMetric:hover {border-color: #ef4444; transform: translateY(-3px); transition: 0.3s;}
-        [data-testid="stExpander"] {background: #1e293b; border-radius: 12px; border: 1px solid #334155; margin-bottom: 10px;}
+        .formula-card {
+            background: #1e293b; 
+            padding: 20px; 
+            border-radius: 12px; 
+            border-left: 5px solid #ef4444;
+            margin-bottom: 15px;
+        }
+        .derivation-card {
+            background: #0f172a; 
+            padding: 15px; 
+            border-radius: 10px; 
+            border: 1px solid #334155;
+        }
         footer {visibility: hidden;}
         </style>
     """, unsafe_allow_html=True)
 
-    # 2. STATE & SYNC
-    if 'war_room_vault' not in st.session_state:
-        st.session_state.war_room_vault = st.session_state.user_data.get('war_room_data', {}) if st.session_state.user_data else {}
+    # 2. DETERMINISTIC FORMULA DATABASE (No AI Needed)
+    # Isme tum jitne chahe subjects aur formulas add kar sakte ho
+    FORMULA_DB = {
+        "engineering maths": {
+            "formulas": [
+                "L{1} = 1/s",
+                "L{t^n} = n! / s^(n+1)",
+                "L{sin(at)} = a / (s² + a²)",
+                "Fourier: f(x) = a₀/2 + Σ(aₙ cos nx + bₙ sin nx)"
+            ],
+            "derivations": ["Laplace of sin(at)", "Convolution Theorem", "Euler's Formula"]
+        },
+        "applied physics": {
+            "formulas": [
+                "Bragg's Law: nλ = 2d sinθ",
+                "Numerical Aperture: NA = μ sinθ",
+                "Einstein's Photoelectric Eq: hν = Φ + KE_max"
+            ],
+            "derivations": ["De-Broglie Hypothesis", "Heisenberg Uncertainty Principle"]
+        },
+        "data structures": {
+            "formulas": [
+                "Array Address: Loc(A[i]) = Base + w(i - lower_bound)",
+                "Binary Tree Nodes: Max nodes = 2^h - 1",
+                "Time Complexity: Merge Sort = O(n log n)"
+            ],
+            "derivations": ["Stack Implementation", "BST Insertion Algorithm"]
+        }
+    }
 
-    # 3. TOP COMMAND BAR
-    v_c1, v_c2 = st.columns([0.7, 0.3])
-    active_station = v_c1.selectbox("📂 Mission Hub:", ["+ Deploy New Command Center"] + list(st.session_state.war_room_vault.keys()))
+    # 3. UI LAYOUT
+    st.title("📄 Smart Cheat Sheets")
+    st.markdown("##### *Instant Revision. Zero Timeouts. Pure Performance.*")
+
+    col_s1, col_s2 = st.columns([0.7, 0.3])
+    subject_input = col_s1.selectbox("Select Subject", list(FORMULA_DB.keys()) + ["Other (AI Search)"])
     
-    if v_c2.button("💾 Master Sync", use_container_width=True):
-        try:
-            supabase.table("profiles").update({"war_room_data": st.session_state.war_room_vault}).eq("email", st.session_state.user_data['email']).execute()
-            st.toast("Mission Data Synced! ☁️")
-        except: st.error("Sync Failed.")
+    if col_s2.button("🚀 Launch Waitlist", use_container_width=True):
+        st.toast("Welcome to the TopperGPT V2 Waitlist! ⚡")
+        st.success("Waitlist ID: T-GPT-2026")
 
     st.divider()
 
-    # 4. DASHBOARD ENGINE
-    if active_station != "+ Deploy New Command Center":
-        wr = st.session_state.war_room_vault[active_station]
+    # 4. LOGIC ENGINE
+    if subject_input != "Other (AI Search)":
+        data = FORMULA_DB[subject_input]
         
-        # Calculation: Readiness Score
-        topics = wr.get('topics', [])
-        total_m = sum(t.get('marks', 10) for t in topics)
-        done_m = sum(t.get('marks', 10) for t in topics if t.get('done'))
-        readiness = int((done_m / total_m) * 100) if total_m > 0 else 0
-
-        # --- PREMIUM METRIC BAR ---
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Subject", wr['subject'])
-        m2.metric("Days Left", wr['days_left'])
-        m3.metric("Readiness", f"{readiness}%")
-        status_label = "🔴 CRITICAL" if readiness < 40 else "🟡 MODERATE" if readiness < 75 else "🟢 BATTLE READY"
-        m4.metric("Status", status_label)
-
-        # Readiness Interpretation Logic
-        if readiness < 40: st.error("🚨 **Strategic Gap Detected:** Focus on high-weightage topics in Phase 1 immediately.")
-        elif readiness < 75: st.warning("⚠️ **Moderate Coverage:** You are in the safe zone, but need Phase 3 to secure top grades.")
-        else: st.success("✅ **Combat Ready:** Switch to Active Recall and PYQ Solving mode.")
-
-        st.divider()
-
-        # --- MAIN PANEL: ROADMAP & MISSIONS ---
-        col_roadmap, col_missions = st.columns([0.6, 0.4])
-
-        with col_roadmap:
-            st.markdown("### 🗺️ AI Battle Roadmap")
-            for p in wr.get('phases', []):
-                with st.expander(f"📍 {p['name']} (Goal: {p.get('goal', 'Pass')})", expanded=True):
-                    st.caption(f"Timeline: {p.get('days_range')}")
-                    st.write(p.get('desc'))
-                    for t in p.get('topics', []):
-                        st.markdown(f"🔹 {t}")
-
-        with col_missions:
-            st.markdown("### 🎯 Daily Missions")
-            for idx, mission in enumerate(wr.get('missions', [])):
-                # Task Sync Logic
-                is_done = st.checkbox(f"{mission['task']}", key=f"m_v41_{active_station}_{idx}", value=mission.get('done', False))
-                if is_done != mission.get('done'):
-                    wr['missions'][idx]['done'] = is_done
-                    # Logic: If mission checked, mark related topic as done in backend
-                    for t in wr['topics']:
-                        if t['name'].lower() in mission['task'].lower(): t['done'] = is_done
-                    st.rerun()
-
-            st.markdown("---")
-            # --- AI STRATEGIST EXPERT ADVICE ---
-            with st.expander("🎙️ AI Strategist Notes"):
-                if 'expert_advice' not in wr:
-                    if st.button("Generate Strategy Insight"):
-                        with st.spinner("Analyzing..."):
-                            advice = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Briefly explain why {wr['subject']} needs specific focus on high-weightage topics."}])
-                            wr['expert_advice'] = advice.choices[0].message.content
-                            st.rerun()
-                else:
-                    st.info(wr['expert_advice'])
+        c1, c2 = st.columns(2)
+        
+        with c1:
+            st.subheader("🔢 Key Formulas")
+            for f in data["formulas"]:
+                st.markdown(f"""<div class="formula-card"><code>{f}</code></div>""", unsafe_allow_html=True)
+        
+        with c2:
+            st.subheader("📜 Important Derivations")
+            for d in data["derivations"]:
+                with st.expander(f"📌 {d}"):
+                    st.write(f"Steps for {d} coming in V2...")
+                    if st.button("Explain with AI", key=f"ai_{d}"):
+                        with st.spinner("AI explaining (Low Load Mode)..."):
+                            # Chota call taaki crash na ho
+                            res = groq_client.chat.completions.create(
+                                model="llama-3.3-70b-versatile",
+                                messages=[{"role": "user", "content": f"Briefly explain the derivation of {d} in 3 bullet points."}]
+                            )
+                            st.info(res.choices[0].message.content)
 
     else:
-        # --- NEW MISSION DEPLOYMENT (Hybrid Engine) ---
-        st.markdown("<h2 style='text-align: center;'>Deploy Command Center</h2>", unsafe_allow_html=True)
-        st.info("💡 Deployment costs **-5 Credits**. (Only deducted on successful generation)")
-        
-        c1, c2, c3 = st.columns(3)
-        u_sel = c1.selectbox("University", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"])
-        branch = c2.selectbox("Branch", ["Computer", "IT", "Mechanical", "Civil", "Extc", "AI/DS"])
-        s_input = c3.text_input("Subject (e.g., Applied Physics)")
-        days_input = st.number_input("Days to Battle", 1, 30, 10)
+        # Fallback for subjects not in DB
+        st.warning("AI will generate this cheat sheet. This might take 5-10 seconds.")
+        if st.button("Generate with AI"):
+             with st.spinner("AI Brain working..."):
+                # Purana Stable Logic
+                st.info("Coming soon for custom subjects! Join the waitlist.")
 
-        if st.button("🔥 GENERATE COMMAND CENTER", use_container_width=True):
-            if st.session_state.user_data['credits'] >= 5:
-                with st.spinner("AI drafting battle plan (Hybrid Formatting)..."):
-                    try:
-                        # HYBRID PROMPT: AI as a Formatter
-                        prompt = f"""
-                        Analyze {s_input} for {branch} at {u_sel}. 
-                        Identify 8 high-marks topics from 5-year PYQs.
-                        Return STRICT JSON ONLY:
-                        {{
-                          "phases": [
-                            {{ "name": "Survival", "goal": "40M", "days_range": "Day 1-3", "desc": "Focus on high yield", "topics": ["T1", "T2"] }}
-                          ],
-                          "topics": [ {{"name": "T1", "marks": 15}} ],
-                          "missions": [ {{"task": "Master T1", "done": false}} ]
-                        }}
-                        """
-                        res = genai.GenerativeModel('gemini-1.5-flash').generate_content(prompt)
-                        
-                        # ANTI-CRASH CLEANING
-                        strategy = json.loads(res.text.replace('```json', '').replace('```', '').strip())
-
-                        # SUCCESS: Now Deduct Credits
-                        st.session_state.user_data['credits'] -= 5
-                        supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                        
-                        # Save To Vault
-                        st.session_state.war_room_vault[s_input] = {
-                            "subject": s_input, "university": u_sel, "days_left": days_input, "branch": branch,
-                            "phases": strategy['phases'],
-                            "topics": [{**t, "done": False} for t in strategy.get('topics', [])],
-                            "missions": strategy.get('missions', [])
-                        }
-                        st.balloons(); st.rerun()
-                    except:
-                        st.error("AI Formatting Error. No credits were charged. Try again!")
-            else:
-                st.error("Insufficient Credits!")
+    # 5. WAITLIST FOOTER
+    st.markdown("---")
+    st.markdown(f"""
+        <div style="text-align: center; padding: 20px; background: rgba(239, 68, 68, 0.1); border-radius: 15px;">
+            <h3>TopperGPT V2 is coming! 🚀</h3>
+            <p>We are moving from Streamlit to a <b>Full-Stack Web App</b> to handle 10,000+ students.</p>
+            <p>Current Credits: <b>{st.session_state.user_data['credits']}</b></p>
+            <button style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px;">JOIN THE WAITLIST</button>
+        </div>
+    """, unsafe_allow_html=True)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
