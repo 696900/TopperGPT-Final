@@ -351,115 +351,97 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: SMART FORMULA & DERIVATION CHEAT SHEET ---
+# --- TAB 2: SMART FORMULA & DERIVATION ENGINE ---
 # ==========================================
 with tab2:
-    # 1. PREMIUM UI STYLING
     st.markdown("""
         <style>
-        .formula-card {
-            background: #1e293b; 
-            padding: 20px; 
-            border-radius: 12px; 
-            border-left: 5px solid #ef4444;
-            margin-bottom: 15px;
-        }
-        .derivation-card {
-            background: #0f172a; 
-            padding: 15px; 
-            border-radius: 10px; 
-            border: 1px solid #334155;
-        }
-        footer {visibility: hidden;}
+        .formula-box { background: #1e293b; padding: 15px; border-radius: 10px; border-left: 5px solid #ef4444; margin-bottom: 10px; font-family: 'Courier New', Courier, monospace; }
+        .derivation-box { background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 8px; }
         </style>
     """, unsafe_allow_html=True)
 
-    # 2. DETERMINISTIC FORMULA DATABASE (No AI Needed)
-    # Isme tum jitne chahe subjects aur formulas add kar sakte ho
-    FORMULA_DB = {
-        "engineering maths": {
-            "formulas": [
-                "L{1} = 1/s",
-                "L{t^n} = n! / s^(n+1)",
-                "L{sin(at)} = a / (s² + a²)",
-                "Fourier: f(x) = a₀/2 + Σ(aₙ cos nx + bₙ sin nx)"
-            ],
-            "derivations": ["Laplace of sin(at)", "Convolution Theorem", "Euler's Formula"]
-        },
-        "applied physics": {
-            "formulas": [
-                "Bragg's Law: nλ = 2d sinθ",
-                "Numerical Aperture: NA = μ sinθ",
-                "Einstein's Photoelectric Eq: hν = Φ + KE_max"
-            ],
-            "derivations": ["De-Broglie Hypothesis", "Heisenberg Uncertainty Principle"]
-        },
-        "data structures": {
-            "formulas": [
-                "Array Address: Loc(A[i]) = Base + w(i - lower_bound)",
-                "Binary Tree Nodes: Max nodes = 2^h - 1",
-                "Time Complexity: Merge Sort = O(n log n)"
-            ],
-            "derivations": ["Stack Implementation", "BST Insertion Algorithm"]
-        }
-    }
+    # 1. VAULT INITIALIZATION (To save generated sheets)
+    if 'formula_vault' not in st.session_state:
+        st.session_state.formula_vault = st.session_state.user_data.get('formula_sheets', {}) if st.session_state.user_data else {}
 
-    # 3. UI LAYOUT
-    st.title("📄 Smart Cheat Sheets")
-    st.markdown("##### *Instant Revision. Zero Timeouts. Pure Performance.*")
-
-    col_s1, col_s2 = st.columns([0.7, 0.3])
-    subject_input = col_s1.selectbox("Select Subject", list(FORMULA_DB.keys()) + ["Other (AI Search)"])
+    # 2. SELECTION UI
+    v_c1, v_c2 = st.columns([0.7, 0.3])
+    saved_sheets = list(st.session_state.formula_vault.keys())
+    active_sheet = v_c1.selectbox("📂 Saved Cheat Sheets:", ["+ Generate New Sheet"] + saved_sheets)
     
-    if col_s2.button("🚀 Launch Waitlist", use_container_width=True):
-        st.toast("Welcome to the TopperGPT V2 Waitlist! ⚡")
-        st.success("Waitlist ID: T-GPT-2026")
+    if v_c2.button("💾 Sync to Cloud", use_container_width=True):
+        supabase.table("profiles").update({"formula_sheets": st.session_state.formula_vault}).eq("email", st.session_state.user_data['email']).execute()
+        st.toast("Sheets Saved! ☁️")
 
     st.divider()
 
-    # 4. LOGIC ENGINE
-    if subject_input != "Other (AI Search)":
-        data = FORMULA_DB[subject_input]
+    # 3. GENERATION INTERFACE
+    if active_sheet == "+ Generate New Sheet":
+        st.subheader("🛠️ Deploy Formula Miner")
+        st.info("💡 Generating a custom university formula sheet costs **-3 Credits**.")
         
         c1, c2 = st.columns(2)
+        u_name = c1.selectbox("University", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"])
+        s_name = c2.text_input("Subject Name (e.g., Engineering Maths 2)")
         
-        with c1:
-            st.subheader("🔢 Key Formulas")
-            for f in data["formulas"]:
-                st.markdown(f"""<div class="formula-card"><code>{f}</code></div>""", unsafe_allow_html=True)
-        
-        with c2:
-            st.subheader("📜 Important Derivations")
-            for d in data["derivations"]:
-                with st.expander(f"📌 {d}"):
-                    st.write(f"Steps for {d} coming in V2...")
-                    if st.button("Explain with AI", key=f"ai_{d}"):
-                        with st.spinner("AI explaining (Low Load Mode)..."):
-                            # Chota call taaki crash na ho
-                            res = groq_client.chat.completions.create(
-                                model="llama-3.3-70b-versatile",
-                                messages=[{"role": "user", "content": f"Briefly explain the derivation of {d} in 3 bullet points."}]
-                            )
-                            st.info(res.choices[0].message.content)
+        if st.button("🔥 GENERATE FORMULA SHEET (-3 Credits)", use_container_width=True):
+            if st.session_state.user_data['credits'] >= 3:
+                with st.spinner(f"AI Mining formulas for {s_name}..."):
+                    try:
+                        # PURE AI CALL FOR FORMULAS
+                        prompt = f"Subject: {s_name}, Uni: {u_name}. Provide exactly 10-12 most important formulas and 5 key derivations. Output STRICT JSON: {{\"formulas\": [\"f1\", \"f2\"], \"derivations\": [\"d1\", \"d2\"]}}"
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        res = model.generate_content(prompt)
+                        data = json.loads(res.text.replace('```json', '').replace('```', '').strip())
 
+                        # DEDUCT CREDITS
+                        st.session_state.user_data['credits'] -= 3
+                        supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
+                        
+                        # SAVE TO VAULT
+                        st.session_state.formula_vault[s_name] = data
+                        st.balloons(); st.rerun()
+                    except:
+                        st.error("AI Mining failed. Check subject name. No credits charged.")
+            else:
+                st.error("Insufficient Credits!")
+
+    # 4. THE DISPLAY & DOWNLOAD COMMAND CENTER
     else:
-        # Fallback for subjects not in DB
-        st.warning("AI will generate this cheat sheet. This might take 5-10 seconds.")
-        if st.button("Generate with AI"):
-             with st.spinner("AI Brain working..."):
-                # Purana Stable Logic
-                st.info("Coming soon for custom subjects! Join the waitlist.")
+        sheet = st.session_state.formula_vault[active_sheet]
+        st.header(f"📄 {active_sheet} Cheat Sheet")
+        st.caption(f"Exclusively generated for {st.session_state.user_data['name']} (TopperGPT User)")
 
-    # 5. WAITLIST FOOTER
-    st.markdown("---")
-    st.markdown(f"""
-        <div style="text-align: center; padding: 20px; background: rgba(239, 68, 68, 0.1); border-radius: 15px;">
-            <h3>TopperGPT V2 is coming! 🚀</h3>
-            <p>We are moving from Streamlit to a <b>Full-Stack Web App</b> to handle 10,000+ students.</p>
-            <p>Current Credits: <b>{st.session_state.user_data['credits']}</b></p>
-            <button style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px;">JOIN THE WAITLIST</button>
-        </div>
-    """, unsafe_allow_html=True)
+        col_f, col_d = st.columns(2)
+        
+        with col_f:
+            st.markdown("### 🔢 Core Formulas")
+            for f in sheet['formulas']:
+                st.markdown(f'<div class="formula-box">{f}</div>', unsafe_allow_html=True)
+
+        with col_d:
+            st.markdown("### 📜 Key Derivations")
+            for d in sheet['derivations']:
+                st.markdown(f'<div class="derivation-box">📌 {d}</div>', unsafe_allow_html=True)
+
+        st.divider()
+        
+        # DOWNLOAD LOGIC (Simple Text Download for MVP)
+        full_text = f"TOPPERGPT - {active_sheet.upper()} FORMULA SHEET\n"
+        full_text += f"University: {u_name}\n"
+        full_text += "-----------------------------------\n\n"
+        full_text += "FORMULAS:\n" + "\n".join(sheet['formulas']) + "\n\n"
+        full_text += "DERIVATIONS:\n" + "\n".join(sheet['derivations']) + "\n\n"
+        full_text += f"\nWatermark: Locked for {st.session_state.user_data['email']}"
+
+        st.download_button(
+            label="📥 Download Cheat Sheet (PDF/TXT)",
+            data=full_text,
+            file_name=f"{active_sheet}_TopperGPT.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
