@@ -351,144 +351,143 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: AI EXAM WAR ROOM (PURE AI V40) ---
+# --- TAB 2: AI EXAM WAR ROOM (HYBRID V41) ---
 # ==========================================
 with tab2:
-    # 1. PREMIUM UI STYLING (Startup Grade)
+    # 1. PREMIUM STARTUP UI (Custom CSS)
     st.markdown("""
         <style>
-        .stMetric {background: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid #334155; transition: 0.3s;}
-        .stMetric:hover {border-color: #ef4444; transform: translateY(-2px);}
+        .stMetric {background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);}
+        .stMetric:hover {border-color: #ef4444; transform: translateY(-3px); transition: 0.3s;}
+        [data-testid="stExpander"] {background: #1e293b; border-radius: 12px; border: 1px solid #334155; margin-bottom: 10px;}
         footer {visibility: hidden;}
         </style>
     """, unsafe_allow_html=True)
 
-    # 2. STATE INITIALIZATION
+    # 2. STATE & SYNC
     if 'war_room_vault' not in st.session_state:
         st.session_state.war_room_vault = st.session_state.user_data.get('war_room_data', {}) if st.session_state.user_data else {}
 
-    # 3. COMMAND BAR (Mission Context)
+    # 3. TOP COMMAND BAR
     v_c1, v_c2 = st.columns([0.7, 0.3])
-    active_station = v_c1.selectbox("📂 Mission Context:", ["+ Deploy Command Center"] + list(st.session_state.war_room_vault.keys()))
+    active_station = v_c1.selectbox("📂 Mission Hub:", ["+ Deploy New Command Center"] + list(st.session_state.war_room_vault.keys()))
     
     if v_c2.button("💾 Master Sync", use_container_width=True):
         try:
             supabase.table("profiles").update({"war_room_data": st.session_state.war_room_vault}).eq("email", st.session_state.user_data['email']).execute()
-            st.toast("Progress Synced to Cloud! ☁️")
+            st.toast("Mission Data Synced! ☁️")
         except: st.error("Sync Failed.")
 
     st.divider()
 
-    # 4. THE COMMAND CENTER DASHBOARD
-    if active_station != "+ Deploy Command Center":
+    # 4. DASHBOARD ENGINE
+    if active_station != "+ Deploy New Command Center":
         wr = st.session_state.war_room_vault[active_station]
         
-        # Readiness Math
+        # Calculation: Readiness Score
         topics = wr.get('topics', [])
         total_m = sum(t.get('marks', 10) for t in topics)
         done_m = sum(t.get('marks', 10) for t in topics if t.get('done'))
         readiness = int((done_m / total_m) * 100) if total_m > 0 else 0
 
-        # --- TOP METRICS BAR ---
+        # --- PREMIUM METRIC BAR ---
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Subject", wr['subject'])
         m2.metric("Days Left", wr['days_left'])
         m3.metric("Readiness", f"{readiness}%")
-        status = "CRITICAL" if readiness < 40 else "MODERATE" if readiness < 75 else "BATTLE READY"
-        m4.metric("Status", status)
+        status_label = "🔴 CRITICAL" if readiness < 40 else "🟡 MODERATE" if readiness < 75 else "🟢 BATTLE READY"
+        m4.metric("Status", status_label)
 
-        # Readiness Interpretation
-        if readiness < 40: st.error("🚨 Critical preparation gap! AI suggests focusing on Phase 1 immediately.")
-        elif readiness < 75: st.warning("⚠️ Moderate preparation. You are on the right track, keep grinding.")
-        else: st.success("✅ Battle Ready! revision is your secret weapon now.")
+        # Readiness Interpretation Logic
+        if readiness < 40: st.error("🚨 **Strategic Gap Detected:** Focus on high-weightage topics in Phase 1 immediately.")
+        elif readiness < 75: st.warning("⚠️ **Moderate Coverage:** You are in the safe zone, but need Phase 3 to secure top grades.")
+        else: st.success("✅ **Combat Ready:** Switch to Active Recall and PYQ Solving mode.")
 
         st.divider()
 
-        # --- MAIN BATTLE PANEL ---
+        # --- MAIN PANEL: ROADMAP & MISSIONS ---
         col_roadmap, col_missions = st.columns([0.6, 0.4])
 
         with col_roadmap:
-            st.markdown("### 🗺️ AI Strategic Roadmap")
+            st.markdown("### 🗺️ AI Battle Roadmap")
             for p in wr.get('phases', []):
                 with st.expander(f"📍 {p['name']} (Goal: {p.get('goal', 'Pass')})", expanded=True):
-                    st.caption(f"Schedule: {p.get('days_range', 'Upcoming')}")
-                    st.write(p.get('desc', 'Follow the topics below to master this phase.'))
+                    st.caption(f"Timeline: {p.get('days_range')}")
+                    st.write(p.get('desc'))
                     for t in p.get('topics', []):
                         st.markdown(f"🔹 {t}")
 
         with col_missions:
-            st.markdown("### 🎯 Daily Action Missions")
+            st.markdown("### 🎯 Daily Missions")
             for idx, mission in enumerate(wr.get('missions', [])):
-                # Task Logic: Checkbox updates Topic Status
-                is_done = st.checkbox(f"{mission['task']}", key=f"mission_{active_station}_{idx}", value=mission.get('done', False))
-                if is_checked := is_done != mission.get('done'):
+                # Task Sync Logic
+                is_done = st.checkbox(f"{mission['task']}", key=f"m_v41_{active_station}_{idx}", value=mission.get('done', False))
+                if is_done != mission.get('done'):
                     wr['missions'][idx]['done'] = is_done
-                    # Logic: If mission done, mark related topics as done
+                    # Logic: If mission checked, mark related topic as done in backend
                     for t in wr['topics']:
                         if t['name'].lower() in mission['task'].lower(): t['done'] = is_done
                     st.rerun()
 
             st.markdown("---")
-            # AI Strategist Notes
-            with st.expander("🎙️ AI Strategist Insight"):
+            # --- AI STRATEGIST EXPERT ADVICE ---
+            with st.expander("🎙️ AI Strategist Notes"):
                 if 'expert_advice' not in wr:
-                    if st.button("Generate Expert Insight"):
-                        advice = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Give 2 lines of high-level exam strategy for {wr['subject']}."}])
-                        wr['expert_advice'] = advice.choices[0].message.content
-                        st.rerun()
+                    if st.button("Generate Strategy Insight"):
+                        with st.spinner("Analyzing..."):
+                            advice = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Briefly explain why {wr['subject']} needs specific focus on high-weightage topics."}])
+                            wr['expert_advice'] = advice.choices[0].message.content
+                            st.rerun()
                 else:
                     st.info(wr['expert_advice'])
 
     else:
-        # --- DEPLOYMENT UI (Pure AI Generation) ---
+        # --- NEW MISSION DEPLOYMENT (Hybrid Engine) ---
         st.markdown("<h2 style='text-align: center;'>Deploy Command Center</h2>", unsafe_allow_html=True)
-        st.info("💡 Plan generation costs **-5 Credits**. Only deducted on successful generation.")
+        st.info("💡 Deployment costs **-5 Credits**. (Only deducted on successful generation)")
         
         c1, c2, c3 = st.columns(3)
         u_sel = c1.selectbox("University", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"])
         branch = c2.selectbox("Branch", ["Computer", "IT", "Mechanical", "Civil", "Extc", "AI/DS"])
-        s_name = c3.text_input("Subject (e.g., Applied Physics)")
-        days_left = st.number_input("Days to battle", 1, 30, 10)
+        s_input = c3.text_input("Subject (e.g., Applied Physics)")
+        days_input = st.number_input("Days to Battle", 1, 30, 10)
 
         if st.button("🔥 GENERATE COMMAND CENTER", use_container_width=True):
             if st.session_state.user_data['credits'] >= 5:
-                with st.spinner(f"AI Brain analyzing {s_name} patterns..."):
+                with st.spinner("AI drafting battle plan (Hybrid Formatting)..."):
                     try:
-                        # PURE AI PROMPT: No Predefined Data
+                        # HYBRID PROMPT: AI as a Formatter
                         prompt = f"""
-                        Subject: {s_name}, Branch: {branch}, Uni: {u_sel}, Days: {days_left}.
-                        Analyze 5-year PYQ patterns and weightage.
-                        Output STRICT JSON ONLY:
+                        Analyze {s_input} for {branch} at {u_sel}. 
+                        Identify 8 high-marks topics from 5-year PYQs.
+                        Return STRICT JSON ONLY:
                         {{
                           "phases": [
-                            {{ "name": "Survival", "goal": "40M", "days_range": "Day 1-3", "desc": "info", "topics": ["T1", "T2"] }}
+                            {{ "name": "Survival", "goal": "40M", "days_range": "Day 1-3", "desc": "Focus on high yield", "topics": ["T1", "T2"] }}
                           ],
-                          "topics": [ {{ "name": "T1", "marks": 15 }} ],
-                          "missions": [ {{ "task": "Master T1", "done": false }} ]
+                          "topics": [ {{"name": "T1", "marks": 15}} ],
+                          "missions": [ {{"task": "Master T1", "done": false}} ]
                         }}
                         """
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        response = model.generate_content(prompt)
+                        res = genai.GenerativeModel('gemini-1.5-flash').generate_content(prompt)
                         
-                        # JSON Repair & Load
-                        clean_json = response.text.replace('```json', '').replace('```', '').strip()
-                        strategy = json.loads(clean_json)
+                        # ANTI-CRASH CLEANING
+                        strategy = json.loads(res.text.replace('```json', '').replace('```', '').strip())
 
-                        # SUCCESS: Now Deduct Credits 
+                        # SUCCESS: Now Deduct Credits
                         st.session_state.user_data['credits'] -= 5
                         supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                         
-                        # Save to Vault
-                        st.session_state.war_room_vault[s_name] = {
-                            "subject": s_name, "university": u_sel, "branch": branch, "days_left": days_left,
-                            "phases": strategy.get('phases', []),
+                        # Save To Vault
+                        st.session_state.war_room_vault[s_input] = {
+                            "subject": s_input, "university": u_sel, "days_left": days_input, "branch": branch,
+                            "phases": strategy['phases'],
                             "topics": [{**t, "done": False} for t in strategy.get('topics', [])],
                             "missions": strategy.get('missions', [])
                         }
                         st.balloons(); st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"AI Error: Drafting Failed. No credits charged. Try again! [cite: 6, 11]")
+                    except:
+                        st.error("AI Formatting Error. No credits were charged. Try again!")
             else:
                 st.error("Insufficient Credits!")
     # --- TAB 3: ANSWER EVALUATOR ---
