@@ -351,93 +351,102 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: SMART FORMULA & DERIVATION ENGINE ---
+# --- TAB 2: SMART FORMULA & DERIVATION ENGINE (V44) ---
 # ==========================================
 with tab2:
     st.markdown("""
         <style>
-        .formula-box { background: #1e293b; padding: 15px; border-radius: 10px; border-left: 5px solid #ef4444; margin-bottom: 10px; font-family: 'Courier New', Courier, monospace; }
-        .derivation-box { background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 8px; }
+        .formula-box { background: #1e293b; padding: 15px; border-radius: 10px; border-left: 5px solid #ef4444; margin-bottom: 10px; font-family: 'Courier New', monospace; color: #fff; }
+        .derivation-box { background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 8px; color: #cbd5e1; }
+        .watermark { position: absolute; bottom: 10px; right: 10px; opacity: 0.2; font-size: 12px; color: gray; }
         </style>
     """, unsafe_allow_html=True)
 
-    # 1. VAULT INITIALIZATION (To save generated sheets)
+    # 1. INITIALIZE VAULT
     if 'formula_vault' not in st.session_state:
         st.session_state.formula_vault = st.session_state.user_data.get('formula_sheets', {}) if st.session_state.user_data else {}
 
-    # 2. SELECTION UI
+    # 2. UI HEADER
     v_c1, v_c2 = st.columns([0.7, 0.3])
     saved_sheets = list(st.session_state.formula_vault.keys())
-    active_sheet = v_c1.selectbox("📂 Saved Cheat Sheets:", ["+ Generate New Sheet"] + saved_sheets)
+    active_sheet = v_c1.selectbox("📂 Saved Sheets:", ["+ Mine New Formulas"] + saved_sheets)
     
-    if v_c2.button("💾 Sync to Cloud", use_container_width=True):
+    if v_c2.button("💾 Master Sync", use_container_width=True):
         supabase.table("profiles").update({"formula_sheets": st.session_state.formula_vault}).eq("email", st.session_state.user_data['email']).execute()
-        st.toast("Sheets Saved! ☁️")
+        st.toast("Sheets Locked to Cloud! ☁️")
 
     st.divider()
 
     # 3. GENERATION INTERFACE
-    if active_sheet == "+ Generate New Sheet":
+    if active_sheet == "+ Mine New Formulas":
         st.subheader("🛠️ Deploy Formula Miner")
-        st.info("💡 Generating a custom university formula sheet costs **-3 Credits**.")
+        st.info("💡 Generating a custom university sheet costs **-3 Credits**.")
         
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
         u_name = c1.selectbox("University", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"])
-        s_name = c2.text_input("Subject Name (e.g., Engineering Maths 2)")
+        s_name = c2.text_input("Subject Name")
+        t_name = c3.text_input("Specific Topic (Optional)")
         
         if st.button("🔥 GENERATE FORMULA SHEET (-3 Credits)", use_container_width=True):
             if st.session_state.user_data['credits'] >= 3:
-                with st.spinner(f"AI Mining formulas for {s_name}..."):
+                with st.spinner(f"Mining syllabus-specific data for {s_name}..."):
                     try:
-                        # PURE AI CALL FOR FORMULAS
-                        prompt = f"Subject: {s_name}, Uni: {u_name}. Provide exactly 10-12 most important formulas and 5 key derivations. Output STRICT JSON: {{\"formulas\": [\"f1\", \"f2\"], \"derivations\": [\"d1\", \"d2\"]}}"
+                        # SUPER STABLE PROMPT (Atomic Response)
+                        prompt = f"Subject: {s_name}, Topic: {t_name}, Uni: {u_name}. List 8 key formulas and 4 important derivations as per engineering syllabus. Format: Formula 1 | Formula 2... and Derivation 1 | Derivation 2..."
+                        
                         model = genai.GenerativeModel('gemini-1.5-flash')
                         res = model.generate_content(prompt)
-                        data = json.loads(res.text.replace('```json', '').replace('```', '').strip())
-
-                        # DEDUCT CREDITS
+                        raw_response = res.text
+                        
+                        # SMART PARSING (Avoiding JSON crash)
+                        parts = raw_response.split("Formula")
+                        # (Yahan hum raw text ko clean karke list bana rahe hain)
+                        formulas = [f.strip() for f in parts if "|" in f or "=" in f]
+                        
+                        # DEDUCT CREDITS ON SUCCESS
                         st.session_state.user_data['credits'] -= 3
                         supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                         
                         # SAVE TO VAULT
-                        st.session_state.formula_vault[s_name] = data
+                        st.session_state.formula_vault[s_name] = {
+                            "formulas": formulas[:10],
+                            "derivations": [d for d in raw_response.split('\n') if 'Derivation' in d or '📌' in d][:5],
+                            "uni": u_name,
+                            "user": st.session_state.user_data['email']
+                        }
                         st.balloons(); st.rerun()
                     except:
-                        st.error("AI Mining failed. Check subject name. No credits charged.")
+                        st.error("Mining Engine Timeout. No credits charged. Try again!")
             else:
                 st.error("Insufficient Credits!")
 
-    # 4. THE DISPLAY & DOWNLOAD COMMAND CENTER
+    # 4. DISPLAY & DOWNLOAD
     else:
         sheet = st.session_state.formula_vault[active_sheet]
-        st.header(f"📄 {active_sheet} Cheat Sheet")
-        st.caption(f"Exclusively generated for {st.session_state.user_data['name']} (TopperGPT User)")
+        st.header(f"📄 {active_sheet.upper()} Cheat Sheet")
+        st.write(f"**University:** {sheet.get('uni', 'Official Syllabus')}")
 
-        col_f, col_d = st.columns(2)
+        f_col, d_col = st.columns(2)
         
-        with col_f:
+        with f_col:
             st.markdown("### 🔢 Core Formulas")
             for f in sheet['formulas']:
                 st.markdown(f'<div class="formula-box">{f}</div>', unsafe_allow_html=True)
 
-        with col_d:
+        with d_col:
             st.markdown("### 📜 Key Derivations")
             for d in sheet['derivations']:
-                st.markdown(f'<div class="derivation-box">📌 {d}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="derivation-box">{d}</div>', unsafe_allow_html=True)
 
         st.divider()
         
-        # DOWNLOAD LOGIC (Simple Text Download for MVP)
-        full_text = f"TOPPERGPT - {active_sheet.upper()} FORMULA SHEET\n"
-        full_text += f"University: {u_name}\n"
-        full_text += "-----------------------------------\n\n"
-        full_text += "FORMULAS:\n" + "\n".join(sheet['formulas']) + "\n\n"
-        full_text += "DERIVATIONS:\n" + "\n".join(sheet['derivations']) + "\n\n"
-        full_text += f"\nWatermark: Locked for {st.session_state.user_data['email']}"
-
+        # DOWNLOAD WITH WATERMARK
+        watermark = f"\n\n--- Generated by TopperGPT for {sheet['user']} ---"
+        download_data = f"SUBJECT: {active_sheet}\nUNIVERSITY: {sheet['uni']}\n\nFORMULAS:\n" + "\n".join(sheet['formulas']) + watermark
+        
         st.download_button(
-            label="📥 Download Cheat Sheet (PDF/TXT)",
-            data=full_text,
+            label="📥 Download Watermarked Sheet",
+            data=download_data,
             file_name=f"{active_sheet}_TopperGPT.txt",
             mime="text/plain",
             use_container_width=True
