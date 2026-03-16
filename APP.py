@@ -96,7 +96,7 @@ def sync_user_to_supabase(email, name):
         else:
             return res.data[0]
     except Exception as e:
-        return {"email": email, "name": name, "credits": 15, "referral_code": "TOPERROR"}
+        return {"email": email, "name": name, "credits": 15, "referral_code": "TOPERROR", "ref_claimed": False}
 
 # --- 🔐 TEST LOGIN LOGIC ---
 def handle_test_login():
@@ -106,37 +106,49 @@ def handle_test_login():
     )
     return True
 
-# --- 🎁 REFERRAL & PROMO ENGINE ---
+# --- 🎁 REWARD LOGIC (SILENT & ERROR-PROOF) ---
 def claim_reward_logic(claim_code):
     user = st.session_state.user_data
-    claim_code = claim_code.strip().upper()
+    code = claim_code.strip().upper()
 
-    if claim_code == user['referral_code']:
-        st.error("Bhai, apna khud ka code kaise use karoge? Kisi dost ka dalo!")
+    # 1. Self-Referral Check
+    if code == user.get('referral_code'):
+        st.error("Bhai, apna hi code? Kisi dost ka try karo!")
         return
 
-    if claim_code == "EARLY25":
-        if not user.get('ref_claimed', False):
-            new_credits = user['credits'] + 25
-            supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
-            st.session_state.user_data['credits'] = new_credits
-            st.session_state.user_data['ref_claimed'] = True
+    # 2. Status Check
+    if user.get('ref_claimed', False):
+        st.warning("Bonus already claimed!")
+        return
+
+    try:
+        new_credits = user['credits']
+        is_valid = False
+
+        # Secret EARLY25 logic
+        if code == "EARLY25":
+            new_credits += 25
+            is_valid = True
             st.balloons()
-            st.success("🔥 EARLY ACCESS GRANTED! +25 Credits added.")
-        else:
-            st.warning("Bhai, ek hi baar promo use kar sakte ho!")
-        return
+            st.success("🔥 Early Access Rewards Added! +25 Credits.")
+        
+        # Standard Referral
+        elif code.startswith("TOP") and len(code) > 5:
+            new_credits += 5
+            is_valid = True
+            st.success("✅ Referral Bonus Added! +5 Credits.")
 
-    # Standard Referral Logic
-    if claim_code.startswith("TOP"):
-        if not user.get('ref_claimed', False):
-            new_credits = user['credits'] + 5
+        if is_valid:
+            # Update Credits and set ref_claimed to True
             supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
             st.session_state.user_data['credits'] = new_credits
             st.session_state.user_data['ref_claimed'] = True
-            st.success("✅ Referral Bonus! +5 Credits added.")
+            st.rerun()
         else:
-            st.warning("Bonus already claimed!")
+            st.error("Invalid Code format or expired.")
+
+    except Exception as e:
+        st.error("Claiming failed. Check your connection.")
 
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER ---
 def use_credits(amount):
@@ -226,19 +238,18 @@ with st.sidebar:
             <div style="background: rgba(76, 175, 80, 0.08); border: 2px dashed #4CAF50; padding: 15px; border-radius: 15px; text-align: center; margin-bottom: 10px;">
                 <p style="color: #c9d1d9; font-size: 11px; margin-bottom: 5px;">Your Invite Code (Share with friends)</p>
                 <div style="background: #0d1117; padding: 10px; border-radius: 8px; border: 1px solid #30363d;">
-                    <code style="color: #4CAF50; font-size: 18px; font-weight: bold;">{st.session_state.user_data['referral_code']}</code>
+                    <code style="color: #4CAF50; font-size: 18px; font-weight: bold;">{st.session_state.user_data.get('referral_code', 'TOPXXXX')}</code>
                 </div>
             </div>
         ''', unsafe_allow_html=True)
         
-        # Claim Input
+        # Claim Input (Hint removed as requested)
         if not st.session_state.user_data.get('ref_claimed', False):
-            c_input = st.text_input("Enter Promo (EARLY25) or Invite Code:", placeholder="e.g. TOPXXXX", key="claim_v1")
+            c_input = st.text_input("Enter Invite Code:", placeholder="TOPXXXX", key="reward_claim_v1")
             if st.button("Claim Reward 🚀", use_container_width=True):
                 claim_reward_logic(c_input)
-                st.rerun()
         else:
-            st.info("✅ Signup bonus already claimed.")
+            st.info("✅ Signup reward claimed.")
 
     st.markdown("---")
     
