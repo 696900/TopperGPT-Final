@@ -80,12 +80,13 @@ def sync_user_to_supabase(email, name):
         res = supabase.table("profiles").select("*").eq("email", email).execute()
         
         if len(res.data) == 0:
-            # NAYE USER KE LIYE: Strictly 15 Credits & Clean Structure
+            # NAYE USER KE LIYE: Strictly 15 Credits & Unique Referral Code
+            user_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
             new_user = {
                 "email": email,
                 "name": name,
                 "credits": 15,
-                "referral_code": f"TOP{hashlib.md5(email.encode()).hexdigest()[:4].upper()}",
+                "referral_code": f"TOP{user_hash}",
                 "ref_claimed": False,
                 "war_room_data": {},
                 "formula_sheets": {}
@@ -93,24 +94,52 @@ def sync_user_to_supabase(email, name):
             insert_res = supabase.table("profiles").insert(new_user).execute()
             return insert_res.data[0]
         else:
-            # EXISTING USER: Return data from Supabase
             return res.data[0]
     except Exception as e:
-        # Emergency Fallback for UI Testing
         return {"email": email, "name": name, "credits": 15, "referral_code": "TOPERROR"}
 
 # --- 🔐 TEST LOGIN LOGIC ---
 def handle_test_login():
-    # Enforcing secure sync even in test mode
     st.session_state.user_data = sync_user_to_supabase(
         "krishnaghanabahadur85@gmail.com", 
         "Krishna (Dev)"
     )
     return True
 
-# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (SECURE SYNC) ---
+# --- 🎁 REFERRAL & PROMO ENGINE ---
+def claim_reward_logic(claim_code):
+    user = st.session_state.user_data
+    claim_code = claim_code.strip().upper()
+
+    if claim_code == user['referral_code']:
+        st.error("Bhai, apna khud ka code kaise use karoge? Kisi dost ka dalo!")
+        return
+
+    if claim_code == "EARLY25":
+        if not user.get('ref_claimed', False):
+            new_credits = user['credits'] + 25
+            supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
+            st.session_state.user_data['credits'] = new_credits
+            st.session_state.user_data['ref_claimed'] = True
+            st.balloons()
+            st.success("🔥 EARLY ACCESS GRANTED! +25 Credits added.")
+        else:
+            st.warning("Bhai, ek hi baar promo use kar sakte ho!")
+        return
+
+    # Standard Referral Logic
+    if claim_code.startswith("TOP"):
+        if not user.get('ref_claimed', False):
+            new_credits = user['credits'] + 5
+            supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
+            st.session_state.user_data['credits'] = new_credits
+            st.session_state.user_data['ref_claimed'] = True
+            st.success("✅ Referral Bonus! +5 Credits added.")
+        else:
+            st.warning("Bonus already claimed!")
+
+# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER ---
 def use_credits(amount):
-    """Deducts credits and syncs with Supabase immediately for security."""
     if "user_data" in st.session_state and st.session_state.user_data is not None:
         email = st.session_state.user_data['email']
         current_credits = st.session_state.user_data.get('credits', 0)
@@ -118,22 +147,16 @@ def use_credits(amount):
         if current_credits >= amount:
             new_total = current_credits - amount
             try:
-                # Update Supabase Directly
                 supabase.table("profiles").update({"credits": new_total}).eq("email", email).execute()
                 st.session_state.user_data['credits'] = new_total
                 return True
             except:
-                st.error("Database sync failed. Credit not deducted.")
+                st.error("Database sync failed.")
                 return False
     return False
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(
-    page_title="TopperGPT", 
-    layout="wide", 
-    page_icon="🚀",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="TopperGPT", layout="wide", page_icon="🚀", initial_sidebar_state="expanded")
 
 # 🖋️ PROFESSIONAL UI STYLES
 EVAL_CSS = """
@@ -195,17 +218,27 @@ with st.sidebar:
         </div>
     ''', unsafe_allow_html=True)
 
-    # 🎁 REFER & EARN
-    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-top:20px;'>🎁 REFER & EARN FREE CREDITS</p>", unsafe_allow_html=True)
+    # 🎁 REWARDS & PROMOS
+    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-top:20px;'>🎁 REWARDS & PROMOS</p>", unsafe_allow_html=True)
     with st.container():
+        # User's Own Code Display
         st.markdown(f'''
             <div style="background: rgba(76, 175, 80, 0.08); border: 2px dashed #4CAF50; padding: 15px; border-radius: 15px; text-align: center; margin-bottom: 10px;">
-                <p style="color: #c9d1d9; font-size: 13px; margin-bottom: 5px;">Share code. Both get <b>+5 Credits</b>!</p>
+                <p style="color: #c9d1d9; font-size: 11px; margin-bottom: 5px;">Your Invite Code (Share with friends)</p>
                 <div style="background: #0d1117; padding: 10px; border-radius: 8px; border: 1px solid #30363d;">
                     <code style="color: #4CAF50; font-size: 18px; font-weight: bold;">{st.session_state.user_data['referral_code']}</code>
                 </div>
             </div>
         ''', unsafe_allow_html=True)
+        
+        # Claim Input
+        if not st.session_state.user_data.get('ref_claimed', False):
+            c_input = st.text_input("Enter Promo (EARLY25) or Invite Code:", placeholder="e.g. TOPXXXX", key="claim_v1")
+            if st.button("Claim Reward 🚀", use_container_width=True):
+                claim_reward_logic(c_input)
+                st.rerun()
+        else:
+            st.info("✅ Signup bonus already claimed.")
 
     st.markdown("---")
     
