@@ -351,106 +351,125 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: SMART FORMULA & DERIVATION ENGINE (V44) ---
+# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V45) ---
 # ==========================================
 with tab2:
-    st.markdown("""
-        <style>
-        .formula-box { background: #1e293b; padding: 15px; border-radius: 10px; border-left: 5px solid #ef4444; margin-bottom: 10px; font-family: 'Courier New', monospace; color: #fff; }
-        .derivation-box { background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 8px; color: #cbd5e1; }
-        .watermark { position: absolute; bottom: 10px; right: 10px; opacity: 0.2; font-size: 12px; color: gray; }
-        </style>
-    """, unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
 
-    # 1. INITIALIZE VAULT
-    if 'formula_vault' not in st.session_state:
-        st.session_state.formula_vault = st.session_state.user_data.get('formula_sheets', {}) if st.session_state.user_data else {}
+    col_in, col_uni = st.columns([0.6, 0.4])
+    with col_in:
+        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v45", placeholder="e.g. Applied Physics 2 or Laplace Transform")
+    with col_uni:
+        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v45")
 
-    # 2. UI HEADER
-    v_c1, v_c2 = st.columns([0.7, 0.3])
-    saved_sheets = list(st.session_state.formula_vault.keys())
-    active_sheet = v_c1.selectbox("📂 Saved Sheets:", ["+ Mine New Formulas"] + saved_sheets)
-    
-    if v_c2.button("💾 Master Sync", use_container_width=True):
-        supabase.table("profiles").update({"formula_sheets": st.session_state.formula_vault}).eq("email", st.session_state.user_data['email']).execute()
-        st.toast("Sheets Locked to Cloud! ☁️")
+    f_cost = 3
 
-    st.divider()
-
-    # 3. GENERATION INTERFACE
-    if active_sheet == "+ Mine New Formulas":
-        st.subheader("🛠️ Deploy Formula Miner")
-        st.info("💡 Generating a custom university sheet costs **-3 Credits**.")
-        
-        c1, c2, c3 = st.columns(3)
-        u_name = c1.selectbox("University", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"])
-        s_name = c2.text_input("Subject Name")
-        t_name = c3.text_input("Specific Topic (Optional)")
-        
-        if st.button("🔥 GENERATE FORMULA SHEET (-3 Credits)", use_container_width=True):
-            if st.session_state.user_data['credits'] >= 3:
-                with st.spinner(f"Mining syllabus-specific data for {s_name}..."):
+    if st.button(f"🔥 Mine Technical Cheat Sheet ({f_cost} Credits)"):
+        if len(formula_input.strip()) < 3:
+            st.error("❌ Subject name bohot chota hai.")
+        else:
+            if use_credits(f_cost):
+                with st.spinner("Mining official syllabus formulas..."):
                     try:
-                        # SUPER STABLE PROMPT (Atomic Response)
-                        prompt = f"Subject: {s_name}, Topic: {t_name}, Uni: {u_name}. List 8 key formulas and 4 important derivations as per engineering syllabus. Format: Formula 1 | Formula 2... and Derivation 1 | Derivation 2..."
+                        # MASTER PROMPT: Strictly forcing Data Structure
+                        prompt = f"""
+                        Act as an Engineering Professor. Task: Create a cheat sheet for: '{formula_input}' under {u_name} syllabus.
                         
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content(prompt)
-                        raw_response = res.text
+                        VALIDATION: If '{formula_input}' is nonsense or non-engineering, return ONLY 'INVALID_INPUT'.
                         
-                        # SMART PARSING (Avoiding JSON crash)
-                        parts = raw_response.split("Formula")
-                        # (Yahan hum raw text ko clean karke list bana rahe hain)
-                        formulas = [f.strip() for f in parts if "|" in f or "=" in f]
+                        Output Structure:
+                        1. 10 Most Important Formulas (with symbols explained).
+                        2. 5 Critical Derivations (Step-by-step summary).
                         
-                        # DEDUCT CREDITS ON SUCCESS
-                        st.session_state.user_data['credits'] -= 3
-                        supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                        
-                        # SAVE TO VAULT
-                        st.session_state.formula_vault[s_name] = {
-                            "formulas": formulas[:10],
-                            "derivations": [d for d in raw_response.split('\n') if 'Derivation' in d or '📌' in d][:5],
-                            "uni": u_name,
-                            "user": st.session_state.user_data['email']
-                        }
-                        st.balloons(); st.rerun()
-                    except:
-                        st.error("Mining Engine Timeout. No credits charged. Try again!")
-            else:
-                st.error("Insufficient Credits!")
+                        Rules:
+                        - Use LaTeX for math.
+                        - Return in a clean JSON-like string: FORMULAS: [f1, f2...] DERIVATIONS: [d1, d2...]
+                        - Watermark: TopperGPT
+                        """
 
-    # 4. DISPLAY & DOWNLOAD
-    else:
-        sheet = st.session_state.formula_vault[active_sheet]
-        st.header(f"📄 {active_sheet.upper()} Cheat Sheet")
-        st.write(f"**University:** {sheet.get('uni', 'Official Syllabus')}")
+                        res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "user", "content": prompt}]
+                        )
 
-        f_col, d_col = st.columns(2)
+                        raw_output = res.choices[0].message.content.strip()
+                        
+                        if "INVALID_INPUT" in raw_output.upper():
+                            st.session_state.user_data['credits'] += f_cost
+                            st.error(f"❌ '{formula_input}' valid nahi hai. Credits Refunded.")
+                        else:
+                            st.session_state.last_formula_data = raw_output
+                            st.rerun()
+
+                    except Exception as e:
+                        st.session_state.user_data['credits'] += f_cost
+                        st.error(f"Logic Error: {e}")
+
+    # --- THE RENDERER: STARTUP GRADE UI WITH WATERMARK ---
+    if "last_formula_data" in st.session_state:
+        st.markdown("---")
         
-        with f_col:
-            st.markdown("### 🔢 Core Formulas")
-            for f in sheet['formulas']:
-                st.markdown(f'<div class="formula-box">{f}</div>', unsafe_allow_html=True)
-
-        with d_col:
-            st.markdown("### 📜 Key Derivations")
-            for d in sheet['derivations']:
-                st.markdown(f'<div class="derivation-box">{d}</div>', unsafe_allow_html=True)
-
-        st.divider()
+        import streamlit.components.v1 as components
         
-        # DOWNLOAD WITH WATERMARK
-        watermark = f"\n\n--- Generated by TopperGPT for {sheet['user']} ---"
-        download_data = f"SUBJECT: {active_sheet}\nUNIVERSITY: {sheet['uni']}\n\nFORMULAS:\n" + "\n".join(sheet['formulas']) + watermark
-        
-        st.download_button(
-            label="📥 Download Watermarked Sheet",
-            data=download_data,
-            file_name=f"{active_sheet}_TopperGPT.txt",
-            mime="text/plain",
-            use_container_width=True
-        )
+        # UI DATA PREP
+        data_text = st.session_state.last_formula_data.replace("`", "'").replace('"', "'")
+        user_email = st.session_state.user_data['email']
+
+        html_code = f"""
+        <div id="cheat-sheet-card" style="
+            position: relative; 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); 
+            padding: 30px; 
+            border-radius: 20px; 
+            border: 2px solid #ef4444; 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        ">
+            <div style="
+                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); 
+                font-size: 60px; color: rgba(239, 68, 68, 0.05); font-weight: 900; pointer-events: none; white-space: nowrap; z-index: 0;
+            ">
+                TOPPERGPT • {user_email} • TOPPERGPT
+            </div>
+
+            <div style="position: relative; z-index: 1;">
+                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px; margin-top: 0;">
+                    {formula_input.upper()} CHEAT SHEET
+                </h1>
+                <p style="color: #94a3b8; font-weight: bold;">University: {u_name} | Authorized for: {user_email}</p>
+                
+                <div style="white-space: pre-wrap; font-size: 16px; line-height: 1.6; color: #e2e8f0; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px;">
+                    {data_text}
+                </div>
+                
+                <div style="margin-top: 20px; text-align: right; font-style: italic; color: #ef4444; font-weight: bold;">
+                    Generated by TopperGPT V1.0
+                </div>
+            </div>
+        </div>
+        <br>
+        <button id="downloadBtn" style="
+            background: #ef4444; color: white; border: none; padding: 15px 30px; border-radius: 10px; 
+            cursor: pointer; font-weight: bold; width: 100%; font-size: 18px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        ">
+            📥 Download Watermarked HD Cheat Sheet (.HTML)
+        </button>
+
+        <script>
+            document.getElementById('downloadBtn').addEventListener('click', () => {{
+                const content = document.getElementById('cheat-sheet-card').outerHTML;
+                const blob = new Blob(['<html><body style="background:#0f172a; padding:50px;">' + content + '</body></html>'], {{type: 'text/html'}});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'TopperGPT_{formula_input.replace(" ", "_")}.html';
+                a.click();
+            }});
+        </script>
+        """
+        components.html(html_code, height=650)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
