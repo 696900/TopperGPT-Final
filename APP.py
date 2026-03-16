@@ -351,16 +351,16 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V46) ---
+# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V47) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
 
     col_in, col_uni = st.columns([0.6, 0.4])
     with col_in:
-        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v46", placeholder="e.g. Applied Physics 2")
+        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v47", placeholder="e.g. Applied Physics 2")
     with col_uni:
-        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v46")
+        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v47")
 
     f_cost = 3
 
@@ -371,17 +371,20 @@ with tab2:
             if use_credits(f_cost):
                 with st.spinner("Mining official syllabus formulas..."):
                     try:
-                        # MASTER PROMPT: Strictly forcing KaTeX friendly LaTeX
+                        # MASTER PROMPT: Strictly forcing MathJax friendly LaTeX
                         prompt = f"""
                         Act as an Engineering Professor. Task: Create a cheat sheet for: '{formula_input}' ({u_name}).
+                        Output strictly in this format:
+                        **High-Weightage Formulas:**
+                        [FORMULA] Equation here [/FORMULA] - Short Description
                         
-                        VALIDATION: If '{formula_input}' is nonsense, return ONLY 'INVALID_INPUT'.
+                        **Key Derivations:**
+                        - Step-by-step summary of core derivations.
                         
                         Rules:
-                        1. List 10 High-Weightage Formulas.
-                        2. Use standard LaTeX for math but wrap them in [FORMULA]...[/FORMULA] tags.
-                        3. List 5 Key Derivations in simple bullet points.
-                        4. Symbols must be clearly defined.
+                        - Use standard LaTeX inside [FORMULA] tags.
+                        - Symbols must be defined.
+                        - If nonsense, return ONLY 'INVALID_INPUT'.
                         """
 
                         res = groq_client.chat.completions.create(
@@ -404,7 +407,7 @@ with tab2:
                         st.session_state.user_data['credits'] += f_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- THE PROFESSIONAL RENDERER (HD Watermark + LaTeX Support) ---
+    # --- THE PROFESSIONAL RENDERER (HD Image + MathJax + Watermark) ---
     if "last_formula_data" in st.session_state:
         st.markdown("---")
         import streamlit.components.v1 as components
@@ -413,8 +416,8 @@ with tab2:
         raw_data = st.session_state.last_formula_data
 
         html_code = f"""
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
         <div id="capture-area" style="
@@ -424,20 +427,20 @@ with tab2:
             border-radius: 20px; 
             border: 2px solid #ef4444; 
             color: white; 
-            font-family: sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             min-height: 500px;
         ">
             <div style="
-                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); 
-                font-size: 50px; color: rgba(239, 68, 68, 0.07); font-weight: 900; pointer-events: none; 
-                white-space: nowrap; z-index: 0; text-transform: uppercase;
+                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); 
+                font-size: 50px; color: rgba(239, 68, 68, 0.08); font-weight: 900; pointer-events: none; 
+                white-space: nowrap; z-index: 0;
             ">
                 TOPPERGPT • {user_email} • TOPPERGPT
             </div>
 
             <div style="position: relative; z-index: 1;">
-                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; margin-top: 0;">{formula_input.upper()}</h1>
-                <p style="color: #94a3b8;"><b>Uni:</b> {u_name} | <b>User:</b> {user_email}</p>
+                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px;">{formula_input.upper()}</h1>
+                <p style="color: #94a3b8; font-size: 14px;"><b>Authorized User:</b> {user_email} | <b>University:</b> {u_name}</p>
                 
                 <div id="content-body" style="font-size: 16px; line-height: 1.8; color: #e2e8f0;">
                     {raw_data}
@@ -448,34 +451,45 @@ with tab2:
         <button id="downloadBtn" style="
             margin-top: 20px; background: #ef4444; color: white; border: none; padding: 15px; 
             border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; font-size: 18px;
+            box-shadow: 0 4px 15px rgba(239,68,68,0.3);
         ">
-            📥 Download HD Cheat Sheet (PNG)
+            📥 Download High-Res Cheat Sheet (Image)
         </button>
 
         <script>
-            // Render LaTeX
-            document.body.onload = function() {{
+            // Custom Parser for [FORMULA] tags
+            window.addEventListener('load', function() {{
                 const body = document.getElementById('content-body');
                 body.innerHTML = body.innerHTML.replace(/\[FORMULA\](.*?)\[\/FORMULA\]/g, (match, tex) => {{
-                    try {{
-                        return katex.renderToString(tex, {{ throwOnError: false, displayMode: true }});
-                    }} catch (e) {{ return tex; }}
+                    return '\\\\(' + tex + '\\\\)';
                 }});
-            }};
+                // Trigger MathJax
+                if (window.MathJax) {{
+                    MathJax.typesetPromise();
+                }}
+            }});
 
-            // Capture as Image
+            // Capture Area as Image
             document.getElementById('downloadBtn').addEventListener('click', () => {{
                 const area = document.getElementById('capture-area');
-                html2canvas(area, {{ backgroundColor: "#0f172a", scale: 2 }}).then(canvas => {{
+                const btn = document.getElementById('downloadBtn');
+                btn.innerText = "Processing HD Render...";
+                
+                html2canvas(area, {{ 
+                    backgroundColor: "#0f172a", 
+                    scale: 2,
+                    useCORS: true 
+                }}).then(canvas => {{
                     const link = document.createElement('a');
                     link.download = 'TopperGPT_{formula_input.replace(" ", "_")}.png';
                     link.href = canvas.toDataURL("image/png");
                     link.click();
+                    btn.innerText = "📥 Download High-Res Cheat Sheet (Image)";
                 }});
             }});
         </script>
         """
-        components.html(html_code, height=800)
+        components.html(html_code, height=850)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
