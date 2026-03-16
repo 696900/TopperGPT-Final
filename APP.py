@@ -73,31 +73,35 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 🔐 SUPABASE AUTH & CREDIT SYNC (STRICT 15 CREDITS) ---
+# --- 🔐 SUPABASE AUTH & CREDIT SYNC (STABLE & SECURE) ---
 def sync_user_to_supabase(email, name):
     """Syncs user and enforces the 15 credit limit for new signups."""
-    res = supabase.table("profiles").select("*").eq("email", email).execute()
-    
-    if len(res.data) == 0:
-        # NAYE USER KE LIYE: Strictly 15 Credits
-        new_user = {
-            "email": email,
-            "name": name,
-            "credits": 15, # Replaced 100 with 15
-            "referral_code": f"TOP{hashlib.md5(email.encode()).hexdigest()[:4].upper()}",
-            "ref_claimed": False,
-            "war_room_data": {},
-            "formula_sheets": {}
-        }
-        supabase.table("profiles").insert(new_user).execute()
-        return new_user
-    else:
-        # EXISTING USER: Return their data from Supabase
-        return res.data[0]
+    try:
+        res = supabase.table("profiles").select("*").eq("email", email).execute()
+        
+        if len(res.data) == 0:
+            # NAYE USER KE LIYE: Strictly 15 Credits & Clean Structure
+            new_user = {
+                "email": email,
+                "name": name,
+                "credits": 15,
+                "referral_code": f"TOP{hashlib.md5(email.encode()).hexdigest()[:4].upper()}",
+                "ref_claimed": False,
+                "war_room_data": {},
+                "formula_sheets": {}
+            }
+            insert_res = supabase.table("profiles").insert(new_user).execute()
+            return insert_res.data[0]
+        else:
+            # EXISTING USER: Return data from Supabase
+            return res.data[0]
+    except Exception as e:
+        # Emergency Fallback for UI Testing
+        return {"email": email, "name": name, "credits": 15, "referral_code": "TOPERROR"}
 
-# --- 🔐 TEST LOGIN LOGIC (Local-Only Mode for Lab Testing) ---
+# --- 🔐 TEST LOGIN LOGIC ---
 def handle_test_login():
-    # Calling the sync function to ensure DB consistency
+    # Enforcing secure sync even in test mode
     st.session_state.user_data = sync_user_to_supabase(
         "krishnaghanabahadur85@gmail.com", 
         "Krishna (Dev)"
@@ -113,11 +117,14 @@ def use_credits(amount):
         
         if current_credits >= amount:
             new_total = current_credits - amount
-            # Update Supabase Immediately (No local hacks allowed)
-            supabase.table("profiles").update({"credits": new_total}).eq("email", email).execute()
-            # Update Local State
-            st.session_state.user_data['credits'] = new_total
-            return True
+            try:
+                # Update Supabase Directly
+                supabase.table("profiles").update({"credits": new_total}).eq("email", email).execute()
+                st.session_state.user_data['credits'] = new_total
+                return True
+            except:
+                st.error("Database sync failed. Credit not deducted.")
+                return False
     return False
 
 # --- 1. CONFIGURATION ---
@@ -202,7 +209,7 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # 💎 RAZORPAY REFILL PACKS (Connected to user account via URL later)
+    # 💎 RAZORPAY REFILL PACKS
     st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-bottom:15px;'>💎 REFILL YOUR CREDITS</p>", unsafe_allow_html=True)
     
     refill_packs = [
