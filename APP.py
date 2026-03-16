@@ -351,40 +351,48 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V47) ---
+# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V48) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
 
     col_in, col_uni = st.columns([0.6, 0.4])
     with col_in:
-        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v47", placeholder="e.g. Applied Physics 2")
+        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v48", placeholder="e.g. Applied Physics 2")
     with col_uni:
-        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v47")
+        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v48")
 
     f_cost = 3
 
-    if st.button(f"🔥 Mine Technical Cheat Sheet ({f_cost} Credits)"):
+    # --- ACTION BUTTONS ---
+    c_btn1, c_btn2 = st.columns(2)
+    with c_btn1:
+        generate_triggered = st.button(f"🔥 Mine Technical Cheat Sheet ({f_cost} Credits)", use_container_width=True)
+    with c_btn2:
+        if "last_formula_data" in st.session_state:
+            st.button("🔄 Refresh Rendering", on_click=lambda: st.rerun(), use_container_width=True)
+
+    if generate_triggered:
         if len(formula_input.strip()) < 3:
             st.error("❌ Valid engineering subject dalo.")
         else:
             if use_credits(f_cost):
                 with st.spinner("Mining official syllabus formulas..."):
                     try:
-                        # MASTER PROMPT: Strictly forcing MathJax friendly LaTeX
+                        # MASTER PROMPT: Strictly forcing standard LaTeX for complex math
                         prompt = f"""
-                        Act as an Engineering Professor. Task: Create a cheat sheet for: '{formula_input}' ({u_name}).
-                        Output strictly in this format:
-                        **High-Weightage Formulas:**
-                        [FORMULA] Equation here [/FORMULA] - Short Description
+                        Act as an Engineering Professor. Topic: '{formula_input}' ({u_name}).
+                        Output exactly in this style:
                         
-                        **Key Derivations:**
-                        - Step-by-step summary of core derivations.
+                        ### CORE FORMULAS:
+                        1. [MATH] Formula [/MATH] (Description)
+                        2. [MATH] Formula [/MATH] (Description)
+                        ...
                         
-                        Rules:
-                        - Use standard LaTeX inside [FORMULA] tags.
-                        - Symbols must be defined.
-                        - If nonsense, return ONLY 'INVALID_INPUT'.
+                        ### KEY DERIVATIONS:
+                        - List 5 derivations clearly.
+                        
+                        CRITICAL: Use proper LaTeX syntax inside [MATH] tags for complex symbols like Nabla, Divergence, Curl, Integrals, and Fractions.
                         """
 
                         res = groq_client.chat.completions.create(
@@ -394,102 +402,108 @@ with tab2:
 
                         raw_output = res.choices[0].message.content.strip()
                         
-                        if "INVALID_INPUT" in raw_output.upper():
-                            st.session_state.user_data['credits'] += f_cost
-                            st.error("❌ Topic valid nahi hai. Credits Refunded.")
-                        else:
-                            # Clean the output to be JS friendly
-                            clean_data = raw_output.replace('"', "'").replace("\n", "<br>")
-                            st.session_state.last_formula_data = clean_data
-                            st.rerun()
+                        # Clean and store
+                        clean_data = raw_output.replace('"', "'").replace("\n", "<br>")
+                        st.session_state.last_formula_data = clean_data
+                        st.session_state.current_f_subject = formula_input.upper()
+                        st.rerun()
 
                     except Exception as e:
                         st.session_state.user_data['credits'] += f_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- THE PROFESSIONAL RENDERER (HD Image + MathJax + Watermark) ---
+    # --- THE RENDERER: HD Image + MathJax + TOPPERGPT Watermark ---
     if "last_formula_data" in st.session_state:
         st.markdown("---")
-        import streamlit.components.v1 as components
         
-        user_email = st.session_state.user_data['email']
+        # DOWNLOAD BUTTON PLACED ABOVE TO PREVENT CUTTING
+        st.info("💡 Niche wale Card ka HD Image download karne ke liye niche button dabayein.")
+        
+        import streamlit.components.v1 as components
         raw_data = st.session_state.last_formula_data
+        f_title = st.session_state.get('current_f_subject', "CHEAT SHEET")
 
         html_code = f"""
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
         <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+        <button id="downloadBtn" style="
+            background: #ef4444; color: white; border: none; padding: 15px; 
+            border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; font-size: 18px;
+            margin-bottom: 20px; box-shadow: 0 4px 15px rgba(239,68,68,0.4);
+        ">
+            📥 Download High-Res Cheat Sheet (PNG Image)
+        </button>
+
         <div id="capture-area" style="
             position: relative; 
-            background: #0f172a; 
-            padding: 40px; 
-            border-radius: 20px; 
-            border: 2px solid #ef4444; 
+            background: #0d1117; 
+            padding: 45px; 
+            border-radius: 15px; 
+            border: 3px solid #ef4444; 
             color: white; 
-            font-family: 'Segoe UI', sans-serif;
-            min-height: 500px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            min-height: 600px;
         ">
             <div style="
-                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); 
-                font-size: 50px; color: rgba(239, 68, 68, 0.08); font-weight: 900; pointer-events: none; 
-                white-space: nowrap; z-index: 0;
+                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); 
+                font-size: 70px; color: rgba(255, 255, 255, 0.04); font-weight: 900; pointer-events: none; 
+                white-space: nowrap; z-index: 0; text-transform: uppercase; letter-spacing: 10px;
             ">
-                TOPPERGPT • {user_email} • TOPPERGPT
+                TOPPERGPT • TOPPERGPT • TOPPERGPT
             </div>
 
             <div style="position: relative; z-index: 1;">
-                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px;">{formula_input.upper()}</h1>
-                <p style="color: #94a3b8; font-size: 14px;"><b>Authorized User:</b> {user_email} | <b>University:</b> {u_name}</p>
+                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 15px; margin-top: 0; font-size: 32px;">
+                    {f_title}
+                </h1>
+                <p style="color: #94a3b8; font-size: 16px; margin-top: 10px;">
+                    <b>University:</b> {u_name} | <b>Exam Support:</b> TopperGPT V1.0
+                </p>
                 
-                <div id="content-body" style="font-size: 16px; line-height: 1.8; color: #e2e8f0;">
+                <div id="content-body" style="font-size: 18px; line-height: 1.6; color: #e2e8f0; margin-top: 25px;">
                     {raw_data}
                 </div>
             </div>
         </div>
 
-        <button id="downloadBtn" style="
-            margin-top: 20px; background: #ef4444; color: white; border: none; padding: 15px; 
-            border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; font-size: 18px;
-            box-shadow: 0 4px 15px rgba(239,68,68,0.3);
-        ">
-            📥 Download High-Res Cheat Sheet (Image)
-        </button>
-
         <script>
-            // Custom Parser for [FORMULA] tags
-            window.addEventListener('load', function() {{
+            // Convert [MATH] tags to MathJax syntax
+            function renderMath() {{
                 const body = document.getElementById('content-body');
-                body.innerHTML = body.innerHTML.replace(/\[FORMULA\](.*?)\[\/FORMULA\]/g, (match, tex) => {{
-                    return '\\\\(' + tex + '\\\\)';
+                body.innerHTML = body.innerHTML.replace(/\[MATH\](.*?)\[\/MATH\]/g, (match, tex) => {{
+                    return '\\\\[ ' + tex + ' \\\\]';
                 }});
-                // Trigger MathJax
                 if (window.MathJax) {{
                     MathJax.typesetPromise();
                 }}
-            }});
+            }}
 
-            // Capture Area as Image
+            window.onload = renderMath;
+
+            // HD Screenshot Capture
             document.getElementById('downloadBtn').addEventListener('click', () => {{
                 const area = document.getElementById('capture-area');
                 const btn = document.getElementById('downloadBtn');
-                btn.innerText = "Processing HD Render...";
+                btn.innerText = "Generating HD Render... Please wait";
                 
                 html2canvas(area, {{ 
-                    backgroundColor: "#0f172a", 
-                    scale: 2,
+                    backgroundColor: "#0d1117", 
+                    scale: 3, // High Resolution
+                    logging: false,
                     useCORS: true 
                 }}).then(canvas => {{
                     const link = document.createElement('a');
-                    link.download = 'TopperGPT_{formula_input.replace(" ", "_")}.png';
+                    link.download = 'TopperGPT_{f_title.replace(" ", "_")}.png';
                     link.href = canvas.toDataURL("image/png");
                     link.click();
-                    btn.innerText = "📥 Download High-Res Cheat Sheet (Image)";
+                    btn.innerText = "📥 Download High-Res Cheat Sheet (PNG Image)";
                 }});
             }});
         </script>
         """
-        components.html(html_code, height=850)
+        components.html(html_code, height=900, scrolling=True)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
