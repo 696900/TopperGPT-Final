@@ -351,40 +351,37 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V45) ---
+# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V46) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
 
     col_in, col_uni = st.columns([0.6, 0.4])
     with col_in:
-        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v45", placeholder="e.g. Applied Physics 2 or Laplace Transform")
+        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v46", placeholder="e.g. Applied Physics 2")
     with col_uni:
-        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v45")
+        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v46")
 
     f_cost = 3
 
     if st.button(f"🔥 Mine Technical Cheat Sheet ({f_cost} Credits)"):
         if len(formula_input.strip()) < 3:
-            st.error("❌ Subject name bohot chota hai.")
+            st.error("❌ Valid engineering subject dalo.")
         else:
             if use_credits(f_cost):
                 with st.spinner("Mining official syllabus formulas..."):
                     try:
-                        # MASTER PROMPT: Strictly forcing Data Structure
+                        # MASTER PROMPT: Strictly forcing KaTeX friendly LaTeX
                         prompt = f"""
-                        Act as an Engineering Professor. Task: Create a cheat sheet for: '{formula_input}' under {u_name} syllabus.
+                        Act as an Engineering Professor. Task: Create a cheat sheet for: '{formula_input}' ({u_name}).
                         
-                        VALIDATION: If '{formula_input}' is nonsense or non-engineering, return ONLY 'INVALID_INPUT'.
-                        
-                        Output Structure:
-                        1. 10 Most Important Formulas (with symbols explained).
-                        2. 5 Critical Derivations (Step-by-step summary).
+                        VALIDATION: If '{formula_input}' is nonsense, return ONLY 'INVALID_INPUT'.
                         
                         Rules:
-                        - Use LaTeX for math.
-                        - Return in a clean JSON-like string: FORMULAS: [f1, f2...] DERIVATIONS: [d1, d2...]
-                        - Watermark: TopperGPT
+                        1. List 10 High-Weightage Formulas.
+                        2. Use standard LaTeX for math but wrap them in [FORMULA]...[/FORMULA] tags.
+                        3. List 5 Key Derivations in simple bullet points.
+                        4. Symbols must be clearly defined.
                         """
 
                         res = groq_client.chat.completions.create(
@@ -396,80 +393,89 @@ with tab2:
                         
                         if "INVALID_INPUT" in raw_output.upper():
                             st.session_state.user_data['credits'] += f_cost
-                            st.error(f"❌ '{formula_input}' valid nahi hai. Credits Refunded.")
+                            st.error("❌ Topic valid nahi hai. Credits Refunded.")
                         else:
-                            st.session_state.last_formula_data = raw_output
+                            # Clean the output to be JS friendly
+                            clean_data = raw_output.replace('"', "'").replace("\n", "<br>")
+                            st.session_state.last_formula_data = clean_data
                             st.rerun()
 
                     except Exception as e:
                         st.session_state.user_data['credits'] += f_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- THE RENDERER: STARTUP GRADE UI WITH WATERMARK ---
+    # --- THE PROFESSIONAL RENDERER (HD Watermark + LaTeX Support) ---
     if "last_formula_data" in st.session_state:
         st.markdown("---")
-        
         import streamlit.components.v1 as components
         
-        # UI DATA PREP
-        data_text = st.session_state.last_formula_data.replace("`", "'").replace('"', "'")
         user_email = st.session_state.user_data['email']
+        raw_data = st.session_state.last_formula_data
 
         html_code = f"""
-        <div id="cheat-sheet-card" style="
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+        <div id="capture-area" style="
             position: relative; 
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); 
-            padding: 30px; 
+            background: #0f172a; 
+            padding: 40px; 
             border-radius: 20px; 
             border: 2px solid #ef4444; 
             color: white; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            font-family: sans-serif;
+            min-height: 500px;
         ">
             <div style="
-                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); 
-                font-size: 60px; color: rgba(239, 68, 68, 0.05); font-weight: 900; pointer-events: none; white-space: nowrap; z-index: 0;
+                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); 
+                font-size: 50px; color: rgba(239, 68, 68, 0.07); font-weight: 900; pointer-events: none; 
+                white-space: nowrap; z-index: 0; text-transform: uppercase;
             ">
                 TOPPERGPT • {user_email} • TOPPERGPT
             </div>
 
             <div style="position: relative; z-index: 1;">
-                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px; margin-top: 0;">
-                    {formula_input.upper()} CHEAT SHEET
-                </h1>
-                <p style="color: #94a3b8; font-weight: bold;">University: {u_name} | Authorized for: {user_email}</p>
+                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; margin-top: 0;">{formula_input.upper()}</h1>
+                <p style="color: #94a3b8;"><b>Uni:</b> {u_name} | <b>User:</b> {user_email}</p>
                 
-                <div style="white-space: pre-wrap; font-size: 16px; line-height: 1.6; color: #e2e8f0; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px;">
-                    {data_text}
-                </div>
-                
-                <div style="margin-top: 20px; text-align: right; font-style: italic; color: #ef4444; font-weight: bold;">
-                    Generated by TopperGPT V1.0
+                <div id="content-body" style="font-size: 16px; line-height: 1.8; color: #e2e8f0;">
+                    {raw_data}
                 </div>
             </div>
         </div>
-        <br>
+
         <button id="downloadBtn" style="
-            background: #ef4444; color: white; border: none; padding: 15px 30px; border-radius: 10px; 
-            cursor: pointer; font-weight: bold; width: 100%; font-size: 18px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+            margin-top: 20px; background: #ef4444; color: white; border: none; padding: 15px; 
+            border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; font-size: 18px;
         ">
-            📥 Download Watermarked HD Cheat Sheet (.HTML)
+            📥 Download HD Cheat Sheet (PNG)
         </button>
 
         <script>
+            // Render LaTeX
+            document.body.onload = function() {{
+                const body = document.getElementById('content-body');
+                body.innerHTML = body.innerHTML.replace(/\[FORMULA\](.*?)\[\/FORMULA\]/g, (match, tex) => {{
+                    try {{
+                        return katex.renderToString(tex, {{ throwOnError: false, displayMode: true }});
+                    }} catch (e) {{ return tex; }}
+                }});
+            }};
+
+            // Capture as Image
             document.getElementById('downloadBtn').addEventListener('click', () => {{
-                const content = document.getElementById('cheat-sheet-card').outerHTML;
-                const blob = new Blob(['<html><body style="background:#0f172a; padding:50px;">' + content + '</body></html>'], {{type: 'text/html'}});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'TopperGPT_{formula_input.replace(" ", "_")}.html';
-                a.click();
+                const area = document.getElementById('capture-area');
+                html2canvas(area, {{ backgroundColor: "#0f172a", scale: 2 }}).then(canvas => {{
+                    const link = document.createElement('a');
+                    link.download = 'TopperGPT_{formula_input.replace(" ", "_")}.png';
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                }});
             }});
         </script>
         """
-        components.html(html_code, height=650)
+        components.html(html_code, height=800)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
