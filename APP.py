@@ -265,7 +265,7 @@ if st.session_state.get("user_data"):
 
 # --- 5. MAIN TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-    "💬 Chat PDF", "📊 AI EXAM WAR ROOM", "📝 Answer Eval", "🧠 MindMap", 
+    "💬 Chat PDF", "📊 FORMULA & DERIVATION ARCHITECT", "📝 Answer Eval", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
