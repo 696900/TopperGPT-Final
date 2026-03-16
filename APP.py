@@ -28,7 +28,7 @@ from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
 
-# --- 🛠️ SILENT AI SETUP (The Bulletproof Version) ---
+# --- 🛠️ SILENT AI SETUP ---
 @st.cache_resource
 def initialize_all_ai():
     api_key_gemini = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
@@ -64,21 +64,6 @@ def initialize_all_ai():
 
 model, groq_client = initialize_all_ai()
 
-# ==========================================
-# --- STEP 1: GLOBAL STABLE AI SETUP (FIXED) ---
-# ==========================================
-api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
-
-if api_key_gemini:
-    import google.generativeai as genai
-    genai.configure(api_key=api_key_gemini)
-    from llama_index.embeddings.gemini import GeminiEmbedding
-    from llama_index.core import Settings
-    Settings.embed_model = GeminiEmbedding(
-        model_name="models/text-embedding-004", 
-        api_key=api_key_gemini
-    )
-
 # --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
 @st.cache_resource
 def init_supabase():
@@ -88,25 +73,50 @@ def init_supabase():
 
 supabase = init_supabase()
 
+# --- 🔐 SUPABASE AUTH & CREDIT SYNC (STRICT 15 CREDITS) ---
+def sync_user_to_supabase(email, name):
+    """Syncs user and enforces the 15 credit limit for new signups."""
+    res = supabase.table("profiles").select("*").eq("email", email).execute()
+    
+    if len(res.data) == 0:
+        # NAYE USER KE LIYE: Strictly 15 Credits
+        new_user = {
+            "email": email,
+            "name": name,
+            "credits": 15, # Replaced 100 with 15
+            "referral_code": f"TOP{hashlib.md5(email.encode()).hexdigest()[:4].upper()}",
+            "ref_claimed": False,
+            "war_room_data": {},
+            "formula_sheets": {}
+        }
+        supabase.table("profiles").insert(new_user).execute()
+        return new_user
+    else:
+        # EXISTING USER: Return their data from Supabase
+        return res.data[0]
+
 # --- 🔐 TEST LOGIN LOGIC (Local-Only Mode for Lab Testing) ---
 def handle_test_login():
-    # Asli data early access ke waqt on karenge, abhi local session use karo
-    st.session_state.user_data = {
-        "email": "krishnaghanabahadur85@gmail.com",
-        "name": "Krishna (Dev)",
-        "credits": 100,
-        "referral_code": "TOPTEST",
-        "ref_claimed": False
-    }
+    # Calling the sync function to ensure DB consistency
+    st.session_state.user_data = sync_user_to_supabase(
+        "krishnaghanabahadur85@gmail.com", 
+        "Krishna (Dev)"
+    )
     return True
 
-# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER ---
+# --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER (SECURE SYNC) ---
 def use_credits(amount):
-    """Checks and deducts credits locally during testing."""
+    """Deducts credits and syncs with Supabase immediately for security."""
     if "user_data" in st.session_state and st.session_state.user_data is not None:
+        email = st.session_state.user_data['email']
         current_credits = st.session_state.user_data.get('credits', 0)
+        
         if current_credits >= amount:
-            st.session_state.user_data['credits'] -= amount
+            new_total = current_credits - amount
+            # Update Supabase Immediately (No local hacks allowed)
+            supabase.table("profiles").update({"credits": new_total}).eq("email", email).execute()
+            # Update Local State
+            st.session_state.user_data['credits'] = new_total
             return True
     return False
 
@@ -151,15 +161,9 @@ if st.session_state.user_data is None:
     _, col_mid, _ = st.columns([1, 1.4, 1])
     
     with col_mid:
-        import os
-        if os.path.exists("logo.png"):
-            st.image("logo.png", width=220)
-        else:
-            st.markdown("<h1 style='text-align: center; font-size: 80px;'>🎓</h1>", unsafe_allow_html=True)
-            
         st.markdown('''
             <div style="text-align:center; padding:35px; background:#161b22; border-radius:20px; border:1px solid #4CAF50; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-                <h1 style="color:#4CAF50; font-style:italic; margin:0; font-size: 38px;">TopperGPT</h1>
+                <h1 style="color:#4CAF50; font-style:italic; margin:0; font-size: 42px;">TopperGPT</h1>
                 <p style="color:#8b949e; letter-spacing: 2px; font-size: 11px; font-weight: bold;">UNIVERSITY RESEARCH PORTAL</p>
                 <hr style="border-color:#30363d;">
                 <p style="color:#ffffff; font-weight:500;">Bypass enabled for UI & Feature Testing.</p>
@@ -172,14 +176,8 @@ if st.session_state.user_data is None:
             st.rerun()
     st.stop()
 
-# --- 4. SIDEBAR LAYOUT (ALL FEATURES RESTORED) ---
+# --- 4. SIDEBAR LAYOUT ---
 with st.sidebar:
-    import os
-    if os.path.exists("logo.png"):
-        st.image("logo.png", use_container_width=True)
-    else:
-        st.markdown("<h1 style='text-align: center;'>🎓</h1>", unsafe_allow_html=True)
-
     st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic; text-align: center;'>TopperGPT</h2>", unsafe_allow_html=True)
     
     # 💰 WALLET
@@ -201,19 +199,10 @@ with st.sidebar:
                 </div>
             </div>
         ''', unsafe_allow_html=True)
-        
-        if not st.session_state.user_data.get('ref_claimed', False):
-            claim_input = st.text_input("Friend's Code?", placeholder="Enter TOPXXXX", key="ref_v201")
-            if st.button("Claim My Bonus (+5)", use_container_width=True):
-                clean_claim = claim_input.strip().upper()
-                if clean_claim and clean_claim != st.session_state.user_data['referral_code']:
-                    st.session_state.user_data['credits'] += 5
-                    st.session_state.user_data['ref_claimed'] = True
-                    st.balloons(); st.rerun()
 
     st.markdown("---")
     
-    # 💎 RAZORPAY REFILL PACKS
+    # 💎 RAZORPAY REFILL PACKS (Connected to user account via URL later)
     st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-bottom:15px;'>💎 REFILL YOUR CREDITS</p>", unsafe_allow_html=True)
     
     refill_packs = [
