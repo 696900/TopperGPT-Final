@@ -1123,111 +1123,96 @@ with tab7:
         if st.button("🗑️ Clear Research"):
             st.session_state.research_data = None
             st.rerun()
-# --- TAB 8: TOPPER CONNECT (WORKING LOGIC) ---
+# ==================================================
+# --- TAB 8: SMART SGPA STRATEGIST (THE DECISION ENGINE) ---
+# ==================================================
 with tab8:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🤝 Toppers Connect (Live)</h2>", unsafe_allow_html=True)
-    st.markdown("<i>Real-time networking & resource sharing for MU students.</i>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #FFD700;'>📊 Smart SGPA Strategist</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Stop calculating. Start Strategizing your pointer.</i></p>", unsafe_allow_html=True)
 
-    # 🔥 STEP 1: FIREBASE URL
-    FB_URL = "https://topper-connect-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    # Mode Selection: The Decision Hook
+    sgpa_mode = st.radio("Choose Your Mission:", ["🎯 Target My SGPA (Reverse Logic)", "📈 Predict My SGPA"], horizontal=True, key="sgpa_mode_v62")
 
-    # --- 📊 LIVE METRICS SECTION ---
-    m_col1, m_col2, m_col3 = st.columns(3)
-    m_col1.metric("Online Now", "142")
-    m_col2.metric("Doubts Solved", "1.3K")
+    st.divider()
     
-    # ✅ DYNAMIC XP DISPLAY: Ab session state se real XP uthayega
-    current_user_xp = st.session_state.user_data.get('xp', 0) if st.session_state.user_data else 0
-    m_col3.metric("Community Karma", f"{current_user_xp} XP") 
+    # Input for Number of Subjects
+    num_subs = st.slider("Total Subjects (Theory + Labs):", 1, 10, 6, key="num_subs_v62")
+    
+    subjects_data = []
+    total_credits = 0
+
+    # UI for Subject Inputs (Grid Layout)
+    cols = st.columns(3)
+    for i in range(num_subs):
+        with cols[i % 3]:
+            st.markdown(f"**Subject {i+1}**")
+            cred = st.number_input(f"Credits", min_value=1, max_value=6, value=3, key=f"v62_cred_{i}")
+            subjects_data.append({"id": i, "credits": cred})
+            total_credits += cred
+
     st.divider()
 
-    # --- 🎯 SQUAD SELECTION ---
-    squad_options = ["🌐 General", "🔢 Maths Squad", "💻 Coding Masters", "📜 MU Updates", "🎁 Resource Swap"]
-    selected_group = st.radio("Select Your Squad:", squad_options, horizontal=True, key="live_squad_v3.1")
-    
-    clean_name = selected_group.split(" ")[1].lower() if " " in selected_group else "general"
-    db_path = f"{clean_name}_squad"
-
-    # --- 📂 RESOURCE SWAP SPECIAL FEATURE ---
-    if "Resource" in selected_group:
-        st.info("📤 **Resource Swap:** Yahan apne notes ya PDF share karo!")
-        uploaded_file = st.file_uploader("Upload Notes (PDF/Img)", type=['pdf', 'png', 'jpg', 'jpeg'])
-        if uploaded_file:
-            if st.button("🚀 Share to Community"):
-                file_msg = f"📂 Shared a Resource: {uploaded_file.name} (Ready to download)"
-                requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps({"user": "You", "msg": file_msg}))
-                st.success("File shared successfully!")
-                st.rerun()
-
-    # --- 💬 CHAT ENGINE ---
-    chat_container = st.container(height=450, border=True)
-    
-    with chat_container:
-        try:
-            response = requests.get(f"{FB_URL}/chats/{db_path}.json")
-            messages = response.json() if response.json() else {}
-            
-            if not messages:
-                st.info(f"Welcome to {selected_group}! Be the first to start. 🚀")
-            else:
-                for m_id, m_data in messages.items():
-                    role = "assistant" if m_data['user'] == "TopperGPT" else "user"
-                    avatar = "🦁" if role == "assistant" else "👨‍🎓"
-                    with st.chat_message(role, avatar=avatar):
-                        st.markdown(f"**{m_data['user']}**: {m_data['msg']}")
-        except:
-            st.warning("Connecting to community server...")
-
-    # --- ⌨️ INPUT & AI AUTO-MODERATOR (WITH REWARD LOOP) ---
-    st.markdown("---")
-    if u_input := st.chat_input(f"Message in {selected_group}..."):
-        # 1. Post User Message
-        requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps({"user": "You", "msg": u_input}))
+    # --- MODE 1: TARGET SGPA (REVERSE LOGIC) ---
+    if sgpa_mode == "🎯 Target My SGPA (Reverse Logic)":
+        target_val = st.slider("What is your Target SGPA?", 4.0, 10.0, 8.0, step=0.1, key="target_slider")
         
-        # 🌟 NEW: Karma (XP) Reward Logic
-        if st.session_state.user_data:
-            email_clean = st.session_state.user_data['email'].replace(".", "_")
-            old_xp = st.session_state.user_data.get('xp', 0)
-            new_xp = old_xp + 2 # +2 XP per message
+        if st.button("⚡ Generate Battle Plan", use_container_width=True):
+            required_points = target_val * total_credits
+            avg_gp_needed = required_points / total_credits
             
-            # Update Firebase & Session State
-            try:
-                requests.patch(f"{FB_URL}/users/{email_clean}.json", data=json.dumps({"xp": new_xp}))
-                st.session_state.user_data['xp'] = new_xp
-                
-                # 🎁 Milestone Gift: Har 100 XP pe +5 Credits
-                if new_xp > 0 and new_xp % 100 == 0:
-                    old_credits = st.session_state.user_data.get('credits', 0)
-                    new_credits = old_credits + 5
-                    requests.patch(f"{FB_URL}/users/{email_clean}.json", data=json.dumps({"credits": new_credits}))
-                    st.session_state.user_data['credits'] = new_credits
-                    st.toast("🎁 Mastery Reward: +5 Free Credits for helping the community!", icon="🔥")
-            except:
-                pass
+            st.success(f"### 🚩 Battle Plan for {target_val} SGPA")
+            st.info(f"Bhai, total **{required_points:.1f}** grade points chahiye. Har subject mein average **{avg_gp_needed:.1f}** GP target karna hoga.")
+            
+            # Smart Logic for Grade Distribution
+            st.markdown("#### 📝 Minimum Grade Requirements:")
+            for sub in subjects_data:
+                # Simple Logic: mapping GP to MU Grades
+                needed_grade = "O (10)" if avg_gp_needed > 9.5 else "A (9)" if avg_gp_needed > 8.5 else "B (8)" if avg_gp_needed > 7.5 else "C (7)"
+                st.write(f"🔹 **Subject {sub['id']+1}:** Target Grade {needed_grade}")
+            
+            st.warning("⚠️ **Reality Check:** Agar ek subject mein 10 grade points nahi aa rahe, toh dusre mein 'O' grade lane ki koshish karo!")
 
-        # 2. Trigger AI
-        trigger_words = ["?", "how", "what", "explain", "kya", "kaise", "batao"]
-        if any(word in u_input.lower() for word in trigger_words):
-            with st.spinner("TopperGPT is typing..."):
-                try:
-                    ai_prompt = f"Act as a Mumbai University Topper. Answer this student's doubt concisely: {u_input}"
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": ai_prompt}]
-                    )
-                    ai_reply = res.choices[0].message.content
-                    requests.post(f"{FB_URL}/chats/{db_path}.json", data=json.dumps({"user": "TopperGPT", "msg": ai_reply}))
-                except:
-                    pass
-        st.rerun()
+    # --- MODE 2: PREDICT SGPA (WHAT-IF) ---
+    elif sgpa_mode == "📈 Predict My SGPA":
+        st.write("Enter your expected grades (O=10, A=9, etc.):")
+        expected_gps = []
+        grade_map = {"O": 10, "A": 9, "B": 8, "C": 7, "D": 6, "E": 5, "P": 4, "F": 0}
+        
+        grade_cols = st.columns(3)
+        for i in range(num_subs):
+            with grade_cols[i % 3]:
+                grade_label = st.selectbox(f"Sub {i+1} Grade", list(grade_map.keys()), index=2, key=f"v62_grade_{i}")
+                expected_gps.append(grade_map[grade_label])
 
-    # --- 🏆 GAMIFICATION WIDGET ---
-    with st.expander("🎖️ Top Contributors"):
-        st.caption("Help others to earn Karma (Contribution Credits)!")
-        st.write("1. 🥇 **Rahul.MU** - 540 XP")
-        st.write("2. 🥈 **Sneha_IT** - 420 XP")
-        # Yahan tera real XP dikhega
-        st.write(f"3. 🥉 **You** - {current_user_xp} XP")
+        if st.button("🚀 Reality Check", use_container_width=True):
+            current_points = sum(g * s['credits'] for g, s in zip(expected_gps, subjects_data))
+            predicted_sgpa = current_points / total_credits
+            
+            color = "#4CAF50" if predicted_sgpa >= 8.0 else "#eab308" if predicted_sgpa >= 6.5 else "#ef4444"
+            
+            st.markdown(f"""
+                <div style="background: #161b22; padding: 25px; border-radius: 15px; border: 2px solid {color}; text-align: center;">
+                    <p style="margin:0; color: #8b949e;">YOUR PREDICTED SGPA</p>
+                    <h1 style="color: {color}; font-size: 52px; margin: 10px 0;">{predicted_sgpa:.2f}</h1>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            if predicted_sgpa < 7.5:
+                st.error("🚨 **Alert:** Pointer 7.5 se niche hai! Bhai, 'Predict My Next Question' use karke backup plan ready rakho.")
+            else:
+                st.balloons()
+                st.success("🔥 **Topper Alert:** You are on the right track! Don't let the momentum drop.")
+
+    # --- VIRAL SHARING ---
+    st.divider()
+    encoded_msg = requests.utils.quote(f"TopperGPT predicted my 8.5 SGPA Battle Plan! 🎯\nCheck yours here: toppergpt.in")
+    st.markdown(f'''
+        <a href="https://wa.me/?text={encoded_msg}" target="_blank">
+            <button style="background: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer;">
+                📲 Share Plan with Study Group
+            </button>
+        </a>
+    ''', unsafe_allow_html=True)
 # --- TAB 9: LEGAL & POLICIES ---
 with tab9:
     st.header("⚖️ Legal, Terms & Privacy Policy")
