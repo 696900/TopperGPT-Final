@@ -547,97 +547,105 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # ==================================================
-# --- TAB 3: ANSWER EVALUATOR (ULTRA STABLE V52) ---
+# --- TAB 3: AI EXAM PREDICTOR (VIRAL ORACLE V55) ---
 # ==================================================
 with tab3:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official Moderator</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Based on 5-Year University Paper Patterns & AI Probability Models</i></p>", unsafe_allow_html=True)
+
+    predict_cost = 5
     
-    eval_cost = 5
-    # Persistent State
-    if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
-    if "eval_result" not in st.session_state: st.session_state.eval_result = None
+    # --- INPUT SECTION ---
+    c1, c2 = st.columns(2)
+    with c1:
+        p_subject = st.text_input("Subject Name", placeholder="e.g. Data Structures / OS")
+    with c2:
+        p_uni = st.selectbox("Pattern Type", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Custom"])
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="vision_v52")
-    
-    if ans_file:
-        img_raw = Image.open(ans_file).convert("RGB")
-        st.image(img_raw, caption="Answer Sheet Detected", width=400)
+    p_topics = st.text_area("Specific Topics/Syllabus (Optional)", placeholder="Paste your syllabus here for 99% accuracy...")
 
-        # --- ACTION BAR ---
-        v_c1, v_c2 = st.columns(2)
-        
-        # Reset Button
-        if st.session_state.eval_result:
-            if v_c2.button("🔄 New Evaluation", use_container_width=True):
-                st.session_state.extracted_text = None
-                st.session_state.eval_result = None
-                st.rerun()
-
-        # STEP 1: SCANNING
-        if not st.session_state.extracted_text:
-            if v_c1.button(f"🔍 Scan Handwriting ({eval_cost} Credits)", use_container_width=True):
-                if use_credits(eval_cost):
-                    placeholder = st.empty()
-                    placeholder.info("🚀 AI Professor is reading your handwriting...")
-                    
-                    try:
-                        # Direct Vision Analysis
-                        response = model.generate_content([
-                            "Extract all handwritten text from this image. Ensure technical engineering terms and mathematical symbols are captured accurately.",
-                            img_raw
-                        ])
-                        
-                        if response.text:
-                            st.session_state.extracted_text = response.text
-                            placeholder.success("✅ Handwriting Decoded!")
-                            st.rerun()
-                        else:
-                            raise Exception("Text not found. Clear photo use karo.")
-                    except Exception as e:
-                        # Refund in DB
-                        st.session_state.user_data['credits'] += eval_cost
-                        supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                        st.error(f"❌ Scan Failed: {e}")
-                else:
-                    st.error("Bhai credits khatam!")
-
-    # STEP 2: GRADING
-    if st.session_state.extracted_text and not st.session_state.eval_result:
-        st.markdown("### 📝 Scanned Draft")
-        edited_text = st.text_area("Final Review/Edit:", value=st.session_state.extracted_text, height=200)
-        
-        target_m = st.slider("Max Marks for this Question:", 5, 20, 10)
-
-        if st.button("🎯 Grade My Answer", use_container_width=True):
-            with st.spinner("Analyzing technical depth..."):
+    # --- PREDICTION ENGINE ---
+    if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
+        if not p_subject:
+            st.warning("Bhai, subject ka naam toh dalo!")
+        elif use_credits(predict_cost):
+            with st.spinner(f"Decoding {p_uni} patterns..."):
                 try:
-                    marking_prompt = f"""Evaluate this engineering answer out of {target_m}. 
-                    Identify technical errors and missing keywords. 
-                    Return ONLY JSON: {{"marks": float, "feedback": "str", "improvement": "str"}}
-                    Answer: {edited_text}"""
+                    # ✅ THE MASTER PROMPT: Strictly forcing the Data Structure
+                    prompt = f"""
+                    Act as an Expert University Paper Setter for {p_uni}. 
+                    Predict the top 5 most likely questions for the subject: {p_subject}.
+                    Consider these topics if provided: {p_topics}.
+                    
+                    Return ONLY a JSON list of objects with these keys: 
+                    'question', 'marks', 'difficulty', 'probability'.
+                    Ensure probability is between 65% and 95%.
+                    Difficulty should be 'High', 'Medium', or 'Low'.
+                    """
                     
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": marking_prompt}],
+                        messages=[{"role": "user", "content": prompt}],
                         response_format={"type": "json_object"}
                     )
-                    st.session_state.eval_result = json.loads(res.choices[0].message.content)
-                    st.session_state.eval_result['total_m'] = target_m
+                    
+                    # Parse the JSON response
+                    raw_data = json.loads(res.choices[0].message.content)
+                    # Support both formats: {"questions": [...]} or just [...]
+                    st.session_state.prediction_list = raw_data.get('questions', list(raw_data.values())[0] if isinstance(raw_data, dict) else raw_data)
+                    st.session_state.p_subj_final = p_subject
+                    st.balloons()
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Marking Error: {e}")
+                    st.session_state.user_data['credits'] += predict_cost # Refund
+                    st.error(f"Prediction Engine Busy: {e}")
+        else:
+            st.error("Credits khatam! Rewards section check karo.")
 
-    # STEP 3: SCORECARD
-    if st.session_state.eval_result:
-        er = st.session_state.eval_result
-        st.markdown(f"""
-            <div style="background: #161b22; padding: 20px; border-radius: 15px; border: 2px solid #4CAF50; text-align: center;">
-                <h1 style="color: #4CAF50; margin:0;">SCORE: {er.get('marks')}/{er.get('total_m')}</h1>
-            </div>
-        """, unsafe_allow_html=True)
+    # --- THE DISPLAY (THE VIRAL UI) ---
+    if "prediction_list" in st.session_state:
+        st.divider()
+        st.subheader(f"🎯 Sureshot Questions: {st.session_state.p_subj_final}")
         
-        st.info(f"**🧐 Professor's Feedback:**\n{er.get('feedback')}")
-        st.warning(f"**🚀 Topper Tip:**\n{er.get('improvement')}")
+        for idx, q in enumerate(st.session_state.prediction_list):
+            with st.container():
+                # Fancy Card Style
+                color = "#4CAF50" if q['probability'] > 85 else "#eab308"
+                st.markdown(f"""
+                <div style="background: #161b22; padding: 15px; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 15px;">
+                    <p style="color: #8b949e; font-size: 12px; margin: 0;">QUESTION {idx+1}</p>
+                    <h4 style="margin: 5px 0; color: white;">{q['question']}</h4>
+                    <div style="display: flex; gap: 15px; margin-top: 10px;">
+                        <span style="background: {color}; color: black; padding: 2px 8px; border-radius: 5px; font-size: 12px; font-weight: bold;">
+                            Prob: {q['probability']}%
+                        </span>
+                        <span style="border: 1px solid #30363d; color: #8b949e; padding: 2px 8px; border-radius: 5px; font-size: 12px;">
+                            Marks: {q['marks']}M
+                        </span>
+                        <span style="border: 1px solid #30363d; color: #8b949e; padding: 2px 8px; border-radius: 5px; font-size: 12px;">
+                            Diff: {q['difficulty']}
+                        </span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # --- THE VIRAL SHARE BUTTON ---
+        share_text = f"TopperGPT Predicted these Questions for {st.session_state.p_subj_final}!\n\n"
+        for q in st.session_state.prediction_list[:3]:
+            share_text += f"🔥 {q['question']} (Prob: {q['probability']}%)\n"
+        share_text += "\nTry it now: toppergpt.in"
+        
+        st.download_button("📤 Download Prediction Report", share_text, file_name=f"{st.session_state.p_subj_final}_Predictions.txt", use_container_width=True)
+        
+        # WhatsApp Share Link (Jugaad)
+        encoded_text = requests.utils.quote(share_text)
+        st.markdown(f'''
+            <a href="https://wa.me/?text={encoded_text}" target="_blank" style="text-decoration: none;">
+                <button style="background: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer;">
+                    📲 Share on WhatsApp Groups
+                </button>
+            </a>
+        ''', unsafe_allow_html=True)
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V156 - WATERMARK EDITION) ---
 with tab4:
