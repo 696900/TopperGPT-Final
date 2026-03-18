@@ -1124,96 +1124,115 @@ with tab7:
             st.session_state.research_data = None
             st.rerun()
 # ==================================================
-# --- TAB 8: SMART SGPA STRATEGIST (CLEAN UI V63) ---
+# --- TAB 8: MU SGPA BATTLE PLANNER (MARKS BASED) ---
 # ==================================================
 with tab8:
-    st.markdown("<h2 style='text-align: center; color: #FFD700;'>📊 SGPA Battle Planner</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #FFD700;'>📊 MU SGPA Battle Planner</h2>", unsafe_allow_html=True)
     
-    # Mode Selection with Icons
+    # Mode Selection
     sgpa_mode = st.segmented_control(
         "Select Mission:", 
         options=["🎯 Target Pointer", "📈 Predict My Result"],
         default="🎯 Target Pointer",
-        key="sgpa_mode_v63"
+        key="sgpa_mode_mu_v64"
     )
 
     st.markdown("---")
 
-    # --- INPUT SECTION: Keep it Slim ---
+    # MU Grade Mapping Logic (Marks out of 100)
+    def mu_marks_to_gp(total_marks):
+        if total_marks >= 80: return 10  # O
+        elif total_marks >= 75: return 9 # A
+        elif total_marks >= 70: return 8 # B
+        elif total_marks >= 60: return 7 # C
+        elif total_marks >= 50: return 6 # D
+        elif total_marks >= 45: return 5 # E
+        elif total_marks >= 40: return 4 # P
+        else: return 0 # F
+
+    # --- TOP INPUTS ---
     c_top1, c_top2 = st.columns([1, 1])
     with c_top1:
-        num_subs = st.number_input("How many subjects?", 1, 10, 5)
+        num_subs = st.number_input("Number of Theory Subjects?", 1, 8, 5)
     with c_top2:
         if sgpa_mode == "🎯 Target Pointer":
-            target_val = st.slider("Target SGPA", 4.0, 10.0, 8.0, 0.1)
+            target_val = st.slider("Target SGPA", 4.0, 10.0, 8.5, 0.1)
         else:
-            st.markdown("<p style='margin-top:35px; color:#8b949e;'>Enter marks below to predict</p>", unsafe_allow_html=True)
+            st.markdown("<p style='margin-top:35px; color:#8b949e;'>Enter expected marks below</p>", unsafe_allow_html=True)
 
-    # Creating a cleaner grid for subjects
-    st.markdown("#### 📝 Subject Details")
     subjects_data = []
     
-    # We use a more compact layout than before
+    st.markdown("#### 📝 Theory Subject Analysis (100 Marks)")
     for i in range(num_subs):
         with st.expander(f"Subject {i+1}", expanded=True):
-            col_a, col_b = st.columns(2)
+            col_a, col_b, col_c = st.columns([1, 1.5, 1.5])
             with col_a:
-                # Most MU subjects are 3 or 4 credits
-                cred = st.selectbox(f"Credits", [1, 2, 3, 4, 5], index=2, key=f"v63_c_{i}")
-            with col_b:
-                if sgpa_mode == "📈 Predict My Result":
-                    grade = st.selectbox(f"Expected Grade", ["O", "A", "B", "C", "D", "P", "F"], key=f"v63_g_{i}")
-                    grade_map = {"O": 10, "A": 9, "B": 8, "C": 7, "D": 6, "P": 4, "F": 0}
-                    gp = grade_map[grade]
-                else:
-                    st.write("Targeting...")
-                    gp = 0
-            subjects_data.append({"credits": cred, "gp": gp})
+                # Default MU credit is 3 or 4
+                cred = st.selectbox(f"Credits", [3, 4, 2, 1], key=f"mu_c_{i}")
+            
+            if sgpa_mode == "📈 Predict My Result":
+                with col_b:
+                    internal = st.number_input(f"Internal (Out of 20)", 0, 20, 15, key=f"mu_i_{i}")
+                with col_c:
+                    theory = st.number_input(f"Expected Theory (Out of 80)", 0, 80, 45, key=f"mu_t_{i}")
+                total = internal + theory
+                gp = mu_marks_to_gp(total)
+            else:
+                total = 0
+                gp = 0
+                st.write("Targeting Mode Active...")
+            
+            subjects_data.append({"credits": cred, "gp": gp, "total": total})
 
     st.markdown("---")
 
-    # --- LOGIC & OUTPUT ---
-    if st.button("⚡ GENERATE REPORT", use_container_width=True):
+    # --- GENERATE REPORT ---
+    if st.button("⚡ GENERATE MU BATTLE REPORT", use_container_width=True):
         total_creds = sum(s['credits'] for s in subjects_data)
         
         if sgpa_mode == "🎯 Target Pointer":
             req_points = target_val * total_creds
-            avg_gp = req_points / total_creds
+            avg_gp_needed = req_points / total_creds
             
+            # Map GP back to MU Marks
+            if avg_gp_needed >= 9.5: needed_marks = "80+"
+            elif avg_gp_needed >= 8.5: needed_marks = "75+"
+            elif avg_gp_needed >= 7.5: needed_marks = "70+"
+            elif avg_gp_needed >= 6.5: needed_marks = "60+"
+            else: needed_marks = "50+"
+
             st.markdown(f"""
-                <div style="background: #1e2128; padding: 20px; border-radius: 15px; border: 2px solid #FFD700; text-align: center;">
-                    <h2 style="color: #FFD700; margin:0;">BATTLE PLAN: {target_val} SGPA</h2>
-                    <p style="color: #8b949e; margin-bottom: 20px;">Total Credits: {total_creds}</p>
-                    <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
-                        <div style="padding: 10px;">
-                            <h3 style="margin:0; color: white;">{avg_gp:.2f}</h3>
-                            <p style="font-size: 12px; color: #8b949e;">AVG GRADE POINT NEEDED</p>
-                        </div>
-                        <div style="padding: 10px;">
-                            <h3 style="margin:0; color: white;">~{int(avg_gp*10)-5}+</h3>
-                            <p style="font-size: 12px; color: #8b949e;">MARKS PER SUBJECT</p>
-                        </div>
-                    </div>
+                <div style="background: #1e2128; padding: 25px; border-radius: 15px; border: 2px solid #FFD700; text-align: center;">
+                    <h2 style="color: #FFD700; margin:0;">TARGET: {target_val} SGPA</h2>
+                    <p style="color: #8b949e;">Total Credits: {total_creds}</p>
+                    <hr style="border-color: #30363d;">
+                    <h3 style="color: white; margin: 10px 0;">Required Marks: ~{needed_marks} per subject</h3>
+                    <p style="font-size: 14px; color: #4CAF50;">Status: Doable with 'Predict My Next Question'!</p>
                 </div>
             """, unsafe_allow_html=True)
-            st.info("💡 **Strategy:** Focus on 'Credits 4' subjects first. They impact your pointer the most!")
-
+            
         else:
             total_gp = sum(s['gp'] * s['credits'] for s in subjects_data)
             final_sgpa = total_gp / total_creds
-            color = "#4CAF50" if final_sgpa >= 7.5 else "#ef4444"
+            color = "#4CAF50" if final_sgpa >= 7.5 else "#eab308" if final_sgpa >= 6.0 else "#ef4444"
             
             st.markdown(f"""
-                <div style="background: #1e2128; padding: 20px; border-radius: 15px; border: 2px solid {color}; text-align: center;">
-                    <p style="color: #8b949e; margin:0;">PREDICTED POINTER</p>
-                    <h1 style="color: {color}; font-size: 60px; margin: 10px 0;">{final_sgpa:.2f}</h1>
+                <div style="background: #1e2128; padding: 25px; border-radius: 15px; border: 2px solid {color}; text-align: center;">
+                    <p style="color: #8b949e; margin:0;">MU PREDICTED POINTER</p>
+                    <h1 style="color: {color}; font-size: 65px; margin: 10px 0;">{final_sgpa:.2f}</h1>
+                    <p style="color: white;">Based on your Internal + Theory estimates</p>
                 </div>
             """, unsafe_allow_html=True)
+            
+            if final_sgpa < 7.0:
+                st.warning("⚠️ **Topper Alert:** Bhai, internal marks kam hain toh theory mein 'Sureshot Questions' padh lo pointer khich jayega!")
+            else:
+                st.balloons()
 
-    # --- VIRAL SHARE ---
+    # --- VIRAL SHARING ---
     st.divider()
-    share_msg = requests.utils.quote(f"TopperGPT helped me plan my pointer! Check it out: toppergpt.in")
-    st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:10px; width:100%; cursor:pointer; font-weight:bold;">📲 Share Plan with Friends</button></a>', unsafe_allow_html=True)
+    share_msg = requests.utils.quote(f"TopperGPT predicted my MU SGPA! 🎯 Check your battle plan here: toppergpt.in")
+    st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:10px; width:100%; cursor:pointer; font-weight:bold;">📲 Share Plan with WhatsApp Group</button></a>', unsafe_allow_html=True)
 # --- TAB 9: LEGAL & POLICIES ---
 with tab9:
     st.header("⚖️ Legal, Terms & Privacy Policy")
