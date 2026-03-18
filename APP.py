@@ -553,11 +553,10 @@ with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official Moderator</h2>", unsafe_allow_html=True)
     
     eval_cost = 5
-    # Initialization
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="vision_fix_v50")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="vision_fix_v51")
     
     if ans_file:
         img_raw = Image.open(ans_file).convert("RGB")
@@ -572,7 +571,7 @@ with tab3:
                 st.session_state.eval_result = None
                 st.rerun()
 
-        # --- STEP 1: VISION SCAN ---
+        # --- STEP 1: VISION SCAN (Using Gemini to avoid Billing/Key errors) ---
         if not st.session_state.extracted_text:
             if col_v1.button(f"🔍 Scan Handwriting ({eval_cost} Credits)"):
                 if use_credits(eval_cost):
@@ -580,53 +579,37 @@ with tab3:
                     placeholder.info("🚀 AI Professor is reading your handwriting...")
                     
                     try:
-                        # ✅ USING GEMINI VISION (No GCV billing needed)
-                        # We use the 'model' initialized in your Silent AI Setup
+                        # Hum wahi model object use kar rahe hain jo tune Silent AI Setup mein banaya hai
+                        # Isme Gemini Pro Vision ke bajaye Flash use hota hai jo FREE hai
                         response = model.generate_content([
-                            "Read the handwriting in this image and convert it into clean text. If it's a technical answer, keep the terms intact.",
+                            "Analyze this handwritten engineering answer. Convert it into clear text. Do not miss any technical terms or math symbols.",
                             img_raw
                         ])
                         
-                        if response.text:
+                        if response:
                             st.session_state.extracted_text = response.text
                             placeholder.success("✅ Handwriting Decoded Successfully!")
                             st.rerun()
                         else:
-                            raise Exception("AI could not read the text. Ensure the photo is clear.")
+                            raise Exception("AI could not read the text. Try a clearer photo.")
 
                     except Exception as e:
-                        # Refund credits on failure
-                        st.session_state.user_data['credits'] += eval_cost
-                        supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
+                        # Error handling with clear message
+                        st.session_state.user_data['credits'] += eval_cost # Refund
                         st.error(f"❌ Scan Failed: {str(e)}")
+                        st.warning("Topper Tip: Check if your API Key is correctly set in Streamlit Secrets.")
                 else:
-                    st.error("Bhai credits khatam! Refill karo.")
+                    st.error("Bhai credits khatam! Rewards section mein jao.")
 
     # --- STEP 2: BRAIN SECTION (MARKING LOGIC) ---
     if st.session_state.extracted_text and not st.session_state.eval_result:
-        st.markdown("### 📝 AI Scanned Draft")
-        edited_text = st.text_area("You can edit/fix the scanned text here:", value=st.session_state.extracted_text, height=200)
+        st.markdown("### 📝 Scanned Draft")
+        edited_text = st.text_area("Final Review/Edit:", value=st.session_state.extracted_text, height=200)
         
-        target_marks = st.slider("Target Marks (Total)", 5, 20, 10)
-
         if st.button("🎯 Grade My Answer"):
-            with st.spinner("AI Professor is checking for technical accuracy..."):
+            with st.spinner("AI Professor is checking technical depth..."):
                 try:
-                    # Pure Technical Marking
-                    marking_prompt = f"""
-                    Evaluate this engineering answer out of {target_marks}. 
-                    Identify technical mistakes, missing keywords, and provide a score.
-                    
-                    Return ONLY a JSON object:
-                    {{
-                        "marks": float,
-                        "total": {target_marks},
-                        "feedback": "...",
-                        "improvement": "..."
-                    }}
-                    
-                    Answer Content: {edited_text}
-                    """
+                    marking_prompt = f"Evaluate this engineering answer out of 10. Check for technical keywords and accuracy. Return ONLY JSON: {{\"marks\": 7.5, \"feedback\": \"...\", \"improvement\": \"...\"}}. Answer: {edited_text}"
                     
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
@@ -637,23 +620,14 @@ with tab3:
                     st.session_state.eval_result = json.loads(res.choices[0].message.content)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Marking Engine busy: {e}")
+                    st.error(f"Marking Engine Error: {e}")
 
-    # --- STEP 3: THE SCORECARD ---
+    # --- SCORE DISPLAY ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
-        score = res.get('marks', 0)
-        total = res.get('total', 10)
-        
-        # Premium Score UI
-        st.markdown(f"""
-            <div style="background: #161b22; padding: 25px; border-radius: 15px; border: 1px solid #4CAF50; text-align: center;">
-                <h1 style="color: #4CAF50; margin: 0;">SCORE: {score}/{total}</h1>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.info(f"**🧐 Professor's Feedback:**\n{res.get('feedback', '')}")
-        st.warning(f"**🚀 How to get Full Marks?**\n{res.get('improvement', '')}")
+        st.success(f"### SCORE: {res.get('marks', 0)}/10")
+        st.info(f"**Feedback:** {res.get('feedback', '')}")
+        st.warning(f"**Topper Tip:** {res.get('improvement', '')}")
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V156 - WATERMARK EDITION) ---
 with tab4:
