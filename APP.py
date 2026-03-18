@@ -544,43 +544,51 @@ with tab2:
         </script>
         """
         components.html(html_code, height=900, scrolling=True)
-    # --- TAB 3: ANSWER EVALUATOR ---
-# --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # ==================================================
-# --- TAB 3: AI EXAM PREDICTOR (VIRAL ORACLE V55) ---
+# --- TAB 3: AI EXAM PREDICTOR (PDF SYLLABUS MODE) ---
 # ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Based on 5-Year University Paper Patterns & AI Probability Models</i></p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Upload your Syllabus PDF for High-Accuracy Predictions</i></p>", unsafe_allow_html=True)
 
     predict_cost = 5
     
     # --- INPUT SECTION ---
     c1, c2 = st.columns(2)
     with c1:
-        p_subject = st.text_input("Subject Name", placeholder="e.g. Data Structures / OS")
+        p_subject = st.text_input("Subject Name", placeholder="e.g. Applied Maths 2")
     with c2:
-        p_uni = st.selectbox("Pattern Type", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Custom"])
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"])
 
-    p_topics = st.text_area("Specific Topics/Syllabus (Optional)", placeholder="Paste your syllabus here for 99% accuracy...")
+    # 📂 SYLLABUS PDF UPLOADER
+    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Optional but Recommended)", type=["pdf"])
+    
+    p_topics_manual = st.text_area("Or Paste Topics Manually:", placeholder="Enter key topics if no PDF...")
 
     # --- PREDICTION ENGINE ---
     if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
         if not p_subject:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost):
-            with st.spinner(f"Decoding {p_uni} patterns..."):
+            with st.spinner("Decoding your syllabus and paper patterns..."):
                 try:
-                    # ✅ THE MASTER PROMPT: Strictly forcing the Data Structure
-                    prompt = f"""
-                    Act as an Expert University Paper Setter for {p_uni}. 
-                    Predict the top 5 most likely questions for the subject: {p_subject}.
-                    Consider these topics if provided: {p_topics}.
+                    # 📄 Extract Text from PDF if uploaded
+                    extracted_syllabus = ""
+                    if syllabus_file:
+                        with pdfplumber.open(syllabus_file) as pdf:
+                            extracted_syllabus = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
                     
-                    Return ONLY a JSON list of objects with these keys: 
+                    final_context = extracted_syllabus if extracted_syllabus else p_topics_manual
+                    
+                    # ✅ MASTER PROMPT
+                    prompt = f"""
+                    Act as an Expert Engineering Examiner for {p_uni}. 
+                    Subject: {p_subject}.
+                    Syllabus Context: {final_context}
+                    
+                    Identify the top 5 'Sureshot' questions. 
+                    Return ONLY a JSON list of objects: 
                     'question', 'marks', 'difficulty', 'probability'.
-                    Ensure probability is between 65% and 95%.
-                    Difficulty should be 'High', 'Medium', or 'Low'.
                     """
                     
                     res = groq_client.chat.completions.create(
@@ -589,60 +597,43 @@ with tab3:
                         response_format={"type": "json_object"}
                     )
                     
-                    # Parse the JSON response
                     raw_data = json.loads(res.choices[0].message.content)
-                    # Support both formats: {"questions": [...]} or just [...]
-                    st.session_state.prediction_list = raw_data.get('questions', list(raw_data.values())[0] if isinstance(raw_data, dict) else raw_data)
+                    st.session_state.prediction_list = raw_data.get('questions', list(raw_data.values())[0])
                     st.session_state.p_subj_final = p_subject
-                    st.balloons()
-                    st.rerun()
+                    st.balloons(); st.rerun()
                 except Exception as e:
                     st.session_state.user_data['credits'] += predict_cost # Refund
                     st.error(f"Prediction Engine Busy: {e}")
         else:
-            st.error("Credits khatam! Rewards section check karo.")
+            st.error("Credits khatam!")
 
-    # --- THE DISPLAY (THE VIRAL UI) ---
+    # --- THE DISPLAY (VIRAL UI) ---
     if "prediction_list" in st.session_state:
         st.divider()
         st.subheader(f"🎯 Sureshot Questions: {st.session_state.p_subj_final}")
         
         for idx, q in enumerate(st.session_state.prediction_list):
-            with st.container():
-                # Fancy Card Style
-                color = "#4CAF50" if q['probability'] > 85 else "#eab308"
-                st.markdown(f"""
-                <div style="background: #161b22; padding: 15px; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 15px;">
-                    <p style="color: #8b949e; font-size: 12px; margin: 0;">QUESTION {idx+1}</p>
-                    <h4 style="margin: 5px 0; color: white;">{q['question']}</h4>
-                    <div style="display: flex; gap: 15px; margin-top: 10px;">
-                        <span style="background: {color}; color: black; padding: 2px 8px; border-radius: 5px; font-size: 12px; font-weight: bold;">
-                            Prob: {q['probability']}%
-                        </span>
-                        <span style="border: 1px solid #30363d; color: #8b949e; padding: 2px 8px; border-radius: 5px; font-size: 12px;">
-                            Marks: {q['marks']}M
-                        </span>
-                        <span style="border: 1px solid #30363d; color: #8b949e; padding: 2px 8px; border-radius: 5px; font-size: 12px;">
-                            Diff: {q['difficulty']}
-                        </span>
-                    </div>
+            color = "#4CAF50" if q['probability'] > 85 else "#eab308"
+            st.markdown(f"""
+            <div style="background: #161b22; padding: 15px; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 15px;">
+                <h4 style="margin: 5px 0; color: white;">{q['question']}</h4>
+                <div style="display: flex; gap: 15px; margin-top: 10px;">
+                    <span style="background: {color}; color: black; padding: 2px 8px; border-radius: 5px; font-size: 12px; font-weight: bold;">
+                        Prob: {q['probability']}%
+                    </span>
+                    <span style="border: 1px solid #30363d; color: #8b949e; padding: 2px 8px; border-radius: 5px; font-size: 12px;">
+                        Marks: {q['marks']}M | Diff: {q['difficulty']}
+                    </span>
                 </div>
-                """, unsafe_allow_html=True)
+            </div>
+            """, unsafe_allow_html=True)
         
-        # --- THE VIRAL SHARE BUTTON ---
-        share_text = f"TopperGPT Predicted these Questions for {st.session_state.p_subj_final}!\n\n"
-        for q in st.session_state.prediction_list[:3]:
-            share_text += f"🔥 {q['question']} (Prob: {q['probability']}%)\n"
-        share_text += "\nTry it now: toppergpt.in"
-        
-        st.download_button("📤 Download Prediction Report", share_text, file_name=f"{st.session_state.p_subj_final}_Predictions.txt", use_container_width=True)
-        
-        # WhatsApp Share Link (Jugaad)
-        encoded_text = requests.utils.quote(share_text)
+        # WhatsApp Viral Share
+        share_text = f"TopperGPT Predicted these Questions for {st.session_state.p_subj_final}!\n\nCheck out the AI predictions here: toppergpt.in"
         st.markdown(f'''
-            <a href="https://wa.me/?text={encoded_text}" target="_blank" style="text-decoration: none;">
+            <a href="https://wa.me/?text={requests.utils.quote(share_text)}" target="_blank">
                 <button style="background: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer;">
-                    📲 Share on WhatsApp Groups
+                    📲 Share Sureshot Questions on WhatsApp
                 </button>
             </a>
         ''', unsafe_allow_html=True)
