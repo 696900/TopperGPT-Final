@@ -547,87 +547,97 @@ with tab2:
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
 # ==================================================
-# --- TAB 3: ANSWER EVALUATOR (ULTRA STABLE VISION) ---
+# --- TAB 3: ANSWER EVALUATOR (ULTRA STABLE V52) ---
 # ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official Moderator</h2>", unsafe_allow_html=True)
     
     eval_cost = 5
+    # Persistent State
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="vision_fix_v51")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="vision_v52")
     
     if ans_file:
         img_raw = Image.open(ans_file).convert("RGB")
         st.image(img_raw, caption="Answer Sheet Detected", width=400)
 
-        # UI BUTTONS
-        col_v1, col_v2 = st.columns(2)
+        # --- ACTION BAR ---
+        v_c1, v_c2 = st.columns(2)
         
+        # Reset Button
         if st.session_state.eval_result:
-            if st.button("🔄 New Evaluation"):
+            if v_c2.button("🔄 New Evaluation", use_container_width=True):
                 st.session_state.extracted_text = None
                 st.session_state.eval_result = None
                 st.rerun()
 
-        # --- STEP 1: VISION SCAN (Using Gemini to avoid Billing/Key errors) ---
+        # STEP 1: SCANNING
         if not st.session_state.extracted_text:
-            if col_v1.button(f"🔍 Scan Handwriting ({eval_cost} Credits)"):
+            if v_c1.button(f"🔍 Scan Handwriting ({eval_cost} Credits)", use_container_width=True):
                 if use_credits(eval_cost):
                     placeholder = st.empty()
                     placeholder.info("🚀 AI Professor is reading your handwriting...")
                     
                     try:
-                        # Hum wahi model object use kar rahe hain jo tune Silent AI Setup mein banaya hai
-                        # Isme Gemini Pro Vision ke bajaye Flash use hota hai jo FREE hai
+                        # Direct Vision Analysis
                         response = model.generate_content([
-                            "Analyze this handwritten engineering answer. Convert it into clear text. Do not miss any technical terms or math symbols.",
+                            "Extract all handwritten text from this image. Ensure technical engineering terms and mathematical symbols are captured accurately.",
                             img_raw
                         ])
                         
-                        if response:
+                        if response.text:
                             st.session_state.extracted_text = response.text
-                            placeholder.success("✅ Handwriting Decoded Successfully!")
+                            placeholder.success("✅ Handwriting Decoded!")
                             st.rerun()
                         else:
-                            raise Exception("AI could not read the text. Try a clearer photo.")
-
+                            raise Exception("Text not found. Clear photo use karo.")
                     except Exception as e:
-                        # Error handling with clear message
-                        st.session_state.user_data['credits'] += eval_cost # Refund
-                        st.error(f"❌ Scan Failed: {str(e)}")
-                        st.warning("Topper Tip: Check if your API Key is correctly set in Streamlit Secrets.")
+                        # Refund in DB
+                        st.session_state.user_data['credits'] += eval_cost
+                        supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
+                        st.error(f"❌ Scan Failed: {e}")
                 else:
-                    st.error("Bhai credits khatam! Rewards section mein jao.")
+                    st.error("Bhai credits khatam!")
 
-    # --- STEP 2: BRAIN SECTION (MARKING LOGIC) ---
+    # STEP 2: GRADING
     if st.session_state.extracted_text and not st.session_state.eval_result:
         st.markdown("### 📝 Scanned Draft")
         edited_text = st.text_area("Final Review/Edit:", value=st.session_state.extracted_text, height=200)
         
-        if st.button("🎯 Grade My Answer"):
-            with st.spinner("AI Professor is checking technical depth..."):
+        target_m = st.slider("Max Marks for this Question:", 5, 20, 10)
+
+        if st.button("🎯 Grade My Answer", use_container_width=True):
+            with st.spinner("Analyzing technical depth..."):
                 try:
-                    marking_prompt = f"Evaluate this engineering answer out of 10. Check for technical keywords and accuracy. Return ONLY JSON: {{\"marks\": 7.5, \"feedback\": \"...\", \"improvement\": \"...\"}}. Answer: {edited_text}"
+                    marking_prompt = f"""Evaluate this engineering answer out of {target_m}. 
+                    Identify technical errors and missing keywords. 
+                    Return ONLY JSON: {{"marks": float, "feedback": "str", "improvement": "str"}}
+                    Answer: {edited_text}"""
                     
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": marking_prompt}],
                         response_format={"type": "json_object"}
                     )
-                    
                     st.session_state.eval_result = json.loads(res.choices[0].message.content)
+                    st.session_state.eval_result['total_m'] = target_m
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Marking Engine Error: {e}")
+                    st.error(f"Marking Error: {e}")
 
-    # --- SCORE DISPLAY ---
+    # STEP 3: SCORECARD
     if st.session_state.eval_result:
-        res = st.session_state.eval_result
-        st.success(f"### SCORE: {res.get('marks', 0)}/10")
-        st.info(f"**Feedback:** {res.get('feedback', '')}")
-        st.warning(f"**Topper Tip:** {res.get('improvement', '')}")
+        er = st.session_state.eval_result
+        st.markdown(f"""
+            <div style="background: #161b22; padding: 20px; border-radius: 15px; border: 2px solid #4CAF50; text-align: center;">
+                <h1 style="color: #4CAF50; margin:0;">SCORE: {er.get('marks')}/{er.get('total_m')}</h1>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.info(f"**🧐 Professor's Feedback:**\n{er.get('feedback')}")
+        st.warning(f"**🚀 Topper Tip:**\n{er.get('improvement')}")
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V156 - WATERMARK EDITION) ---
 with tab4:
