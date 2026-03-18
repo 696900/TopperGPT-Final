@@ -1124,115 +1124,110 @@ with tab7:
             st.session_state.research_data = None
             st.rerun()
 # ==================================================
-# --- TAB 8: MU SGPA BATTLE PLANNER (MARKS BASED) ---
+# --- TAB 8: MU SGPA BATTLE PLANNER (REVENUE V65) ---
 # ==================================================
 with tab8:
     st.markdown("<h2 style='text-align: center; color: #FFD700;'>📊 MU SGPA Battle Planner</h2>", unsafe_allow_html=True)
     
-    # Mode Selection
+    # Revenue Config
+    sgpa_cost = 2  # 2 credits for strategy/prediction
+
     sgpa_mode = st.segmented_control(
         "Select Mission:", 
         options=["🎯 Target Pointer", "📈 Predict My Result"],
         default="🎯 Target Pointer",
-        key="sgpa_mode_mu_v64"
+        key="mu_mode_v65"
     )
 
     st.markdown("---")
 
-    # MU Grade Mapping Logic (Marks out of 100)
-    def mu_marks_to_gp(total_marks):
-        if total_marks >= 80: return 10  # O
-        elif total_marks >= 75: return 9 # A
-        elif total_marks >= 70: return 8 # B
-        elif total_marks >= 60: return 7 # C
-        elif total_marks >= 50: return 6 # D
-        elif total_marks >= 45: return 5 # E
-        elif total_marks >= 40: return 4 # P
-        else: return 0 # F
-
-    # --- TOP INPUTS ---
-    c_top1, c_top2 = st.columns([1, 1])
+    # --- INPUTS ---
+    c_top1, c_top2 = st.columns(2)
     with c_top1:
-        num_subs = st.number_input("Number of Theory Subjects?", 1, 8, 5)
+        num_subs = st.number_input("Total Theory Subjects?", 1, 8, 5)
     with c_top2:
         if sgpa_mode == "🎯 Target Pointer":
             target_val = st.slider("Target SGPA", 4.0, 10.0, 8.5, 0.1)
         else:
-            st.markdown("<p style='margin-top:35px; color:#8b949e;'>Enter expected marks below</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='margin-top:35px; color:#8b949e;'>Cost: {sgpa_cost} Credits</p>", unsafe_allow_html=True)
 
+    # --- SUBJECT GRID ---
     subjects_data = []
+    st.markdown("#### 📝 Subject-wise Weightage")
     
-    st.markdown("#### 📝 Theory Subject Analysis (100 Marks)")
+    # MU Simplified: Most students have 4-credit main subjects and 3-credit allied
     for i in range(num_subs):
         with st.expander(f"Subject {i+1}", expanded=True):
-            col_a, col_b, col_c = st.columns([1, 1.5, 1.5])
+            col_a, col_b, col_c = st.columns([1, 1.2, 1.2])
             with col_a:
-                # Default MU credit is 3 or 4
-                cred = st.selectbox(f"Credits", [3, 4, 2, 1], key=f"mu_c_{i}")
+                # 💡 EXPLAINER: High credits = High weightage on SGPA
+                cred = st.selectbox(f"Credits (Weight)", [4, 3, 2], index=0, key=f"v65_c_{i}", help="High credits impact your pointer more!")
             
             if sgpa_mode == "📈 Predict My Result":
                 with col_b:
-                    internal = st.number_input(f"Internal (Out of 20)", 0, 20, 15, key=f"mu_i_{i}")
+                    internal = st.number_input(f"Internal (20M)", 0, 20, 18, key=f"v65_i_{i}")
                 with col_c:
-                    theory = st.number_input(f"Expected Theory (Out of 80)", 0, 80, 45, key=f"mu_t_{i}")
+                    theory = st.number_input(f"Theory (80M)", 0, 80, 40, key=f"v65_t_{i}")
                 total = internal + theory
-                gp = mu_marks_to_gp(total)
+                # MU Grading Math
+                if total >= 80: gp = 10
+                elif total >= 75: gp = 9
+                elif total >= 70: gp = 8
+                elif total >= 60: gp = 7
+                elif total >= 50: gp = 6
+                elif total >= 45: gp = 5
+                elif total >= 40: gp = 4
+                else: gp = 0
             else:
-                total = 0
-                gp = 0
-                st.write("Targeting Mode Active...")
+                total, gp = 0, 0
             
-            subjects_data.append({"credits": cred, "gp": gp, "total": total})
+            subjects_data.append({"credits": cred, "gp": gp})
 
     st.markdown("---")
 
-    # --- GENERATE REPORT ---
-    if st.button("⚡ GENERATE MU BATTLE REPORT", use_container_width=True):
-        total_creds = sum(s['credits'] for s in subjects_data)
-        
-        if sgpa_mode == "🎯 Target Pointer":
-            req_points = target_val * total_creds
-            avg_gp_needed = req_points / total_creds
+    # --- THE REVENUE TRIGGER ---
+    if st.button(f"⚡ GENERATE BATTLE REPORT (-{sgpa_cost} Credits)", use_container_width=True):
+        if use_credits(sgpa_cost): # ✅ DEDUCTS FROM SUPABASE
+            total_creds = sum(s['credits'] for s in subjects_data)
             
-            # Map GP back to MU Marks
-            if avg_gp_needed >= 9.5: needed_marks = "80+"
-            elif avg_gp_needed >= 8.5: needed_marks = "75+"
-            elif avg_gp_needed >= 7.5: needed_marks = "70+"
-            elif avg_gp_needed >= 6.5: needed_marks = "60+"
-            else: needed_marks = "50+"
+            if sgpa_mode == "🎯 Target Pointer":
+                # REVERSE MATH: SGPA * Total Credits = Points Needed
+                req_points = target_val * total_creds
+                avg_gp = req_points / total_creds
+                
+                st.markdown(f"""
+                    <div style="background: #1e2128; padding: 25px; border-radius: 15px; border: 2px solid #FFD700; text-align: center;">
+                        <h2 style="color: #FFD700; margin:0;">MISSION: {target_val} POINTER</h2>
+                        <hr style="border-color: #30363d;">
+                        <h4 style="color: white;">Average Marks Needed: ~{int(avg_gp*10)-5} to {int(avg_gp*10)+5}</h4>
+                        <p style="color: #8b949e;">Don't worry! Use Tab 3 to get Sureshot Questions for these marks.</p>
+                    </div>
+                """, unsafe_allow_html=True)
 
-            st.markdown(f"""
-                <div style="background: #1e2128; padding: 25px; border-radius: 15px; border: 2px solid #FFD700; text-align: center;">
-                    <h2 style="color: #FFD700; margin:0;">TARGET: {target_val} SGPA</h2>
-                    <p style="color: #8b949e;">Total Credits: {total_creds}</p>
-                    <hr style="border-color: #30363d;">
-                    <h3 style="color: white; margin: 10px 0;">Required Marks: ~{needed_marks} per subject</h3>
-                    <p style="font-size: 14px; color: #4CAF50;">Status: Doable with 'Predict My Next Question'!</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-        else:
-            total_gp = sum(s['gp'] * s['credits'] for s in subjects_data)
-            final_sgpa = total_gp / total_creds
-            color = "#4CAF50" if final_sgpa >= 7.5 else "#eab308" if final_sgpa >= 6.0 else "#ef4444"
-            
-            st.markdown(f"""
-                <div style="background: #1e2128; padding: 25px; border-radius: 15px; border: 2px solid {color}; text-align: center;">
-                    <p style="color: #8b949e; margin:0;">MU PREDICTED POINTER</p>
-                    <h1 style="color: {color}; font-size: 65px; margin: 10px 0;">{final_sgpa:.2f}</h1>
-                    <p style="color: white;">Based on your Internal + Theory estimates</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            if final_sgpa < 7.0:
-                st.warning("⚠️ **Topper Alert:** Bhai, internal marks kam hain toh theory mein 'Sureshot Questions' padh lo pointer khich jayega!")
             else:
-                st.balloons()
+                # SGPA FORMULA: Sum(GP * Credits) / Total Credits
+                total_gp_earned = sum(s['gp'] * s['credits'] for s in subjects_data)
+                final_sgpa = total_gp_earned / total_creds
+                
+                color = "#4CAF50" if final_sgpa >= 7.5 else "#ef4444"
+                st.markdown(f"""
+                    <div style="background: #1e2128; padding: 25px; border-radius: 15px; border: 2px solid {color}; text-align: center;">
+                        <p style="color: #8b949e; margin:0;">ESTIMATED SGPA</p>
+                        <h1 style="color: {color}; font-size: 60px; margin: 10px 0;">{final_sgpa:.2f}</h1>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                if final_sgpa < 7.0:
+                    st.error("🚨 Danger! Ye pointer kam hai. Physics/Maths ke high-credit subjects par focus karo!")
+            
+            st.balloons()
+        else:
+            st.error("Bhai credits khatam! Rewards section mein jao ya refer karo.")
 
-    # --- VIRAL SHARING ---
+    # --- VIRAL FLEX ---
     st.divider()
-    share_msg = requests.utils.quote(f"TopperGPT predicted my MU SGPA! 🎯 Check your battle plan here: toppergpt.in")
-    st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:10px; width:100%; cursor:pointer; font-weight:bold;">📲 Share Plan with WhatsApp Group</button></a>', unsafe_allow_html=True)
+    share_text = f"TopperGPT predicted my MU SGPA Strategy! 🎯 Goal: {target_val if 'target_val' in locals() else '9.0'} Pointer. Get yours: toppergpt.in"
+    st.markdown(f'''<a href="https://wa.me/?text={requests.utils.quote(share_text)}" target="_blank"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:10px; width:100%; cursor:pointer; font-weight:bold;">📤 Share Strategy with Friends</button></a>''', unsafe_allow_html=True)
 # --- TAB 9: LEGAL & POLICIES ---
 with tab9:
     st.header("⚖️ Legal, Terms & Privacy Policy")
