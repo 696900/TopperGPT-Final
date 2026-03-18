@@ -545,33 +545,33 @@ with tab2:
         """
         components.html(html_code, height=900, scrolling=True)
 # ==================================================
-# --- TAB 3: AI EXAM PREDICTOR (V57 - SMART SYLLABUS MODE) ---
+# --- TAB 3: AI EXAM PREDICTOR (V58 - SYLLABUS SNIPER MODE) ---
 # ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Upload Syllabus PDF or Paste Topics for AI Predictions</i></p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Upload Syllabus PDF or Paste Topics for Technical Predictions</i></p>", unsafe_allow_html=True)
 
     predict_cost = 5
     
     # --- INPUT SECTION ---
     c1, c2 = st.columns(2)
     with c1:
-        p_subject = st.text_input("Subject Name", placeholder="e.g. Applied Maths 2", key="p_subj_v57")
+        p_subject = st.text_input("Subject Name", placeholder="e.g. Applied Physics 1", key="p_subj_v58")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v57")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v58")
 
     # 📂 SYLLABUS PDF UPLOADER
-    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Highly Recommended)", type=["pdf"], key="p_pdf_v57")
-    p_topics_manual = st.text_area("Or Paste Topics Manually:", placeholder="Enter key topics if no PDF...", key="p_manual_v57")
+    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Filtered Scan)", type=["pdf"], key="p_pdf_v58")
+    p_topics_manual = st.text_area("Or Paste Topics Manually:", placeholder="Enter technical modules if no PDF...", key="p_manual_v58")
 
     # --- PREDICTION ENGINE ---
     if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
         if not p_subject:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost):
-            with st.spinner("Decoding syllabus (Applying Smart Filtering)..."):
+            with st.spinner(f"Sniping technical modules for {p_subject}..."):
                 try:
-                    # 📄 SMART EXTRACTION: Filtering only relevant pages to avoid Token Limit Errors
+                    # 📄 SMART SNIPER EXTRACTION: Filtering out introductory garbage
                     final_context = ""
                     if syllabus_file:
                         with pdfplumber.open(syllabus_file) as pdf:
@@ -579,27 +579,35 @@ with tab3:
                             for page in pdf.pages:
                                 text = page.extract_text()
                                 if text:
-                                    # Pages filter kar rahe hain jahan kaam ki info ho
-                                    keywords = ["module", "syllabus", "unit", "chapter", "content", "topics", "learning outcome"]
-                                    if any(key in text.lower() for key in keywords):
+                                    # ✅ SNIPER LOGIC: Ignore non-technical introductory garbage
+                                    garbage_keywords = ["nep 2020", "grading system", "credits system", "admission", "preamble", "choice based"]
+                                    technical_keywords = ["module", "unit", "quantum", "laser", "physics", "semiconductor", "fiber", "mechanics", "theories", "diagram"]
+                                    
+                                    low_text = text.lower()
+                                    # Agar technical words hain aur kachra kam hai, tabhi uthao
+                                    if any(tk in low_text for tk in technical_keywords) and not any(gk in low_text for gk in garbage_keywords):
                                         relevant_text.append(text)
                             
-                            # Max 6000 chars bhej rahe hain taaki Groq crash na ho
-                            final_context = "\n".join(relevant_text)[:6000] 
+                            # Max 6500 chars limit to stay under token budget
+                            final_context = "\n".join(relevant_text)[:6500] 
                     
                     if not final_context:
                         final_context = p_topics_manual[:4000]
                     
-                    if len(final_context.strip()) < 10:
-                        raise Exception("Syllabus context bohot chota hai. Please PDF ya manual topics dalo.")
+                    if len(final_context.strip()) < 15:
+                        raise Exception("Technical content nahi mila. Please modules manually paste karein.")
 
-                    # ✅ MASTER PROMPT (VIRAL ORACLE LOGIC)
+                    # ✅ STERN MASTER PROMPT (ENGINEERING HARDLINER)
                     prompt = f"""
-                    Act as an Expert Engineering Examiner for {p_uni}. 
+                    Act as a strict Senior Engineering Examiner for {p_uni}. 
                     Subject: {p_subject}.
                     Syllabus Context: {final_context}
                     
-                    Identify the top 5 'Sureshot' questions with the highest probability for the upcoming exam.
+                    TASK:
+                    1. IGNORE any mention of NEP 2020, grading, or credit systems.
+                    2. PREDICT 5 Core Technical Questions based ONLY on the technical modules provided.
+                    3. Ensure questions reflect standard university weightage (5M/10M).
+                    
                     Return ONLY a JSON list of objects: 
                     'question', 'marks', 'difficulty', 'probability'.
                     """
@@ -611,14 +619,13 @@ with tab3:
                     )
                     
                     raw_data = json.loads(res.choices[0].message.content)
-                    # Handle different JSON structures from AI
                     st.session_state.prediction_list = raw_data.get('questions', list(raw_data.values())[0] if isinstance(raw_data, dict) else raw_data)
                     st.session_state.p_subj_final = p_subject
                     st.balloons(); st.rerun()
 
                 except Exception as e:
-                    st.session_state.user_data['credits'] += predict_cost # Refund on error
-                    st.error(f"Prediction Engine Alert: {str(e)}")
+                    st.session_state.user_data['credits'] += predict_cost # Refund
+                    st.error(f"Sniper Alert: {str(e)}")
         else:
             st.error("Bhai credits khatam! Refill pack check karo.")
 
@@ -630,15 +637,15 @@ with tab3:
         for idx, q in enumerate(st.session_state.prediction_list):
             color = "#4CAF50" if q['probability'] > 85 else "#eab308"
             st.markdown(f"""
-            <div style="background: #161b22; padding: 15px; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 15px; border-top: 1px solid #30363d; border-right: 1px solid #30363d;">
-                <p style="color: #8b949e; font-size: 11px; margin-bottom: 5px;">PROBABILITY: {q['probability']}%</p>
-                <h4 style="margin: 0 0 10px 0; color: white;">{q['question']}</h4>
+            <div style="background: #161b22; padding: 20px; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 15px; border: 1px solid #30363d;">
+                <p style="color: #8b949e; font-size: 11px; margin-bottom: 5px;">ESTIMATED PROBABILITY: {q['probability']}%</p>
+                <h4 style="margin: 0 0 12px 0; color: white; font-family: 'Segoe UI', sans-serif;">{q['question']}</h4>
                 <div style="display: flex; gap: 15px;">
                     <span style="border: 1px solid #30363d; color: #8b949e; padding: 2px 8px; border-radius: 5px; font-size: 12px;">
-                        Marks: {q['marks']}M
+                        Weightage: {q['marks']}M
                     </span>
                     <span style="border: 1px solid #30363d; color: #8b949e; padding: 2px 8px; border-radius: 5px; font-size: 12px;">
-                        Difficulty: {q['difficulty']}
+                        Level: {q['difficulty']}
                     </span>
                 </div>
             </div>
