@@ -545,68 +545,78 @@ with tab2:
         """
         components.html(html_code, height=900, scrolling=True)
 # ==================================================
-# --- TAB 3: AI EXAM PREDICTOR (V58 - SYLLABUS SNIPER MODE) ---
+# --- TAB 3: AI EXAM PREDICTOR (SEMESTER-STRICT V59) ---
 # ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Upload Syllabus PDF or Paste Topics for Technical Predictions</i></p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Data-Driven Predictions for University Exams</i></p>", unsafe_allow_html=True)
 
     predict_cost = 5
     
     # --- INPUT SECTION ---
     c1, c2 = st.columns(2)
     with c1:
-        p_subject = st.text_input("Subject Name", placeholder="e.g. Applied Physics 1", key="p_subj_v58")
+        p_subject = st.text_input("Subject Name", placeholder="e.g. Applied Maths 2", key="p_subj_v59")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v58")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v59")
 
     # 📂 SYLLABUS PDF UPLOADER
-    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Filtered Scan)", type=["pdf"], key="p_pdf_v58")
-    p_topics_manual = st.text_area("Or Paste Topics Manually:", placeholder="Enter technical modules if no PDF...", key="p_manual_v58")
+    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Filtered Scan)", type=["pdf"], key="p_pdf_v59")
+    p_topics_manual = st.text_area("Or Paste Topics Manually:", placeholder="Enter technical modules if no PDF...", key="p_manual_v59")
 
-    # --- PREDICTION ENGINE ---
+    # --- PREDICTION ENGINE (REVENUE LOOP INTEGRATED) ---
     if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
         if not p_subject:
             st.warning("Bhai, subject ka naam toh dalo!")
-        elif use_credits(predict_cost):
-            with st.spinner(f"Sniping technical modules for {p_subject}..."):
+        elif use_credits(predict_cost): # ✅ REVENUE LOOP: Deducts from Supabase
+            with st.spinner(f"Filtering specific modules for {p_subject}..."):
                 try:
-                    # 📄 SMART SNIPER EXTRACTION: Filtering out introductory garbage
+                    # 📄 SMART SEMESTER-STRICT EXTRACTION
                     final_context = ""
                     if syllabus_file:
                         with pdfplumber.open(syllabus_file) as pdf:
                             relevant_text = []
+                            subject_found = False
+                            
                             for page in pdf.pages:
                                 text = page.extract_text()
                                 if text:
-                                    # ✅ SNIPER LOGIC: Ignore non-technical introductory garbage
-                                    garbage_keywords = ["nep 2020", "grading system", "credits system", "admission", "preamble", "choice based"]
-                                    technical_keywords = ["module", "unit", "quantum", "laser", "physics", "semiconductor", "fiber", "mechanics", "theories", "diagram"]
-                                    
                                     low_text = text.lower()
-                                    # Agar technical words hain aur kachra kam hai, tabhi uthao
-                                    if any(tk in low_text for tk in technical_keywords) and not any(gk in low_text for gk in garbage_keywords):
-                                        relevant_text.append(text)
+                                    low_subj = p_subject.lower()
+                                    
+                                    # ✅ STRICT SYNC: Find exact subject header to avoid Semester 1 overlap
+                                    if low_subj in low_text:
+                                        subject_found = True
+                                    
+                                    if subject_found:
+                                        garbage = ["nep 2020", "grading system", "scheme", "admission"]
+                                        technical_keys = ["module", "unit", "chapter", "content"]
+                                        
+                                        if any(tk in low_text for tk in technical_keys):
+                                            if not any(g in low_text for g in garbage):
+                                                relevant_text.append(text)
+                                    
+                                    # Limit context for Token Safety
+                                    if len(relevant_text) > 4: break
                             
-                            # Max 6500 chars limit to stay under token budget
-                            final_context = "\n".join(relevant_text)[:6500] 
+                            final_context = "\n".join(relevant_text)[:7000] 
                     
                     if not final_context:
                         final_context = p_topics_manual[:4000]
                     
                     if len(final_context.strip()) < 15:
-                        raise Exception("Technical content nahi mila. Please modules manually paste karein.")
+                        raise Exception(f"Syllabus mein '{p_subject}' ka technical content nahi mila.")
 
-                    # ✅ STERN MASTER PROMPT (ENGINEERING HARDLINER)
+                    # ✅ STERN MASTER PROMPT (NO SEMESTER OVERLAP ALLOWED)
                     prompt = f"""
-                    Act as a strict Senior Engineering Examiner for {p_uni}. 
-                    Subject: {p_subject}.
-                    Syllabus Context: {final_context}
+                    Act as an Expert Engineering Examiner for {p_uni}. 
+                    TARGET SUBJECT: {p_subject}.
+                    CONTEXT: {final_context}
                     
-                    TASK:
-                    1. IGNORE any mention of NEP 2020, grading, or credit systems.
-                    2. PREDICT 5 Core Technical Questions based ONLY on the technical modules provided.
-                    3. Ensure questions reflect standard university weightage (5M/10M).
+                    CRITICAL TASK:
+                    1. ONLY predict questions that strictly belong to '{p_subject}'.
+                    2. If the context contains data for other semesters (e.g. Maths 1 while target is Maths 2), IGNORE THEM.
+                    3. For Engineering Maths 2, focus on: Beta-Gamma, DUIS, Double/Triple Integration, and ODE.
                     
                     Return ONLY a JSON list of objects: 
                     'question', 'marks', 'difficulty', 'probability'.
@@ -624,7 +634,9 @@ with tab3:
                     st.balloons(); st.rerun()
 
                 except Exception as e:
-                    st.session_state.user_data['credits'] += predict_cost # Refund
+                    # ✅ REFUND LOGIC: If AI fails, credits are returned to Supabase
+                    st.session_state.user_data['credits'] += predict_cost
+                    supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"Sniper Alert: {str(e)}")
         else:
             st.error("Bhai credits khatam! Refill pack check karo.")
@@ -639,7 +651,7 @@ with tab3:
             st.markdown(f"""
             <div style="background: #161b22; padding: 20px; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 15px; border: 1px solid #30363d;">
                 <p style="color: #8b949e; font-size: 11px; margin-bottom: 5px;">ESTIMATED PROBABILITY: {q['probability']}%</p>
-                <h4 style="margin: 0 0 12px 0; color: white; font-family: 'Segoe UI', sans-serif;">{q['question']}</h4>
+                <h4 style="margin: 0 0 12px 0; color: white;">{q['question']}</h4>
                 <div style="display: flex; gap: 15px;">
                     <span style="border: 1px solid #30363d; color: #8b949e; padding: 2px 8px; border-radius: 5px; font-size: 12px;">
                         Weightage: {q['marks']}M
@@ -652,14 +664,10 @@ with tab3:
             """, unsafe_allow_html=True)
         
         # WhatsApp Viral Share Logic
-        share_text = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_final}!\n\n"
-        for q in st.session_state.prediction_list[:3]:
-            share_text += f"📍 {q['question']} ({q['probability']}% Prob)\n"
-        share_text += "\nTry it now: toppergpt.in"
-        
+        share_text = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_final}!\n\nCheck them out: toppergpt.in"
         st.markdown(f'''
             <a href="https://wa.me/?text={requests.utils.quote(share_text)}" target="_blank" style="text-decoration: none;">
-                <button style="background: #25D366; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px;">
+                <button style="background: #25D366; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer;">
                     📲 Share Sureshot Questions on WhatsApp
                 </button>
             </a>
