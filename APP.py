@@ -1124,95 +1124,96 @@ with tab7:
             st.session_state.research_data = None
             st.rerun()
 # ==================================================
-# --- TAB 8: SMART SGPA STRATEGIST (THE DECISION ENGINE) ---
+# --- TAB 8: SMART SGPA STRATEGIST (CLEAN UI V63) ---
 # ==================================================
 with tab8:
-    st.markdown("<h2 style='text-align: center; color: #FFD700;'>📊 Smart SGPA Strategist</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Stop calculating. Start Strategizing your pointer.</i></p>", unsafe_allow_html=True)
-
-    # Mode Selection: The Decision Hook
-    sgpa_mode = st.radio("Choose Your Mission:", ["🎯 Target My SGPA (Reverse Logic)", "📈 Predict My SGPA"], horizontal=True, key="sgpa_mode_v62")
-
-    st.divider()
+    st.markdown("<h2 style='text-align: center; color: #FFD700;'>📊 SGPA Battle Planner</h2>", unsafe_allow_html=True)
     
-    # Input for Number of Subjects
-    num_subs = st.slider("Total Subjects (Theory + Labs):", 1, 10, 6, key="num_subs_v62")
-    
+    # Mode Selection with Icons
+    sgpa_mode = st.segmented_control(
+        "Select Mission:", 
+        options=["🎯 Target Pointer", "📈 Predict My Result"],
+        default="🎯 Target Pointer",
+        key="sgpa_mode_v63"
+    )
+
+    st.markdown("---")
+
+    # --- INPUT SECTION: Keep it Slim ---
+    c_top1, c_top2 = st.columns([1, 1])
+    with c_top1:
+        num_subs = st.number_input("How many subjects?", 1, 10, 5)
+    with c_top2:
+        if sgpa_mode == "🎯 Target Pointer":
+            target_val = st.slider("Target SGPA", 4.0, 10.0, 8.0, 0.1)
+        else:
+            st.markdown("<p style='margin-top:35px; color:#8b949e;'>Enter marks below to predict</p>", unsafe_allow_html=True)
+
+    # Creating a cleaner grid for subjects
+    st.markdown("#### 📝 Subject Details")
     subjects_data = []
-    total_credits = 0
-
-    # UI for Subject Inputs (Grid Layout)
-    cols = st.columns(3)
+    
+    # We use a more compact layout than before
     for i in range(num_subs):
-        with cols[i % 3]:
-            st.markdown(f"**Subject {i+1}**")
-            cred = st.number_input(f"Credits", min_value=1, max_value=6, value=3, key=f"v62_cred_{i}")
-            subjects_data.append({"id": i, "credits": cred})
-            total_credits += cred
+        with st.expander(f"Subject {i+1}", expanded=True):
+            col_a, col_b = st.columns(2)
+            with col_a:
+                # Most MU subjects are 3 or 4 credits
+                cred = st.selectbox(f"Credits", [1, 2, 3, 4, 5], index=2, key=f"v63_c_{i}")
+            with col_b:
+                if sgpa_mode == "📈 Predict My Result":
+                    grade = st.selectbox(f"Expected Grade", ["O", "A", "B", "C", "D", "P", "F"], key=f"v63_g_{i}")
+                    grade_map = {"O": 10, "A": 9, "B": 8, "C": 7, "D": 6, "P": 4, "F": 0}
+                    gp = grade_map[grade]
+                else:
+                    st.write("Targeting...")
+                    gp = 0
+            subjects_data.append({"credits": cred, "gp": gp})
 
-    st.divider()
+    st.markdown("---")
 
-    # --- MODE 1: TARGET SGPA (REVERSE LOGIC) ---
-    if sgpa_mode == "🎯 Target My SGPA (Reverse Logic)":
-        target_val = st.slider("What is your Target SGPA?", 4.0, 10.0, 8.0, step=0.1, key="target_slider")
+    # --- LOGIC & OUTPUT ---
+    if st.button("⚡ GENERATE REPORT", use_container_width=True):
+        total_creds = sum(s['credits'] for s in subjects_data)
         
-        if st.button("⚡ Generate Battle Plan", use_container_width=True):
-            required_points = target_val * total_credits
-            avg_gp_needed = required_points / total_credits
-            
-            st.success(f"### 🚩 Battle Plan for {target_val} SGPA")
-            st.info(f"Bhai, total **{required_points:.1f}** grade points chahiye. Har subject mein average **{avg_gp_needed:.1f}** GP target karna hoga.")
-            
-            # Smart Logic for Grade Distribution
-            st.markdown("#### 📝 Minimum Grade Requirements:")
-            for sub in subjects_data:
-                # Simple Logic: mapping GP to MU Grades
-                needed_grade = "O (10)" if avg_gp_needed > 9.5 else "A (9)" if avg_gp_needed > 8.5 else "B (8)" if avg_gp_needed > 7.5 else "C (7)"
-                st.write(f"🔹 **Subject {sub['id']+1}:** Target Grade {needed_grade}")
-            
-            st.warning("⚠️ **Reality Check:** Agar ek subject mein 10 grade points nahi aa rahe, toh dusre mein 'O' grade lane ki koshish karo!")
-
-    # --- MODE 2: PREDICT SGPA (WHAT-IF) ---
-    elif sgpa_mode == "📈 Predict My SGPA":
-        st.write("Enter your expected grades (O=10, A=9, etc.):")
-        expected_gps = []
-        grade_map = {"O": 10, "A": 9, "B": 8, "C": 7, "D": 6, "E": 5, "P": 4, "F": 0}
-        
-        grade_cols = st.columns(3)
-        for i in range(num_subs):
-            with grade_cols[i % 3]:
-                grade_label = st.selectbox(f"Sub {i+1} Grade", list(grade_map.keys()), index=2, key=f"v62_grade_{i}")
-                expected_gps.append(grade_map[grade_label])
-
-        if st.button("🚀 Reality Check", use_container_width=True):
-            current_points = sum(g * s['credits'] for g, s in zip(expected_gps, subjects_data))
-            predicted_sgpa = current_points / total_credits
-            
-            color = "#4CAF50" if predicted_sgpa >= 8.0 else "#eab308" if predicted_sgpa >= 6.5 else "#ef4444"
+        if sgpa_mode == "🎯 Target Pointer":
+            req_points = target_val * total_creds
+            avg_gp = req_points / total_creds
             
             st.markdown(f"""
-                <div style="background: #161b22; padding: 25px; border-radius: 15px; border: 2px solid {color}; text-align: center;">
-                    <p style="margin:0; color: #8b949e;">YOUR PREDICTED SGPA</p>
-                    <h1 style="color: {color}; font-size: 52px; margin: 10px 0;">{predicted_sgpa:.2f}</h1>
+                <div style="background: #1e2128; padding: 20px; border-radius: 15px; border: 2px solid #FFD700; text-align: center;">
+                    <h2 style="color: #FFD700; margin:0;">BATTLE PLAN: {target_val} SGPA</h2>
+                    <p style="color: #8b949e; margin-bottom: 20px;">Total Credits: {total_creds}</p>
+                    <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
+                        <div style="padding: 10px;">
+                            <h3 style="margin:0; color: white;">{avg_gp:.2f}</h3>
+                            <p style="font-size: 12px; color: #8b949e;">AVG GRADE POINT NEEDED</p>
+                        </div>
+                        <div style="padding: 10px;">
+                            <h3 style="margin:0; color: white;">~{int(avg_gp*10)-5}+</h3>
+                            <p style="font-size: 12px; color: #8b949e;">MARKS PER SUBJECT</p>
+                        </div>
+                    </div>
                 </div>
             """, unsafe_allow_html=True)
-            
-            if predicted_sgpa < 7.5:
-                st.error("🚨 **Alert:** Pointer 7.5 se niche hai! Bhai, 'Predict My Next Question' use karke backup plan ready rakho.")
-            else:
-                st.balloons()
-                st.success("🔥 **Topper Alert:** You are on the right track! Don't let the momentum drop.")
+            st.info("💡 **Strategy:** Focus on 'Credits 4' subjects first. They impact your pointer the most!")
 
-    # --- VIRAL SHARING ---
+        else:
+            total_gp = sum(s['gp'] * s['credits'] for s in subjects_data)
+            final_sgpa = total_gp / total_creds
+            color = "#4CAF50" if final_sgpa >= 7.5 else "#ef4444"
+            
+            st.markdown(f"""
+                <div style="background: #1e2128; padding: 20px; border-radius: 15px; border: 2px solid {color}; text-align: center;">
+                    <p style="color: #8b949e; margin:0;">PREDICTED POINTER</p>
+                    <h1 style="color: {color}; font-size: 60px; margin: 10px 0;">{final_sgpa:.2f}</h1>
+                </div>
+            """, unsafe_allow_html=True)
+
+    # --- VIRAL SHARE ---
     st.divider()
-    encoded_msg = requests.utils.quote(f"TopperGPT predicted my 8.5 SGPA Battle Plan! 🎯\nCheck yours here: toppergpt.in")
-    st.markdown(f'''
-        <a href="https://wa.me/?text={encoded_msg}" target="_blank">
-            <button style="background: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer;">
-                📲 Share Plan with Study Group
-            </button>
-        </a>
-    ''', unsafe_allow_html=True)
+    share_msg = requests.utils.quote(f"TopperGPT helped me plan my pointer! Check it out: toppergpt.in")
+    st.markdown(f'<a href="https://wa.me/?text={share_msg}" target="_blank"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:10px; width:100%; cursor:pointer; font-weight:bold;">📲 Share Plan with Friends</button></a>', unsafe_allow_html=True)
 # --- TAB 9: LEGAL & POLICIES ---
 with tab9:
     st.header("⚖️ Legal, Terms & Privacy Policy")
