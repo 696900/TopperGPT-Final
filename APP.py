@@ -546,99 +546,114 @@ with tab2:
         components.html(html_code, height=900, scrolling=True)
     # --- TAB 3: ANSWER EVALUATOR ---
 # --- TAB 3: CINEMATIC BOARD MODERATOR (ZERO-ERROR TEXT ENGINE) ---
-# --- TAB 3: ENTERPRISE EVALUATOR (GOOGLE CLOUD VISION) ---
+# ==================================================
+# --- TAB 3: ANSWER EVALUATOR (ULTRA STABLE VISION) ---
+# ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🖋️ TopperGPT: Official Moderator</h2>", unsafe_allow_html=True)
     
     eval_cost = 5
+    # Initialization
     if "extracted_text" not in st.session_state: st.session_state.extracted_text = None
     if "eval_result" not in st.session_state: st.session_state.eval_result = None
 
-    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="gcv_final_fix")
+    ans_file = st.file_uploader("Upload Answer Sheet Photo", type=["jpg", "png", "jpeg"], key="vision_fix_v50")
     
     if ans_file:
         img_raw = Image.open(ans_file).convert("RGB")
-        st.image(img_raw, caption="Answer Sheet Detected", width=350)
+        st.image(img_raw, caption="Answer Sheet Detected", width=400)
 
+        # UI BUTTONS
+        col_v1, col_v2 = st.columns(2)
+        
+        if st.session_state.eval_result:
+            if st.button("🔄 New Evaluation"):
+                st.session_state.extracted_text = None
+                st.session_state.eval_result = None
+                st.rerun()
+
+        # --- STEP 1: VISION SCAN ---
         if not st.session_state.extracted_text:
-            if st.button(f"🔍 Scan Handwriting ({eval_cost} Credits)"):
+            if col_v1.button(f"🔍 Scan Handwriting ({eval_cost} Credits)"):
                 if use_credits(eval_cost):
                     placeholder = st.empty()
-                    placeholder.info("🚀 Connecting to Google Enterprise Servers...")
+                    placeholder.info("🚀 AI Professor is reading your handwriting...")
                     
                     try:
-                        # ✅ KEY LOGIC
-                        api_key_vision = st.secrets.get("VISION_ENTERPRISE_KEY") or st.secrets.get("GEMINI_API_KEY")
+                        # ✅ USING GEMINI VISION (No GCV billing needed)
+                        # We use the 'model' initialized in your Silent AI Setup
+                        response = model.generate_content([
+                            "Read the handwriting in this image and convert it into clean text. If it's a technical answer, keep the terms intact.",
+                            img_raw
+                        ])
                         
-                        if not api_key_vision:
-                            raise Exception("API Key missing! Check Streamlit Secrets.")
-
-                        img_byte_arr = io.BytesIO()
-                        img_raw.save(img_byte_arr, format='JPEG', quality=90)
-                        content = img_byte_arr.getvalue()
-
-                        url = f"https://vision.googleapis.com/v1/images:annotate?key={api_key_vision}"
-                        payload = {
-                            "requests": [{
-                                "image": {"content": base64.b64encode(content).decode('utf-8')},
-                                "features": [{"type": "DOCUMENT_TEXT_DETECTION"}]
-                            }]
-                        }
-                        
-                        response = requests.post(url, json=payload, timeout=20)
-                        data = response.json()
-                        
-                        if 'error' in data:
-                            msg = data['error'].get('message', '')
-                            if "billing" in msg.lower():
-                                raise Exception("Billing account not linked. Enable it in Google Console.")
-                            raise Exception(msg)
-
-                        texts = data['responses'][0].get('fullTextAnnotation', {}).get('text', "")
-                        
-                        if texts:
-                            st.session_state.extracted_text = texts
-                            placeholder.success("✅ Enterprise Scan Successful!")
+                        if response.text:
+                            st.session_state.extracted_text = response.text
+                            placeholder.success("✅ Handwriting Decoded Successfully!")
                             st.rerun()
                         else:
-                            raise Exception("Google Vision text nahi padh paa raha. Photo clear khicho!")
+                            raise Exception("AI could not read the text. Ensure the photo is clear.")
 
                     except Exception as e:
-                        st.session_state.user_data['credits'] += eval_cost # Refund
+                        # Refund credits on failure
+                        st.session_state.user_data['credits'] += eval_cost
+                        supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                         st.error(f"❌ Scan Failed: {str(e)}")
                 else:
-                    st.error("Bhai credits khatam!")
+                    st.error("Bhai credits khatam! Refill karo.")
 
-    # --- BRAIN SECTION (MARKING LOGIC) ---
+    # --- STEP 2: BRAIN SECTION (MARKING LOGIC) ---
     if st.session_state.extracted_text and not st.session_state.eval_result:
-        st.markdown("### 📝 Scanned Content")
-        edited_text = st.text_area("Final Review:", value=st.session_state.extracted_text, height=200)
+        st.markdown("### 📝 AI Scanned Draft")
+        edited_text = st.text_area("You can edit/fix the scanned text here:", value=st.session_state.extracted_text, height=200)
         
-        if st.button("📝 Finalize & Grade"):
-            with st.spinner("AI Professor is marking..."):
+        target_marks = st.slider("Target Marks (Total)", 5, 20, 10)
+
+        if st.button("🎯 Grade My Answer"):
+            with st.spinner("AI Professor is checking for technical accuracy..."):
                 try:
-                    marking_prompt = f"""Evaluate this answer (Out of 10). Return JSON with 'marks' and 'feedback'.
-                    Answer: {edited_text}"""
+                    # Pure Technical Marking
+                    marking_prompt = f"""
+                    Evaluate this engineering answer out of {target_marks}. 
+                    Identify technical mistakes, missing keywords, and provide a score.
+                    
+                    Return ONLY a JSON object:
+                    {{
+                        "marks": float,
+                        "total": {target_marks},
+                        "feedback": "...",
+                        "improvement": "..."
+                    }}
+                    
+                    Answer Content: {edited_text}
+                    """
                     
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": marking_prompt}],
                         response_format={"type": "json_object"}
                     )
+                    
                     st.session_state.eval_result = json.loads(res.choices[0].message.content)
                     st.rerun()
-                except Exception:
-                    st.error("Marking Engine busy.")
+                except Exception as e:
+                    st.error(f"Marking Engine busy: {e}")
 
-    # --- SCORECARD ---
+    # --- STEP 3: THE SCORECARD ---
     if st.session_state.eval_result:
         res = st.session_state.eval_result
-        st.success(f"### SCORE: {res.get('marks', 0)}/10")
-        st.info(f"**Feedback:** {res.get('feedback', '')}")
-        if st.button("🔄 New Scan"):
-            st.session_state.extracted_text = None
-            st.session_state.eval_result = None
-            st.rerun()
+        score = res.get('marks', 0)
+        total = res.get('total', 10)
+        
+        # Premium Score UI
+        st.markdown(f"""
+            <div style="background: #161b22; padding: 25px; border-radius: 15px; border: 1px solid #4CAF50; text-align: center;">
+                <h1 style="color: #4CAF50; margin: 0;">SCORE: {score}/{total}</h1>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.info(f"**🧐 Professor's Feedback:**\n{res.get('feedback', '')}")
+        st.warning(f"**🚀 How to get Full Marks?**\n{res.get('improvement', '')}")
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V156 - WATERMARK EDITION) ---
 with tab4:
