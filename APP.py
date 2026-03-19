@@ -27,7 +27,7 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-# --- 1. CONFIGURATION (STRICTLY FIRST) ---
+# --- 1. CONFIGURATION (MUST BE FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
 # --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
@@ -62,29 +62,26 @@ def stable_auth_sync():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # Surgical Strike: JavaScript URL Cleaner to bypass "Refused to connect"
-    st.components.v1.html(
-        """
-        <script>
-        const hash = window.location.hash;
-        if (hash.includes('access_token')) {
-            // Token mil gaya! Isse memory mein save karo aur URL saaf karo
-            const params = new URLSearchParams(hash.replace('#', '?'));
-            const token = params.get('access_token');
-            if (token) {
+    # Surgical Strike: JavaScript URL Cleaner
+    if "cleared" not in st.session_state:
+        st.components.v1.html(
+            """
+            <script>
+            const hash = window.location.hash;
+            if (hash.includes('access_token')) {
                 window.history.replaceState(null, null, window.location.pathname);
                 window.location.reload();
             }
-        }
-        </script>
-        """,
-        height=0,
-    )
+            </script>
+            """,
+            height=0,
+        )
+        st.session_state.cleared = True
 
     if st.session_state.user_data is None:
         try:
-            # Small delay to let Supabase settle
-            time.sleep(0.5)
+            # Token detection delay
+            time.sleep(0.8) 
             user_res = supabase.auth.get_user()
             
             if user_res and user_res.user:
@@ -96,7 +93,6 @@ def stable_auth_sync():
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
                 if not res.data:
-                    # NEW USER SIGNUP
                     u_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
                     new_user = {
                         "email": email, "full_name": name, "credits": 10,
@@ -108,8 +104,8 @@ def stable_auth_sync():
                     st.session_state.user_data = res.data[0]
                 
                 st.query_params.clear()
+                st.rerun()
             else:
-                # 🚩 BOOT OUT: Login Required
                 st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
                 st.markdown(f'''
                     <div style="text-align:center; margin-top:100px;">
@@ -167,7 +163,6 @@ st.markdown("""
 [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
 .wallet-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; text-align: center; margin-bottom: 20px; }
 .pay-card { background: #1c2128; border: 1px solid #30363d; padding: 12px; border-radius: 10px; margin-bottom: 10px; text-decoration: none; display: block; color: white !important; }
-.pay-card:hover { border-color: #4CAF50; background: #22272e; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -175,15 +170,16 @@ st.markdown("""
 with st.sidebar:
     st.markdown("<h2 style='text-align:center; color:#4CAF50;'>TopperGPT</h2>", unsafe_allow_html=True)
     
-    st.markdown(f'''
-        <div class="wallet-card">
-            <p style="margin:0; font-size:12px; color:#eab308; font-weight:bold;">{st.session_state.user_data["full_name"]}</p>
-            <h1 style="margin:5px 0; color:white; font-size:45px; font-weight:900;">{st.session_state.user_data["credits"]} 🔥</h1>
-            <p style="margin:0; font-size:11px;">CREDITS AVAILABLE</p>
-        </div>
-    ''', unsafe_allow_html=True)
+    if st.session_state.user_data:
+        st.markdown(f'''
+            <div class="wallet-card">
+                <p style="margin:0; font-size:12px; color:#eab308; font-weight:bold;">{st.session_state.user_data["full_name"]}</p>
+                <h1 style="margin:5px 0; color:white; font-size:45px; font-weight:900;">{st.session_state.user_data["credits"]} 🔥</h1>
+                <p style="margin:0; font-size:11px;">CREDITS AVAILABLE</p>
+            </div>
+        ''', unsafe_allow_html=True)
 
-    if not st.session_state.user_data.get('ref_claimed', False):
+    if st.session_state.user_data and not st.session_state.user_data.get('ref_claimed', False):
         promo = st.text_input("Promo Code (EARLY25):", key="promo_box")
         if st.button("Claim Rewards 🚀", use_container_width=True): claim_reward_logic(promo)
     
@@ -202,7 +198,7 @@ with st.sidebar:
 
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out()
-        st.session_state.user_data = None
+        st.session_state.clear()
         st.rerun()
 
 # --- 5. MAIN FEATURES TABS ---
