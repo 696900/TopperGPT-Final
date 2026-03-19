@@ -27,7 +27,7 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-# --- 1. CONFIGURATION (MUST BE ABSOLUTELY FIRST) ---
+# --- 1. CONFIGURATION (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
 # --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
@@ -58,20 +58,31 @@ model = initialize_all_ai()
 
 # --- 🔐 THE "WHITE SCREEN KILLER" AUTH SYNC ---
 def sync_user_session():
+    """URL fragments saaf karta hai aur session sync karta hai."""
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
+    # Surgical Strike on White Screen Error
+    st.components.v1.html(
+        """
+        <script>
+        if (window.location.hash.includes('access_token')) {
+            window.history.replaceState(null, null, window.location.pathname);
+            window.location.reload();
+        }
+        </script>
+        """,
+        height=0,
+    )
+
     if st.session_state.user_data is None:
         try:
-            # Step 1: Check session from Supabase
             user_res = supabase.auth.get_user()
-            
             if user_res and user_res.user:
                 u = user_res.user
                 email = u.email
                 name = u.user_metadata.get('full_name', 'Topper')
                 
-                # Step 2: Sync with Profiles Table
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
                 if not res.data:
@@ -86,16 +97,13 @@ def sync_user_session():
                 else:
                     st.session_state.user_data = res.data[0]
                 
-                # Step 3: Clear URL Params to prevent "Refused to connect" on refresh
                 st.query_params.clear()
             else:
-                # 🚩 BOOT OUT: Back to landing page
                 st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
                 st.warning("🔒 Please login via TopperGPT.in")
                 st.link_button("Go to Login Page", "https://toppergpt.in")
                 st.stop()
-        except:
-            st.error("Authentication Bridge Failed. Please try logging in again.")
+        except Exception:
             st.stop()
 
 # --- 🎁 PROMO LOGIC ---
@@ -169,12 +177,11 @@ with st.sidebar:
         if st.button("Claim Rewards 🚀", use_container_width=True): claim_reward_logic(promo)
     
     st.divider()
-
     st.markdown("### 💎 Refill Credits")
     packs = [
-        {"n": "Sureshot", "c": "70", "p": "₹59", "u": "https://rzp.io/rzp/FmwE0Ms6"},
-        {"n": "Jugaad", "c": "150", "p": "₹99", "u": "https://rzp.io/rzp/AWiyLxEi"},
-        {"n": "Pro", "c": "350", "p": "₹149", "u": "https://rzp.io/rzp/hXcR54E"}
+        {"n": "Sureshot Pack", "c": "70", "p": "₹59", "u": "https://rzp.io/rzp/FmwE0Ms6"},
+        {"n": "Jugaad Pack", "c": "150", "p": "₹99", "u": "https://rzp.io/rzp/AWiyLxEi"},
+        {"n": "Topper Pro", "c": "350", "p": "₹149", "u": "https://rzp.io/rzp/hXcR54E"}
     ]
     for pack in packs:
         st.markdown(f'''<a href="{pack['u']}" target="_blank" class="pay-card">
