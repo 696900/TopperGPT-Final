@@ -27,7 +27,7 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-# --- 1. CONFIGURATION (STRICTLY FIRST) ---
+# --- 1. CONFIGURATION (MUST BE FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
 # --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
@@ -56,13 +56,13 @@ def initialize_all_ai():
 
 model = initialize_all_ai()
 
-# --- 🔐 THE ULTIMATE "ANTI-LOOP" AUTH ENGINE ---
+# --- 🔐 THE "WHITE SCREEN KILLER" AUTH SYNC ---
 def stable_auth_sync():
     """URL fragments saaf karta hai aur session sync ke liye wait karta hai."""
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # Step A: JavaScript to Clean URL & Reload (White Screen Killer)
+    # Step A: JavaScript to Clean URL Token & Fix White Screen
     st.components.v1.html(
         """
         <script>
@@ -76,20 +76,20 @@ def stable_auth_sync():
         height=0,
     )
 
-    # Step B: Check Session with a Small Delay (Waiting Room for Sync)
+    # Step B: Check Session and Sync Profile
     if st.session_state.user_data is None:
         try:
-            # Hum 1.5 second ka wait karenge taaki Supabase cookies read kar le
             user_res = supabase.auth.get_user()
             if user_res and user_res.user:
                 u = user_res.user
                 email = u.email
                 name = u.user_metadata.get('full_name', 'Topper')
                 
-                # Sync with Database
+                # Check DB Profile
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
                 if not res.data:
+                    # NEW USER SIGNUP
                     u_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
                     new_user = {
                         "email": email, "full_name": name, "credits": 10,
@@ -102,10 +102,19 @@ def stable_auth_sync():
                 
                 st.query_params.clear()
             else:
-                # 🚩 BOOT OUT: Agar login nahi mila toh toppergpt.in bhej do
+                # 🚩 BOOT OUT: Login Required
                 st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
-                st.warning("🔒 Login Required via TopperGPT.in")
-                st.markdown(f'<meta http-equiv="refresh" content="0;URL=\'https://toppergpt.in\'" />', unsafe_allow_html=True)
+                st.markdown(f'''
+                    <div style="text-align:center; margin-top:100px;">
+                        <h2 style="color:white;">🔒 Access Restricted</h2>
+                        <p style="color:gray;">Bhai, pehle toppergpt.in se login kar lo!</p>
+                        <a href="https://toppergpt.in" target="_self">
+                            <button style="background:#4CAF50; color:white; border:none; padding:12px 24px; border-radius:8px; cursor:pointer; font-weight:bold;">
+                                🚀 Go to Login Page
+                            </button>
+                        </a>
+                    </div>
+                ''', unsafe_allow_html=True)
                 st.stop()
         except Exception:
             st.stop()
@@ -127,7 +136,7 @@ def claim_reward_logic(claim_code):
             st.balloons(); st.rerun()
         else:
             st.error("Invalid Code!")
-    except: st.error("Database sync failed.")
+    except: st.error("Database error.")
 
 # --- 💎 REVENUE LOGIC ---
 def use_credits(amount):
@@ -162,7 +171,7 @@ with st.sidebar:
     st.markdown(f'''
         <div class="wallet-card">
             <p style="margin:0; font-size:12px; color:#eab308; font-weight:bold;">{st.session_state.user_data["full_name"]}</p>
-            <h1 style="margin:5px 0; color:white; font-size:45px;">{st.session_state.user_data["credits"]} 🔥</h1>
+            <h1 style="margin:5px 0; color:white; font-size:45px; font-weight:900;">{st.session_state.user_data["credits"]} 🔥</h1>
             <p style="margin:0; font-size:11px;">CREDITS AVAILABLE</p>
         </div>
     ''', unsafe_allow_html=True)
