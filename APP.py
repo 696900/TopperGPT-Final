@@ -27,7 +27,7 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-
+import urllib.parse
 # --- 🛠️ SILENT AI SETUP ---
 @st.cache_resource
 def initialize_all_ai():
@@ -73,102 +73,72 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 🔐 SUPABASE AUTH & CREDIT SYNC (STABLE & SECURE) ---
-def sync_user_to_supabase(email, name):
-    """Syncs user and enforces the 15 credit limit for new signups."""
-    try:
-        res = supabase.table("profiles").select("*").eq("email", email).execute()
-        
-        if len(res.data) == 0:
-            # NAYE USER KE LIYE: Strictly 15 Credits & Unique Referral Code
-            user_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
-            new_user = {
-                "email": email,
-                "name": name,
-                "credits": 15,
-                "referral_code": f"TOP{user_hash}",
-                "ref_claimed": False,
-                "war_room_data": {},
-                "formula_sheets": {}
-            }
-            insert_res = supabase.table("profiles").insert(new_user).execute()
-            return insert_res.data[0]
-        else:
-            return res.data[0]
-    except Exception as e:
-        return {"email": email, "name": name, "credits": 15, "referral_code": "TOPERROR", "ref_claimed": False}
+# --- 🔐 DYNAMIC AUTH HANDSHAKE (GOOGLE LOGIN SYNC) ---
+def sync_user_session():
+    """URL parameters se user data nikalna aur session state update karna."""
+    # Note: Streamlit doesn't natively handle OAuth hash fragments easily.
+    # We use query_params as a fallback if you pass info back via redirect.
+    params = st.query_params
+    
+    if "user_data" not in st.session_state:
+        st.session_state.user_data = None
 
-# --- 🔐 TEST LOGIN LOGIC ---
+    # Agar URL mein koi indicator hai ya naya login hua hai
+    if st.session_state.user_data is None:
+        try:
+            # Supabase session check (Only works if the cookie/session is shared)
+            user_res = supabase.auth.get_user()
+            if user_res.user:
+                u = user_res.user
+                email = u.email
+                name = u.user_metadata.get('full_name', 'Topper')
+                
+                # Check if profile exists
+                res = supabase.table("profiles").select("*").eq("email", email).execute()
+                
+                if len(res.data) == 0:
+                    user_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
+                    new_user = {
+                        "email": email,
+                        "name": name,
+                        "credits": 15,
+                        "referral_code": f"TOP{user_hash}",
+                        "ref_claimed": False
+                    }
+                    insert_res = supabase.table("profiles").insert(new_user).execute()
+                    st.session_state.user_data = insert_res.data[0]
+                else:
+                    st.session_state.user_data = res.data[0]
+        except:
+            pass
+
+# --- 🔐 TEST LOGIN LOGIC (FOR DEV BYPASS) ---
 def handle_test_login():
-    st.session_state.user_data = sync_user_to_supabase(
-        "krishnaghanabahadur85@gmail.com", 
-        "Krishna (Dev)"
-    )
-    return True
-
-# --- 🎁 REWARD LOGIC (SILENT & ERROR-PROOF) ---
-def claim_reward_logic(claim_code):
-    user = st.session_state.user_data
-    code = claim_code.strip().upper()
-
-    # 1. Self-Referral Check
-    if code == user.get('referral_code'):
-        st.error("Bhai, apna hi code? Kisi dost ka try karo!")
-        return
-
-    # 2. Status Check
-    if user.get('ref_claimed', False):
-        st.warning("Bonus already claimed!")
-        return
-
-    try:
-        new_credits = user['credits']
-        is_valid = False
-
-        # Secret EARLY25 logic
-        if code == "EARLY25":
-            new_credits += 25
-            is_valid = True
-            st.balloons()
-            st.success("🔥 Early Access Rewards Added! +25 Credits.")
-        
-        # Standard Referral
-        elif code.startswith("TOP") and len(code) > 5:
-            new_credits += 5
-            is_valid = True
-            st.success("✅ Referral Bonus Added! +5 Credits.")
-
-        if is_valid:
-            # Update Credits and set ref_claimed to True
-            supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
-            st.session_state.user_data['credits'] = new_credits
-            st.session_state.user_data['ref_claimed'] = True
-            st.rerun()
-        else:
-            st.error("Invalid Code format or expired.")
-
-    except Exception as e:
-        st.error("Claiming failed. Check your connection.")
+    email = "krishnaghanabahadur85@gmail.com"
+    name = "Krishna (Dev)"
+    res = supabase.table("profiles").select("*").eq("email", email).execute()
+    if len(res.data) == 0:
+        user_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
+        new_user = {"email": email, "name": name, "credits": 15, "referral_code": f"TOP{user_hash}"}
+        insert_res = supabase.table("profiles").insert(new_user).execute()
+        st.session_state.user_data = insert_res.data[0]
+    else:
+        st.session_state.user_data = res.data[0]
 
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER ---
 def use_credits(amount):
-    if "user_data" in st.session_state and st.session_state.user_data is not None:
+    if st.session_state.user_data:
         email = st.session_state.user_data['email']
-        current_credits = st.session_state.user_data.get('credits', 0)
-        
-        if current_credits >= amount:
-            new_total = current_credits - amount
-            try:
-                supabase.table("profiles").update({"credits": new_total}).eq("email", email).execute()
-                st.session_state.user_data['credits'] = new_total
-                return True
-            except:
-                st.error("Database sync failed.")
-                return False
+        current = st.session_state.user_data.get('credits', 0)
+        if current >= amount:
+            new_total = current - amount
+            supabase.table("profiles").update({"credits": new_total}).eq("email", email).execute()
+            st.session_state.user_data['credits'] = new_total
+            return True
     return False
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(page_title="TopperGPT", layout="wide", page_icon="🚀", initial_sidebar_state="expanded")
+st.set_page_config(page_title="TopperGPT", layout="wide", page_icon="🚀")
 
 # 🖋️ PROFESSIONAL UI STYLES
 EVAL_CSS = """
@@ -181,127 +151,45 @@ EVAL_CSS = """
     padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; 
     text-align: center; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
-.pay-card {
-    background: #1c2128; border: 1px solid #30363d;
-    padding: 12px; border-radius: 10px; margin-bottom: 10px;
-    transition: 0.3s; cursor: pointer;
-}
-.pay-card:hover { border-color: #4CAF50; background: #22272e; }
-.price-tag {
-    background: #4CAF50; color: white; padding: 2px 8px; 
-    border-radius: 5px; font-size: 13px; font-weight: bold;
-}
 </style>
 """
 st.markdown(EVAL_CSS, unsafe_allow_html=True)
 
-if "user_data" not in st.session_state: st.session_state.user_data = None
+# Run Auth Handshake
+sync_user_session()
 
-# --- 3. LOGIN PAGE (DIRECT BYPASS MODE) ---
+# --- 3. LOGIN GATE ---
 if st.session_state.user_data is None:
     st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
     _, col_mid, _ = st.columns([1, 1.4, 1])
-    
     with col_mid:
         st.markdown('''
-            <div style="text-align:center; padding:35px; background:#161b22; border-radius:20px; border:1px solid #4CAF50; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-                <h1 style="color:#4CAF50; font-style:italic; margin:0; font-size: 42px;">TopperGPT</h1>
-                <p style="color:#8b949e; letter-spacing: 2px; font-size: 11px; font-weight: bold;">UNIVERSITY RESEARCH PORTAL</p>
+            <div style="text-align:center; padding:35px; background:#161b22; border-radius:20px; border:1px solid #4CAF50;">
+                <h1 style="color:#4CAF50; margin:0; font-size: 42px;">TopperGPT</h1>
+                <p style="color:#8b949e;">LOG IN REQUIRED</p>
                 <hr style="border-color:#30363d;">
-                <p style="color:#ffffff; font-weight:500;">Bypass enabled for UI & Feature Testing.</p>
             </div>
         ''', unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        if st.button("🚀 Enter TopperGPT Lab", use_container_width=True):
+        if st.button("🔑 Sign in with Google (via TopperGPT.in)", use_container_width=True):
+            st.markdown(f'<meta http-equiv="refresh" content="0;URL=\'https://toppergpt.in\'" />', unsafe_allow_html=True)
+        if st.button("🚀 Dev Bypass (Test Lab)", use_container_width=True):
             handle_test_login()
             st.rerun()
     st.stop()
 
-# --- 4. SIDEBAR LAYOUT ---
+# --- 4. SIDEBAR & DYNAMIC HEADER ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #4CAF50; margin-bottom:10px; font-style:italic; text-align: center;'>TopperGPT</h2>", unsafe_allow_html=True)
-    
-    # 💰 WALLET
     st.markdown(f'''
         <div class="wallet-card">
-            <p style="margin:0; font-size:11px; color:#eab308; font-weight:bold; letter-spacing:1px;">AVAILABLE CREDITS</p>
-            <h1 style="margin:5px 0; color:white; font-size:42px; font-weight:900;">{st.session_state.user_data["credits"]} 🔥</h1>
+            <p style="margin:0; font-size:11px; color:#eab308; font-weight:bold;">{st.session_state.user_data["name"]}</p>
+            <h1 style="margin:5px 0; color:white; font-size:42px;">{st.session_state.user_data["credits"]} 🔥</h1>
+            <p style="margin:0; font-size:11px; color:white;">CREDITS AVAILABLE</p>
         </div>
     ''', unsafe_allow_html=True)
-
-    # 🎁 REWARDS & PROMOS
-    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-top:20px;'>🎁 REWARDS & PROMOS</p>", unsafe_allow_html=True)
-    with st.container():
-        # User's Own Code Display
-        st.markdown(f'''
-            <div style="background: rgba(76, 175, 80, 0.08); border: 2px dashed #4CAF50; padding: 15px; border-radius: 15px; text-align: center; margin-bottom: 10px;">
-                <p style="color: #c9d1d9; font-size: 11px; margin-bottom: 5px;">Your Invite Code (Share with friends)</p>
-                <div style="background: #0d1117; padding: 10px; border-radius: 8px; border: 1px solid #30363d;">
-                    <code style="color: #4CAF50; font-size: 18px; font-weight: bold;">{st.session_state.user_data.get('referral_code', 'TOPXXXX')}</code>
-                </div>
-            </div>
-        ''', unsafe_allow_html=True)
-        
-        # Claim Input (Hint removed as requested)
-        if not st.session_state.user_data.get('ref_claimed', False):
-            c_input = st.text_input("Enter Invite Code:", placeholder="TOPXXXX", key="reward_claim_v1")
-            if st.button("Claim Reward 🚀", use_container_width=True):
-                claim_reward_logic(c_input)
-        else:
-            st.info("✅ Signup reward claimed.")
-
-    st.markdown("---")
     
-    # 💎 RAZORPAY REFILL PACKS
-    st.markdown("<p style='font-weight:bold; color:#4CAF50; font-size:14px; margin-bottom:15px;'>💎 REFILL YOUR CREDITS</p>", unsafe_allow_html=True)
-    
-    refill_packs = [
-        {"name": "Weekly Sureshot", "credits": "70 Credits", "price": "₹59", "url": "https://rzp.io/rzp/FmwE0Ms6"},
-        {"name": "Jugaad Pack", "credits": "150 Credits", "price": "₹99", "url": "https://rzp.io/rzp/AWiyLxEi"},
-        {"name": "Monthly Pro", "credits": "350 Credits", "price": "₹149", "url": "https://rzp.io/rzp/hXcR54E"}
-    ]
-
-    for pack in refill_packs:
-        st.markdown(f'''
-            <a href="{pack['url']}" target="_blank" style="text-decoration: none;">
-                <div class="pay-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color:white; font-weight:bold; font-size:14px;">{pack['name']}</span>
-                        <span class="price-tag">{pack['price']}</span>
-                    </div>
-                    <p style="margin:5px 0 0 0; font-size:11px; color:#4CAF50; font-weight:bold;">
-                        ✅ Get {pack['credits']} Instantly
-                    </p>
-                </div>
-            </a>
-        ''', unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔓 Exit Lab Mode", use_container_width=True):
-        st.session_state.user_data = None; st.rerun()
-
-# --- 💎 THE SLIM WELCOME BANNER ---
-if st.session_state.get("user_data"):
-    with st.container():
-        st.markdown(f"""
-        <div style="
-            background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-            padding: 10px 20px; border-radius: 10px; border: 1px solid #4CAF50;
-            text-align: center; margin-bottom: 15px; box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
-            display: flex; justify-content: space-between; align-items: center;
-        ">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 20px;">🎓</span>
-                <span style="color: white; font-weight: bold; font-size: 15px;">Welcome, <span style="color: #4CAF50;">{st.session_state.user_data.get('name', 'Topper')}!</span></span>
-            </div>
-            <div style="background: rgba(76, 175, 80, 0.1); padding: 5px 15px; border-radius: 20px; border: 1px solid #4CAF50;">
-                <span style="color: white; font-weight: 800; font-size: 16px;">
-                    {st.session_state.user_data['credits']} Credits
-                </span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    if st.button("🔓 Logout", use_container_width=True):
+        st.session_state.user_data = None
+        st.rerun()
 
 # --- 5. MAIN TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
