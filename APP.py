@@ -27,7 +27,7 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-# --- 1. CONFIGURATION (MUST BE FIRST) ---
+# --- 1. CONFIGURATION (MUST BE ABSOLUTELY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
 # --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
@@ -181,6 +181,7 @@ with st.sidebar:
         if st.button("Claim Rewards 🚀", use_container_width=True): claim_reward_logic(promo)
     
     st.divider()
+
     st.markdown("### 💎 Refill Credits")
     packs = [
         {"n": "Sureshot Pack", "c": "70", "p": "₹59", "u": "https://rzp.io/rzp/FmwE0Ms6"},
