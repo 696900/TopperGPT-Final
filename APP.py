@@ -27,7 +27,7 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-# --- 1. CONFIGURATION (MUST BE FIRST) ---
+# --- 1. CONFIGURATION (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
 # --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
@@ -62,7 +62,7 @@ def stable_auth_sync():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # Step A: JavaScript to Clean URL Token & Fix White Screen
+    # Step A: JavaScript to Clean URL Token & Fix White Screen Error
     st.components.v1.html(
         """
         <script>
@@ -79,6 +79,7 @@ def stable_auth_sync():
     # Step B: Check Session and Sync Profile
     if st.session_state.user_data is None:
         try:
+            # Check for Supabase session
             user_res = supabase.auth.get_user()
             if user_res and user_res.user:
                 u = user_res.user
@@ -89,7 +90,7 @@ def stable_auth_sync():
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
                 if not res.data:
-                    # NEW USER SIGNUP
+                    # NEW USER SIGNUP: 10 Credits gift
                     u_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
                     new_user = {
                         "email": email, "full_name": name, "credits": 10,
@@ -136,7 +137,7 @@ def claim_reward_logic(claim_code):
             st.balloons(); st.rerun()
         else:
             st.error("Invalid Code!")
-    except: st.error("Database error.")
+    except: st.error("Database sync failed.")
 
 # --- 💎 REVENUE LOGIC ---
 def use_credits(amount):
