@@ -27,7 +27,7 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-# --- 1. CONFIGURATION (STRICTLY FIRST) ---
+# --- 1. CONFIGURATION (MUST BE FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
 # --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
@@ -62,7 +62,7 @@ def sync_user_session():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # Surgical Strike on White Screen Error
+    # Surgical Strike on White Screen Error (Cleans URL Token)
     st.components.v1.html(
         """
         <script>
@@ -77,12 +77,15 @@ def sync_user_session():
 
     if st.session_state.user_data is None:
         try:
+            # Check for Supabase session
             user_res = supabase.auth.get_user()
+            
             if user_res and user_res.user:
                 u = user_res.user
                 email = u.email
                 name = u.user_metadata.get('full_name', 'Topper')
                 
+                # Check DB Profile
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
                 if not res.data:
@@ -99,6 +102,7 @@ def sync_user_session():
                 
                 st.query_params.clear()
             else:
+                # 🚩 BOOT OUT: Back to landing page
                 st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
                 st.warning("🔒 Please login via TopperGPT.in")
                 st.link_button("Go to Login Page", "https://toppergpt.in")
@@ -172,7 +176,7 @@ with st.sidebar:
         </div>
     ''', unsafe_allow_html=True)
 
-    if not st.session_state.user_data.get('ref_claimed'):
+    if not st.session_state.user_data.get('ref_claimed', False):
         promo = st.text_input("Promo Code (EARLY25):", key="promo_box")
         if st.button("Claim Rewards 🚀", use_container_width=True): claim_reward_logic(promo)
     
