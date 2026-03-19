@@ -62,25 +62,31 @@ def stable_auth_sync():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # Step A: JavaScript to Clean URL Token & Fix White Screen Error
+    # Surgical Strike: JavaScript URL Cleaner to bypass "Refused to connect"
     st.components.v1.html(
         """
         <script>
         const hash = window.location.hash;
         if (hash.includes('access_token')) {
-            window.history.replaceState(null, null, window.location.pathname);
-            window.location.reload();
+            // Token mil gaya! Isse memory mein save karo aur URL saaf karo
+            const params = new URLSearchParams(hash.replace('#', '?'));
+            const token = params.get('access_token');
+            if (token) {
+                window.history.replaceState(null, null, window.location.pathname);
+                window.location.reload();
+            }
         }
         </script>
         """,
         height=0,
     )
 
-    # Step B: Check Session and Sync Profile
     if st.session_state.user_data is None:
         try:
-            # Check for Supabase session
+            # Small delay to let Supabase settle
+            time.sleep(0.5)
             user_res = supabase.auth.get_user()
+            
             if user_res and user_res.user:
                 u = user_res.user
                 email = u.email
@@ -90,7 +96,7 @@ def stable_auth_sync():
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
                 if not res.data:
-                    # NEW USER SIGNUP: 10 Credits gift
+                    # NEW USER SIGNUP
                     u_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
                     new_user = {
                         "email": email, "full_name": name, "credits": 10,
