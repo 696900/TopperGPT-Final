@@ -27,46 +27,42 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-# --- 1. CONFIGURATION (MUST BE ABSOLUTELY FIRST) ---
+# --- 1. CONFIG (STRICTLY FIRST - DO NOT MOVE) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
-# --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
+# --- 🛰️ SUPABASE INITIALIZATION ---
 @st.cache_resource
 def init_supabase():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 supabase = init_supabase()
 
-# --- 🛠️ SILENT AI SETUP ---
+# --- 🛠️ AI SETUP ---
 @st.cache_resource
 def initialize_all_ai():
     api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
-    
     if api_key_gemini:
         genai.configure(api_key=api_key_gemini)
         Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_gemini)
-
     if api_key_groq:
         Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
-    
     return genai.GenerativeModel('gemini-1.5-flash') if api_key_gemini else None
 
 model = initialize_all_ai()
 
-# --- 🔐 THE "WHITE SCREEN KILLER" AUTH SYNC ---
-def sync_user_session():
-    """URL fragments saaf karta hai aur session sync karta hai."""
+# --- 🔐 THE ULTIMATE BYPASS (NO BUTTONS, NO WAITLIST) ---
+def force_sync_login():
+    """URL fragments saaf karta hai aur seedha dashboard kholta hai."""
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # Surgical Strike on White Screen Error (Cleans URL Token)
+    # Step A: URL se token hatane ka script (Fixes White Screen/Refused to Connect)
     st.components.v1.html(
         """
         <script>
-        if (window.location.hash.includes('access_token')) {
+        const url = window.location.href;
+        if (url.includes('access_token')) {
             window.history.replaceState(null, null, window.location.pathname);
             window.location.reload();
         }
@@ -75,92 +71,58 @@ def sync_user_session():
         height=0,
     )
 
+    # Step B: Direct Session Check
     if st.session_state.user_data is None:
         try:
-            # Check for Supabase session
             user_res = supabase.auth.get_user()
-            
             if user_res and user_res.user:
                 u = user_res.user
                 email = u.email
                 name = u.user_metadata.get('full_name', 'Topper')
                 
-                # Check DB Profile
+                # Database profiles check
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
                 if not res.data:
-                    # NEW USER: Starter 10 Credits
-                    user_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
-                    new_user = {
-                        "email": email, "full_name": name, "credits": 10,
-                        "referral_code": f"TOP{user_hash}", "ref_claimed": False
-                    }
+                    # NEW USER SIGNUP
+                    u_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
+                    new_user = {"email": email, "full_name": name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
                     insert_res = supabase.table("profiles").insert(new_user).execute()
                     st.session_state.user_data = insert_res.data[0]
                 else:
                     st.session_state.user_data = res.data[0]
-                
-                st.query_params.clear()
             else:
-                # 🚩 BOOT OUT: Back to landing page
-                st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
-                st.warning("🔒 Please login via TopperGPT.in")
-                st.link_button("Go to Login Page", "https://toppergpt.in")
+                # Agar login nahi hai, toh seedha landing page pe phenk do (No intermediate Streamlit login)
+                st.markdown(f'<meta http-equiv="refresh" content="0;URL=\'https://toppergpt.in\'" />', unsafe_allow_html=True)
                 st.stop()
-        except Exception:
+        except:
             st.stop()
 
 # --- 🎁 PROMO LOGIC ---
-def claim_reward_logic(claim_code):
+def claim_reward(code):
     user = st.session_state.user_data
-    code = claim_code.strip().upper()
-    if user.get('ref_claimed', False):
-        st.warning("Limit: Ek baar hi claim kar sakte ho!")
-        return
-    try:
-        new_credits = user['credits']
-        is_valid = False
-        if code == "EARLY25":
-            new_credits += 25
-            is_valid = True
-            st.success("🔥 EARLY ACCESS: +25 Credits Added!")
-        elif code.startswith("TOP") and code != user.get('referral_code'):
-            new_credits += 5
-            is_valid = True
-            st.success("✅ Referral: +5 Credits Added!")
+    code = code.strip().upper()
+    if not user.get('ref_claimed', False):
+        new_val = user['credits']
+        if code == "EARLY25": new_val += 25
+        elif code.startswith("TOP") and code != user['referral_code']: new_val += 5
         
-        if is_valid:
-            supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
-            st.session_state.user_data['credits'] = new_credits
+        if new_val > user['credits']:
+            supabase.table("profiles").update({"credits": new_val, "ref_claimed": True}).eq("email", user['email']).execute()
+            st.session_state.user_data['credits'] = new_val
             st.session_state.user_data['ref_claimed'] = True
             st.balloons(); st.rerun()
-        else:
-            st.error("Invalid Code!")
-    except: st.error("Database sync failed.")
 
-# --- 💎 REVENUE LOGIC ---
-def use_credits(amount):
-    if st.session_state.user_data:
-        email = st.session_state.user_data['email']
-        current = st.session_state.user_data.get('credits', 0)
-        if current >= amount:
-            new_total = current - amount
-            supabase.table("profiles").update({"credits": new_total}).eq("email", email).execute()
-            st.session_state.user_data['credits'] = new_total
-            return True
-    return False
+# --- 🚀 RUN AUTH ENGINE ---
+force_sync_login()
 
-# 🛡️ RUN AUTH (MANDATORY)
-sync_user_session()
-
-# --- 🎨 UI STYLES ---
+# --- 🎨 DASHBOARD UI ---
 st.markdown("""
 <style>
-.stApp { background-color: #0d1117; color: white; }
+.stApp { background-color: #0d1117; }
 [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
 .wallet-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; text-align: center; margin-bottom: 20px; }
 .pay-card { background: #1c2128; border: 1px solid #30363d; padding: 12px; border-radius: 10px; margin-bottom: 10px; text-decoration: none; display: block; color: white !important; }
-.pay-card:hover { border-color: #4CAF50; background: #22272e; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -168,6 +130,7 @@ st.markdown("""
 with st.sidebar:
     st.markdown("<h2 style='text-align:center; color:#4CAF50;'>TopperGPT</h2>", unsafe_allow_html=True)
     
+    # User Details
     st.markdown(f'''
         <div class="wallet-card">
             <p style="margin:0; font-size:12px; color:#eab308; font-weight:bold;">{st.session_state.user_data["full_name"]}</p>
@@ -176,29 +139,25 @@ with st.sidebar:
         </div>
     ''', unsafe_allow_html=True)
 
-    if not st.session_state.user_data.get('ref_claimed', False):
-        promo = st.text_input("Promo Code (EARLY25):", key="promo_box")
-        if st.button("Claim Rewards 🚀", use_container_width=True): claim_reward_logic(promo)
+    # REWARDS & PROMO
+    if not st.session_state.user_data.get('ref_claimed'):
+        promo = st.text_input("Promo Code (EARLY25):", key="promo")
+        if st.button("Claim 🎁", use_container_width=True): claim_reward(promo)
     
     st.divider()
 
+    # RAZORPAY PACKS
     st.markdown("### 💎 Refill Credits")
     packs = [
         {"n": "Sureshot Pack", "c": "70", "p": "₹59", "u": "https://rzp.io/rzp/FmwE0Ms6"},
         {"n": "Jugaad Pack", "c": "150", "p": "₹99", "u": "https://rzp.io/rzp/AWiyLxEi"},
         {"n": "Topper Pro", "c": "350", "p": "₹149", "u": "https://rzp.io/rzp/hXcR54E"}
     ]
-    for pack in packs:
-        st.markdown(f'''<a href="{pack['u']}" target="_blank" class="pay-card">
-            <div style="display:flex; justify-content:space-between;"><b>{pack['n']}</b> <span>{pack['p']}</span></div>
-            <p style="margin:5px 0 0 0; font-size:11px; color:#4CAF50;">+ {pack['c']} Credits</p>
-        </a>''', unsafe_allow_html=True)
+    for p in packs:
+        st.markdown(f'<a href="{p["u"]}" target="_blank" class="pay-card"><b>{p["n"]}</b> ({p["p"]})<br><small style="color:#4CAF50;">+ {p["c"]} Credits</small></a>', unsafe_allow_html=True)
 
-    if st.button("🔓 Logout", use_container_width=True):
-        supabase.auth.sign_out()
-        st.session_state.user_data = None
-        st.rerun()
-
+    if st.button("Logout"):
+        supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 # --- 5. MAIN FEATURES TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 FORMULA ARCHITECT", "🔮 Predict Questions", "🧠 MindMap", 
