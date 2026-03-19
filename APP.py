@@ -27,7 +27,6 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-import urllib.parse
 # --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
 @st.cache_resource
 def init_supabase():
