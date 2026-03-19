@@ -27,7 +27,7 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-# --- 1. CONFIG (STRICTLY FIRST - DO NOT MOVE) ---
+# --- 1. CONFIG (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
 # --- 🛰️ SUPABASE INITIALIZATION ---
@@ -52,12 +52,12 @@ def initialize_all_ai():
 model = initialize_all_ai()
 
 # --- 🔐 THE ULTIMATE BYPASS (NO BUTTONS, NO WAITLIST) ---
-def force_sync_login():
+def sync_user_session():
     """URL fragments saaf karta hai aur seedha dashboard kholta hai."""
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # Step A: URL se token hatane ka script (Fixes White Screen/Refused to Connect)
+    # Surgical Strike on White Screen Error
     st.components.v1.html(
         """
         <script>
@@ -71,29 +71,31 @@ def force_sync_login():
         height=0,
     )
 
-    # Step B: Direct Session Check
     if st.session_state.user_data is None:
         try:
+            # Check for active session
             user_res = supabase.auth.get_user()
             if user_res and user_res.user:
                 u = user_res.user
                 email = u.email
                 name = u.user_metadata.get('full_name', 'Topper')
                 
-                # Database profiles check
+                # Check DB Profile
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
                 if not res.data:
-                    # NEW USER SIGNUP
+                    # NEW USER: Starter 10 Credits
                     u_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
                     new_user = {"email": email, "full_name": name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
                     insert_res = supabase.table("profiles").insert(new_user).execute()
                     st.session_state.user_data = insert_res.data[0]
                 else:
                     st.session_state.user_data = res.data[0]
+                st.query_params.clear()
             else:
-                # Agar login nahi hai, toh seedha landing page pe phenk do (No intermediate Streamlit login)
-                st.markdown(f'<meta http-equiv="refresh" content="0;URL=\'https://toppergpt.in\'" />', unsafe_allow_html=True)
+                # Agar session nahi hai, toh hi warning dikhao
+                st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
+                st.warning("🔒 Login Required. Please login via index.html or toppergpt.in")
                 st.stop()
         except:
             st.stop()
@@ -113,8 +115,8 @@ def claim_reward(code):
             st.session_state.user_data['ref_claimed'] = True
             st.balloons(); st.rerun()
 
-# --- 🚀 RUN AUTH ENGINE ---
-force_sync_login()
+# 🛡️ RUN AUTH ENGINE
+sync_user_session()
 
 # --- 🎨 DASHBOARD UI ---
 st.markdown("""
@@ -130,7 +132,7 @@ st.markdown("""
 with st.sidebar:
     st.markdown("<h2 style='text-align:center; color:#4CAF50;'>TopperGPT</h2>", unsafe_allow_html=True)
     
-    # User Details
+    # Dynamic User Info
     st.markdown(f'''
         <div class="wallet-card">
             <p style="margin:0; font-size:12px; color:#eab308; font-weight:bold;">{st.session_state.user_data["full_name"]}</p>
@@ -139,7 +141,6 @@ with st.sidebar:
         </div>
     ''', unsafe_allow_html=True)
 
-    # REWARDS & PROMO
     if not st.session_state.user_data.get('ref_claimed'):
         promo = st.text_input("Promo Code (EARLY25):", key="promo")
         if st.button("Claim 🎁", use_container_width=True): claim_reward(promo)
@@ -158,7 +159,8 @@ with st.sidebar:
 
     if st.button("Logout"):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
-# --- 5. MAIN FEATURES TABS ---
+
+# --- 5. MAIN TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 FORMULA ARCHITECT", "🔮 Predict Questions", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
