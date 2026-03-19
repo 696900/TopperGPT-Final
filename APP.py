@@ -28,6 +28,15 @@ from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
 import urllib.parse
+# --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
+@st.cache_resource
+def init_supabase():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+supabase = init_supabase()
+
 # --- 🛠️ SILENT AI SETUP ---
 @st.cache_resource
 def initialize_all_ai():
@@ -38,25 +47,11 @@ def initialize_all_ai():
     loaded_groq_client = None
 
     if api_key_gemini:
-        import google.generativeai as genai
         genai.configure(api_key=api_key_gemini)
-        loaded_model = genai.GenerativeModel(
-            model_name='gemini-1.5-flash', 
-            generation_config={"temperature": 0.1}
-        )
-        
-        from llama_index.embeddings.gemini import GeminiEmbedding
-        from llama_index.core import Settings
-        Settings.embed_model = GeminiEmbedding(
-            model_name="models/text-embedding-004", 
-            api_key=api_key_gemini
-        )
+        loaded_model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"temperature": 0.1})
+        Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_gemini)
 
     if api_key_groq:
-        from llama_index.llms.groq import Groq as LlamaGroq
-        from groq import Groq
-        from llama_index.core import Settings
-        
         Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
         loaded_groq_client = Groq(api_key=api_key_groq)
         
@@ -64,44 +59,27 @@ def initialize_all_ai():
 
 model, groq_client = initialize_all_ai()
 
-# --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
-@st.cache_resource
-def init_supabase():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
-
-supabase = init_supabase()
-
-# --- 🔐 DYNAMIC AUTH HANDSHAKE (GOOGLE LOGIN SYNC) ---
+# --- 🔐 THE MASTER LOGIN HANDSHAKE (NO BYPASS - DIRECT LAUNCH) ---
 def sync_user_session():
-    """URL parameters se user data nikalna aur session state update karna."""
-    # Note: Streamlit doesn't natively handle OAuth hash fragments easily.
-    # We use query_params as a fallback if you pass info back via redirect.
-    params = st.query_params
-    
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # Agar URL mein koi indicator hai ya naya login hua hai
     if st.session_state.user_data is None:
         try:
-            # Supabase session check (Only works if the cookie/session is shared)
             user_res = supabase.auth.get_user()
-            if user_res.user:
+            if user_res and user_res.user:
                 u = user_res.user
                 email = u.email
                 name = u.user_metadata.get('full_name', 'Topper')
                 
-                # Check if profile exists
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
-                if len(res.data) == 0:
+                if not res.data:
                     user_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
                     new_user = {
                         "email": email,
-                        "name": name,
-                        "credits": 15,
+                        "full_name": name,
+                        "credits": 10,
                         "referral_code": f"TOP{user_hash}",
                         "ref_claimed": False
                     }
@@ -109,21 +87,40 @@ def sync_user_session():
                     st.session_state.user_data = insert_res.data[0]
                 else:
                     st.session_state.user_data = res.data[0]
-        except:
-            pass
+            else:
+                st.markdown(f'<meta http-equiv="refresh" content="0;URL=\'https://toppergpt.in\'" />', unsafe_allow_html=True)
+                st.stop()
+        except Exception:
+            st.markdown(f'<meta http-equiv="refresh" content="0;URL=\'https://toppergpt.in\'" />', unsafe_allow_html=True)
+            st.stop()
 
-# --- 🔐 TEST LOGIN LOGIC (FOR DEV BYPASS) ---
-def handle_test_login():
-    email = "krishnaghanabahadur85@gmail.com"
-    name = "Krishna (Dev)"
-    res = supabase.table("profiles").select("*").eq("email", email).execute()
-    if len(res.data) == 0:
-        user_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
-        new_user = {"email": email, "name": name, "credits": 15, "referral_code": f"TOP{user_hash}"}
-        insert_res = supabase.table("profiles").insert(new_user).execute()
-        st.session_state.user_data = insert_res.data[0]
-    else:
-        st.session_state.user_data = res.data[0]
+# --- 🎁 PROMO & REWARD LOGIC (EARLY25) ---
+def claim_reward_logic(claim_code):
+    user = st.session_state.user_data
+    code = claim_code.strip().upper()
+    if user.get('ref_claimed', False):
+        st.warning("Limit: Ek baar hi claim kar sakte ho!")
+        return
+    try:
+        new_credits = user['credits']
+        is_promo = False
+        if code == "EARLY25":
+            new_credits += 25
+            is_promo = True
+            st.success("🔥 EARLY ACCESS UNLOCKED: +25 Credits Added!")
+        elif code.startswith("TOP") and code != user.get('referral_code'):
+            new_credits += 5
+            is_promo = True
+            st.success("✅ Referral Bonus: +5 Credits Added!")
+        if is_promo:
+            supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
+            st.session_state.user_data['credits'] = new_credits
+            st.session_state.user_data['ref_claimed'] = True
+            st.balloons(); st.rerun()
+        else:
+            st.error("Bhai, ye code galat hai!")
+    except:
+        st.error("Database Error!")
 
 # --- 💎 REVENUE LOOP: MASTER CREDIT CHECKER ---
 def use_credits(amount):
@@ -137,63 +134,80 @@ def use_credits(amount):
             return True
     return False
 
-# --- 1. CONFIGURATION ---
-st.set_page_config(page_title="TopperGPT", layout="wide", page_icon="🚀")
+# --- 1. UI CONFIGURATION ---
+st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
-# 🖋️ PROFESSIONAL UI STYLES
 EVAL_CSS = """
 <style>
-.block-container { max-width: 92% !important; padding-top: 2rem !important; }
+.block-container { max-width: 95% !important; padding-top: 1rem !important; }
 .stApp { background-color: #0d1117 !important; color: #ffffff !important; }
 [data-testid="stSidebar"] { background-color: #161b22 !important; border-right: 1px solid #30363d; }
 .wallet-card { 
     background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
     padding: 20px; border-radius: 15px; border: 1px solid #4CAF50; 
-    text-align: center; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
+.pay-card {
+    background: #1c2128; border: 1px solid #30363d;
+    padding: 12px; border-radius: 10px; margin-bottom: 10px;
+    transition: 0.3s; cursor: pointer; text-decoration: none;
+}
+.pay-card:hover { border-color: #4CAF50; background: #22272e; }
+.price-tag { background: #4CAF50; color: white; padding: 2px 8px; border-radius: 5px; font-size: 13px; font-weight: bold; }
 </style>
 """
 st.markdown(EVAL_CSS, unsafe_allow_html=True)
 
-# Run Auth Handshake
+# 🛡️ RUN AUTH
 sync_user_session()
 
-# --- 3. LOGIN GATE ---
-if st.session_state.user_data is None:
-    st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
-    _, col_mid, _ = st.columns([1, 1.4, 1])
-    with col_mid:
-        st.markdown('''
-            <div style="text-align:center; padding:35px; background:#161b22; border-radius:20px; border:1px solid #4CAF50;">
-                <h1 style="color:#4CAF50; margin:0; font-size: 42px;">TopperGPT</h1>
-                <p style="color:#8b949e;">LOG IN REQUIRED</p>
-                <hr style="border-color:#30363d;">
-            </div>
-        ''', unsafe_allow_html=True)
-        if st.button("🔑 Sign in with Google (via TopperGPT.in)", use_container_width=True):
-            st.markdown(f'<meta http-equiv="refresh" content="0;URL=\'https://toppergpt.in\'" />', unsafe_allow_html=True)
-        if st.button("🚀 Dev Bypass (Test Lab)", use_container_width=True):
-            handle_test_login()
-            st.rerun()
-    st.stop()
-
-# --- 4. SIDEBAR & DYNAMIC HEADER ---
+# --- 4. SIDEBAR (DASHBOARD & PAYMENT) ---
 with st.sidebar:
+    st.markdown(f"<h2 style='text-align:center; color:#4CAF50; font-style:italic;'>TopperGPT</h2>", unsafe_allow_html=True)
+    
     st.markdown(f'''
         <div class="wallet-card">
-            <p style="margin:0; font-size:11px; color:#eab308; font-weight:bold;">{st.session_state.user_data["name"]}</p>
-            <h1 style="margin:5px 0; color:white; font-size:42px;">{st.session_state.user_data["credits"]} 🔥</h1>
+            <p style="margin:0; font-size:12px; color:#eab308; font-weight:bold;">{st.session_state.user_data["full_name"]}</p>
+            <h1 style="margin:5px 0; color:white; font-size:45px; font-weight:900;">{st.session_state.user_data["credits"]} 🔥</h1>
             <p style="margin:0; font-size:11px; color:white;">CREDITS AVAILABLE</p>
         </div>
     ''', unsafe_allow_html=True)
-    
-    if st.button("🔓 Logout", use_container_width=True):
-        st.session_state.user_data = None
-        st.rerun()
 
-# --- 5. MAIN TABS ---
+    # REWARDS
+    st.markdown("### 🎁 Rewards")
+    st.info(f"Invite Code: **{st.session_state.user_data.get('referral_code')}**")
+    if not st.session_state.user_data.get('ref_claimed', False):
+        promo = st.text_input("Enter Code (EARLY25):", key="promo_val")
+        if st.button("Claim 🚀", use_container_width=True): claim_reward_logic(promo)
+    
+    st.divider()
+    
+    # 💎 PAYMENT SECTION (RAZORPAY)
+    st.markdown("### 💎 Refill Credits")
+    refill_packs = [
+        {"name": "Sureshot Pack", "credits": "70 Credits", "price": "₹59", "url": "https://rzp.io/rzp/FmwE0Ms6"},
+        {"name": "Jugaad Pack", "credits": "150 Credits", "price": "₹99", "url": "https://rzp.io/rzp/AWiyLxEi"},
+        {"name": "Topper Pro", "credits": "350 Credits", "price": "₹149", "url": "https://rzp.io/rzp/hXcR54E"}
+    ]
+    for pack in refill_packs:
+        st.markdown(f'''
+            <a href="{pack['url']}" target="_blank" style="text-decoration: none;">
+                <div class="pay-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color:white; font-weight:bold; font-size:14px;">{pack['name']}</span>
+                        <span class="price-tag">{pack['price']}</span>
+                    </div>
+                    <p style="margin:5px 0 0 0; font-size:11px; color:#4CAF50;">✅ {pack['credits']} Instantly</p>
+                </div>
+            </a>
+        ''', unsafe_allow_html=True)
+
+    if st.button("🔓 Logout", use_container_width=True):
+        supabase.auth.sign_out(); st.session_state.user_data = None; st.rerun()
+
+# --- 5. MAIN TABS (ALL FEATURES PRESERVED) ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-    "💬 Chat PDF", "📊 FORMULA & DERIVATION ARCHITECT", "🔮 Predict My Next Question", "🧠 MindMap", 
+    "💬 Chat PDF", "📊 FORMULA ARCHITECT", "🔮 Predict Questions", "🧠 MindMap", 
     "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
