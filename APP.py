@@ -86,7 +86,7 @@ def stable_auth_sync():
     if st.session_state.user_data is None:
         try:
             # Token detection delay
-            time.sleep(1.2) 
+            time.sleep(1.5) 
             user_res = supabase.auth.get_user()
             
             if user_res and user_res.user:
