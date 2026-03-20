@@ -62,15 +62,20 @@ def stable_auth_sync():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # Surgical Strike: JavaScript URL Cleaner
+    # Surgical Strike: JavaScript URL Cleaner to bypass "Refused to connect"
     if "cleared" not in st.session_state:
         st.components.v1.html(
             """
             <script>
             const hash = window.location.hash;
             if (hash.includes('access_token')) {
-                window.history.replaceState(null, null, window.location.pathname);
-                window.location.reload();
+                // Token mil gaya! Isse memory mein save karo aur URL saaf karo
+                const params = new URLSearchParams(hash.replace('#', '?'));
+                const token = params.get('access_token');
+                if (token) {
+                    window.history.replaceState(null, null, window.location.pathname);
+                    window.location.reload();
+                }
             }
             </script>
             """,
@@ -81,7 +86,7 @@ def stable_auth_sync():
     if st.session_state.user_data is None:
         try:
             # Token detection delay
-            time.sleep(0.8) 
+            time.sleep(1.2) 
             user_res = supabase.auth.get_user()
             
             if user_res and user_res.user:
@@ -93,6 +98,7 @@ def stable_auth_sync():
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
                 if not res.data:
+                    # NEW USER SIGNUP LOGIC
                     u_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
                     new_user = {
                         "email": email, "full_name": name, "credits": 10,
@@ -106,6 +112,7 @@ def stable_auth_sync():
                 st.query_params.clear()
                 st.rerun()
             else:
+                # 🚩 BOOT OUT: Login Required Screen
                 st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
                 st.markdown(f'''
                     <div style="text-align:center; margin-top:100px;">
