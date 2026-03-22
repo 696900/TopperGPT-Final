@@ -28,10 +28,11 @@ from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
 from groq import Groq # Direct import for MindMap Fix
+
 # --- 1. CONFIGURATION (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
-# Initialize global variable for MindMap in session state
+# Initialize global variable for MindMap in session state to fix "groq_client not defined"
 if "groq_client" not in st.session_state:
     st.session_state.groq_client = None
 
@@ -50,25 +51,22 @@ def initialize_all_ai():
     api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
     
-    # Global declaration for MindMap compatibility
-    global groq_client 
-    
     if api_key_gemini:
         genai.configure(api_key=api_key_gemini)
         Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_gemini)
 
     if api_key_groq:
-        # MindMap Fix: Define groq_client properly
+        # Save to session state so MindMap tab can use it globally
         st.session_state.groq_client = Groq(api_key=api_key_groq)
         Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
     
     return genai.GenerativeModel('gemini-1.5-flash') if api_key_gemini else None
 
 model = initialize_all_ai()
-# Link local groq_client to session_state for tab access
+# Important: Define local groq_client for the tabs below
 groq_client = st.session_state.groq_client
 
-# --- 🔐 PROFESSIONAL EMAIL-ONLY AUTH ENGINE ---
+# --- 🔐 SECURE EMAIL AUTH ENGINE (OTP RESET + NO AUTO-LOGIN) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
@@ -86,6 +84,7 @@ def clean_email_auth():
         with center_col:
             auth_tab = st.tabs(["🔑 Login", "📝 New Account", "🔄 Reset Password"])
             
+            # --- 1. LOGIN TAB ---
             with auth_tab[0]:
                 l_email = st.text_input("Email ID", key="l_email").strip()
                 l_pass = st.text_input("Password", type="password", key="l_pass")
@@ -93,16 +92,17 @@ def clean_email_auth():
                     try:
                         res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
                         if res.user:
-                            time.sleep(0.8) # Sync delay
+                            time.sleep(1.2) # Essential delay for DB sync
                             prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
                             if prof.data:
                                 st.session_state.user_data = prof.data[0]
                                 st.rerun()
                     except: st.error("Access Denied: Email ya Password galat hai.")
 
+            # --- 2. SIGNUP TAB ---
             with auth_tab[1]:
                 st.info("🎁 Register karo aur 10 Free Credits pao!")
-                s_name = st.text_input("Full Name", placeholder="Topper Krishna", key="s_name")
+                s_name = st.text_input("Full Name", placeholder="Krishna", key="s_name")
                 s_email = st.text_input("Email ID", key="s_email").strip()
                 s_pass = st.text_input("Set Password (6+ chars)", type="password", key="s_pass")
                 if st.button("CREATE ACCOUNT 🔥", use_container_width=True):
@@ -113,21 +113,23 @@ def clean_email_auth():
                                 u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
                                 new_u = {"email": s_email, "full_name": s_name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
                                 supabase.table("profiles").insert(new_u).execute()
-                                # Clean redirect: tell them to login
-                                st.success("Bhai Account Ready! Ab 'Login' tab se dashboard enter karo.")
+                                st.success("Bhai Account ban gaya! Ab 'Login' tab se login karo.")
                         except Exception as e: st.error(f"Error: {str(e)}")
                     else: st.warning("Bhai, details adhoori hain!")
 
+            # --- 3. PASSWORD RESET TAB (SECURE) ---
             with auth_tab[2]:
+                st.write("Password bhool gaye? Email dalo, reset link/OTP bhej di jayegi.")
                 r_email = st.text_input("Registered Email", key="r_email").strip()
                 if st.button("Send Reset Link", use_container_width=True):
                     try:
                         supabase.auth.reset_password_for_email(r_email)
-                        st.success("Bhai, reset link bhej di hai!")
+                        st.success("Bhai, reset link bhej di hai! Email check karo.")
                     except: st.error("Email not found.")
+                st.info("Note: Reset link par click karne ke baad wapas Login tab par aao.")
         st.stop()
 
-# --- 🎁 PROMO LOGIC (LIMITED TO 100 USERS) ---
+# --- 🎁 PROMO LOGIC (STRICT 100 USERS LIMIT) ---
 def claim_reward_logic(claim_code):
     user = st.session_state.user_data
     code = claim_code.strip().upper()
@@ -136,12 +138,12 @@ def claim_reward_logic(claim_code):
         return
     
     if code == "EARLY25":
-        # Check current count of users who claimed this code in Supabase
+        # Check current count in DB
         check_res = supabase.table("profiles").select("email", count="exact").eq("ref_claimed", True).execute()
         claim_count = check_res.count if check_res.count is not None else 0
         
         if claim_count >= 100:
-            st.error("Bhai, ye code ab expire ho gaya hai (First 100 limit reached)!")
+            st.error("Bhai, ye code ab expire ho gaya hai (100 Users limit reached)!")
             return
 
         try:
@@ -169,7 +171,7 @@ def use_credits(amount):
 # 🛡️ RUN AUTH ENGINE
 clean_email_auth()
 
-# Professional Welcome Header
+# Professional Welcome Header with User Name
 st.markdown(f"### Welcome back, {st.session_state.user_data['full_name']}! 🎓")
 
 # --- 🎨 UI STYLES ---
