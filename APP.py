@@ -27,7 +27,7 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
-# --- 1. CONFIGURATION (MUST BE FIRST) ---
+# --- 1. CONFIGURATION (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
 # --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
@@ -56,97 +56,100 @@ def initialize_all_ai():
 
 model = initialize_all_ai()
 
-# --- 🔐 MULTI-AUTH ENGINE (GOOGLE + PHONE + EMAIL) ---
-def stable_auth_sync():
+# --- 🔐 CLEAN EMAIL-ONLY AUTH ENGINE ---
+def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # PHASE 1: JAVASCRIPT MANUAL TOKEN EXTRACTOR (For Google Redirects)
-    if "cleared" not in st.session_state:
-        st.components.v1.html(
-            """
-            <script>
-            const url = window.location.href;
-            if (url.includes('access_token=')) {
-                const params = new URLSearchParams(url.split('#')[1]);
-                const token = params.get('access_token');
-                if (token) {
-                    window.history.replaceState(null, null, window.location.pathname + '?verified=true');
-                    window.location.reload();
-                }
-            }
-            </script>
-            """, height=0
-        )
-        st.session_state.cleared = True
-
-    # PHASE 2: AUTH UI & LOGIC
     if st.session_state.user_data is None:
-        # Check if already logged in via session
-        try:
-            user_res = supabase.auth.get_user()
-            if user_res and user_res.user:
-                email = user_res.user.email or f"{user_res.user.phone}@topper.com"
-                res = supabase.table("profiles").select("*").eq("email", email).execute()
-                if res.data:
-                    st.session_state.user_data = res.data[0]
-                    st.rerun()
-        except: pass
-
-        # SHOW LOGIN TABS
-        st.markdown("<h2 style='text-align:center;'>🚀 Welcome to TopperGPT</h2>", unsafe_allow_html=True)
-        login_tab, phone_tab, email_tab = st.tabs(["Google Login", "Phone (OTP)", "Email Login"])
-
-        with login_tab:
-            st.info("Bhai, toppergpt.in se login karke aao ya niche button dabao.")
-            if st.button("Direct Google Login", use_container_width=True):
-                res = supabase.auth.sign_in_with_oauth({"provider": "google", "options": {"redirect_to": "https://toppergpt-live.streamlit.app"}})
-                st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center;'>🚀 TopperGPT Dashboard</h2>", unsafe_allow_html=True)
         
-        with phone_tab:
-            phone = st.text_input("Phone Number (+91...)", placeholder="+919999999999")
-            if "otp_sent" not in st.session_state:
-                if st.button("Send OTP", use_container_width=True):
+        # Simple Login/Signup Tabs
+        tab_login, tab_signup = st.tabs(["🔑 Login", "📝 Create Account"])
+        
+        with tab_login:
+            email = st.text_input("Email Address", placeholder="example@mail.com", key="login_email")
+            password = st.text_input("Password", type="password", key="login_pass")
+            
+            if st.button("Login to Dashboard", use_container_width=True):
+                if email and password:
                     try:
-                        supabase.auth.sign_in_with_otp({"phone": phone})
-                        st.session_state.otp_sent = phone
-                        st.success("OTP bhej diya hai bhai!")
-                        st.rerun()
-                    except: st.error("Phone format sahi dalo (+91 mandatory)")
-            else:
-                otp = st.text_input("Enter 6-digit OTP")
-                if st.button("Verify OTP & Enter", use_container_width=True):
-                    try:
-                        res = supabase.auth.verify_otp({"phone": st.session_state.otp_sent, "token": otp, "type": "sms"})
+                        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                         if res.user:
-                            # Sync Profile
-                            email_id = f"{st.session_state.otp_sent}@topper.com"
-                            res_db = supabase.table("profiles").select("*").eq("email", email_id).execute()
-                            if not res_db.data:
-                                u_hash = hashlib.md5(email_id.encode()).hexdigest()[:5].upper()
-                                new_u = {"email": email_id, "full_name": "Topper User", "credits": 10, "referral_code": f"TOP{u_hash}"}
-                                ins = supabase.table("profiles").insert(new_u).execute()
-                                st.session_state.user_data = ins.data[0]
-                            else: st.session_state.user_data = res_db.data[0]
-                            st.rerun()
-                    except: st.error("Galat OTP hai.")
+                            user_profile = supabase.table("profiles").select("*").eq("email", email).execute()
+                            if user_profile.data:
+                                st.session_state.user_data = user_profile.data[0]
+                                st.success("Bhai, login successful! Redirecting...")
+                                time.sleep(1)
+                                st.rerun()
+                    except:
+                        st.error("Bhai, Email ya Password galat hai. Check kar lo.")
+                else:
+                    st.warning("Pehle Email aur Password toh dalo!")
 
-        with email_tab:
-            e = st.text_input("Email ID")
-            p = st.text_input("Password", type="password")
-            if st.button("Login via Email", use_container_width=True):
-                try:
-                    res = supabase.auth.sign_in_with_password({"email": e, "password": p})
-                    if res.user:
-                        res_db = supabase.table("profiles").select("*").eq("email", e).execute()
-                        st.session_state.user_data = res_db.data[0]
-                        st.rerun()
-                except: st.error("Invalid Credentials.")
-
+        with tab_signup:
+            st.info("Naya account banao aur 10 Credits free pao! 🎁")
+            new_name = st.text_input("Full Name", placeholder="Aapka Naam", key="reg_name")
+            new_email = st.text_input("Email Address", key="reg_email")
+            new_pass = st.text_input("Set Password (Min 6 chars)", type="password", key="reg_pass")
+            
+            if st.button("Register Now 🚀", use_container_width=True):
+                if new_name and new_email and len(new_pass) >= 6:
+                    try:
+                        # 1. Supabase Auth User Create
+                        res = supabase.auth.sign_up({"email": new_email, "password": new_pass})
+                        if res.user:
+                            # 2. Profiles Table Entry
+                            u_hash = hashlib.md5(new_email.encode()).hexdigest()[:5].upper()
+                            new_user_data = {
+                                "email": new_email,
+                                "full_name": new_name,
+                                "credits": 10,
+                                "referral_code": f"TOP{u_hash}",
+                                "ref_claimed": False
+                            }
+                            supabase.table("profiles").insert(new_user_data).execute()
+                            st.success("Account ban gaya! Ab Login tab par jaakar login karo.")
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                else:
+                    st.warning("Bhai, saari details sahi se bharo (Password min. 6 letters).")
+        
         st.stop()
 
-# --- 🛡️ EXECUTE AUTH ---
-stable_auth_sync()
+# --- 🎁 PROMO LOGIC ---
+def claim_reward_logic(claim_code):
+    user = st.session_state.user_data
+    code = claim_code.strip().upper()
+    if user.get('ref_claimed', False):
+        st.warning("Limit: Ek baar hi claim hota hai!")
+        return
+    try:
+        new_credits = user['credits']
+        if code == "EARLY25":
+            new_credits += 25
+            supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
+            st.session_state.user_data['credits'] = new_credits
+            st.session_state.user_data['ref_claimed'] = True
+            st.balloons(); st.rerun()
+        else:
+            st.error("Invalid Code!")
+    except: st.error("Database sync failed.")
+
+# --- 💎 REVENUE LOGIC ---
+def use_credits(amount):
+    if st.session_state.user_data:
+        email = st.session_state.user_data['email']
+        current = st.session_state.user_data.get('credits', 0)
+        if current >= amount:
+            new_total = current - amount
+            supabase.table("profiles").update({"credits": new_total}).eq("email", email).execute()
+            st.session_state.user_data['credits'] = new_total
+            return True
+    return False
+
+# 🛡️ RUN AUTH ENGINE
+clean_email_auth()
 
 # --- 🎨 UI STYLES ---
 st.markdown("""
