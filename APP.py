@@ -56,24 +56,23 @@ def initialize_all_ai():
 
 model = initialize_all_ai()
 
-# --- 🔐 THE "WHITE SCREEN KILLER" AUTH SYNC ---
+# --- 🔐 THE "WHITE SCREEN KILLER" AUTH SYNC (FORCE VERSION) ---
 def stable_auth_sync():
-    """URL fragments saaf karta hai aur session sync ke liye wait karta hai."""
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # Surgical Strike: JavaScript URL Cleaner to bypass "Refused to connect"
+    # PHASE 1: JAVASCRIPT MANUAL TOKEN EXTRACTOR
+    # Ye script URL se token nikal kar verified state mein refresh karega
     if "cleared" not in st.session_state:
         st.components.v1.html(
             """
             <script>
-            const hash = window.location.hash;
-            if (hash.includes('access_token')) {
-                // Token mil gaya! Isse memory mein save karo aur URL saaf karo
-                const params = new URLSearchParams(hash.replace('#', '?'));
+            const url = window.location.href;
+            if (url.includes('access_token=')) {
+                const params = new URLSearchParams(url.split('#')[1]);
                 const token = params.get('access_token');
                 if (token) {
-                    window.history.replaceState(null, null, window.location.pathname);
+                    window.history.replaceState(null, null, window.location.pathname + '?verified=true');
                     window.location.reload();
                 }
             }
@@ -83,22 +82,22 @@ def stable_auth_sync():
         )
         st.session_state.cleared = True
 
+    # PHASE 2: HARD SYNC SESSION
     if st.session_state.user_data is None:
         try:
-            # Token detection delay
+            # Token settle hone ke liye deliberate delay
             time.sleep(1.5) 
             user_res = supabase.auth.get_user()
             
             if user_res and user_res.user:
                 u = user_res.user
                 email = u.email
-                name = u.user_metadata.get('full_name', 'Topper')
+                name = u.user_metadata.get('full_name', 'Topper User')
                 
-                # Check DB Profile
+                # Database check
                 res = supabase.table("profiles").select("*").eq("email", email).execute()
                 
                 if not res.data:
-                    # NEW USER SIGNUP LOGIC
                     u_hash = hashlib.md5(email.encode()).hexdigest()[:5].upper()
                     new_user = {
                         "email": email, "full_name": name, "credits": 10,
@@ -112,12 +111,12 @@ def stable_auth_sync():
                 st.query_params.clear()
                 st.rerun()
             else:
-                # 🚩 BOOT OUT: Login Required Screen
+                # PHASE 3: ACCESS DENIED SCREEN
                 st.markdown("<style>[data-testid='stSidebar'] {display: none;}</style>", unsafe_allow_html=True)
                 st.markdown(f'''
                     <div style="text-align:center; margin-top:100px;">
-                        <h2 style="color:white;">🔒 Access Restricted</h2>
-                        <p style="color:gray;">Bhai, pehle toppergpt.in se login kar lo!</p>
+                        <h2 style="color:white;">🚀 TopperGPT Early Access</h2>
+                        <p style="color:gray;">Bhai, login session sync nahi ho raha. Ek baar toppergpt.in se firse try karo.</p>
                         <a href="https://toppergpt.in" target="_self">
                             <button style="background:#4CAF50; color:white; border:none; padding:12px 24px; border-radius:8px; cursor:pointer; font-weight:bold;">
                                 🚀 Go to Login Page
