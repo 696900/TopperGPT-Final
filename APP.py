@@ -44,11 +44,20 @@ supabase = init_supabase()
 def initialize_all_ai():
     api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
+    
+    # 🚩 Yahan "groq_client" ko global banane ke liye line add ki hai
+    global groq_client 
+    
     if api_key_gemini:
         genai.configure(api_key=api_key_gemini)
         Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_gemini)
+
     if api_key_groq:
+        # MindMap tab ke liye ye client zaroori hai
+        from groq import Groq
+        groq_client = Groq(api_key=api_key_groq) 
         Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
+    
     return genai.GenerativeModel('gemini-1.5-flash') if api_key_gemini else None
 
 model = initialize_all_ai()
