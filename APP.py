@@ -27,8 +27,13 @@ from llama_index.core import Settings
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
+from groq import Groq # Direct import for MindMap Fix
 # --- 1. CONFIGURATION (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
+
+# Initialize global variable for MindMap in session state
+if "groq_client" not in st.session_state:
+    st.session_state.groq_client = None
 
 # --- 🛰️ SUPABASE CLOUD INITIALIZATION ---
 @st.cache_resource
@@ -45,7 +50,7 @@ def initialize_all_ai():
     api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
     
-    # 🚩 Yahan "groq_client" ko global banane ke liye line add ki hai
+    # Global declaration for MindMap compatibility
     global groq_client 
     
     if api_key_gemini:
@@ -53,14 +58,15 @@ def initialize_all_ai():
         Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_gemini)
 
     if api_key_groq:
-        # MindMap tab ke liye ye client zaroori hai
-        from groq import Groq
-        groq_client = Groq(api_key=api_key_groq) 
+        # MindMap Fix: Define groq_client properly
+        st.session_state.groq_client = Groq(api_key=api_key_groq)
         Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
     
     return genai.GenerativeModel('gemini-1.5-flash') if api_key_gemini else None
 
 model = initialize_all_ai()
+# Link local groq_client to session_state for tab access
+groq_client = st.session_state.groq_client
 
 # --- 🔐 PROFESSIONAL EMAIL-ONLY AUTH ENGINE ---
 def clean_email_auth():
@@ -81,13 +87,13 @@ def clean_email_auth():
             auth_tab = st.tabs(["🔑 Login", "📝 New Account", "🔄 Reset Password"])
             
             with auth_tab[0]:
-                l_email = st.text_input("Email ID", key="l_email")
+                l_email = st.text_input("Email ID", key="l_email").strip()
                 l_pass = st.text_input("Password", type="password", key="l_pass")
                 if st.button("ENTER DASHBOARD 🚀", use_container_width=True):
                     try:
                         res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
                         if res.user:
-                            time.sleep(0.5) # Force sync delay
+                            time.sleep(0.8) # Sync delay
                             prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
                             if prof.data:
                                 st.session_state.user_data = prof.data[0]
@@ -97,7 +103,7 @@ def clean_email_auth():
             with auth_tab[1]:
                 st.info("🎁 Register karo aur 10 Free Credits pao!")
                 s_name = st.text_input("Full Name", placeholder="Topper Krishna", key="s_name")
-                s_email = st.text_input("Email ID", key="s_email")
+                s_email = st.text_input("Email ID", key="s_email").strip()
                 s_pass = st.text_input("Set Password (6+ chars)", type="password", key="s_pass")
                 if st.button("CREATE ACCOUNT 🔥", use_container_width=True):
                     if s_name and s_email and len(s_pass) >= 6:
@@ -107,14 +113,13 @@ def clean_email_auth():
                                 u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
                                 new_u = {"email": s_email, "full_name": s_name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
                                 supabase.table("profiles").insert(new_u).execute()
-                                login_res = supabase.auth.sign_in_with_password({"email": s_email, "password": s_pass})
-                                if login_res.user:
-                                    st.session_state.user_data = new_u
-                                    st.rerun()
+                                # Clean redirect: tell them to login
+                                st.success("Bhai Account Ready! Ab 'Login' tab se dashboard enter karo.")
                         except Exception as e: st.error(f"Error: {str(e)}")
+                    else: st.warning("Bhai, details adhoori hain!")
 
             with auth_tab[2]:
-                r_email = st.text_input("Registered Email", key="r_email")
+                r_email = st.text_input("Registered Email", key="r_email").strip()
                 if st.button("Send Reset Link", use_container_width=True):
                     try:
                         supabase.auth.reset_password_for_email(r_email)
@@ -131,7 +136,7 @@ def claim_reward_logic(claim_code):
         return
     
     if code == "EARLY25":
-        # Check current count of users who claimed this code
+        # Check current count of users who claimed this code in Supabase
         check_res = supabase.table("profiles").select("email", count="exact").eq("ref_claimed", True).execute()
         claim_count = check_res.count if check_res.count is not None else 0
         
@@ -164,7 +169,7 @@ def use_credits(amount):
 # 🛡️ RUN AUTH ENGINE
 clean_email_auth()
 
-# Welcome Message at the TOP of the Page
+# Professional Welcome Header
 st.markdown(f"### Welcome back, {st.session_state.user_data['full_name']}! 🎓")
 
 # --- 🎨 UI STYLES ---
@@ -187,8 +192,9 @@ with st.sidebar:
             <p style="margin:0; font-size:11px;">CREDITS AVAILABLE</p>
         </div>''', unsafe_allow_html=True)
 
+    # Promo Box: Only shows if user hasn't claimed anything yet
     if st.session_state.user_data and not st.session_state.user_data.get('ref_claimed', False):
-        promo = st.text_input("Enter Reward Code:", placeholder="Only for early birds...", key="promo_box")
+        promo = st.text_input("Enter Reward Code:", placeholder="Limited offer...", key="promo_box")
         if st.button("Claim Rewards 🚀", use_container_width=True): claim_reward_logic(promo)
     
     st.divider()
