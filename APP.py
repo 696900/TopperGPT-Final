@@ -62,8 +62,10 @@ def clean_email_auth():
         st.session_state.user_data = None
 
     if st.session_state.user_data is None:
+        # --- 🎓 TOPPER LOGO & TITLE ---
         st.markdown(f"""
             <div style="text-align:center; padding: 10px;">
+                <div style="font-size: 80px; margin-bottom: 0;">🎓</div>
                 <h1 style="color:#4CAF50; font-size: 3.5rem; margin-bottom:0;">TopperGPT</h1>
                 <p style="color:#8b949e; margin-top:0; font-weight:bold;">Precision Engineering Intelligence</p>
             </div>
@@ -83,6 +85,8 @@ def clean_email_auth():
                         try:
                             res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
                             if res.user:
+                                # Extra delay for Database sync (Laptop fix)
+                                time.sleep(1.2)
                                 prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
                                 if prof.data:
                                     st.session_state.user_data = prof.data[0]
@@ -91,7 +95,7 @@ def clean_email_auth():
                         except: st.error("Access Denied: Email ya Password galat hai.")
                     else: st.warning("Bhai, login details toh bharo!")
 
-            # --- 2. SIGNUP TAB ---
+            # --- 2. SIGNUP TAB (WITH AUTO-LOGIN) ---
             with auth_tab[1]:
                 st.info("🎁 Register karo aur 10 Free Credits pao!")
                 s_name = st.text_input("Full Name", placeholder="Topper Krishna")
@@ -100,35 +104,36 @@ def clean_email_auth():
                 if st.button("CREATE ACCOUNT 🔥", use_container_width=True):
                     if s_name and s_email and len(s_pass) >= 6:
                         try:
-                            # Supabase Signup
+                            # Step A: Supabase Signup
                             res = supabase.auth.sign_up({"email": s_email, "password": s_pass})
                             if res.user:
+                                # Step B: Create Profile Entry
                                 u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
-                                new_u = {"email": s_email, "full_name": s_name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
+                                new_u = {
+                                    "email": s_email, "full_name": s_name, "credits": 10, 
+                                    "referral_code": f"TOP{u_hash}", "ref_claimed": False
+                                }
                                 supabase.table("profiles").insert(new_u).execute()
-                                st.success("Bhai, Account Ready! Ab Login tab par jaakar Login karo.")
+                                
+                                # Step C: Force Auto-Login
+                                login_res = supabase.auth.sign_in_with_password({"email": s_email, "password": s_pass})
+                                if login_res.user:
+                                    st.session_state.user_data = new_u
+                                    st.balloons()
+                                    st.success("Account Ready! Entering Dashboard...")
+                                    time.sleep(1.5)
+                                    st.rerun()
                         except Exception as e: st.error(f"Error: {str(e)}")
                     else: st.warning("Bhai, details adhoori hain ya password chota hai.")
 
-            # --- 3. PASSWORD RESET TAB (OTP BASED) ---
+            # --- 3. PASSWORD RESET TAB ---
             with auth_tab[2]:
-                st.write("Password bhool gaye? tension mat le!")
                 r_email = st.text_input("Registered Email", key="r_email")
-                if "reset_sent" not in st.session_state:
-                    if st.button("Send Reset Link/OTP", use_container_width=True):
-                        try:
-                            supabase.auth.reset_password_for_email(r_email)
-                            st.session_state.reset_sent = r_email
-                            st.success(f"Bhai, {r_email} par reset link/OTP bhej di hai! Check kar.")
-                        except: st.error("Email galat hai ya found nahi hai.")
-                else:
-                    new_p = st.text_input("New Secure Password", type="password", key="new_p")
-                    if st.button("Update Password & Login", use_container_width=True):
-                        try:
-                            supabase.auth.update_user({"password": new_p})
-                            st.success("Password badal gaya! Ab Login tab se enter karo.")
-                            del st.session_state.reset_sent
-                        except: st.error("Session expired! Fir se try karo.")
+                if st.button("Send Reset Link", use_container_width=True):
+                    try:
+                        supabase.auth.reset_password_for_email(r_email)
+                        st.success(f"Bhai, {r_email} par link bhej di hai! Check kar.")
+                    except: st.error("Email galat hai ya found nahi hai.")
 
         st.stop()
 
@@ -175,7 +180,6 @@ st.markdown("""
 .pay-card { background: #1c2128; border: 1px solid #30363d; padding: 12px; border-radius: 10px; margin-bottom: 10px; text-decoration: none; display: block; color: white !important; }
 </style>
 """, unsafe_allow_html=True)
-
 # --- 4. SIDEBAR ---
 with st.sidebar:
     st.markdown("<h2 style='text-align:center; color:#4CAF50;'>TopperGPT</h2>", unsafe_allow_html=True)
