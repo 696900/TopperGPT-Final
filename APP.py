@@ -44,14 +44,11 @@ supabase = init_supabase()
 def initialize_all_ai():
     api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
-    
     if api_key_gemini:
         genai.configure(api_key=api_key_gemini)
         Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_gemini)
-
     if api_key_groq:
         Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
-    
     return genai.GenerativeModel('gemini-1.5-flash') if api_key_gemini else None
 
 model = initialize_all_ai()
@@ -62,7 +59,6 @@ def clean_email_auth():
         st.session_state.user_data = None
 
     if st.session_state.user_data is None:
-        # --- 🎓 TOPPER LOGO & TITLE ---
         st.markdown(f"""
             <div style="text-align:center; padding: 10px;">
                 <div style="font-size: 80px; margin-bottom: 0;">🎓</div>
@@ -72,89 +68,77 @@ def clean_email_auth():
         """, unsafe_allow_html=True)
 
         _, center_col, _ = st.columns([1, 2, 1])
-        
         with center_col:
             auth_tab = st.tabs(["🔑 Login", "📝 New Account", "🔄 Reset Password"])
             
-            # --- 1. LOGIN TAB ---
             with auth_tab[0]:
-                l_email = st.text_input("Email ID", placeholder="name@college.com", key="l_email")
+                l_email = st.text_input("Email ID", key="l_email")
                 l_pass = st.text_input("Password", type="password", key="l_pass")
                 if st.button("ENTER DASHBOARD 🚀", use_container_width=True):
-                    if l_email and l_pass:
-                        try:
-                            res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
-                            if res.user:
-                                # Extra delay for Database sync (Laptop fix)
-                                time.sleep(1.2)
-                                prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
-                                if prof.data:
-                                    st.session_state.user_data = prof.data[0]
-                                    st.success("Access Granted!")
-                                    st.rerun()
-                        except: st.error("Access Denied: Email ya Password galat hai.")
-                    else: st.warning("Bhai, login details toh bharo!")
+                    try:
+                        res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
+                        if res.user:
+                            time.sleep(0.5) # Force sync delay
+                            prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
+                            if prof.data:
+                                st.session_state.user_data = prof.data[0]
+                                st.rerun()
+                    except: st.error("Access Denied: Email ya Password galat hai.")
 
-            # --- 2. SIGNUP TAB (WITH AUTO-LOGIN) ---
             with auth_tab[1]:
                 st.info("🎁 Register karo aur 10 Free Credits pao!")
-                s_name = st.text_input("Full Name", placeholder="Topper Krishna")
+                s_name = st.text_input("Full Name", placeholder="Topper Krishna", key="s_name")
                 s_email = st.text_input("Email ID", key="s_email")
-                s_pass = st.text_input("Set Secure Password (6+ chars)", type="password", key="s_pass")
+                s_pass = st.text_input("Set Password (6+ chars)", type="password", key="s_pass")
                 if st.button("CREATE ACCOUNT 🔥", use_container_width=True):
                     if s_name and s_email and len(s_pass) >= 6:
                         try:
-                            # Step A: Supabase Signup
                             res = supabase.auth.sign_up({"email": s_email, "password": s_pass})
                             if res.user:
-                                # Step B: Create Profile Entry
                                 u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
-                                new_u = {
-                                    "email": s_email, "full_name": s_name, "credits": 10, 
-                                    "referral_code": f"TOP{u_hash}", "ref_claimed": False
-                                }
+                                new_u = {"email": s_email, "full_name": s_name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
                                 supabase.table("profiles").insert(new_u).execute()
-                                
-                                # Step C: Force Auto-Login
                                 login_res = supabase.auth.sign_in_with_password({"email": s_email, "password": s_pass})
                                 if login_res.user:
                                     st.session_state.user_data = new_u
-                                    st.balloons()
-                                    st.success("Account Ready! Entering Dashboard...")
-                                    time.sleep(1.5)
                                     st.rerun()
                         except Exception as e: st.error(f"Error: {str(e)}")
-                    else: st.warning("Bhai, details adhoori hain ya password chota hai.")
 
-            # --- 3. PASSWORD RESET TAB ---
             with auth_tab[2]:
                 r_email = st.text_input("Registered Email", key="r_email")
                 if st.button("Send Reset Link", use_container_width=True):
                     try:
                         supabase.auth.reset_password_for_email(r_email)
-                        st.success(f"Bhai, {r_email} par link bhej di hai! Check kar.")
-                    except: st.error("Email galat hai ya found nahi hai.")
-
+                        st.success("Bhai, reset link bhej di hai!")
+                    except: st.error("Email not found.")
         st.stop()
 
-# --- 🎁 PROMO LOGIC ---
+# --- 🎁 PROMO LOGIC (LIMITED TO 100 USERS) ---
 def claim_reward_logic(claim_code):
     user = st.session_state.user_data
     code = claim_code.strip().upper()
     if user.get('ref_claimed', False):
-        st.warning("Limit: Ek baar hi claim hota hai!")
+        st.warning("Limit: Aapne pehle hi rewards claim kar liye hain!")
         return
-    try:
-        new_credits = user['credits']
-        if code == "EARLY25":
-            new_credits += 25
+    
+    if code == "EARLY25":
+        # Check current count of users who claimed this code
+        check_res = supabase.table("profiles").select("email", count="exact").eq("ref_claimed", True).execute()
+        claim_count = check_res.count if check_res.count is not None else 0
+        
+        if claim_count >= 100:
+            st.error("Bhai, ye code ab expire ho gaya hai (First 100 limit reached)!")
+            return
+
+        try:
+            new_credits = user['credits'] + 25
             supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
             st.session_state.user_data['credits'] = new_credits
             st.session_state.user_data['ref_claimed'] = True
             st.balloons(); st.rerun()
-        else:
-            st.error("Invalid Code!")
-    except: st.error("Database sync failed.")
+        except: st.error("Database sync failed.")
+    else:
+        st.error("Invalid Promo Code!")
 
 # --- 💎 REVENUE LOGIC ---
 def use_credits(amount):
@@ -171,6 +155,9 @@ def use_credits(amount):
 # 🛡️ RUN AUTH ENGINE
 clean_email_auth()
 
+# Welcome Message at the TOP of the Page
+st.markdown(f"### Welcome back, {st.session_state.user_data['full_name']}! 🎓")
+
 # --- 🎨 UI STYLES ---
 st.markdown("""
 <style>
@@ -180,23 +167,20 @@ st.markdown("""
 .pay-card { background: #1c2128; border: 1px solid #30363d; padding: 12px; border-radius: 10px; margin-bottom: 10px; text-decoration: none; display: block; color: white !important; }
 </style>
 """, unsafe_allow_html=True)
+
 # --- 4. SIDEBAR ---
 with st.sidebar:
     st.markdown("<h2 style='text-align:center; color:#4CAF50;'>TopperGPT</h2>", unsafe_allow_html=True)
-    
     if st.session_state.user_data:
-        st.markdown(f'''
-            <div class="wallet-card">
-                <p style="margin:0; font-size:12px; color:#eab308; font-weight:bold;">{st.session_state.user_data["full_name"]}</p>
-                <h1 style="margin:5px 0; color:white; font-size:45px; font-weight:900;">{st.session_state.user_data["credits"]} 🔥</h1>
-                <p style="margin:0; font-size:11px;">CREDITS AVAILABLE</p>
-            </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(f'''<div class="wallet-card">
+            <p style="margin:0; font-size:12px; color:#eab308; font-weight:bold;">{st.session_state.user_data["full_name"]}</p>
+            <h1 style="margin:5px 0; color:white; font-size:45px; font-weight:900;">{st.session_state.user_data["credits"]} 🔥</h1>
+            <p style="margin:0; font-size:11px;">CREDITS AVAILABLE</p>
+        </div>''', unsafe_allow_html=True)
 
     if st.session_state.user_data and not st.session_state.user_data.get('ref_claimed', False):
-        promo = st.text_input("Promo Code (EARLY25):", key="promo_box")
-        if st.button("Claim Rewards 🚀", use_container_width=True): 
-             claim_reward_logic(promo)
+        promo = st.text_input("Enter Reward Code:", placeholder="Only for early birds...", key="promo_box")
+        if st.button("Claim Rewards 🚀", use_container_width=True): claim_reward_logic(promo)
     
     st.divider()
     st.markdown("### 💎 Refill Credits")
@@ -210,11 +194,9 @@ with st.sidebar:
             <div style="display:flex; justify-content:space-between;"><b>{pack['n']}</b> <span>{pack['p']}</span></div>
             <p style="margin:5px 0 0 0; font-size:11px; color:#4CAF50;">+ {pack['c']} Credits</p>
         </a>''', unsafe_allow_html=True)
-
+    
     if st.button("🔓 Logout", use_container_width=True):
-        supabase.auth.sign_out()
-        st.session_state.clear()
-        st.rerun()
+        supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 
 # --- 5. MAIN FEATURES TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
