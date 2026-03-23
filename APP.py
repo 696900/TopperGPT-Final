@@ -66,7 +66,7 @@ model = initialize_all_ai()
 # Important: Define local groq_client for the tabs below
 groq_client = st.session_state.groq_client
 
-# --- 🔐 SECURE EMAIL AUTH ENGINE (OTP RESET + NO AUTO-LOGIN) ---
+# --- 🔐 SECURE EMAIL AUTH ENGINE (WITH ENTER KEY SUPPORT) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
@@ -84,42 +84,49 @@ def clean_email_auth():
         with center_col:
             auth_tab = st.tabs(["🔑 Login", "📝 New Account", "🔄 Reset Password"])
             
-            # --- 1. LOGIN TAB ---
+            # --- 1. LOGIN TAB (Form added for Enter Key support) ---
             with auth_tab[0]:
-                l_email = st.text_input("Email ID", key="l_email").strip()
-                l_pass = st.text_input("Password", type="password", key="l_pass")
-                if st.button("ENTER DASHBOARD 🚀", use_container_width=True):
-                    try:
-                        res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
-                        if res.user:
-                            time.sleep(1.2) # Essential delay for DB sync
-                            prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
-                            if prof.data:
-                                st.session_state.user_data = prof.data[0]
-                                st.rerun()
-                    except: st.error("Access Denied: Email ya Password galat hai.")
+                with st.form("login_form", clear_on_submit=False):
+                    l_email = st.text_input("Email ID", key="l_email").strip()
+                    l_pass = st.text_input("Password", type="password", key="l_pass")
+                    login_submit = st.form_submit_button("ENTER DASHBOARD 🚀", use_container_width=True)
+                    
+                    if login_submit:
+                        if l_email and l_pass:
+                            try:
+                                res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
+                                if res.user:
+                                    time.sleep(1.2) # Essential delay for DB sync
+                                    prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
+                                    if prof.data:
+                                        st.session_state.user_data = prof.data[0]
+                                        st.rerun()
+                            except: st.error("Access Denied: Email ya Password galat hai.")
+                        else: st.warning("Bhai, login details toh bharo!")
 
-            # --- 2. SIGNUP TAB ---
+            # --- 2. SIGNUP TAB (Form added for Enter Key support) ---
             with auth_tab[1]:
-                st.info("🎁 Register karo aur 10 Free Credits pao!")
-                s_name = st.text_input("Full Name", placeholder="Krishna", key="s_name")
-                s_email = st.text_input("Email ID", key="s_email").strip()
-                s_pass = st.text_input("Set Password (6+ chars)", type="password", key="s_pass")
-                if st.button("CREATE ACCOUNT 🔥", use_container_width=True):
-                    if s_name and s_email and len(s_pass) >= 6:
-                        try:
-                            res = supabase.auth.sign_up({"email": s_email, "password": s_pass})
-                            if res.user:
-                                u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
-                                new_u = {"email": s_email, "full_name": s_name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
-                                supabase.table("profiles").insert(new_u).execute()
-                                st.success("Bhai Account ban gaya! Ab 'Login' tab se login karo.")
-                        except Exception as e: st.error(f"Error: {str(e)}")
-                    else: st.warning("Bhai, details adhoori hain!")
+                with st.form("signup_form", clear_on_submit=False):
+                    st.info("🎁 Register karo aur 10 Free Credits pao!")
+                    s_name = st.text_input("Full Name", placeholder="Krishna", key="s_name")
+                    s_email = st.text_input("Email ID", key="s_email").strip()
+                    s_pass = st.text_input("Set Password (6+ chars)", type="password", key="s_pass")
+                    signup_submit = st.form_submit_button("CREATE ACCOUNT 🔥", use_container_width=True)
+                    
+                    if signup_submit:
+                        if s_name and s_email and len(s_pass) >= 6:
+                            try:
+                                res = supabase.auth.sign_up({"email": s_email, "password": s_pass})
+                                if res.user:
+                                    u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
+                                    new_u = {"email": s_email, "full_name": s_name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
+                                    supabase.table("profiles").insert(new_u).execute()
+                                    st.success("Bhai Account ban gaya! Ab 'Login' tab se login karo.")
+                            except Exception as e: st.error(f"Error: {str(e)}")
+                        else: st.warning("Bhai, details adhoori hain!")
 
-            # --- 3. PASSWORD RESET TAB (SECURE) ---
+            # --- 3. PASSWORD RESET TAB ---
             with auth_tab[2]:
-                st.write("Password bhool gaye? Email dalo, reset link/OTP bhej di jayegi.")
                 r_email = st.text_input("Registered Email", key="r_email").strip()
                 if st.button("Send Reset Link", use_container_width=True):
                     try:
@@ -138,7 +145,6 @@ def claim_reward_logic(claim_code):
         return
     
     if code == "EARLY25":
-        # Check current count in DB
         check_res = supabase.table("profiles").select("email", count="exact").eq("ref_claimed", True).execute()
         claim_count = check_res.count if check_res.count is not None else 0
         
@@ -170,7 +176,6 @@ def use_credits(amount):
 
 # 🛡️ RUN AUTH ENGINE
 clean_email_auth()
-
 # Professional Welcome Header with User Name
 st.markdown(f"### Welcome back, {st.session_state.user_data['full_name']}! 🎓")
 
