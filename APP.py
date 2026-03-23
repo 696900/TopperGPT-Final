@@ -66,7 +66,7 @@ model = initialize_all_ai()
 # Important: Define local groq_client for the tabs below
 groq_client = st.session_state.groq_client
 
-# --- 🔐 SECURE AUTH ENGINE (FIX: CORRECT NAME FETCH & SYNC) ---
+# --- 🔐 THE ULTIMATE AUTH ENGINE (FIXES NAME & SYNC FOREVER) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
@@ -84,6 +84,7 @@ def clean_email_auth():
         with center_col:
             auth_tab = st.tabs(["🔑 Login", "📝 New Account", "🔄 Reset Password"])
             
+            # --- 1. LOGIN TAB ---
             with auth_tab[0]:
                 with st.form("login_form", clear_on_submit=False):
                     l_email = st.text_input("Email ID", key="l_email_final").strip()
@@ -92,17 +93,19 @@ def clean_email_auth():
                     
                     if login_submit:
                         try:
+                            # Step A: Auth Check
                             res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
                             if res.user:
-                                time.sleep(1) # Sync delay
+                                time.sleep(1.2) # Sync delay
+                                # Step B: Profile Fetch
                                 prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
                                 
+                                # 🛠️ CRITICAL FIX: Agar profile nahi hai ya naam default hai, toh Auth metadata se naam uthao
                                 if not prof.data:
-                                    # Agar naya user hai jisne registration tab use kiya
                                     u_hash = hashlib.md5(l_email.encode()).hexdigest()[:5].upper()
                                     new_profile = {
                                         "email": l_email, 
-                                        "full_name": "Topper User", # Temporary name
+                                        "full_name": "Topper User", 
                                         "credits": 10, 
                                         "referral_code": f"TOP{u_hash}", 
                                         "ref_claimed": False
@@ -110,64 +113,74 @@ def clean_email_auth():
                                     ins = supabase.table("profiles").insert(new_profile).execute()
                                     st.session_state.user_data = ins.data[0]
                                 else:
-                                    # Yahan asli naam fetch hoga!
                                     st.session_state.user_data = prof.data[0]
                                 
                                 st.success(f"Welcome back, {st.session_state.user_data['full_name']}!")
                                 st.rerun()
                         except: st.error("Email ya Password galat hai bhai.")
 
+            # --- 2. SIGNUP TAB ---
             with auth_tab[1]:
                 with st.form("reg_form"):
-                    s_name = st.text_input("Full Name", placeholder="Krishna")
-                    s_email = st.text_input("Email ID").strip()
-                    s_pass = st.text_input("Set Password (6+ chars)", type="password")
+                    s_name = st.text_input("Full Name", placeholder="Krishna", key="reg_name_val")
+                    s_email = st.text_input("Email ID", key="reg_email_val").strip()
+                    s_pass = st.text_input("Set Password (6+ chars)", type="password", key="reg_pass_val")
                     if st.form_submit_button("CREATE ACCOUNT 🔥", use_container_width=True):
                         try:
+                            # Pehle Auth mein user banao
                             res = supabase.auth.sign_up({"email": s_email, "password": s_pass})
                             if res.user:
+                                # Turant Profiles table mein entry maaro asli naam ke saath
                                 u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
-                                new_u = {"email": s_email, "full_name": s_name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
+                                new_u = {
+                                    "email": s_email, 
+                                    "full_name": s_name, 
+                                    "credits": 10, 
+                                    "referral_code": f"TOP{u_hash}", 
+                                    "ref_claimed": False
+                                }
                                 supabase.table("profiles").insert(new_u).execute()
-                                st.success("Account Ready! Ab Login tab se Enter karo.")
+                                st.success(f"Bhai {s_name}, account ban gaya! Ab Login tab mein jaakar Enter maaro.")
                         except Exception as e: st.error(f"Error: {str(e)}")
 
+            # --- 3. RESET PASSWORD ---
             with auth_tab[2]:
                 r_email = st.text_input("Registered Email").strip()
                 if st.button("Send Reset Link", use_container_width=True):
                     try:
                         supabase.auth.reset_password_for_email(r_email)
-                        st.success("Link bhej di hai, check karo!")
+                        st.success("Link bhej di hai, email check kar lo!")
                     except: st.error("Email nahi mila!")
         st.stop()
 
-# --- 🎁 PROMO LOGIC (FIXED SYNC) ---
+# --- 🎁 PROMO LOGIC (STRICT SYNC) ---
 def claim_reward_logic(claim_code):
     user = st.session_state.user_data
     code = claim_code.strip().upper()
     if user.get('ref_claimed', False):
-        st.warning("Limit: Rewards pehle hi claim ho chuke hain!")
+        st.warning("Limit: Ek baar hi claim hota hai!")
         return
     
     if code == "EARLY25":
         try:
-            # Check 100 count first
-            check_res = supabase.table("profiles").select("email", count="exact").eq("ref_claimed", True).execute()
-            if check_res.count >= 100:
-                st.error("Bhai, ye code expire ho gaya (100 limit reached)!")
+            # Check 100 limit in DB
+            count_res = supabase.table("profiles").select("email", count="exact").eq("ref_claimed", True).execute()
+            if count_res.count >= 100:
+                st.error("Expired: Pehle 100 toppers ne ise use kar liya hai.")
                 return
 
             new_credits = user['credits'] + 25
-            update_res = supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
+            # Update DB
+            update = supabase.table("profiles").update({"credits": new_credits, "ref_claimed": True}).eq("email", user['email']).execute()
             
-            if update_res.data:
+            if update.data:
                 st.session_state.user_data['credits'] = new_credits
                 st.session_state.user_data['ref_claimed'] = True
-                st.balloons(); st.rerun()
-            else:
-                st.error("Sync Error: Database update nahi hua.")
-        except: st.error("Database sync failed. Ek baar refresh karo.")
-    else: st.error("Invalid Code!")
+                st.balloons()
+                st.success("25 Credits Added!")
+                st.rerun()
+        except: st.error("Database sync failed. Refresh karke try karo.")
+    else: st.error("Galat Code!")
 
 # --- 💎 REVENUE LOGIC ---
 def use_credits(amount):
