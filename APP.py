@@ -66,7 +66,7 @@ model = initialize_all_ai()
 # Important: Define local groq_client for the tabs below
 groq_client = st.session_state.groq_client
 
-# --- 🔐 THE ULTIMATE AUTH ENGINE (FIXES ALL LOGIN/SIGNUP ERRORS) ---
+# --- 🔐 THE ULTIMATE AUTH ENGINE (FIXED LOGIN/SIGNUP ERRORS & NAME SYNC) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
@@ -102,7 +102,7 @@ def clean_email_auth():
                                     if prof.data:
                                         st.session_state.user_data = prof.data[0]
                                     else:
-                                        # AUTO-REPAIR: Agar Auth hai par Profile table khali hai
+                                        # AUTO-REPAIR: Agar Auth hai par Profile table entry miss ho gayi hai
                                         u_hash = hashlib.md5(l_email.encode()).hexdigest()[:5].upper()
                                         new_u = {"email": l_email, "full_name": "Topper", "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
                                         ins = supabase.table("profiles").insert(new_u).execute()
@@ -115,7 +115,7 @@ def clean_email_auth():
                         else:
                             st.warning("Pehle details toh dalo!")
 
-            # --- 2. SIGNUP TAB (AUTO-CLEANUP LOGIC) ---
+            # --- 2. SIGNUP TAB (AUTO-CLEANUP & AUTO-LOGIN BYPASS) ---
             with auth_tab[1]:
                 with st.form("reg_form"):
                     st.info("🎁 Naya account banao aur 10 Credits free pao!")
@@ -126,22 +126,33 @@ def clean_email_auth():
                     if st.form_submit_button("CREATE ACCOUNT 🔥", use_container_width=True):
                         if s_name and s_email and len(s_pass) >= 6:
                             try:
-                                # 🛠️ FORCE CLEANUP: Purani database entry pehle hi uda do
+                                # 1. Force cleanup purani profile entry
                                 supabase.table("profiles").delete().eq("email", s_email).execute()
                                 
-                                # Supabase Signup
+                                # 2. Signup attempt
                                 res = supabase.auth.sign_up({"email": s_email, "password": s_pass})
                                 if res.user:
                                     u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
-                                    new_u = {
-                                        "email": s_email, "full_name": s_name, "credits": 10, 
-                                        "referral_code": f"TOP{u_hash}", "ref_claimed": False
-                                    }
+                                    new_u = {"email": s_email, "full_name": s_name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
                                     supabase.table("profiles").insert(new_u).execute()
-                                    st.success(f"Welcome {s_name}! Account ready. Ab 'Login' tab se enter karo.")
+                                    
+                                    # 3. AUTO-LOGIN AFTER SIGNUP (Smooth Flow)
+                                    login_res = supabase.auth.sign_in_with_password({"email": s_email, "password": s_pass})
+                                    if login_res.user:
+                                        st.session_state.user_data = new_u
+                                        st.success(f"Account Ready! Welcome {s_name}")
+                                        st.rerun()
                             except Exception as e:
-                                if "already registered" in str(e).lower():
-                                    st.error("Bhai ye email pehle se hai. Reset Password try karo ya login karo.")
+                                # 🚀 SMART BYPASS: Agar "Already Registered" error aaye, toh seedha login karwa do
+                                if "already registered" in str(e).lower() or "unique constraint" in str(e).lower():
+                                    try:
+                                        res = supabase.auth.sign_in_with_password({"email": s_email, "password": s_pass})
+                                        if res.user:
+                                            prof = supabase.table("profiles").select("*").eq("email", s_email).execute()
+                                            st.session_state.user_data = prof.data[0] if prof.data else None
+                                            st.rerun()
+                                    except:
+                                        st.error("Email pehle se registered hai. Login tab se enter karo.")
                                 else:
                                     st.error(f"Error: {str(e)}")
                         else:
