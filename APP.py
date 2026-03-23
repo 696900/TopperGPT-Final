@@ -218,7 +218,7 @@ with st.sidebar:
 # --- 5. MAIN FEATURES TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "📊 FORMULA ARCHITECT", "🔮 Predict Questions", "🧠 MindMap", 
-    "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "🤝 Topper Connect", "⚖️ Legal"
+    "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 # --- TAB 1: STABLE TEXT-BASED MENTOR (MOBILE OPTIMIZED) ---
