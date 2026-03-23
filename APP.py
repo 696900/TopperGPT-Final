@@ -66,7 +66,7 @@ model = initialize_all_ai()
 # Important: Define local groq_client for the tabs below
 groq_client = st.session_state.groq_client
 
-# --- 🔐 THE ULTIMATE AUTH ENGINE (FIXES NAME & SYNC FOREVER) ---
+# --- 🔐 THE ULTIMATE AUTH ENGINE (FIXES ALL LOGIN/SIGNUP ERRORS) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
@@ -76,7 +76,7 @@ def clean_email_auth():
             <div style="text-align:center; padding: 10px;">
                 <div style="font-size: 80px; margin-bottom: 0;">🎓</div>
                 <h1 style="color:#4CAF50; font-size: 3.5rem; margin-bottom:0;">TopperGPT</h1>
-                <p style="color:#8b949e; margin-top:0; font-weight:bold;">Precision Engineering Intelligence</p>
+                <p style="color:#8b949e; margin-top:0; font-weight:bold;">Precision Engineering Intelligence Dashboard</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -84,7 +84,7 @@ def clean_email_auth():
         with center_col:
             auth_tab = st.tabs(["🔑 Login", "📝 New Account", "🔄 Reset Password"])
             
-            # --- 1. LOGIN TAB ---
+            # --- 1. LOGIN TAB (ENTER KEY SUPPORT) ---
             with auth_tab[0]:
                 with st.form("login_form", clear_on_submit=False):
                     l_email = st.text_input("Email ID", key="l_email_final").strip()
@@ -92,56 +92,60 @@ def clean_email_auth():
                     login_submit = st.form_submit_button("ENTER DASHBOARD 🚀", use_container_width=True)
                     
                     if login_submit:
-                        try:
-                            # Step A: Auth Check
-                            res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
-                            if res.user:
-                                time.sleep(1.2) # Sync delay
-                                # Step B: Profile Fetch
-                                prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
-                                
-                                # 🛠️ CRITICAL FIX: Agar profile nahi hai ya naam default hai, toh Auth metadata se naam uthao
-                                if not prof.data:
-                                    u_hash = hashlib.md5(l_email.encode()).hexdigest()[:5].upper()
-                                    new_profile = {
-                                        "email": l_email, 
-                                        "full_name": "Topper User", 
-                                        "credits": 10, 
-                                        "referral_code": f"TOP{u_hash}", 
-                                        "ref_claimed": False
-                                    }
-                                    ins = supabase.table("profiles").insert(new_profile).execute()
-                                    st.session_state.user_data = ins.data[0]
-                                else:
-                                    st.session_state.user_data = prof.data[0]
-                                
-                                st.success(f"Welcome back, {st.session_state.user_data['full_name']}!")
-                                st.rerun()
-                        except: st.error("Email ya Password galat hai bhai.")
+                        if l_email and l_pass:
+                            try:
+                                res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
+                                if res.user:
+                                    time.sleep(1.2) # Essential sync delay
+                                    prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
+                                    
+                                    if prof.data:
+                                        st.session_state.user_data = prof.data[0]
+                                    else:
+                                        # AUTO-REPAIR: Agar Auth hai par Profile table khali hai
+                                        u_hash = hashlib.md5(l_email.encode()).hexdigest()[:5].upper()
+                                        new_u = {"email": l_email, "full_name": "Topper", "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
+                                        ins = supabase.table("profiles").insert(new_u).execute()
+                                        st.session_state.user_data = ins.data[0]
+                                        
+                                    st.success(f"Bhai, login ho gaya! Redirecting...")
+                                    st.rerun()
+                            except:
+                                st.error("Email ya Password galat hai. Check kar lo.")
+                        else:
+                            st.warning("Pehle details toh dalo!")
 
-            # --- 2. SIGNUP TAB ---
+            # --- 2. SIGNUP TAB (AUTO-CLEANUP LOGIC) ---
             with auth_tab[1]:
                 with st.form("reg_form"):
+                    st.info("🎁 Naya account banao aur 10 Credits free pao!")
                     s_name = st.text_input("Full Name", placeholder="Krishna", key="reg_name_val")
                     s_email = st.text_input("Email ID", key="reg_email_val").strip()
                     s_pass = st.text_input("Set Password (6+ chars)", type="password", key="reg_pass_val")
+                    
                     if st.form_submit_button("CREATE ACCOUNT 🔥", use_container_width=True):
-                        try:
-                            # Pehle Auth mein user banao
-                            res = supabase.auth.sign_up({"email": s_email, "password": s_pass})
-                            if res.user:
-                                # Turant Profiles table mein entry maaro asli naam ke saath
-                                u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
-                                new_u = {
-                                    "email": s_email, 
-                                    "full_name": s_name, 
-                                    "credits": 10, 
-                                    "referral_code": f"TOP{u_hash}", 
-                                    "ref_claimed": False
-                                }
-                                supabase.table("profiles").insert(new_u).execute()
-                                st.success(f"Bhai {s_name}, account ban gaya! Ab Login tab mein jaakar Enter maaro.")
-                        except Exception as e: st.error(f"Error: {str(e)}")
+                        if s_name and s_email and len(s_pass) >= 6:
+                            try:
+                                # 🛠️ FORCE CLEANUP: Purani database entry pehle hi uda do
+                                supabase.table("profiles").delete().eq("email", s_email).execute()
+                                
+                                # Supabase Signup
+                                res = supabase.auth.sign_up({"email": s_email, "password": s_pass})
+                                if res.user:
+                                    u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
+                                    new_u = {
+                                        "email": s_email, "full_name": s_name, "credits": 10, 
+                                        "referral_code": f"TOP{u_hash}", "ref_claimed": False
+                                    }
+                                    supabase.table("profiles").insert(new_u).execute()
+                                    st.success(f"Welcome {s_name}! Account ready. Ab 'Login' tab se enter karo.")
+                            except Exception as e:
+                                if "already registered" in str(e).lower():
+                                    st.error("Bhai ye email pehle se hai. Reset Password try karo ya login karo.")
+                                else:
+                                    st.error(f"Error: {str(e)}")
+                        else:
+                            st.warning("Details sahi se bharo (Password min 6 chars).")
 
             # --- 3. RESET PASSWORD ---
             with auth_tab[2]:
@@ -149,8 +153,9 @@ def clean_email_auth():
                 if st.button("Send Reset Link", use_container_width=True):
                     try:
                         supabase.auth.reset_password_for_email(r_email)
-                        st.success("Link bhej di hai, email check kar lo!")
-                    except: st.error("Email nahi mila!")
+                        st.success("Bhai link bhej di hai, check kar lo!")
+                    except:
+                        st.error("Email nahi mila!")
         st.stop()
 
 # --- 🎁 PROMO LOGIC (STRICT SYNC) ---
