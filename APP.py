@@ -66,7 +66,7 @@ model = initialize_all_ai()
 # Important: Define local groq_client for the tabs below
 groq_client = st.session_state.groq_client
 
-# --- 🔐 SECURE EMAIL AUTH ENGINE (FINAL ENTER KEY & SYNC FIX) ---
+# --- 🔐 SECURE EMAIL AUTH ENGINE (AUTO-REPAIR + ENTER KEY SUPPORT) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_state = "logged_out"
@@ -87,7 +87,6 @@ def clean_email_auth():
             
             # --- 1. LOGIN TAB ---
             with auth_tab[0]:
-                # Form use karne se Enter key support activate ho jata hai
                 with st.form("login_container", clear_on_submit=False):
                     l_email = st.text_input("Email ID", key="l_email_input").strip()
                     l_pass = st.text_input("Password", type="password", key="l_pass_input")
@@ -96,19 +95,29 @@ def clean_email_auth():
                     if submit_login:
                         if l_email and l_pass:
                             try:
-                                # Supabase Login
                                 res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
                                 if res.user:
-                                    # Force Sync: Wait for DB to catch up
                                     with st.spinner("Bhai, sync ho raha hai..."):
-                                        time.sleep(1.5) 
+                                        time.sleep(1.2) 
                                         prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
-                                        if prof.data:
-                                            st.session_state.user_data = prof.data[0]
-                                            st.success("Login Successful!")
-                                            st.rerun() # Page ko force refresh karega
+                                        
+                                        # 🛠️ AUTO-FIX: Agar profile nahi hai toh background mein banao
+                                        if not prof.data:
+                                            u_hash = hashlib.md5(l_email.encode()).hexdigest()[:5].upper()
+                                            new_profile = {
+                                                "email": l_email, 
+                                                "full_name": "Early Access Topper", 
+                                                "credits": 10, 
+                                                "referral_code": f"TOP{u_hash}", 
+                                                "ref_claimed": False
+                                            }
+                                            ins = supabase.table("profiles").insert(new_profile).execute()
+                                            st.session_state.user_data = ins.data[0]
                                         else:
-                                            st.error("Profile dhoondne mein dikkat ho rahi hai. Refresh karein.")
+                                            st.session_state.user_data = prof.data[0]
+                                            
+                                        st.success("Login Successful!")
+                                        st.rerun()
                             except Exception:
                                 st.error("Access Denied: Email/Password match nahi ho raha.")
                         else:
