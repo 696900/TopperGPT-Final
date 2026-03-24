@@ -117,7 +117,7 @@ def initialize_all_ai():
 
 model = initialize_all_ai()
 # Important: Define local groq_client for the tabs below
-groq_client = st.session_state.groq_client
+groq_client = st.session_state.get("groq_client")
 
 # --- 🔐 THE ULTIMATE AUTH ENGINE (FIXED LOGIN/SIGNUP ERRORS & NAME SYNC) ---
 def clean_email_auth():
@@ -265,6 +265,11 @@ def use_credits(amount):
 
 # 🛡️ RUN AUTH ENGINE
 clean_email_auth()
+
+# --- 💳 AUTO-SYNC TRIGGER (Ise yaha daalo) ---
+if st.session_state.user_data:
+    sync_topper_credits()
+
 # Professional Welcome Header with User Name
 st.markdown(f"### Welcome back, {st.session_state.user_data['full_name']}! 🎓")
 
@@ -292,6 +297,20 @@ with st.sidebar:
     if st.session_state.user_data and not st.session_state.user_data.get('ref_claimed', False):
         promo = st.text_input("Enter Reward Code:", placeholder="Limited offer...", key="promo_box")
         if st.button("Claim Rewards 🚀", use_container_width=True): claim_reward_logic(promo)
+
+# --- 📜 TRANSACTION HISTORY SECTION ---
+    st.divider()
+    with st.expander("🕒 Transaction History"):
+        if st.session_state.user_data:
+            hist = supabase.table("payments").select("*").eq("email", st.session_state.user_data['email']).order("created_at", desc=True).limit(5).execute()
+            if hist.data:
+                for item in hist.data:
+                    st.markdown(f'''<div style="font-size: 11px; padding: 5px; border-bottom: 1px solid #30363d; color: #8b949e;">
+                        ID: {item['payment_id'][:12]}... <br>
+                        Amt: ₹{item['amount']} | Status: {item['status']}
+                    </div>''', unsafe_allow_html=True)
+            else:
+                st.caption("No recent payments found.")        
     
     st.divider()
     st.markdown("### 💎 Refill Credits")
