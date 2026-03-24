@@ -6,6 +6,7 @@ import pdfplumber
 from PIL import Image, ImageDraw, ImageFont
 import io
 import time 
+import razorpay
 import re
 from groq import Groq
 from streamlit_mermaid import st_mermaid
@@ -44,7 +45,59 @@ def init_supabase():
     return create_client(url, key)
 
 supabase = init_supabase()
+# --- 💳 ZERO-WEBHOOK AUTOMATIC SYNC MACHINE ---
+def sync_topper_credits():
+    # Only run if user is logged in
+    if "user_data" not in st.session_state or st.session_state.user_data is None:
+        return
 
+    try:
+        # Client setup using your secrets
+        client = razorpay.Client(auth=(st.secrets["RAZORPAY_KEY_ID"], st.secrets["RAZORPAY_KEY_SECRET"]))
+        u_email = st.session_state.user_data['email']
+
+        # 1. Fetch last 10 successful payments from Razorpay
+        payments = client.payment.all({'count': 10})
+
+        for p in payments['items']:
+            # Check if payment belongs to this user and is successful
+            if p['email'] == u_email and p['status'] == 'captured':
+                p_id = p['id']
+                # Amount is in paise (e.g., 5900 = 59 INR)
+                amount = p['amount'] / 100 
+
+                # 2. Check Database: Kya ye payment ID pehle process ho chuki hai?
+                check = supabase.table("payments").select("*").eq("payment_id", p_id).execute()
+
+                if not check.data:
+                    # 3. New Payment Found! Match with your Packs
+                    credits_bonus = 0
+                    if 55 <= amount <= 65: credits_bonus = 70    # Sureshot Pack (59)
+                    elif 95 <= amount <= 105: credits_bonus = 150 # Jugaad Pack (99)
+                    elif 145 <= amount <= 155: credits_bonus = 350 # Topper Pro (149)
+
+                    if credits_bonus > 0:
+                        # Update Profile Credits in Supabase
+                        current_c = st.session_state.user_data.get('credits', 0)
+                        new_total = current_c + credits_bonus
+                        supabase.table("profiles").update({"credits": new_total}).eq("email", u_email).execute()
+
+                        # Log payment so it's never reused (Security)
+                        supabase.table("payments").insert({
+                            "payment_id": p_id, 
+                            "email": u_email, 
+                            "amount": amount, 
+                            "status": "processed"
+                        }).execute()
+
+                        # Update UI State
+                        st.session_state.user_data['credits'] = new_total
+                        st.toast(f"✅ Auto-Sync: {credits_bonus} Credits Added!", icon="🔥")
+                        time.sleep(1)
+                        st.rerun()
+    except Exception as e:
+        # Silent fail to keep app running smoothly
+        pass
 # --- 🛠️ SILENT AI SETUP ---
 @st.cache_resource
 def initialize_all_ai():
