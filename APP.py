@@ -98,25 +98,35 @@ def sync_topper_credits():
     except Exception as e:
         # Silent fail to keep app running smoothly
         pass
-# --- 🛠️ SILENT AI SETUP ---
+# --- 🛠️ SILENT AI SETUP (FIXED FOR NONETYPE ERROR) ---
 @st.cache_resource
 def initialize_all_ai():
     api_key_gemini = st.secrets.get("GOOGLE_API_KEY") or st.secrets.get("GEMINI_API_KEY")
     api_key_groq = st.secrets.get("GROQ_API_KEY")
     
+    # 1. Gemini Configuration
     if api_key_gemini:
         genai.configure(api_key=api_key_gemini)
         Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=api_key_gemini)
 
+    # 2. Groq Configuration (Llama Index Settings)
     if api_key_groq:
-        # Save to session state so MindMap tab can use it globally
-        st.session_state.groq_client = Groq(api_key=api_key_groq)
         Settings.llm = LlamaGroq(model="llama-3.3-70b-versatile", api_key=api_key_groq)
     
     return genai.GenerativeModel('gemini-1.5-flash') if api_key_gemini else None
 
+# Run Initialization
 model = initialize_all_ai()
-# Important: Define local groq_client for the tabs below
+
+# --- 🚀 CRITICAL FIX: Session State Sync ---
+# Ye part ensure karega ki groq_client kabhi None na ho
+if "groq_client" not in st.session_state or st.session_state.groq_client is None:
+    api_key_groq = st.secrets.get("GROQ_API_KEY")
+    if api_key_groq:
+        from groq import Groq # Ensure import is there
+        st.session_state.groq_client = Groq(api_key=api_key_groq)
+
+# Global variable for all tabs
 groq_client = st.session_state.get("groq_client")
 
 # --- 🔐 THE "NO-PASSWORD" SUPER FAST AUTH ENGINE ---
