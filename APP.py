@@ -119,7 +119,7 @@ model = initialize_all_ai()
 # Important: Define local groq_client for the tabs below
 groq_client = st.session_state.get("groq_client")
 
-# --- 🔐 THE ULTIMATE AUTH ENGINE (FIXED LOGIN/SIGNUP ERRORS & NAME SYNC) ---
+# --- 🔐 THE ULTIMATE AUTH ENGINE (BUG-PROOF VERSION) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
@@ -137,7 +137,7 @@ def clean_email_auth():
         with center_col:
             auth_tab = st.tabs(["🔑 Login", "📝 New Account", "🔄 Reset Password"])
             
-            # --- 1. LOGIN TAB (ENTER KEY SUPPORT) ---
+            # --- 1. LOGIN TAB (FIXED SESSION CONFLICT) ---
             with auth_tab[0]:
                 with st.form("login_form", clear_on_submit=False):
                     l_email = st.text_input("Email ID", key="l_email_final").strip()
@@ -146,29 +146,32 @@ def clean_email_auth():
                     
                     if login_submit:
                         if l_email and l_pass:
+                            # STEP 1: Clear old session to prevent Laptop/Mobile loop
+                            st.session_state.clear()
+                            st.session_state.user_data = None
                             try:
                                 res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pass})
                                 if res.user:
-                                    time.sleep(1.2) # Essential sync delay
+                                    time.sleep(1.5) # Sync delay
                                     prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
                                     
                                     if prof.data:
                                         st.session_state.user_data = prof.data[0]
+                                        st.success(f"Bhai, login ho gaya! Redirecting...")
+                                        st.rerun()
                                     else:
-                                        # AUTO-REPAIR: Agar Auth hai par Profile table entry miss ho gayi hai
+                                        # AUTO-REPAIR profile if missing
                                         u_hash = hashlib.md5(l_email.encode()).hexdigest()[:5].upper()
                                         new_u = {"email": l_email, "full_name": "Topper", "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
                                         ins = supabase.table("profiles").insert(new_u).execute()
                                         st.session_state.user_data = ins.data[0]
-                                        
-                                    st.success(f"Bhai, login ho gaya! Redirecting...")
-                                    st.rerun()
+                                        st.rerun()
                             except:
                                 st.error("Email ya Password galat hai. Check kar lo.")
                         else:
                             st.warning("Pehle details toh dalo!")
 
-            # --- 2. SIGNUP TAB (AUTO-CLEANUP & AUTO-LOGIN BYPASS) ---
+            # --- 2. SIGNUP TAB (SAFE BYPASS - NO DATA DELETE) ---
             with auth_tab[1]:
                 with st.form("reg_form"):
                     st.info("🎁 Naya account banao aur 10 Credits free pao!")
@@ -179,33 +182,23 @@ def clean_email_auth():
                     if st.form_submit_button("CREATE ACCOUNT 🔥", use_container_width=True):
                         if s_name and s_email and len(s_pass) >= 6:
                             try:
-                                # 1. Force cleanup purani profile entry
-                                supabase.table("profiles").delete().eq("email", s_email).execute()
-                                
-                                # 2. Signup attempt
+                                # Signup attempt
                                 res = supabase.auth.sign_up({"email": s_email, "password": s_pass})
                                 if res.user:
                                     u_hash = hashlib.md5(s_email.encode()).hexdigest()[:5].upper()
                                     new_u = {"email": s_email, "full_name": s_name, "credits": 10, "referral_code": f"TOP{u_hash}", "ref_claimed": False}
                                     supabase.table("profiles").insert(new_u).execute()
                                     
-                                    # 3. AUTO-LOGIN AFTER SIGNUP (Smooth Flow)
+                                    # AUTO-LOGIN after signup
                                     login_res = supabase.auth.sign_in_with_password({"email": s_email, "password": s_pass})
                                     if login_res.user:
                                         st.session_state.user_data = new_u
                                         st.success(f"Account Ready! Welcome {s_name}")
                                         st.rerun()
                             except Exception as e:
-                                # 🚀 SMART BYPASS: Agar "Already Registered" error aaye, toh seedha login karwa do
+                                # SIMPLE REDIRECT if account exists
                                 if "already registered" in str(e).lower() or "unique constraint" in str(e).lower():
-                                    try:
-                                        res = supabase.auth.sign_in_with_password({"email": s_email, "password": s_pass})
-                                        if res.user:
-                                            prof = supabase.table("profiles").select("*").eq("email", s_email).execute()
-                                            st.session_state.user_data = prof.data[0] if prof.data else None
-                                            st.rerun()
-                                    except:
-                                        st.error("Email pehle se registered hai. Login tab se enter karo.")
+                                    st.warning("Account pehle se hai! Login tab par jaakar details dalo.")
                                 else:
                                     st.error(f"Error: {str(e)}")
                         else:
@@ -221,7 +214,6 @@ def clean_email_auth():
                     except:
                         st.error("Email nahi mila!")
         st.stop()
-
 # --- 🎁 PROMO LOGIC (STRICT SYNC) ---
 def claim_reward_logic(claim_code):
     user = st.session_state.user_data
