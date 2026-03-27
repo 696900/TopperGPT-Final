@@ -546,69 +546,61 @@ with tab2:
         """
         components.html(html_code, height=900, scrolling=True)
 # ==================================================
-# --- TAB 3: AI EXAM PREDICTOR (V66 - TECHNICAL ONLY) ---
+# --- TAB 3: AI EXAM PREDICTOR (V68 - DYNAMIC ALIGN) ---
 # ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Filtering NEP Rules... Targeting Technical Modules</i></p>", unsafe_allow_html=True)
-
+    
     predict_cost = 5
     
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="p_subj_v66")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics or Maths 1", key="p_subj_v68")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v66")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v68")
 
-    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Full Scan)", type=["pdf"], key="p_pdf_v66")
-    p_topics_manual = st.text_area("Or Paste Topics Manually (Best for Applied Physics):", placeholder="e.g. Unit 1: Lasers, Unit 2: Fibre Optics...", key="p_manual_v66")
+    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF", type=["pdf"], key="p_pdf_v68")
+    p_topics_manual = st.text_area("Or Paste Topics (Highly Recommended):", placeholder="e.g. Unit 1: Lasers, Unit 2: Quantum... OR Unit 1: Matrices, Unit 2: Calculus...", key="p_manual_v68")
 
     if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Sniping technical content for {user_subj}..."):
+            with st.spinner(f"AI Sniper is aligning with {user_subj} syllabus..."):
                 try:
                     final_context = ""
                     
                     if syllabus_file:
                         import pdfplumber
                         with pdfplumber.open(syllabus_file) as pdf:
-                            all_pages_text = []
-                            for p in pdf.pages:
-                                page_text = p.extract_text()
-                                if page_text:
-                                    # 🛑 NEGA-FILTER: Ignore general pages about NEP or Guidelines
-                                    garbage = ["choice based", "nep 2020", "grading system", "admission criteria"]
-                                    if not any(g in page_text.lower() for g in garbage):
-                                        all_pages_text.append(page_text)
+                            all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
+                            full_pdf_text = "\n".join(all_text)
                             
-                            full_clean_text = "\n".join(all_pages_text)
-                            
-                            # 🎯 TARGET SEARCH: Look for subject + "Module" or "Unit"
-                            if user_subj.lower() in full_clean_text.lower():
-                                start_pos = full_clean_text.lower().find(user_subj.lower())
-                                # Extract a larger chunk to ensure we get Unit 1, Unit 2 etc.
-                                final_context = full_clean_text[start_pos : start_pos + 10000]
+                            # 🎯 DYNAMIC SEARCH: Subject name dhoondo aur uske aas-pass ka 10k characters ka block uthao
+                            if user_subj.lower() in full_pdf_text.lower():
+                                start_idx = full_pdf_text.lower().find(user_subj.lower())
+                                # Subject milte hi uske aage ka content context banega
+                                final_context = full_pdf_text[start_idx : start_idx + 10000]
 
-                    # 📄 MANUAL TOPICS (High Priority)
+                    # 📄 MANUAL TOPICS OVERRIDE (Priority)
                     if p_topics_manual.strip():
-                        final_context = f"ACTUAL SYLLABUS MODULES:\n{p_topics_manual.strip()}\n\n" + final_context
+                        final_context = f"PRIMARY TOPICS TO COVER:\n{p_topics_manual.strip()}\n\n" + final_context
 
-                    if len(final_context.strip()) < 20:
-                        raise Exception("Technical content nahi mila. Please modules manually paste karo.")
+                    if len(final_context.strip()) < 15:
+                        raise Exception(f"Syllabus mein '{user_subj}' ka exact section nahi mila. Topics manually paste karo.")
 
-                    # ✅ MASTER PROMPT (NO RULES ALLOWED)
+                    # ✅ MASTER PROMPT (DYNAMIC RELEVANCE)
                     prompt = f"""
-                    Act as an Engineering Exam Expert. 
-                    Target: {user_subj}. 
-                    Syllabus Data: {final_context}
+                    Act as an Expert Engineering Examiner for {p_uni}.
+                    TARGET SUBJECT: {user_subj}.
+                    RAW CONTEXT DATA: {final_context}
                     
-                    STRICT INSTRUCTION: 
-                    - IGNORE any text about NEP 2020, grading, or credits. 
-                    - ONLY look for technical topics like Lasers, Optics, Quantum, etc.
-                    - Predict 5 questions based ONLY on technical engineering topics.
-                    - Format as JSON: {{"questions": [{{"question": "...", "marks": 10, "difficulty": "Hard", "probability": 95}}]}}
+                    STRICT TASK:
+                    1. Analyze the 'TARGET SUBJECT' name and 'RAW CONTEXT DATA'.
+                    2. Predict 5 'Sureshot' questions that are 100% RELEVANT to '{user_subj}' ONLY.
+                    3. If {user_subj} is a Math subject, provide Math questions (Calculus, Gauss, etc.).
+                    4. If {user_subj} is a Physics subject, provide Physics questions (Lasers, Optics, etc.).
+                    5. Format the output as a clean JSON list: 'questions' containing 'question', 'marks', 'difficulty', 'probability'.
                     """
                     
                     res = groq_client.chat.completions.create(
@@ -623,7 +615,7 @@ with tab3:
                     st.balloons(); st.rerun()
 
                 except Exception as e:
-                    # ✅ REFUND
+                    # ✅ REFUND LOGIC
                     st.session_state.user_data['credits'] += predict_cost
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"Sniper Alert: {str(e)}")
@@ -636,17 +628,16 @@ with tab3:
         st.subheader(f"🎯 Predictions for: {st.session_state.p_subj_final}")
         for q in st.session_state.prediction_list:
             prob = q.get('probability', 90)
-            color = "#4CAF50" if int(str(prob).replace('%','')) > 85 else "#eab308"
-            st.markdown(f'''<div style="background:#161b22; padding:15px; border-radius:10px; border-left:5px solid {color}; margin-bottom:10px; border:1px solid #30363d;">
+            st.markdown(f'''<div style="background:#161b22; padding:15px; border-radius:10px; border-left:5px solid #4CAF50; margin-bottom:10px; border:1px solid #30363d;">
                 <p style="color:#8b949e; font-size:10px;">PROBABILITY: {prob}%</p>
                 <h4 style="color:white; margin:0;">{q.get('question')}</h4>
-                <p style="color:#4CAF50; font-size:12px;">{q.get('marks')}M | {q.get('difficulty')}</p>
+                <p style="color:#4CAF50; font-size:12px;">{q.get('marks', 10)}M | {q.get('difficulty', 'Medium')}</p>
             </div>''', unsafe_allow_html=True)
         
-        # WhatsApp Share Intact
-        share_text = f"TopperGPT Predicted these for {st.session_state.p_subj_final}! Check: toppergpt-live.streamlit.app"
+        # WhatsApp Share logic intact
+        share_text = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_final}! 🔥\n\nCheck them out: toppergpt.in"
         import urllib.parse
-        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_text)}" target="_blank"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
+        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_text)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share Sureshot Questions on WhatsApp</button></a>''', unsafe_allow_html=True)
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V156 - WATERMARK EDITION) ---
 with tab4:
