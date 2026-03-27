@@ -546,7 +546,7 @@ with tab2:
         """
         components.html(html_code, height=900, scrolling=True)
 # ==================================================
-# --- TAB 3: AI EXAM PREDICTOR (V60 - FUZZY & REVENUE SYNC) ---
+# --- TAB 3: AI EXAM PREDICTOR (V60 - HYBRID SYNC) ---
 # ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
@@ -557,12 +557,11 @@ with tab3:
     # --- INPUT SECTION ---
     c1, c2 = st.columns(2)
     with c1:
-        # Informal input like 'maths 2'
         user_subj = st.text_input("Subject Name", placeholder="e.g. Maths 2", key="p_subj_v60")
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v60")
 
-    # 📂 SYLLABUS PDF UPLOADER
+    # 📂 SYLLABUS PDF UPLOADER & MANUAL TOPICS
     syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Full Scan)", type=["pdf"], key="p_pdf_v60")
     p_topics_manual = st.text_area("Or Paste Topics Manually:", placeholder="Enter technical modules if no PDF...", key="p_manual_v60")
 
@@ -570,52 +569,49 @@ with tab3:
     if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
-        elif use_credits(predict_cost): # ✅ REVENUE LOOP: Deducts from Supabase
+        # Logic Check: Dono me se kam se kam ek source hona chahiye
+        elif not syllabus_file and len(p_topics_manual.strip()) < 10:
+            st.error("Sniper Alert: Bhai, syllabus PDF dalo ya niche topics paste karo (min 10 chars)!")
+        elif use_credits(predict_cost): 
             with st.spinner(f"AI is locating and sniping technical modules for {user_subj}..."):
                 try:
-                    # 📄 SMART FUZZY EXTRACTION
                     final_context = ""
                     official_name = user_subj
                     
+                    # 📄 SOURCE 1: SYLLABUS PDF (Agar upload hui hai)
                     if syllabus_file:
                         with pdfplumber.open(syllabus_file) as pdf:
-                            # STEP A: Find Official Name (Fuzzy Intelligence)
                             header_pages = []
-                            for p in pdf.pages[:15]: # Scan first 15 pages for Index/Headers
+                            for p in pdf.pages[:15]: 
                                 header_pages.append(p.extract_text() or "")
                             
                             header_text = "\n".join(header_pages)
-                            
                             find_name_prompt = f"In this syllabus text, find the official full name of the subject most similar to '{user_subj}'. Return ONLY the official name. Text: {header_text[:3000]}"
                             name_res = groq_client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": find_name_prompt}])
                             official_name = name_res.choices[0].message.content.strip()
                             
-                            # STEP B: Extract Modules for that specific official name
                             relevant_text = []
                             subject_found = False
-                            
                             for page in pdf.pages:
                                 text = page.extract_text()
                                 if text:
                                     if official_name.lower() in text.lower():
                                         subject_found = True
-                                    
                                     if subject_found:
-                                        # Stop if next major subject starts to avoid Semester overlap
                                         if any(k in text.lower() for k in ["syllabus for", "course scheme"]) and len(relevant_text) > 2:
                                             break
-                                        
                                         garbage = ["nep 2020", "grading system", "scheme", "admission"]
                                         if not any(g in text.lower() for g in garbage):
                                             relevant_text.append(text)
-                                    
-                                    if len(relevant_text) > 4: break # Safety
+                                    if len(relevant_text) > 4: break 
                             
-                            final_context = "\n".join(relevant_text)[:7500] 
-                    
-                    if not final_context:
-                        final_context = p_topics_manual[:4000]
-                    
+                            final_context = "\n".join(relevant_text)[:7500]
+
+                    # 📄 SOURCE 2: MANUAL TOPICS (Agar PDF fail hui ya extra topics hain)
+                    if p_topics_manual.strip():
+                        final_context += f"\n\nMANUAL TOPICS PROVIDED BY USER:\n{p_topics_manual.strip()}"
+
+                    # Security Check: Content abhi bhi empty hai toh error
                     if len(final_context.strip()) < 15:
                         raise Exception(f"Syllabus mein '{official_name}' ka technical content nahi mila.")
 
@@ -628,7 +624,8 @@ with tab3:
                     TASK:
                     1. ONLY predict 5 'Sureshot' questions for '{official_name}'.
                     2. If context contains data for other subjects/semesters, IGNORE THEM.
-                    3. Format as JSON list: 'question', 'marks', 'difficulty', 'probability'.
+                    3. Focus heavily on 'Additional Topics' or 'Manual Topics' if provided.
+                    4. Format as JSON list: 'question', 'marks', 'difficulty', 'probability'.
                     """
                     
                     res = groq_client.chat.completions.create(
@@ -643,14 +640,14 @@ with tab3:
                     st.balloons(); st.rerun()
 
                 except Exception as e:
-                    # ✅ REFUND LOGIC: Sync back to Supabase on failure
+                    # ✅ REFUND LOGIC
                     st.session_state.user_data['credits'] += predict_cost
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"Sniper Alert: {str(e)}")
         else:
             st.error("Bhai credits khatam! Refill pack check karo.")
 
-    # --- THE DISPLAY (VIRAL UI) ---
+    # --- THE DISPLAY ---
     if "prediction_list" in st.session_state:
         st.divider()
         st.subheader(f"🎯 Predictions for: {st.session_state.p_subj_final}")
@@ -667,10 +664,9 @@ with tab3:
             </div>
             """, unsafe_allow_html=True)
         
-        # WhatsApp Viral Share
         share_text = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_final}!\n\nCheck them out: toppergpt.in"
         st.markdown(f'''
-            <a href="https://wa.me/?text={requests.utils.quote(share_text)}" target="_blank" style="text-decoration: none;">
+            <a href="https://wa.me/?text={share_text}" target="_blank" style="text-decoration: none;">
                 <button style="background: #25D366; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer;">
                     📲 Share Sureshot Questions on WhatsApp
                 </button>
