@@ -546,66 +546,60 @@ with tab2:
         """
         components.html(html_code, height=900, scrolling=True)
 # ==================================================
-# --- TAB 3: AI EXAM PREDICTOR (V62 - SNIPER FIX) ---
+# --- TAB 3: AI EXAM PREDICTOR (V63 - FINAL FIX) ---
 # ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Data-Driven Predictions with Fuzzy Search & Semester Sync</i></p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Data-Driven Predictions with Hybrid Source Sync</i></p>", unsafe_allow_html=True)
 
     predict_cost = 5
     
     # --- INPUT SECTION ---
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Maths 2", key="p_subj_v60")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="p_subj_v63")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v60")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v63")
 
-    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Full Scan)", type=["pdf"], key="p_pdf_v60")
-    p_topics_manual = st.text_area("Or Paste Topics Manually:", placeholder="Enter technical modules if no PDF...", key="p_manual_v60")
+    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Full Scan)", type=["pdf"], key="p_pdf_v63")
+    p_topics_manual = st.text_area("Or Paste Topics Manually:", placeholder="Copy-paste modules here if PDF scan fails...", key="p_manual_v63")
 
-    # --- PREDICTION ENGINE ---
+    # --- PREDICTION ENGINE (REVENUE LOOP) ---
     if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
-        elif use_credits(predict_cost): 
-            with st.spinner(f"Sniping data for {user_subj}..."):
+        elif use_credits(predict_cost): # ✅ REVENUE LOOP
+            with st.spinner(f"AI Sniper is scanning data for {user_subj}..."):
                 try:
                     final_context = ""
-                    
-                    # 📄 SMART SCAN
+                    # 📄 SMART HYBRID EXTRACTION
                     if syllabus_file:
                         import pdfplumber
                         with pdfplumber.open(syllabus_file) as pdf:
-                            all_text = []
-                            for page in pdf.pages:
-                                t = page.extract_text()
-                                if t: all_text.append(t)
+                            all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
+                            full_text = "\n".join(all_text)
                             
-                            full_pdf_text = "\n".join(all_text)
-                            
-                            # Bypass strict fuzzy search if it fails
-                            if user_subj.lower() in full_pdf_text.lower():
-                                # Extract chunks around the subject name
-                                start_idx = full_pdf_text.lower().find(user_subj.lower())
-                                final_context = full_pdf_text[start_idx : start_idx + 8000]
+                            # Bypass strict search - find anything near the subject name
+                            if user_subj.lower() in full_text.lower():
+                                start_idx = full_text.lower().find(user_subj.lower())
+                                final_context = full_text[start_idx : start_idx + 8000]
                     
-                    # 📄 MANUAL OVERRIDE
+                    # Manual Override / Merge
                     if p_topics_manual.strip():
-                        final_context += f"\n\nMANUAL TOPICS:\n{p_topics_manual.strip()}"
+                        final_context += f"\n\nMANUAL MODULES:\n{p_topics_manual.strip()}"
 
-                    if len(final_context.strip()) < 10:
-                        raise Exception(f"Syllabus mein '{user_subj}' ka technical content nahi mila. Topics manually dalo.")
+                    if len(final_context.strip()) < 15:
+                        raise Exception(f"Syllabus mein '{user_subj}' ka data nahi mila. Topics manually dalo.")
 
                     # ✅ MASTER PROMPT
                     prompt = f"""
-                    Act as an Expert Engineering Examiner for {p_uni}. 
-                    TARGET SUBJECT: {user_subj}.
-                    CONTEXT: {final_context}
+                    Act as an Expert Engineering Examiner for {p_uni}.
+                    TARGET: {user_subj}.
+                    DATA: {final_context}
                     
                     TASK:
-                    1. ONLY predict 5 'Sureshot' questions.
-                    2. Format as JSON list: 'question', 'marks', 'difficulty', 'probability'.
+                    1. Predict 5 'Sureshot' questions (8-10 marks each).
+                    2. Return ONLY JSON: {{"questions": [{{"question": "...", "marks": 10, "difficulty": "Hard", "probability": 95}}]}}
                     """
                     
                     res = groq_client.chat.completions.create(
@@ -615,6 +609,7 @@ with tab3:
                     )
                     
                     raw_data = json.loads(res.choices[0].message.content)
+                    # Safe extraction to prevent KeyError
                     st.session_state.prediction_list = raw_data.get('questions', list(raw_data.values())[0])
                     st.session_state.p_subj_final = user_subj
                     st.balloons(); st.rerun()
@@ -625,22 +620,31 @@ with tab3:
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"Sniper Alert: {str(e)}")
         else:
-            st.error("Bhai credits khatam!")
+            st.error("Bhai credits khatam! Sidebar se refill karo.")
 
     # --- DISPLAY & SHARE ---
     if "prediction_list" in st.session_state:
         st.divider()
         st.subheader(f"🎯 Predictions for: {st.session_state.p_subj_final}")
+        
         for q in st.session_state.prediction_list:
-            color = "#4CAF50" if q['probability'] > 85 else "#eab308"
+            # 🔥 CRITICAL FIX: Safe key access using .get()
+            prob = q.get('probability', 0)
+            if isinstance(prob, str): prob = int(prob.replace('%','')) # handle "95%" string
+            
+            color = "#4CAF50" if prob > 85 else "#eab308"
+            
             st.markdown(f'''<div style="background:#161b22; padding:15px; border-radius:10px; border-left:5px solid {color}; margin-bottom:10px; border:1px solid #30363d;">
-                <p style="color:#8b949e; font-size:10px;">PROBABILITY: {q['probability']}%</p>
-                <h4 style="color:white; margin:0;">{q['question']}</h4>
-                <p style="color:#4CAF50; font-size:12px;">{q['marks']}M | {q['difficulty']}</p>
+                <p style="color:#8b949e; font-size:10px;">PROBABILITY: {prob}%</p>
+                <h4 style="color:white; margin:0;">{q.get('question', 'N/A')}</h4>
+                <p style="color:#4CAF50; font-size:12px;">{q.get('marks', 10)}M | {q.get('difficulty', 'Medium')}</p>
             </div>''', unsafe_allow_html=True)
         
-        share_text = f"TopperGPT Predicted these for {st.session_state.p_subj_final}! Check: toppergpt.in"
-        st.markdown(f'''<a href="https://wa.me/?text={share_text}" target="_blank"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
+        # ✅ WHATSAPP SHARE
+        share_text = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_final}! 🔥\n\nCheck them out: toppergpt-live.streamlit.app"
+        import urllib.parse
+        encoded_share = urllib.parse.quote(share_text)
+        st.markdown(f'''<a href="https://wa.me/?text={encoded_share}" target="_blank"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share Sureshot Questions on WhatsApp</button></a>''', unsafe_allow_html=True)
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V156 - WATERMARK EDITION) ---
 with tab4:
