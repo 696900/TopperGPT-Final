@@ -546,90 +546,62 @@ with tab2:
         """
         components.html(html_code, height=900, scrolling=True)
 # ==================================================
-# --- TAB 3: AI EXAM PREDICTOR (V60 - HYBRID UPDATED) ---
+# --- TAB 3: AI EXAM PREDICTOR (V65 - FORCE HYBRID) ---
 # ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Data-Driven Predictions with Fuzzy Search & Semester Sync</i></p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Data-Driven Predictions with Hybrid Source Sync</i></p>", unsafe_allow_html=True)
 
     predict_cost = 5
     
     # --- INPUT SECTION ---
     c1, c2 = st.columns(2)
     with c1:
-        # Informal input like 'maths 2'
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Maths 2", key="p_subj_v60")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="p_subj_v60")
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v60")
 
-    # 📂 SYLLABUS PDF UPLOADER & MANUAL TOPICS (HYBRID INPUTS)
     syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Full Scan)", type=["pdf"], key="p_pdf_v60")
-    p_topics_manual = st.text_area("Or Paste Topics Manually:", placeholder="Enter technical modules if no PDF...", key="p_manual_v60")
+    p_topics_manual = st.text_area("Or Paste Topics Manually (Recommended if PDF fails):", placeholder="Copy modules from PDF and paste here for 100% accuracy...", key="p_manual_v60")
 
-    # --- PREDICTION ENGINE (REVENUE LOOP INTEGRATED) ---
     if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
-        elif use_credits(predict_cost): # ✅ REVENUE LOOP: Deducts from Supabase
-            with st.spinner(f"AI is locating and sniping technical modules for {user_subj}..."):
+        elif use_credits(predict_cost): 
+            with st.spinner(f"Sniping data for {user_subj}..."):
                 try:
-                    # 📄 SMART HYBRID EXTRACTION
                     final_context = ""
-                    official_name = user_subj
                     
+                    # 📄 STEP 1: PDF Extraction (If exists)
                     if syllabus_file:
+                        import pdfplumber
                         with pdfplumber.open(syllabus_file) as pdf:
-                            # STEP A: Find Official Name (Fuzzy Intelligence)
-                            header_pages = []
-                            for p in pdf.pages[:15]: # Scan first 15 pages for Index/Headers
-                                header_pages.append(p.extract_text() or "")
+                            all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
+                            full_text = "\n".join(all_text)
                             
-                            header_text = "\n".join(header_pages)
-                            
-                            find_name_prompt = f"In this syllabus text, find the official full name of the subject most similar to '{user_subj}'. Return ONLY the official name. Text: {header_text[:3000]}"
-                            name_res = groq_client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": find_name_prompt}])
-                            official_name = name_res.choices[0].message.content.strip()
-                            
-                            # STEP B: Extract Modules for that specific official name
-                            relevant_text = []
-                            subject_found = False
-                            
-                            for page in pdf.pages:
-                                text = page.extract_text()
-                                if text:
-                                    if official_name.lower() in text.lower():
-                                        subject_found = True
-                                    
-                                    if subject_found:
-                                        # Stop if next major subject starts to avoid Semester overlap
-                                        if any(k in text.lower() for k in ["syllabus for", "course scheme"]) and len(relevant_text) > 2:
-                                            break
-                                        
-                                        garbage = ["nep 2020", "grading system", "scheme", "admission"]
-                                        if not any(g in text.lower() for g in garbage):
-                                            relevant_text.append(text)
-                                    
-                                    if len(relevant_text) > 4: break # Safety
-                            
-                            final_context = "\n".join(relevant_text)[:7500] 
-                    
-                    # 🚀 HYBRID ADD-ON: Merge manual topics if PDF context is weak or user added extra info
-                    if p_topics_manual.strip():
-                        final_context += f"\n\nMANUAL TOPICS/MODULES:\n{p_topics_manual.strip()}"
-                    
-                    if len(final_context.strip()) < 15:
-                        raise Exception(f"Syllabus mein '{official_name}' ka technical content nahi mila.")
+                            # Simple keyword hunt instead of complex fuzzy search
+                            if user_subj.lower() in full_text.lower():
+                                start_pos = full_text.lower().find(user_subj.lower())
+                                final_context = full_text[start_pos : start_pos + 6000]
 
-                    # ✅ MASTER PROMPT (SEMESTER-STRICT)
+                    # 📄 STEP 2: Manual Topics Merge (THE REAL FIX)
+                    if p_topics_manual.strip():
+                        # Manual content ko priority do
+                        final_context = f"USER TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
+
+                    # 📄 STEP 3: Final check - Content empty toh nahi?
+                    if len(final_context.strip()) < 10:
+                        raise Exception("PDF reading fail hui. Modules (Lasers, Optics) manually paste karke try karo.")
+
+                    # ✅ MASTER PROMPT
                     prompt = f"""
-                    Act as an Expert Engineering Examiner for {p_uni}. 
-                    TARGET SUBJECT: {official_name}.
-                    CONTEXT: {final_context}
+                    Act as an Expert Engineering Examiner for {p_uni}.
+                    TARGET: {user_subj}.
+                    DATA: {final_context}
                     
                     TASK:
-                    1. ONLY predict 5 'Sureshot' questions for '{official_name}'.
-                    2. If context contains data for other subjects/semesters, IGNORE THEM.
-                    3. Format as JSON list: 'question', 'marks', 'difficulty', 'probability'.
+                    1. Predict 5 'Sureshot' questions.
+                    2. Return ONLY a valid JSON: {{"questions": [{{"question": "...", "marks": 10, "difficulty": "Hard", "probability": 95}}]}}
                     """
                     
                     res = groq_client.chat.completions.create(
@@ -640,43 +612,33 @@ with tab3:
                     
                     raw_data = json.loads(res.choices[0].message.content)
                     st.session_state.prediction_list = raw_data.get('questions', list(raw_data.values())[0])
-                    st.session_state.p_subj_final = official_name
+                    st.session_state.p_subj_final = user_subj
                     st.balloons(); st.rerun()
 
                 except Exception as e:
-                    # ✅ REFUND LOGIC: Sync back to Supabase on failure
+                    # ✅ REFUND LOGIC
                     st.session_state.user_data['credits'] += predict_cost
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"Sniper Alert: {str(e)}")
         else:
-            st.error("Bhai credits khatam! Refill pack check karo.")
+            st.error("Bhai credits khatam!")
 
-    # --- THE DISPLAY (VIRAL UI) ---
+    # --- DISPLAY & WHATSAPP (SAFE) ---
     if "prediction_list" in st.session_state:
         st.divider()
         st.subheader(f"🎯 Predictions for: {st.session_state.p_subj_final}")
+        for q in st.session_state.prediction_list:
+            prob = q.get('probability', 90)
+            color = "#4CAF50" if int(str(prob).replace('%','')) > 85 else "#eab308"
+            st.markdown(f'''<div style="background:#161b22; padding:15px; border-radius:10px; border-left:5px solid {color}; margin-bottom:10px; border:1px solid #30363d;">
+                <p style="color:#8b949e; font-size:10px;">PROBABILITY: {prob}%</p>
+                <h4 style="color:white; margin:0;">{q.get('question')}</h4>
+                <p style="color:#4CAF50; font-size:12px;">{q.get('marks')}M | {q.get('difficulty')}</p>
+            </div>''', unsafe_allow_html=True)
         
-        for idx, q in enumerate(st.session_state.prediction_list):
-            color = "#4CAF50" if q['probability'] > 85 else "#eab308"
-            st.markdown(f"""
-            <div style="background: #161b22; padding: 20px; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 15px; border: 1px solid #30363d;">
-                <p style="color: #8b949e; font-size: 11px; margin-bottom: 5px;">PROBABILITY: {q['probability']}%</p>
-                <h4 style="margin: 0 0 12px 0; color: white;">{q['question']}</h4>
-                <div style="display: flex; gap: 15px;">
-                    <span style="border: 1px solid #30363d; color: #8b949e; padding: 2px 8px; border-radius: 5px; font-size: 12px;">{q['marks']}M | {q['difficulty']}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # WhatsApp Viral Share
-        share_text = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_final}!\n\nCheck them out: toppergpt.in"
-        st.markdown(f'''
-            <a href="https://wa.me/?text={requests.utils.quote(share_text)}" target="_blank" style="text-decoration: none;">
-                <button style="background: #25D366; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer;">
-                    📲 Share Sureshot Questions on WhatsApp
-                </button>
-            </a>
-        ''', unsafe_allow_html=True)
+        share_text = f"TopperGPT Predicted these for {st.session_state.p_subj_final}! Check: toppergpt-live.streamlit.app"
+        import urllib.parse
+        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_text)}" target="_blank"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V156 - WATERMARK EDITION) ---
 with tab4:
