@@ -569,7 +569,7 @@ with tab3:
     if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
-        # Logic Check: Dono me se kam se kam ek source hona chahiye
+        # 🔥 FIX: Check if AT LEAST one source is present
         elif not syllabus_file and len(p_topics_manual.strip()) < 10:
             st.error("Sniper Alert: Bhai, syllabus PDF dalo ya niche topics paste karo (min 10 chars)!")
         elif use_credits(predict_cost): 
@@ -578,7 +578,7 @@ with tab3:
                     final_context = ""
                     official_name = user_subj
                     
-                    # 📄 SOURCE 1: SYLLABUS PDF (Agar upload hui hai)
+                    # 📄 SOURCE 1: SYLLABUS PDF (Extraction Logic)
                     if syllabus_file:
                         with pdfplumber.open(syllabus_file) as pdf:
                             header_pages = []
@@ -607,11 +607,12 @@ with tab3:
                             
                             final_context = "\n".join(relevant_text)[:7500]
 
-                    # 📄 SOURCE 2: MANUAL TOPICS (Agar PDF fail hui ya extra topics hain)
+                    # 📄 SOURCE 2: MANUAL TOPICS (Append if available)
                     if p_topics_manual.strip():
-                        final_context += f"\n\nMANUAL TOPICS PROVIDED BY USER:\n{p_topics_manual.strip()}"
+                        # Agar PDF se kuch mila hai toh uske niche manual topics jod do
+                        final_context += f"\n\nADDITIONAL USER-PROVIDED MODULES:\n{p_topics_manual.strip()}"
 
-                    # Security Check: Content abhi bhi empty hai toh error
+                    # Final Security Check
                     if len(final_context.strip()) < 15:
                         raise Exception(f"Syllabus mein '{official_name}' ka technical content nahi mila.")
 
@@ -619,12 +620,12 @@ with tab3:
                     prompt = f"""
                     Act as an Expert Engineering Examiner for {p_uni}. 
                     TARGET SUBJECT: {official_name}.
-                    CONTEXT: {final_context}
+                    CONSOLIDATED CONTEXT: {final_context}
                     
                     TASK:
                     1. ONLY predict 5 'Sureshot' questions for '{official_name}'.
                     2. If context contains data for other subjects/semesters, IGNORE THEM.
-                    3. Focus heavily on 'Additional Topics' or 'Manual Topics' if provided.
+                    3. Prioritize 'ADDITIONAL USER-PROVIDED MODULES' if they exist.
                     4. Format as JSON list: 'question', 'marks', 'difficulty', 'probability'.
                     """
                     
@@ -640,14 +641,14 @@ with tab3:
                     st.balloons(); st.rerun()
 
                 except Exception as e:
-                    # ✅ REFUND LOGIC
+                    # ✅ REFUND LOGIC: Sync back to Supabase on failure
                     st.session_state.user_data['credits'] += predict_cost
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"Sniper Alert: {str(e)}")
         else:
             st.error("Bhai credits khatam! Refill pack check karo.")
 
-    # --- THE DISPLAY ---
+    # --- THE DISPLAY (VIRAL UI) ---
     if "prediction_list" in st.session_state:
         st.divider()
         st.subheader(f"🎯 Predictions for: {st.session_state.p_subj_final}")
@@ -664,6 +665,7 @@ with tab3:
             </div>
             """, unsafe_allow_html=True)
         
+        # WhatsApp Viral Share
         share_text = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_final}!\n\nCheck them out: toppergpt.in"
         st.markdown(f'''
             <a href="https://wa.me/?text={share_text}" target="_blank" style="text-decoration: none;">
