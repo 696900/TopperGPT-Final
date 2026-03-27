@@ -546,7 +546,7 @@ with tab2:
         """
         components.html(html_code, height=900, scrolling=True)
 # ==================================================
-# --- TAB 3: AI EXAM PREDICTOR (V68 - DYNAMIC ALIGN) ---
+# --- TAB 3: AI EXAM PREDICTOR (V69 - REALISM SYNC) ---
 # ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
@@ -576,33 +576,32 @@ with tab3:
                             all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
                             full_pdf_text = "\n".join(all_text)
                             
-                            # 🎯 DYNAMIC SEARCH: Subject name dhoondo aur uske aas-pass ka 10k characters ka block uthao
+                            # 🎯 DYNAMIC SEARCH
                             if user_subj.lower() in full_pdf_text.lower():
                                 start_idx = full_pdf_text.lower().find(user_subj.lower())
-                                # Subject milte hi uske aage ka content context banega
                                 final_context = full_pdf_text[start_idx : start_idx + 10000]
 
-                    # 📄 MANUAL TOPICS OVERRIDE (Priority)
+                    # 📄 MANUAL TOPICS OVERRIDE
                     if p_topics_manual.strip():
                         final_context = f"PRIMARY TOPICS TO COVER:\n{p_topics_manual.strip()}\n\n" + final_context
 
                     if len(final_context.strip()) < 15:
                         raise Exception(f"Syllabus mein '{user_subj}' ka exact section nahi mila. Topics manually paste karo.")
 
-                    # ✅ MASTER PROMPT (DYNAMIC RELEVANCE)
+                    # ✅ UPDATED MASTER PROMPT (FOR NATURAL QUESTIONS)
                     prompt = f"""
-                    Act as an Expert Engineering Examiner for {p_uni}.
+                    Act as a Senior University Professor and External Examiner for {p_uni}.
                     TARGET SUBJECT: {user_subj}.
-                    RAW CONTEXT DATA: {final_context}
-                    
-                    STRICT TASK:
-                    1. Analyze the 'TARGET SUBJECT' name and 'RAW CONTEXT DATA'.
-                    2. Predict 5 'Sureshot' questions that are 100% RELEVANT to '{user_subj}' ONLY.
-                    3. If {user_subj} is a Math subject, provide Math questions (Calculus, Gauss, etc.).
-                    4. If {user_subj} is a Physics subject, provide Physics questions (Lasers, Optics, etc.).
-                    5. Format the output as a clean JSON list: 'questions' containing 'question', 'marks', 'difficulty', 'probability'.
+                    CONTEXT DATA: {final_context}
+
+                    STRICT GUIDELINES:
+                    1. Predict 5 'Sureshot' questions based on the provided technical context.
+                    2. DO NOT include the subject name '{user_subj}' or phrases like 'in applied physics' INSIDE the questions.
+                    3. The questions must look like REAL exam questions (e.g., 'Explain Population Inversion' instead of 'Explain Population Inversion in Applied Physics').
+                    4. Focus only on core technical concepts (derivations, explanations, numericals).
+                    5. Format as JSON: {{"questions": [{{"question": "...", "marks": 10, "difficulty": "Hard", "probability": 95}}]}}
                     """
-                    
+
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": prompt}],
