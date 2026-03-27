@@ -546,62 +546,69 @@ with tab2:
         """
         components.html(html_code, height=900, scrolling=True)
 # ==================================================
-# --- TAB 3: AI EXAM PREDICTOR (V65 - FORCE HYBRID) ---
+# --- TAB 3: AI EXAM PREDICTOR (V66 - TECHNICAL ONLY) ---
 # ==================================================
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Data-Driven Predictions with Hybrid Source Sync</i></p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'><i>Filtering NEP Rules... Targeting Technical Modules</i></p>", unsafe_allow_html=True)
 
     predict_cost = 5
     
-    # --- INPUT SECTION ---
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="p_subj_v60")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="p_subj_v66")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v60")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v66")
 
-    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Full Scan)", type=["pdf"], key="p_pdf_v60")
-    p_topics_manual = st.text_area("Or Paste Topics Manually (Recommended if PDF fails):", placeholder="Copy modules from PDF and paste here for 100% accuracy...", key="p_manual_v60")
+    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF (Full Scan)", type=["pdf"], key="p_pdf_v66")
+    p_topics_manual = st.text_area("Or Paste Topics Manually (Best for Applied Physics):", placeholder="e.g. Unit 1: Lasers, Unit 2: Fibre Optics...", key="p_manual_v66")
 
     if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Sniping data for {user_subj}..."):
+            with st.spinner(f"Sniping technical content for {user_subj}..."):
                 try:
                     final_context = ""
                     
-                    # 📄 STEP 1: PDF Extraction (If exists)
                     if syllabus_file:
                         import pdfplumber
                         with pdfplumber.open(syllabus_file) as pdf:
-                            all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
-                            full_text = "\n".join(all_text)
+                            all_pages_text = []
+                            for p in pdf.pages:
+                                page_text = p.extract_text()
+                                if page_text:
+                                    # 🛑 NEGA-FILTER: Ignore general pages about NEP or Guidelines
+                                    garbage = ["choice based", "nep 2020", "grading system", "admission criteria"]
+                                    if not any(g in page_text.lower() for g in garbage):
+                                        all_pages_text.append(page_text)
                             
-                            # Simple keyword hunt instead of complex fuzzy search
-                            if user_subj.lower() in full_text.lower():
-                                start_pos = full_text.lower().find(user_subj.lower())
-                                final_context = full_text[start_pos : start_pos + 6000]
+                            full_clean_text = "\n".join(all_pages_text)
+                            
+                            # 🎯 TARGET SEARCH: Look for subject + "Module" or "Unit"
+                            if user_subj.lower() in full_clean_text.lower():
+                                start_pos = full_clean_text.lower().find(user_subj.lower())
+                                # Extract a larger chunk to ensure we get Unit 1, Unit 2 etc.
+                                final_context = full_clean_text[start_pos : start_pos + 10000]
 
-                    # 📄 STEP 2: Manual Topics Merge (THE REAL FIX)
+                    # 📄 MANUAL TOPICS (High Priority)
                     if p_topics_manual.strip():
-                        # Manual content ko priority do
-                        final_context = f"USER TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
+                        final_context = f"ACTUAL SYLLABUS MODULES:\n{p_topics_manual.strip()}\n\n" + final_context
 
-                    # 📄 STEP 3: Final check - Content empty toh nahi?
-                    if len(final_context.strip()) < 10:
-                        raise Exception("PDF reading fail hui. Modules (Lasers, Optics) manually paste karke try karo.")
+                    if len(final_context.strip()) < 20:
+                        raise Exception("Technical content nahi mila. Please modules manually paste karo.")
 
-                    # ✅ MASTER PROMPT
+                    # ✅ MASTER PROMPT (NO RULES ALLOWED)
                     prompt = f"""
-                    Act as an Expert Engineering Examiner for {p_uni}.
-                    TARGET: {user_subj}.
-                    DATA: {final_context}
+                    Act as an Engineering Exam Expert. 
+                    Target: {user_subj}. 
+                    Syllabus Data: {final_context}
                     
-                    TASK:
-                    1. Predict 5 'Sureshot' questions.
-                    2. Return ONLY a valid JSON: {{"questions": [{{"question": "...", "marks": 10, "difficulty": "Hard", "probability": 95}}]}}
+                    STRICT INSTRUCTION: 
+                    - IGNORE any text about NEP 2020, grading, or credits. 
+                    - ONLY look for technical topics like Lasers, Optics, Quantum, etc.
+                    - Predict 5 questions based ONLY on technical engineering topics.
+                    - Format as JSON: {{"questions": [{{"question": "...", "marks": 10, "difficulty": "Hard", "probability": 95}}]}}
                     """
                     
                     res = groq_client.chat.completions.create(
@@ -616,14 +623,14 @@ with tab3:
                     st.balloons(); st.rerun()
 
                 except Exception as e:
-                    # ✅ REFUND LOGIC
+                    # ✅ REFUND
                     st.session_state.user_data['credits'] += predict_cost
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"Sniper Alert: {str(e)}")
         else:
             st.error("Bhai credits khatam!")
 
-    # --- DISPLAY & WHATSAPP (SAFE) ---
+    # --- DISPLAY & SHARE ---
     if "prediction_list" in st.session_state:
         st.divider()
         st.subheader(f"🎯 Predictions for: {st.session_state.p_subj_final}")
@@ -636,6 +643,7 @@ with tab3:
                 <p style="color:#4CAF50; font-size:12px;">{q.get('marks')}M | {q.get('difficulty')}</p>
             </div>''', unsafe_allow_html=True)
         
+        # WhatsApp Share Intact
         share_text = f"TopperGPT Predicted these for {st.session_state.p_subj_final}! Check: toppergpt-live.streamlit.app"
         import urllib.parse
         st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_text)}" target="_blank"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
