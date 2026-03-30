@@ -22,3 +22,6 @@ google-generativeai
 llama-index-llms-gemini
 supabase
 matplotlib
+# requires to add these into requirements.txt
+playwright
+asyncio
