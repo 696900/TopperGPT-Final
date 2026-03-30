@@ -395,40 +395,28 @@ with tab1:
                         st.error(f"Backend Busy. Please try again in 5 seconds.")
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
+# ==========================================
+# --- TAB 2: FORMULA MINER (V57 - RESPONSIVE & STABLE) ---
+# ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
 
-    # --- AUTO-INSTALLER LOGIC ---
-    def install_playwright():
-        try:
-            # Check if chromium is already installed in the cache
-            if not os.path.exists("/home/appuser/.cache/ms-playwright"):
-                subprocess.run(["playwright", "install", "chromium"], check=True)
-        except Exception as e:
-            st.error(f"Installer Error: {e}")
-
     col_in, col_uni = st.columns([0.6, 0.4])
     with col_in:
-        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v48", placeholder="e.g. Applied Physics 2")
+        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v57", placeholder="e.g. Engineering Maths")
     with col_uni:
-        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v48")
+        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v57")
 
     f_cost = 3
 
-    c_btn1, c_btn2 = st.columns(2)
-    with c_btn1:
-        generate_triggered = st.button(f"🔥 Mine Technical Cheat Sheet ({f_cost} Credits)", use_container_width=True)
-    with c_btn2:
-        if "last_formula_data" in st.session_state:
-            st.button("🔄 Refresh Rendering", on_click=lambda: st.rerun(), use_container_width=True)
-
-    if generate_triggered:
+    if st.button(f"🔥 Mine Technical Cheat Sheet ({f_cost} Credits)", use_container_width=True):
         if len(formula_input.strip()) < 3:
             st.error("❌ Valid engineering subject dalo.")
         elif use_credits(f_cost):
             with st.spinner("Mining official syllabus formulas..."):
                 try:
-                    prompt = f"Act as an Engineering Professor. Topic: '{formula_input}' ({u_name}). Output CORE FORMULAS in [MATH] tags and 5 KEY DERIVATIONS."
+                    # Yaha subject aur university ke hisab se dynamic prompt
+                    prompt = f"Act as an Engineering Professor for {u_name}. Topic: '{formula_input}'. Output CORE FORMULAS in [MATH] tags and 5 KEY DERIVATIONS. Use standard LaTeX."
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     st.session_state.last_formula_data = res.choices[0].message.content.strip()
                     st.session_state.current_f_subject = formula_input.upper()
@@ -442,67 +430,80 @@ with tab2:
         raw_data = st.session_state.last_formula_data
         f_title = st.session_state.get('current_f_subject', "CHEAT SHEET")
 
-        html_template = """
+        # 🛑 RESPONSIVE HTML + STABLE DOWNLOAD
+        html_template = f"""
         <head>
-            <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js"></script>
             <style>
-                body { background: transparent; margin: 0; padding: 10px; font-family: 'Segoe UI', sans-serif; }
-                #capture-area {
-                    background: #0d1117; padding: 40px; border-radius: 15px; border: 3px solid #ef4444; 
-                    color: white; width: 850px; margin: auto; position: relative; box-sizing: border-box;
-                }
-                .watermark {
-                    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); 
-                    font-size: 80px; color: rgba(255, 255, 255, 0.03); font-weight: 900; white-space: nowrap; pointer-events: none;
-                }
-                #content-body { position: relative; z-index: 1; font-size: 18px; line-height: 1.7; }
-                mjx-container { margin: 12px 0 !important; display: block; overflow-x: auto; }
+                body {{ background: transparent; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; color: white; }}
+                
+                /* Laptop/Desktop View */
+                #capture-area {{
+                    background: #0d1117; padding: 30px; border-radius: 12px; 
+                    border: 2px solid #ef4444; width: 95%; max-width: 850px; 
+                    margin: 20px auto; position: relative; box-sizing: border-box;
+                }}
+
+                /* Mobile Optimization */
+                @media (max-width: 600px) {{
+                    #capture-area {{ padding: 15px; width: 98%; border-width: 1px; }}
+                    h1 {{ font-size: 22px !important; }}
+                    #content-body {{ font-size: 14px !important; }}
+                    .watermark {{ font-size: 40px !important; }}
+                }}
+
+                .watermark {{
+                    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); 
+                    font-size: 70px; color: rgba(255, 255, 255, 0.03); font-weight: 900; 
+                    white-space: nowrap; pointer-events: none; z-index: 0;
+                }}
+                #content-body {{ position: relative; z-index: 1; line-height: 1.6; word-wrap: break-word; }}
+                mjx-container {{ margin: 10px 0 !important; overflow-x: auto; }}
+                
+                .download-btn {{
+                    background: #ef4444; color: white; border: none; padding: 12px; 
+                    border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;
+                    font-size: 16px; margin-bottom: 15px;
+                }}
             </style>
         </head>
         <body>
+            <button id="dlBtn" class="download-btn">📥 Download HD Cheat Sheet (Mobile Ready)</button>
             <div id="capture-area">
                 <div class="watermark">TOPPERGPT</div>
-                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 12px; margin: 0; font-size: 30px;">{{TITLE}}</h1>
-                <p style="color: #94a3b8; font-size: 15px;">University: {{UNI}} | TopperGPT Official Support</p>
-                <div id="content-body">{{CONTENT}}</div>
+                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; margin: 0; padding-bottom: 10px;">{f_title}</h1>
+                <p style="color: #8b949e; font-size: 13px;">University: {u_name} | Support: TopperGPT V1.0</p>
+                <div id="content-body">{raw_data.replace("\n", "<br>")}</div>
             </div>
+
             <script>
+                // LaTeX Fix
                 const body = document.getElementById('content-body');
-                body.innerHTML = body.innerHTML.replace(/\\[MATH\\](.*?)\\[\\/MATH\\]/g, (m, tex) => '\\\\[ ' + tex + ' \\\\]');
+                body.innerHTML = body.innerHTML.replace(/\\[math\\](.*?)\\[\\/math\\]/gi, (m, tex) => '\\\\[ ' + tex + ' \\\\]');
+
+                document.getElementById('dlBtn').addEventListener('click', function() {{
+                    const node = document.getElementById('capture-area');
+                    this.innerText = "Processing HD Image...";
+                    
+                    // Dom-to-image is more stable on mobile than html2canvas
+                    domtoimage.toPng(node, {{ bgcolor: '#0d1117', quality: 1.0, height: node.scrollHeight, width: node.scrollWidth }})
+                        .then(function (dataUrl) {{
+                            const link = document.createElement('a');
+                            link.download = 'TopperGPT_{f_title}.png';
+                            link.href = dataUrl;
+                            link.click();
+                            document.getElementById('dlBtn').innerText = "📥 Download HD Cheat Sheet (Mobile Ready)";
+                        }})
+                        .catch(function (error) {{
+                            alert('Bhai, browser support nahi kar raha. Refresh karke try kar.');
+                        }});
+                }});
             </script>
         </body>
         """
-        final_html = html_template.replace("{{TITLE}}", f_title).replace("{{UNI}}", u_name).replace("{{CONTENT}}", raw_data.replace("\n", "<br>"))
-
-        async def take_server_snapshot(html_content):
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                page = await browser.new_page(viewport={"width": 1000, "height": 1800})
-                await page.set_content(html_content, wait_until="networkidle")
-                await page.wait_for_selector('mjx-container', timeout=10000) 
-                await asyncio.sleep(2)
-                area_handle = await page.query_selector('#capture-area')
-                screenshot = await area_handle.screenshot(type='png', scale=3.0)
-                await browser.close()
-                return screenshot
-
-        col_img, col_btn = st.columns([0.7, 0.3])
-        with col_btn:
-            st.success("✅ Content Mined!")
-            if st.button("📸 Generate HD Snapshot", use_container_width=True):
-                install_playwright() # Run installer before snapshot
-                with st.spinner("Capturing..."):
-                    try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        img_bytes = loop.run_until_complete(take_server_snapshot(final_html))
-                        st.download_button("💾 Download Now", data=img_bytes, file_name=f"{f_title}.png", mime="image/png", use_container_width=True)
-                    except Exception as e:
-                        st.error(f"Snapshot Error: {e}")
-
-        with col_img:
-            st.components.v1.html(final_html.replace('width: 850px;', 'width: 100%;'), height=800, scrolling=True)
+        st.components.v1.html(html_template, height=900, scrolling=True)
 # ==================================================
 # --- TAB 3: AI EXAM PREDICTOR (V69 - REALISM SYNC) ---
 # ==================================================
