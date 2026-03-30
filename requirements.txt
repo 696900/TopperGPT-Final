@@ -21,3 +21,4 @@ llama-index-embeddings-gemini
 google-generativeai
 llama-index-llms-gemini
 supabase
+matplotlib
