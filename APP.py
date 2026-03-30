@@ -396,16 +396,16 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: FORMULA MINER (V58 - NO SYNTAX ERROR) ---
+# --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
 
     col_in, col_uni = st.columns([0.6, 0.4])
     with col_in:
-        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v58", placeholder="e.g. Applied Physics")
+        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v59", placeholder="e.g. Applied Physics")
     with col_uni:
-        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v58")
+        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v59")
 
     f_cost = 3
 
@@ -429,7 +429,6 @@ with tab2:
         raw_data = st.session_state.last_formula_data
         f_title = st.session_state.get('current_f_subject', "CHEAT SHEET")
 
-        # 🛑 FIXED: F-string hatake simple string use kiya hai (Backslash Safe)
         html_template = """
         <head>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -441,11 +440,7 @@ with tab2:
                     background: #0d1117; padding: 35px; border-radius: 12px; 
                     border: 2px solid #ef4444; width: 95%; max-width: 850px; 
                     margin: 20px auto; position: relative; box-sizing: border-box;
-                }
-                @media (max-width: 600px) {
-                    #capture-area { padding: 20px; width: 98%; }
-                    h1 { font-size: 24px !important; }
-                    #content-body { font-size: 15px !important; }
+                    overflow: visible !important; /* Fix for white strips */
                 }
                 .watermark {
                     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); 
@@ -453,16 +448,17 @@ with tab2:
                     white-space: nowrap; pointer-events: none; z-index: 0;
                 }
                 #content-body { position: relative; z-index: 1; line-height: 1.8; word-wrap: break-word; }
-                mjx-container { margin: 15px 0 !important; display: block; overflow-x: auto; }
+                /* LaTeX styling to prevent horizontal scroll glitched */
+                mjx-container { margin: 15px 0 !important; display: block; overflow: visible !important; }
                 .download-btn {
                     background: #ef4444; color: white; border: none; padding: 15px; 
                     border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%;
-                    font-size: 16px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(239,68,68,0.3);
+                    font-size: 16px; margin-bottom: 20px;
                 }
             </style>
         </head>
         <body>
-            <button id="dlBtn" class="download-btn">📥 Download HD Cheat Sheet (Mobile Ready)</button>
+            <button id="dlBtn" class="download-btn">📥 Download HD Cheat Sheet (Clean Render)</button>
             <div id="capture-area">
                 <div class="watermark">TOPPERGPT</div>
                 <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; margin: 0; padding-bottom: 10px;">{{TITLE}}</h1>
@@ -472,33 +468,39 @@ with tab2:
 
             <script>
                 const body = document.getElementById('content-body');
-                // Backslash safe replacement in JS
                 body.innerHTML = body.innerHTML.replace(/\\[math\\](.*?)\\[\\/math\\]/gi, (m, tex) => '\\\\[ ' + tex + ' \\\\]');
 
                 document.getElementById('dlBtn').addEventListener('click', function() {
                     const node = document.getElementById('capture-area');
-                    this.innerText = "Processing HD Image...";
-                    
-                    domtoimage.toPng(node, { bgcolor: '#0d1117', quality: 1.0 })
-                        .then(function (dataUrl) {
-                            const link = document.createElement('a');
-                            link.download = 'TopperGPT_CheatSheet.png';
-                            link.href = dataUrl;
-                            link.click();
-                            document.getElementById('dlBtn').innerText = "📥 Download HD Cheat Sheet (Mobile Ready)";
-                        })
-                        .catch(function (error) {
-                            alert('Bhai, browser support nahi kar raha. Refresh karke try kar.');
-                        });
+                    const btn = this;
+                    btn.innerText = "Generating HD Render...";
+
+                    // 🔥 PRO FIX: Snapshot lene se pehle scrollbars hide karo
+                    const mjx = document.querySelectorAll('mjx-container');
+                    mjx.forEach(m => m.style.overflow = 'visible');
+
+                    domtoimage.toPng(node, { 
+                        bgcolor: '#0d1117', 
+                        quality: 1.0,
+                        style: { 'margin': '0', 'border': 'none' } 
+                    })
+                    .then(function (dataUrl) {
+                        const link = document.createElement('a');
+                        link.download = 'TopperGPT_CheatSheet.png';
+                        link.href = dataUrl;
+                        link.click();
+                        btn.innerText = "📥 Download HD Cheat Sheet (Clean Render)";
+                    })
+                    .catch(function (error) {
+                        console.error('Download failed', error);
+                        btn.innerText = "Error! Refresh and try again.";
+                    });
                 });
             </script>
         </body>
         """
-        
-        # 🎯 Replace placeholders (No f-string backslash issues here)
         final_html = html_template.replace("{{TITLE}}", f_title).replace("{{UNI}}", u_name).replace("{{CONTENT}}", raw_data.replace("\n", "<br>"))
-        
-        st.components.v1.html(final_html, height=1000, scrolling=True)
+        st.components.v1.html(final_html, height=1200, scrolling=True)
 # ==================================================
 # --- TAB 3: AI EXAM PREDICTOR (V69 - REALISM SYNC) ---
 # ==================================================
