@@ -396,16 +396,16 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: FORMULA MINER (V57 - RESPONSIVE & STABLE) ---
+# --- TAB 2: FORMULA MINER (V58 - NO SYNTAX ERROR) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
 
     col_in, col_uni = st.columns([0.6, 0.4])
     with col_in:
-        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v57", placeholder="e.g. Engineering Maths")
+        formula_input = st.text_input("Subject/Topic Name:", key="f_input_v58", placeholder="e.g. Applied Physics")
     with col_uni:
-        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v57")
+        u_name = st.selectbox("Select University:", ["Mumbai University", "SPPU", "GTU", "AKTU", "Other"], key="f_uni_v58")
 
     f_cost = 3
 
@@ -415,7 +415,6 @@ with tab2:
         elif use_credits(f_cost):
             with st.spinner("Mining official syllabus formulas..."):
                 try:
-                    # Yaha subject aur university ke hisab se dynamic prompt
                     prompt = f"Act as an Engineering Professor for {u_name}. Topic: '{formula_input}'. Output CORE FORMULAS in [MATH] tags and 5 KEY DERIVATIONS. Use standard LaTeX."
                     res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                     st.session_state.last_formula_data = res.choices[0].message.content.strip()
@@ -430,80 +429,76 @@ with tab2:
         raw_data = st.session_state.last_formula_data
         f_title = st.session_state.get('current_f_subject', "CHEAT SHEET")
 
-        # 🛑 RESPONSIVE HTML + STABLE DOWNLOAD
-        html_template = f"""
+        # 🛑 FIXED: F-string hatake simple string use kiya hai (Backslash Safe)
+        html_template = """
         <head>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js"></script>
             <style>
-                body {{ background: transparent; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; color: white; }}
-                
-                /* Laptop/Desktop View */
-                #capture-area {{
-                    background: #0d1117; padding: 30px; border-radius: 12px; 
+                body { background: transparent; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; color: white; }
+                #capture-area {
+                    background: #0d1117; padding: 35px; border-radius: 12px; 
                     border: 2px solid #ef4444; width: 95%; max-width: 850px; 
                     margin: 20px auto; position: relative; box-sizing: border-box;
-                }}
-
-                /* Mobile Optimization */
-                @media (max-width: 600px) {{
-                    #capture-area {{ padding: 15px; width: 98%; border-width: 1px; }}
-                    h1 {{ font-size: 22px !important; }}
-                    #content-body {{ font-size: 14px !important; }}
-                    .watermark {{ font-size: 40px !important; }}
-                }}
-
-                .watermark {{
+                }
+                @media (max-width: 600px) {
+                    #capture-area { padding: 20px; width: 98%; }
+                    h1 { font-size: 24px !important; }
+                    #content-body { font-size: 15px !important; }
+                }
+                .watermark {
                     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); 
                     font-size: 70px; color: rgba(255, 255, 255, 0.03); font-weight: 900; 
                     white-space: nowrap; pointer-events: none; z-index: 0;
-                }}
-                #content-body {{ position: relative; z-index: 1; line-height: 1.6; word-wrap: break-word; }}
-                mjx-container {{ margin: 10px 0 !important; overflow-x: auto; }}
-                
-                .download-btn {{
-                    background: #ef4444; color: white; border: none; padding: 12px; 
-                    border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;
-                    font-size: 16px; margin-bottom: 15px;
-                }}
+                }
+                #content-body { position: relative; z-index: 1; line-height: 1.8; word-wrap: break-word; }
+                mjx-container { margin: 15px 0 !important; display: block; overflow-x: auto; }
+                .download-btn {
+                    background: #ef4444; color: white; border: none; padding: 15px; 
+                    border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%;
+                    font-size: 16px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(239,68,68,0.3);
+                }
             </style>
         </head>
         <body>
             <button id="dlBtn" class="download-btn">📥 Download HD Cheat Sheet (Mobile Ready)</button>
             <div id="capture-area">
                 <div class="watermark">TOPPERGPT</div>
-                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; margin: 0; padding-bottom: 10px;">{f_title}</h1>
-                <p style="color: #8b949e; font-size: 13px;">University: {u_name} | Support: TopperGPT V1.0</p>
-                <div id="content-body">{raw_data.replace("\n", "<br>")}</div>
+                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; margin: 0; padding-bottom: 10px;">{{TITLE}}</h1>
+                <p style="color: #8b949e; font-size: 14px;">University: {{UNI}} | Support: TopperGPT Official</p>
+                <div id="content-body">{{CONTENT}}</div>
             </div>
 
             <script>
-                // LaTeX Fix
                 const body = document.getElementById('content-body');
+                // Backslash safe replacement in JS
                 body.innerHTML = body.innerHTML.replace(/\\[math\\](.*?)\\[\\/math\\]/gi, (m, tex) => '\\\\[ ' + tex + ' \\\\]');
 
-                document.getElementById('dlBtn').addEventListener('click', function() {{
+                document.getElementById('dlBtn').addEventListener('click', function() {
                     const node = document.getElementById('capture-area');
                     this.innerText = "Processing HD Image...";
                     
-                    // Dom-to-image is more stable on mobile than html2canvas
-                    domtoimage.toPng(node, {{ bgcolor: '#0d1117', quality: 1.0, height: node.scrollHeight, width: node.scrollWidth }})
-                        .then(function (dataUrl) {{
+                    domtoimage.toPng(node, { bgcolor: '#0d1117', quality: 1.0 })
+                        .then(function (dataUrl) {
                             const link = document.createElement('a');
-                            link.download = 'TopperGPT_{f_title}.png';
+                            link.download = 'TopperGPT_CheatSheet.png';
                             link.href = dataUrl;
                             link.click();
                             document.getElementById('dlBtn').innerText = "📥 Download HD Cheat Sheet (Mobile Ready)";
-                        }})
-                        .catch(function (error) {{
+                        })
+                        .catch(function (error) {
                             alert('Bhai, browser support nahi kar raha. Refresh karke try kar.');
-                        }});
-                }});
+                        });
+                });
             </script>
         </body>
         """
-        st.components.v1.html(html_template, height=900, scrolling=True)
+        
+        # 🎯 Replace placeholders (No f-string backslash issues here)
+        final_html = html_template.replace("{{TITLE}}", f_title).replace("{{UNI}}", u_name).replace("{{CONTENT}}", raw_data.replace("\n", "<br>"))
+        
+        st.components.v1.html(final_html, height=1000, scrolling=True)
 # ==================================================
 # --- TAB 3: AI EXAM PREDICTOR (V69 - REALISM SYNC) ---
 # ==================================================
