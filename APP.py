@@ -29,6 +29,8 @@ from supabase import create_client, Client
 from datetime import datetime, timedelta
 import math
 from groq import Groq # Direct import for MindMap Fix
+import matplotlib.pyplot as plt
+import io
 
 # --- 1. CONFIGURATION (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
@@ -392,7 +394,7 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V50 - HD MOBILE STABLE) ---
+# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V52 - ULTRA HD STABLE) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
@@ -454,7 +456,7 @@ with tab2:
                         st.session_state.user_data['credits'] += f_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- THE RENDERER: HD Image + MathJax + Mobile Safe ---
+    # --- THE RENDERER: ULTRA-HD + SVG MATH ---
     if "last_formula_data" in st.session_state:
         st.markdown("---")
         st.info("💡 Niche wale Card ka HD Image download karne ke liye niche button dabayein.")
@@ -472,40 +474,41 @@ with tab2:
                 body {{ background-color: transparent; margin: 0; padding: 10px; font-family: 'Segoe UI', sans-serif; }}
                 #capture-area {{
                     background: #0d1117; 
-                    padding: 40px; 
+                    padding: 45px; 
                     border-radius: 15px; 
                     border: 3px solid #ef4444; 
                     color: white; 
-                    width: 900px; /* Fixed width for consistent mobile snapshot */
+                    width: 950px; /* Fixed width for consistent mobile snapshot */
                     margin: auto;
                     position: relative;
+                    box-sizing: border-box;
                 }}
                 .watermark {{
                     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); 
                     font-size: 80px; color: rgba(255, 255, 255, 0.03); font-weight: 900; 
                     white-space: nowrap; z-index: 0; pointer-events: none;
                 }}
-                #content-body {{ position: relative; z-index: 1; font-size: 20px; line-height: 1.8; }}
+                #content-body {{ position: relative; z-index: 1; font-size: 20px; line-height: 1.9; }}
                 .download-btn {{
                     background: #ef4444; color: white; border: none; padding: 18px; 
                     border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%; font-size: 18px;
                     margin-bottom: 25px; box-shadow: 0 4px 15px rgba(239,68,68,0.4);
                 }}
-                /* Force SVG Math to be visible and clear */
+                /* Force SVG Math to be crisp and block-level */
                 mjx-container[jax="SVG"] {{ 
-                    margin: 20px 0 !important; 
+                    margin: 25px 0 !important; 
                     display: block !important;
                     max-width: 100%;
                 }}
             </style>
         </head>
         <body>
-            <button id="downloadBtn" class="download-btn">📥 Download ULTRA-HD Cheat Sheet (PNG Image)</button>
+            <button id="downloadBtn" class="download-btn">🚀 Download ULTRA-HD Cheat Sheet (PNG Image)</button>
 
             <div id="capture-area">
                 <div class="watermark">TOPPERGPT • TOPPERGPT</div>
-                <h1 style="color: #ef4444; border-bottom: 3px solid #ef4444; padding-bottom: 10px; margin: 0; font-size: 32px;">{f_title}</h1>
-                <p style="color: #94a3b8; font-size: 16px; margin-top: 10px;">University: {u_name} | TopperGPT Official</p>
+                <h1 style="color: #ef4444; border-bottom: 3px solid #ef4444; padding-bottom: 12px; margin: 0; font-size: 34px; text-transform: uppercase;">{f_title}</h1>
+                <p style="color: #94a3b8; font-size: 17px; margin-top: 12px;">University: {u_name} | TopperGPT Official Support</p>
                 <div id="content-body">{raw_data}</div>
             </div>
 
@@ -525,13 +528,15 @@ with tab2:
                     const area = document.getElementById('capture-area');
                     btn.innerText = "Rendering 4K Graphics... Please wait";
                     
+                    // Fixed 2.5s delay to allow SVG fonts to stabilize on mobile
                     setTimeout(() => {{
                         html2canvas(area, {{
                             backgroundColor: "#0d1117",
-                            scale: 5, // 5x scale for Ultra HD
+                            scale: 5, // Ultra-High Resolution
                             useCORS: true,
                             allowTaint: true,
                             logging: false,
+                            letterRendering: true
                         }}).then(canvas => {{
                             const link = document.createElement('a');
                             link.download = 'TopperGPT_{f_title}.png';
@@ -539,7 +544,7 @@ with tab2:
                             link.click();
                             btn.innerText = "🚀 Download ULTRA-HD Cheat Sheet (PNG Image)";
                         }});
-                    }}, 2000); // 2 second delay to ensure SVG rendering is solid
+                    }}, 2500); 
                 }});
             </script>
         </body>
