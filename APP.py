@@ -49,59 +49,78 @@ def init_supabase():
     return create_client(url, key)
 
 supabase = init_supabase()
-# --- 💳 ZERO-WEBHOOK AUTOMATIC SYNC MACHINE ---
+
+# --- 💳 ZERO-WEBHOOK AUTOMATIC SYNC MACHINE (ANTI-LOOP SHIELD) ---
 def sync_topper_credits():
     # Only run if user is logged in
     if "user_data" not in st.session_state or st.session_state.user_data is None:
         return
+
+    # 🛑 LAYER 1: Session Time Buffer (Prevents function from hitting API every millisecond)
+    if "last_sync_time" in st.session_state:
+        if time.time() - st.session_state.last_sync_time < 30: # 30 sec ka gap
+            return
 
     try:
         # Client setup using your secrets
         client = razorpay.Client(auth=(st.secrets["RAZORPAY_KEY_ID"], st.secrets["RAZORPAY_KEY_SECRET"]))
         u_email = st.session_state.user_data['email']
 
-        # 1. Fetch last 10 successful payments from Razorpay
-        payments = client.payment.all({'count': 10})
+        # 1. Fetch last 15 successful payments from Razorpay
+        payments = client.payment.all({'count': 15})
 
         for p in payments['items']:
             # Check if payment belongs to this user and is successful
-            if p['email'] == u_email and p['status'] == 'captured':
+            if p.get('email') == u_email and p['status'] == 'captured':
                 p_id = p['id']
-                # Amount is in paise (e.g., 5900 = 59 INR)
                 amount = p['amount'] / 100 
 
                 # 2. Check Database: Kya ye payment ID pehle process ho chuki hai?
-                check = supabase.table("payments").select("*").eq("payment_id", p_id).execute()
+                check = supabase.table("payments").select("payment_id").eq("payment_id", p_id).execute()
 
                 if not check.data:
                     # 3. New Payment Found! Match with your Packs
                     credits_bonus = 0
-                    if 55 <= amount <= 65: credits_bonus = 70    # Sureshot Pack (59)
-                    elif 95 <= amount <= 105: credits_bonus = 150 # Jugaad Pack (99)
+                    if 55 <= amount <= 65: credits_bonus = 70      # Sureshot Pack (59)
+                    elif 95 <= amount <= 105: credits_bonus = 150  # Jugaad Pack (99)
                     elif 145 <= amount <= 155: credits_bonus = 350 # Topper Pro (149)
 
                     if credits_bonus > 0:
+                        # 🛑 LAYER 2: "Lock-First" Logic
+                        # Pehle payment log insert karte hain. Agar ye duplicate hoga, toh DB error dega aur niche ka code nahi chalega.
+                        try:
+                            supabase.table("payments").insert({
+                                "payment_id": p_id, 
+                                "email": u_email, 
+                                "amount": amount, 
+                                "status": "processed"
+                            }).execute()
+                        except:
+                            continue # Agar DB mein entry pehle se hai, toh skip karo
+
+                        # 🛑 LAYER 3: Fresh DB Fetch (Anti-Lag)
+                        fresh_res = supabase.table("profiles").select("credits").eq("email", u_email).single().execute()
+                        db_credits = fresh_res.data['credits'] if fresh_res.data else 0
+                        
+                        new_total = db_credits + credits_bonus
+                        
                         # Update Profile Credits in Supabase
-                        current_c = st.session_state.user_data.get('credits', 0)
-                        new_total = current_c + credits_bonus
                         supabase.table("profiles").update({"credits": new_total}).eq("email", u_email).execute()
 
-                        # Log payment so it's never reused (Security)
-                        supabase.table("payments").insert({
-                            "payment_id": p_id, 
-                            "email": u_email, 
-                            "amount": amount, 
-                            "status": "processed"
-                        }).execute()
-
-                        # Update UI State
+                        # Update UI State & Force Sync
                         st.session_state.user_data['credits'] = new_total
-                        st.toast(f"✅ Auto-Sync: {credits_bonus} Credits Added!", icon="🔥")
-                        time.sleep(1)
+                        st.session_state.last_sync_time = time.time() # Mark sync done
+                        st.toast(f"✅ Success: {credits_bonus} Credits added instantly!", icon="🔥")
+                        time.sleep(1.5)
                         st.rerun()
+        
+        # Mark sync attempt time even if no new payment found
+        st.session_state.last_sync_time = time.time()
+
     except Exception as e:
         # Silent fail to keep app running smoothly
         pass
+
 # --- 🛠️ SILENT AI SETUP (FIXED FOR NONETYPE ERROR) ---
 @st.cache_resource
 def initialize_all_ai():
@@ -202,6 +221,7 @@ def clean_email_auth():
                         else:
                             st.warning("Bhai, details toh bharo!")
         st.stop()
+
 # --- 🎁 PROMO LOGIC (STRICT SYNC) ---
 def claim_reward_logic(claim_code):
     user = st.session_state.user_data
@@ -246,7 +266,8 @@ def use_credits(amount):
 # 🛡️ RUN AUTH ENGINE
 clean_email_auth()
 
-# --- 💳 AUTO-SYNC TRIGGER (Ise yaha daalo) ---
+# --- 💳 AUTO-SYNC TRIGGER ---
+# Ab ye har page load par Razorpay se sync karega
 if st.session_state.user_data:
     sync_topper_credits()
 
@@ -290,7 +311,7 @@ with st.sidebar:
                         Amt: ₹{item['amount']} | Status: {item['status']}
                     </div>''', unsafe_allow_html=True)
             else:
-                st.caption("No recent payments found.")        
+                st.caption("No recent payments found.")         
     
     st.divider()
     st.markdown("### 💎 Refill Credits")
