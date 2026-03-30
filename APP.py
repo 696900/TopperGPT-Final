@@ -466,42 +466,46 @@ with tab2:
         html_code = f"""
         <head>
             <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
             <style>
                 body {{ background-color: transparent; margin: 0; padding: 10px; font-family: 'Segoe UI', sans-serif; }}
                 #capture-area {{
                     background: #0d1117; 
-                    padding: 35px; 
+                    padding: 40px; 
                     border-radius: 15px; 
                     border: 3px solid #ef4444; 
                     color: white; 
-                    min-height: 400px;
+                    width: 900px; /* Fixed width for consistent mobile snapshot */
+                    margin: auto;
                     position: relative;
-                    overflow: visible;
                 }}
                 .watermark {{
                     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); 
-                    font-size: 60px; color: rgba(255, 255, 255, 0.04); font-weight: 900; 
+                    font-size: 80px; color: rgba(255, 255, 255, 0.03); font-weight: 900; 
                     white-space: nowrap; z-index: 0; pointer-events: none;
                 }}
-                #content-body {{ position: relative; z-index: 1; font-size: 16px; line-height: 1.8; }}
+                #content-body {{ position: relative; z-index: 1; font-size: 20px; line-height: 1.8; }}
                 .download-btn {{
-                    background: #ef4444; color: white; border: none; padding: 15px; 
-                    border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px;
-                    margin-bottom: 20px; box-shadow: 0 4px 15px rgba(239,68,68,0.4);
+                    background: #ef4444; color: white; border: none; padding: 18px; 
+                    border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%; font-size: 18px;
+                    margin-bottom: 25px; box-shadow: 0 4px 15px rgba(239,68,68,0.4);
                 }}
-                /* Mobile LaTeX Spacing Fix */
-                mjx-container {{ margin: 15px 0 !important; padding: 5px 0; overflow-x: auto; overflow-y: hidden; }}
+                /* Force SVG Math to be visible and clear */
+                mjx-container[jax="SVG"] {{ 
+                    margin: 20px 0 !important; 
+                    display: block !important;
+                    max-width: 100%;
+                }}
             </style>
         </head>
         <body>
-            <button id="downloadBtn" class="download-btn">📥 Download High-Res Cheat Sheet (PNG Image)</button>
+            <button id="downloadBtn" class="download-btn">📥 Download ULTRA-HD Cheat Sheet (PNG Image)</button>
 
             <div id="capture-area">
                 <div class="watermark">TOPPERGPT • TOPPERGPT</div>
-                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px; margin: 0; font-size: 26px;">{f_title}</h1>
-                <p style="color: #94a3b8; font-size: 14px; margin-top: 8px;">University: {u_name} | TopperGPT V1.0</p>
+                <h1 style="color: #ef4444; border-bottom: 3px solid #ef4444; padding-bottom: 10px; margin: 0; font-size: 32px;">{f_title}</h1>
+                <p style="color: #94a3b8; font-size: 16px; margin-top: 10px;">University: {u_name} | TopperGPT Official</p>
                 <div id="content-body">{raw_data}</div>
             </div>
 
@@ -519,37 +523,28 @@ with tab2:
                 document.getElementById('downloadBtn').addEventListener('click', () => {{
                     const btn = document.getElementById('downloadBtn');
                     const area = document.getElementById('capture-area');
-                    btn.innerText = "Generating HD Render... Please wait";
+                    btn.innerText = "Rendering 4K Graphics... Please wait";
                     
-                    // 1.5 sec delay taaki MathJax fully render ho jaye
                     setTimeout(() => {{
                         html2canvas(area, {{
                             backgroundColor: "#0d1117",
-                            scale: 4, 
+                            scale: 5, // 5x scale for Ultra HD
                             useCORS: true,
-                            allowTaint: false,
-                            letterRendering: true,
+                            allowTaint: true,
                             logging: false,
-                            onclone: (clonedDoc) => {{
-                                // Desktop environment simulate karna mobile overlap hatane ke liye
-                                const clonedArea = clonedDoc.getElementById('capture-area');
-                                clonedArea.style.width = "1000px"; 
-                                clonedArea.style.margin = "0";
-                                clonedArea.style.overflow = "visible";
-                            }}
                         }}).then(canvas => {{
                             const link = document.createElement('a');
                             link.download = 'TopperGPT_{f_title}.png';
                             link.href = canvas.toDataURL("image/png", 1.0);
                             link.click();
-                            btn.innerText = "🚀 Download High-Res Cheat Sheet (PNG Image)";
+                            btn.innerText = "🚀 Download ULTRA-HD Cheat Sheet (PNG Image)";
                         }});
-                    }}, 1500);
+                    }}, 2000); // 2 second delay to ensure SVG rendering is solid
                 }});
             </script>
         </body>
         """
-        components.html(html_code, height=1000, scrolling=True)
+        components.html(html_code, height=1200, scrolling=True)
 # ==================================================
 # --- TAB 3: AI EXAM PREDICTOR (V69 - REALISM SYNC) ---
 # ==================================================
