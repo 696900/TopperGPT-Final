@@ -32,6 +32,7 @@ import playwright
 from playwright.async_api import async_playwright
 import asyncio
 import io
+import subprocess
 
 # --- 1. CONFIGURATION (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
@@ -394,15 +395,17 @@ with tab1:
                         st.error(f"Backend Busy. Please try again in 5 seconds.")
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
-# ==========================================
-# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V55 - PRO CLEAN) ---
-# ==========================================
-import asyncio
-import io
-from playwright.async_api import async_playwright
-
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
+
+    # --- AUTO-INSTALLER LOGIC ---
+    def install_playwright():
+        try:
+            # Check if chromium is already installed in the cache
+            if not os.path.exists("/home/appuser/.cache/ms-playwright"):
+                subprocess.run(["playwright", "install", "chromium"], check=True)
+        except Exception as e:
+            st.error(f"Installer Error: {e}")
 
     col_in, col_uni = st.columns([0.6, 0.4])
     with col_in:
@@ -412,7 +415,6 @@ with tab2:
 
     f_cost = 3
 
-    # --- ACTION BUTTONS ---
     c_btn1, c_btn2 = st.columns(2)
     with c_btn1:
         generate_triggered = st.button(f"🔥 Mine Technical Cheat Sheet ({f_cost} Credits)", use_container_width=True)
@@ -426,43 +428,20 @@ with tab2:
         elif use_credits(f_cost):
             with st.spinner("Mining official syllabus formulas..."):
                 try:
-                    prompt = f"""
-                    Act as an Engineering Professor. Topic: '{formula_input}' ({u_name}).
-                    Output exactly in this style:
-                    
-                    ### CORE FORMULAS:
-                    1. [MATH] Formula [/MATH] (Description)
-                    2. [MATH] Formula [/MATH] (Description)
-                    ...
-                    
-                    ### KEY DERIVATIONS:
-                    - List 5 derivations clearly with their final result in [MATH] tags.
-                    
-                    CRITICAL: Use standard LaTeX (e.g. \\frac, \\nabla, \\int) inside [MATH] tags.
-                    """
-
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-
-                    raw_output = res.choices[0].message.content.strip()
-                    st.session_state.last_formula_data = raw_output.replace('"', "'")
+                    prompt = f"Act as an Engineering Professor. Topic: '{formula_input}' ({u_name}). Output CORE FORMULAS in [MATH] tags and 5 KEY DERIVATIONS."
+                    res = groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                    st.session_state.last_formula_data = res.choices[0].message.content.strip()
                     st.session_state.current_f_subject = formula_input.upper()
                     st.rerun()
-
                 except Exception as e:
                     st.session_state.user_data['credits'] += f_cost
                     st.error(f"Logic Error: {e}")
 
-    # --- THE RENDERER: HD Image + Server-Side Snapshot ---
     if "last_formula_data" in st.session_state:
         st.markdown("---")
-        
         raw_data = st.session_state.last_formula_data
         f_title = st.session_state.get('current_f_subject', "CHEAT SHEET")
 
-        # 🛑 FIXED: Using placeholders to avoid backslash f-string error
         html_template = """
         <head>
             <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
@@ -470,21 +449,12 @@ with tab2:
             <style>
                 body { background: transparent; margin: 0; padding: 10px; font-family: 'Segoe UI', sans-serif; }
                 #capture-area {
-                    background: #0d1117; 
-                    padding: 40px; 
-                    border-radius: 15px; 
-                    border: 3px solid #ef4444; 
-                    color: white; 
-                    width: 900px; 
-                    margin: auto;
-                    position: relative;
-                    box-sizing: border-box;
-                    overflow: visible;
+                    background: #0d1117; padding: 40px; border-radius: 15px; border: 3px solid #ef4444; 
+                    color: white; width: 850px; margin: auto; position: relative; box-sizing: border-box;
                 }
                 .watermark {
                     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); 
-                    font-size: 80px; color: rgba(255, 255, 255, 0.03); font-weight: 900; 
-                    white-space: nowrap; z-index: 0; pointer-events: none;
+                    font-size: 80px; color: rgba(255, 255, 255, 0.03); font-weight: 900; white-space: nowrap; pointer-events: none;
                 }
                 #content-body { position: relative; z-index: 1; font-size: 18px; line-height: 1.7; }
                 mjx-container { margin: 12px 0 !important; display: block; overflow-x: auto; }
@@ -492,25 +462,17 @@ with tab2:
         </head>
         <body>
             <div id="capture-area">
-                <div class="watermark">TOPPERGPT • TOPPERGPT</div>
-                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 12px; margin: 0; font-size: 30px; text-transform: uppercase;">{{TITLE}}</h1>
-                <p style="color: #94a3b8; font-size: 15px; margin-top: 10px;">University: {{UNI}} | TopperGPT Official Support</p>
+                <div class="watermark">TOPPERGPT</div>
+                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 12px; margin: 0; font-size: 30px;">{{TITLE}}</h1>
+                <p style="color: #94a3b8; font-size: 15px;">University: {{UNI}} | TopperGPT Official Support</p>
                 <div id="content-body">{{CONTENT}}</div>
             </div>
             <script>
-                function renderMath() {
-                    const body = document.getElementById('content-body');
-                    body.innerHTML = body.innerHTML.replace(/\\[MATH\\](.*?)\\[\\/MATH\\]/g, (match, tex) => {
-                        return '\\\\[ ' + tex + ' \\\\]';
-                    });
-                    if (window.MathJax) { MathJax.typesetPromise(); }
-                }
-                window.onload = renderMath;
+                const body = document.getElementById('content-body');
+                body.innerHTML = body.innerHTML.replace(/\\[MATH\\](.*?)\\[\\/MATH\\]/g, (m, tex) => '\\\\[ ' + tex + ' \\\\]');
             </script>
         </body>
         """
-
-        # Replace placeholders with real data
         final_html = html_template.replace("{{TITLE}}", f_title).replace("{{UNI}}", u_name).replace("{{CONTENT}}", raw_data.replace("\n", "<br>"))
 
         async def take_server_snapshot(html_content):
@@ -519,38 +481,28 @@ with tab2:
                 page = await browser.new_page(viewport={"width": 1000, "height": 1800})
                 await page.set_content(html_content, wait_until="networkidle")
                 await page.wait_for_selector('mjx-container', timeout=10000) 
-                await asyncio.sleep(2) # Extra buffer for complex LaTeX
+                await asyncio.sleep(2)
                 area_handle = await page.query_selector('#capture-area')
-                screenshot = await area_handle.screenshot(type='png', omit_background=True, scale=3.0)
+                screenshot = await area_handle.screenshot(type='png', scale=3.0)
                 await browser.close()
                 return screenshot
 
         col_img, col_btn = st.columns([0.7, 0.3])
-
         with col_btn:
             st.success("✅ Content Mined!")
             if st.button("📸 Generate HD Snapshot", use_container_width=True):
+                install_playwright() # Run installer before snapshot
                 with st.spinner("Capturing..."):
                     try:
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
                         img_bytes = loop.run_until_complete(take_server_snapshot(final_html))
-                        loop.close()
-                        
-                        st.download_button(
-                            label="📥 Download Now",
-                            data=img_bytes,
-                            file_name=f"TopperGPT_{f_title}.png",
-                            mime="image/png",
-                            use_container_width=True
-                        )
+                        st.download_button("💾 Download Now", data=img_bytes, file_name=f"{f_title}.png", mime="image/png", use_container_width=True)
                     except Exception as e:
                         st.error(f"Snapshot Error: {e}")
 
         with col_img:
-            import streamlit.components.v1 as components
-            preview_html = final_html.replace('width: 900px;', 'width: 100%;')
-            components.html(preview_html, height=800, scrolling=True)
+            st.components.v1.html(final_html.replace('width: 850px;', 'width: 100%;'), height=800, scrolling=True)
 # ==================================================
 # --- TAB 3: AI EXAM PREDICTOR (V69 - REALISM SYNC) ---
 # ==================================================
