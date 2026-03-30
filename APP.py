@@ -395,8 +395,12 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V52 - ULTRA HD STABLE) ---
+# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V55 - PRO CLEAN) ---
 # ==========================================
+import asyncio
+import io
+from playwright.async_api import async_playwright
+
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
 
@@ -419,43 +423,37 @@ with tab2:
     if generate_triggered:
         if len(formula_input.strip()) < 3:
             st.error("❌ Valid engineering subject dalo.")
-        else:
-            if use_credits(f_cost):
-                with st.spinner("Mining official syllabus formulas..."):
-                    try:
-                        # MASTER PROMPT: Strictly forcing standard LaTeX
-                        prompt = f"""
-                        Act as an Engineering Professor. Topic: '{formula_input}' ({u_name}).
-                        Output exactly in this style:
-                        
-                        ### CORE FORMULAS:
-                        1. [MATH] Formula [/MATH] (Description)
-                        2. [MATH] Formula [/MATH] (Description)
-                        ...
-                        
-                        ### KEY DERIVATIONS:
-                        - List 5 derivations clearly with their final result in [MATH] tags.
-                        
-                        CRITICAL: Use standard LaTeX (e.g. \\frac, \\nabla, \\int) inside [MATH] tags.
-                        """
+        elif use_credits(f_cost):
+            with st.spinner("Mining official syllabus formulas..."):
+                try:
+                    prompt = f"""
+                    Act as an Engineering Professor. Topic: '{formula_input}' ({u_name}).
+                    Output exactly in this style:
+                    
+                    ### CORE FORMULAS:
+                    1. [MATH] Formula [/MATH] (Description)
+                    2. [MATH] Formula [/MATH] (Description)
+                    ...
+                    
+                    ### KEY DERIVATIONS:
+                    - List 5 derivations clearly with their final result in [MATH] tags.
+                    
+                    CRITICAL: Use standard LaTeX (e.g. \\frac, \\nabla, \\int) inside [MATH] tags.
+                    """
 
-                        res = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[{"role": "user", "content": prompt}]
-                        )
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": prompt}]
+                    )
 
-                        raw_output = res.choices[0].message.content.strip()
-                        
-                        # Clean and store raw data
-                        clean_data = raw_output.replace('"', "'") # remove quotes for HTML safety
-                        st.session_state.last_formula_data = clean_data
-                        st.session_state.current_f_subject = formula_input.upper()
-                        st.rerun()
+                    raw_output = res.choices[0].message.content.strip()
+                    st.session_state.last_formula_data = raw_output.replace('"', "'")
+                    st.session_state.current_f_subject = formula_input.upper()
+                    st.rerun()
 
-                    except Exception as e:
-                        # Refund credits on failure
-                        st.session_state.user_data['credits'] += f_cost
-                        st.error(f"Logic Error: {e}")
+                except Exception as e:
+                    st.session_state.user_data['credits'] += f_cost
+                    st.error(f"Logic Error: {e}")
 
     # --- THE RENDERER: HD Image + Server-Side Snapshot ---
     if "last_formula_data" in st.session_state:
@@ -464,103 +462,94 @@ with tab2:
         raw_data = st.session_state.last_formula_data
         f_title = st.session_state.get('current_f_subject', "CHEAT SHEET")
 
-        # HTML Template specifically for server-side snapshot
-        html_template = f"""
+        # 🛑 FIXED: Using placeholders to avoid backslash f-string error
+        html_template = """
         <head>
             <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
             <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
             <style>
-                body {{ background: transparent; margin: 0; padding: 10px; font-family: 'Segoe UI', sans-serif; }}
-                #capture-area {{
+                body { background: transparent; margin: 0; padding: 10px; font-family: 'Segoe UI', sans-serif; }
+                #capture-area {
                     background: #0d1117; 
                     padding: 40px; 
                     border-radius: 15px; 
                     border: 3px solid #ef4444; 
                     color: white; 
-                    width: 900px; /* Consistent Fixed width */
+                    width: 900px; 
                     margin: auto;
                     position: relative;
                     box-sizing: border-box;
                     overflow: visible;
-                }}
-                .watermark {{
+                }
+                .watermark {
                     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); 
                     font-size: 80px; color: rgba(255, 255, 255, 0.03); font-weight: 900; 
                     white-space: nowrap; z-index: 0; pointer-events: none;
-                }}
-                #content-body {{ position: relative; z-index: 1; font-size: 18px; line-height: 1.7; }}
-                /* MathJax Spacing Fix */
-                mjx-container {{ margin: 12px 0 !important; display: block; overflow-x: auto; }}
+                }
+                #content-body { position: relative; z-index: 1; font-size: 18px; line-height: 1.7; }
+                mjx-container { margin: 12px 0 !important; display: block; overflow-x: auto; }
             </style>
         </head>
         <body>
             <div id="capture-area">
                 <div class="watermark">TOPPERGPT • TOPPERGPT</div>
-                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 12px; margin: 0; font-size: 30px; text-transform: uppercase;">{f_title}</h1>
-                <p style="color: #94a3b8; font-size: 15px; margin-top: 10px;">University: {u_name} | TopperGPT Official Support</p>
-                <div id="content-body">{raw_data.replace("\n", "<br>")}</div>
+                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 12px; margin: 0; font-size: 30px; text-transform: uppercase;">{{TITLE}}</h1>
+                <p style="color: #94a3b8; font-size: 15px; margin-top: 10px;">University: {{UNI}} | TopperGPT Official Support</p>
+                <div id="content-body">{{CONTENT}}</div>
             </div>
             <script>
-                function renderMath() {{
+                function renderMath() {
                     const body = document.getElementById('content-body');
-                    // Handle LaTeX conversion from [MATH] to \\(
-                    body.innerHTML = body.innerHTML.replace(/\\[MATH\\](.*?)\\[\\/MATH\\]/g, (match, tex) => {{
+                    body.innerHTML = body.innerHTML.replace(/\\[MATH\\](.*?)\\[\\/MATH\\]/g, (match, tex) => {
                         return '\\\\[ ' + tex + ' \\\\]';
-                    }});
-                    if (window.MathJax) {{ MathJax.typesetPromise(); }}
-                }}
+                    });
+                    if (window.MathJax) { MathJax.typesetPromise(); }
+                }
                 window.onload = renderMath;
             </script>
         </body>
         """
 
-        # async snapshot function using Playwright
+        # Replace placeholders with real data
+        final_html = html_template.replace("{{TITLE}}", f_title).replace("{{UNI}}", u_name).replace("{{CONTENT}}", raw_data.replace("\n", "<br>"))
+
         async def take_server_snapshot(html_content):
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
-                page = await browser.new_page(viewport={{"width": 1000, "height": 1600}})
+                page = await browser.new_page(viewport={"width": 1000, "height": 1800})
                 await page.set_content(html_content, wait_until="networkidle")
-                
-                # Wait specifically for MathJax to finish rendering
                 await page.wait_for_selector('mjx-container', timeout=10000) 
-                # Add tiny buffer for MathJax stability
-                await asyncio.sleep(1) 
-                
+                await asyncio.sleep(2) # Extra buffer for complex LaTeX
                 area_handle = await page.query_selector('#capture-area')
-                # Take full resolution snapshot of the area
-                screenshot = await area_handle.screenshot(type='png', omit_background=True, scale='3.0') # scale for high DPI
+                screenshot = await area_handle.screenshot(type='png', omit_background=True, scale=3.0)
                 await browser.close()
                 return screenshot
 
-        # UI Layout
         col_img, col_btn = st.columns([0.7, 0.3])
 
         with col_btn:
             st.success("✅ Content Mined!")
-            with st.spinner("Generating ULTRA-HD snapshot..."):
-                try:
-                    # Execute async function in a Streamlit-safe way
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    img_bytes = loop.run_until_complete(take_server_snapshot(html_template))
-                    loop.close()
-                    
-                    st.download_button(
-                        label="📥 Download ULTRA-HD Cheat Sheet",
-                        data=img_bytes,
-                        file_name=f"TopperGPT_{f_title}.png",
-                        mime="image/png",
-                        use_container_width=True
-                    )
-                except Exception as e:
-                    st.error(f"Snapshot Error: {e}. Check requirements.txt and server resources.")
-                    st.markdown("⚠️ Server snapshot fail hua. Please use Refresh Rendering button.")
+            if st.button("📸 Generate HD Snapshot", use_container_width=True):
+                with st.spinner("Capturing..."):
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        img_bytes = loop.run_until_complete(take_server_snapshot(final_html))
+                        loop.close()
+                        
+                        st.download_button(
+                            label="📥 Download Now",
+                            data=img_bytes,
+                            file_name=f"TopperGPT_{f_title}.png",
+                            mime="image/png",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.error(f"Snapshot Error: {e}")
 
         with col_img:
-            # Render the same HTML in Streamlit preview (uses browser MathJax)
             import streamlit.components.v1 as components
-            # Streamlit version might have different scaling for preview
-            preview_html = html_template.replace('width: 900px;', 'width: 100%;')
+            preview_html = final_html.replace('width: 900px;', 'width: 100%;')
             components.html(preview_html, height=800, scrolling=True)
 # ==================================================
 # --- TAB 3: AI EXAM PREDICTOR (V69 - REALISM SYNC) ---
