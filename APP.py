@@ -531,9 +531,10 @@ with tab2:
                 
                 html2canvas(area, {{ 
                     backgroundColor: "#0d1117", 
-                    scale: 3, // High Resolution
+                    scale: 2, // High Resolution
                     logging: false,
                     useCORS: true 
+                    width: 1200
                 }}).then(canvas => {{
                     const link = document.createElement('a');
                     link.download = 'TopperGPT_{f_title.replace(" ", "_")}.png';
