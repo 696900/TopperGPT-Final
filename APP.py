@@ -392,7 +392,7 @@ with tab1:
     else:
         st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # ==========================================
-# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V48) ---
+# --- TAB 2: FORMULA & DERIVATION ARCHITECT (V49 - MOBILE STABLE) ---
 # ==========================================
 with tab2:
     st.markdown("<h2 style='text-align: center; color: #ef4444;'>🧪 Formula & Derivation Miner</h2>", unsafe_allow_html=True)
@@ -420,7 +420,7 @@ with tab2:
             if use_credits(f_cost):
                 with st.spinner("Mining official syllabus formulas..."):
                     try:
-                        # MASTER PROMPT: Strictly forcing standard LaTeX for complex math
+                        # MASTER PROMPT: Strictly forcing standard LaTeX
                         prompt = f"""
                         Act as an Engineering Professor. Topic: '{formula_input}' ({u_name}).
                         Output exactly in this style:
@@ -431,9 +431,9 @@ with tab2:
                         ...
                         
                         ### KEY DERIVATIONS:
-                        - List 5 derivations clearly.
+                        - List 5 derivations clearly with their final result in [MATH] tags.
                         
-                        CRITICAL: Use proper LaTeX syntax inside [MATH] tags for complex symbols like Nabla, Divergence, Curl, Integrals, and Fractions.
+                        CRITICAL: Use standard LaTeX (e.g. \\frac, \\nabla, \\int) inside [MATH] tags.
                         """
 
                         res = groq_client.chat.completions.create(
@@ -450,14 +450,13 @@ with tab2:
                         st.rerun()
 
                     except Exception as e:
+                        # Refund credits on failure
                         st.session_state.user_data['credits'] += f_cost
                         st.error(f"Logic Error: {e}")
 
-    # --- THE RENDERER: HD Image + MathJax + TOPPERGPT Watermark ---
+    # --- THE RENDERER: HD Image + MathJax + Mobile Safe ---
     if "last_formula_data" in st.session_state:
         st.markdown("---")
-        
-        # DOWNLOAD BUTTON PLACED ABOVE TO PREVENT CUTTING
         st.info("💡 Niche wale Card ka HD Image download karne ke liye niche button dabayein.")
         
         import streamlit.components.v1 as components
@@ -465,85 +464,80 @@ with tab2:
         f_title = st.session_state.get('current_f_subject', "CHEAT SHEET")
 
         html_code = f"""
-        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-        <button id="downloadBtn" style="
-            background: #ef4444; color: white; border: none; padding: 15px; 
-            border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; font-size: 18px;
-            margin-bottom: 20px; box-shadow: 0 4px 15px rgba(239,68,68,0.4);
-        ">
-            📥 Download High-Res Cheat Sheet (PNG Image)
-        </button>
-
-        <div id="capture-area" style="
-            position: relative; 
-            background: #0d1117; 
-            padding: 45px; 
-            border-radius: 15px; 
-            border: 3px solid #ef4444; 
-            color: white; 
-            font-family: 'Segoe UI', Arial, sans-serif;
-            min-height: 600px;
-        ">
-            <div style="
-                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); 
-                font-size: 70px; color: rgba(255, 255, 255, 0.04); font-weight: 900; pointer-events: none; 
-                white-space: nowrap; z-index: 0; text-transform: uppercase; letter-spacing: 10px;
-            ">
-                TOPPERGPT • TOPPERGPT • TOPPERGPT
-            </div>
-
-            <div style="position: relative; z-index: 1;">
-                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 15px; margin-top: 0; font-size: 32px;">
-                    {f_title}
-                </h1>
-                <p style="color: #94a3b8; font-size: 16px; margin-top: 10px;">
-                    <b>University:</b> {u_name} | <b>Exam Support:</b> TopperGPT V1.0
-                </p>
-                
-                <div id="content-body" style="font-size: 18px; line-height: 1.6; color: #e2e8f0; margin-top: 25px;">
-                    {raw_data}
-                </div>
-            </div>
-        </div>
-
-        <script>
-            // Convert [MATH] tags to MathJax syntax
-            function renderMath() {{
-                const body = document.getElementById('content-body');
-                body.innerHTML = body.innerHTML.replace(/\[MATH\](.*?)\[\/MATH\]/g, (match, tex) => {{
-                    return '\\\\[ ' + tex + ' \\\\]';
-                }});
-                if (window.MathJax) {{
-                    MathJax.typesetPromise();
+        <head>
+            <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+            <style>
+                body {{ background-color: transparent; margin: 0; padding: 10px; font-family: 'Segoe UI', sans-serif; }}
+                #capture-area {{
+                    background: #0d1117; 
+                    padding: 30px; 
+                    border-radius: 15px; 
+                    border: 3px solid #ef4444; 
+                    color: white; 
+                    min-height: 400px;
+                    position: relative;
+                    overflow: hidden;
                 }}
-            }}
+                .watermark {{
+                    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); 
+                    font-size: 60px; color: rgba(255, 255, 255, 0.04); font-weight: 900; 
+                    white-space: nowrap; z-index: 0; pointer-events: none;
+                }}
+                #content-body {{ position: relative; z-index: 1; font-size: 16px; line-height: 1.6; }}
+                .download-btn {{
+                    background: #ef4444; color: white; border: none; padding: 15px; 
+                    border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px;
+                    margin-bottom: 20px; box-shadow: 0 4px 15px rgba(239,68,68,0.4);
+                }}
+                mjx-container {{ margin: 10px 0 !important; overflow-x: auto; overflow-y: hidden; }}
+            </style>
+        </head>
+        <body>
+            <button id="downloadBtn" class="download-btn">📥 Download High-Res Cheat Sheet (PNG Image)</button>
 
-            window.onload = renderMath;
+            <div id="capture-area">
+                <div class="watermark">TOPPERGPT • TOPPERGPT</div>
+                <h1 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px; margin: 0; font-size: 24px;">{f_title}</h1>
+                <p style="color: #94a3b8; font-size: 14px; margin-top: 5px;">University: {u_name} | TopperGPT V1.0</p>
+                <div id="content-body">{raw_data}</div>
+            </div>
 
-            // HD Screenshot Capture
-            document.getElementById('downloadBtn').addEventListener('click', () => {{
-                const area = document.getElementById('capture-area');
-                const btn = document.getElementById('downloadBtn');
-                btn.innerText = "Generating HD Render... Please wait";
+            <script>
+                function renderMath() {{
+                    const body = document.getElementById('content-body');
+                    // Handle LaTeX conversion
+                    body.innerHTML = body.innerHTML.replace(/\\[MATH\\](.*?)\\[\\/MATH\\]/g, (match, tex) => {{
+                        return '\\\\[ ' + tex + ' \\\\]';
+                    }});
+                    if (window.MathJax) {{ MathJax.typesetPromise(); }}
+                }}
                 
-                html2canvas(area, {{ 
-                    backgroundColor: "#0d1117", 
-                    scale: 2, // High Resolution
-                    logging: false,
-                    useCORS: true 
-                    width: 1200
-                }}).then(canvas => {{
-                    const link = document.createElement('a');
-                    link.download = 'TopperGPT_{f_title.replace(" ", "_")}.png';
-                    link.href = canvas.toDataURL("image/png");
-                    link.click();
-                    btn.innerText = "📥 Download High-Res Cheat Sheet (PNG Image)";
+                window.onload = renderMath;
+
+                document.getElementById('downloadBtn').addEventListener('click', () => {{
+                    const btn = document.getElementById('downloadBtn');
+                    btn.innerText = "Generating HD Render... Please wait";
+                    
+                    setTimeout(() => {{
+                        html2canvas(document.getElementById('capture-area'), {{
+                            backgroundColor: "#0d1117",
+                            scale: 3,
+                            useCORS: true,
+                            allowTaint: true,
+                            scrollY: -window.scrollY
+                        }}).then(canvas => {{
+                            const link = document.createElement('a');
+                            link.download = 'TopperGPT_{f_title}.png';
+                            link.href = canvas.toDataURL("image/png");
+                            link.click();
+                            btn.innerText = "🚀 Download High-Res Cheat Sheet (PNG Image)";
+                        }});
+                    }}, 800);
                 }});
-            }});
-        </script>
+            </script>
+        </body>
         """
         components.html(html_code, height=900, scrolling=True)
 # ==================================================
