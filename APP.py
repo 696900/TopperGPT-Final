@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V180 PRO-VISION) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V190 NO-LAZY) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
@@ -343,38 +343,34 @@ with tab1:
     with c1:
         user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="p_subj_v68")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v68")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="p_uni_v68")
 
-    st.caption("🚀 Sniper Engine active. Analyizing 2024-25 MU NEP patterns for high-probability questions.")
+    st.caption("🚀 Sniper Engine: Providing high-density engineering predictions based on 2024-25 MU trends.")
 
     if st.button(f"⚡ RUN PREMIUM SNIPER (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Force-Scanning MU Database for {user_subj}..."):
+            with st.spinner(f"Force-Extracting 10+ Detailed Questions for {user_subj}..."):
                 try:
                     target_key = user_subj.lower().strip()
                     # Internal evidence from knowledge_base.py
-                    internal_evidence = PYQ_DATA.get(target_key, "No local data found. Use PhD moderation logic.")
+                    internal_evidence = PYQ_DATA.get(target_key, "No local data found. Scan internal patterns.")
 
-                    # --- THE "ULTIMATE VALUE" PROMPT ---
+                    # --- THE "STRICT ENFORCEMENT" COMMAND PROMPT ---
                     prompt = f"""
-                    Act as a Senior Exam Paper Moderator and PhD Analyst for {p_uni}. 
-                    MISSION: Predict for '{user_subj}' using EVIDENCE: {internal_evidence}.
+                    Act as an Extremely Strict PhD Moderator for {p_uni}. 
+                    MISSION: Set a High-Quality paper for '{user_subj}' using ONLY this EVIDENCE: {internal_evidence}.
 
-                    RULES (STRICT COMPLIANCE):
-                    1. For [SURESHOT], you MUST provide AT LEAST 10 technical questions. 
-                    2. For [REPEATED], list AT LEAST 6 actual PYQs from 2024-2025 with Years and Marks.
-                    3. Each question MUST include 'Confidence %' and 'Expected Marks'.
-                    4. DO NOT give generic topics. Give EXACT TECHNICAL QUESTIONS.
-                    5. Format with bullet points and bold technical terms.
-                    6. MARKS: Physics/Chem max 5M. Maths/DS/BEE up to 15M.
+                    CRITICAL REQUIREMENTS (NO EXCEPTIONS):
+                    1. [SURESHOT]: You MUST provide EXACTLY 10 detailed technical questions. DO NOT combine them.
+                    2. [REPEATED]: List 6 most frequent numericals/theory from Dec'24 and May'25 papers.
+                    3. Each question MUST specify: 'Expected Marks' and 'Confidence Score %'.
+                    4. Provide FULL technical questions (e.g., 'Derive expression for Numerical Aperture of Step Index Fiber') not just topics.
+                    5. Use strictly NEP 2020 Marks: Physics/Chem max 5M. Maths/DS up to 15M.
+                    6. If you fail to provide 10 technical questions, the student will fail. BE DETAILED.
 
-                    OUTPUT FORMAT (STRICT MARKERS):
-                    [SURESHOT] 🎯 (Provide 10 High-Value Questions)
-                    [REPEATED] 📊 (Provide 6 Proven PYQs from Dec'24/May'25)
-                    [PASS_JUGAAD] 🛡️ (5 Specific 'Life-Saving' Questions)
-                    [3DAY_PLAN] 📅 (Daily Strategy: Morning/Noon/Night)
+                    OUTPUT MARKERS: [SURESHOT], [REPEATED], [PASS_JUGAAD], [3DAY_PLAN].
                     """
 
                     res = groq_client.chat.completions.create(
@@ -388,20 +384,21 @@ with tab1:
                         st.session_state.p_subj_pro_final = user_subj
                         st.balloons(); st.rerun()
                     else:
-                        raise Exception("AI Error: Connection timed out.")
+                        raise Exception("AI failed to generate response.")
 
                 except Exception as e:
+                    # Automatic Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ Sniper Alert: {str(e)}. Credits refunded.")
+                    st.error(f"⚠️ Sniper Error: {str(e)}. Credits refunded.")
 
-    # --- DISPLAY AREA: PREMIUM UI ---
+    # --- DISPLAY AREA: PREMIUM UI CARDS ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
         # Color mapping for sections
         sections = {
-            "[SURESHOT]": ("🎯 Sureshot Predictions", "#4CAF50"),
+            "[SURESHOT]": ("🎯 Next Paper Sureshots (Top 10)", "#4CAF50"),
             "[REPEATED]": ("📊 Proven PYQs (2024-25)", "#2196F3"),
             "[PASS_JUGAAD]": ("🛡️ Pass Hone ka Jugaad", "#FF9800"),
             "[3DAY_PLAN]": ("📅 3-Day Battle Plan", "#9C27B0")
@@ -412,21 +409,22 @@ with tab1:
         
         for marker, (title, color) in sections.items():
             if marker in out_text:
-                content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
-                with st.expander(title, expanded=True):
-                    # Styled content block
-                    st.markdown(f"""
-                    <div style='background-color: #1e1e1e; padding: 15px; border-radius: 10px; border-left: 5px solid {color}; margin-bottom: 10px;'>
-                        <div style='color:#e0e0e0; line-height:1.7; font-size: 15px;'>
-                            {content.strip().replace('-', '•')}
+                parts = out_text.split(marker)
+                if len(parts) > 1:
+                    content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
+                    with st.expander(title, expanded=True):
+                        st.markdown(f"""
+                        <div style='background-color: #1e1e1e; padding: 15px; border-radius: 10px; border-left: 5px solid {color}; margin-top: 5px;'>
+                            <div style='color:#e0e0e0; line-height:1.8; font-size: 15px; font-family: sans-serif;'>
+                                {content.strip().replace('-', '•')}
+                            </div>
                         </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
         
         # Share Button
         share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
         import urllib.parse
-        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer; box-shadow: 0px 4px 10px rgba(0,0,0,0.3);">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
+        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer; width:100%; box-shadow: 0px 4px 10px rgba(0,0,0,0.3);">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
