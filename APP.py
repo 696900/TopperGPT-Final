@@ -334,8 +334,8 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-with tab1: # Isse Tab 1 bana dena priority ke liye
+## --- TAB 1: PREDICT MY NEXT QUESTION (VIRAL RESEARCH ENGINE V75) ---
+with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
@@ -367,18 +367,31 @@ with tab1: # Isse Tab 1 bana dena priority ke liye
                     if p_topics_manual.strip():
                         final_context = f"PRIMARY TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
 
-                    # MASTER PROMPT (NEP 2020 SNIPER MODE)
+                    # --- UPDATED MASTER PROMPT: THE VIRAL RESEARCH ENGINE ---
                     prompt = f"""
-                    Act as a PhD Professor and Senior Moderator for {p_uni}. 
-                    Target Subject: {user_subj}.  
-                    Context: NEP 2020 Guidelines & last 5 years historical data.
-                    Syllabus: {final_context}
+                    Act as a PhD Senior Moderator and Exam Paper Setter for {p_uni}. 
+                    You are a specialist in the Subject: '{user_subj}'.
+
+                    RESEARCH PROTOCOL (NEP 2020 Guidelines):
+                    1. DEEP ANALYZE the Syllabus Context: {final_context}.
+                    2. If DRAWING: Focus on 'Condition-based' problems.
+                    3. If NUMERICAL: Focus on 'Methods' and 'Repeating Patterns'.
+                    4. If THEORY: Focus on 'Technical Keywords' and 'Comparisons'.
 
                     STRICT OUTPUT FORMAT:
-                    [SURESHOT] List 5 High probability questions for this year.
-                    [REPEATED] List 5 Most repeated PYQs with exact years (e.g. Dec '23, May '24) as proof.
-                    [PASS_JUGAAD] Minimum 3 specific topics to study just to pass.
-                    [3DAY_PLAN] Strict Morning/Afternoon/Night 3-day schedule to finish subject.
+                    [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS:
+                    - Format each question with Marks and a 'Reason why it will come' based on 2024-2025 trends.
+
+                    [REPEATED] 📊 PROOF-BACKED PYQs:
+                    - List 5 questions with EXACT Year/Session (e.g. May '24, Dec '24). No fake data.
+
+                    [PASS_JUGAAD] 🛡️ EMERGENCY SURVIVAL TOPICS (40% Marks):
+                    - Name the 3 'Golden Chapters' from the context that carry maximum weightage.
+
+                    [3DAY_PLAN] 📅 3-DAY BATTLE STRATEGY:
+                    - Day 1: High weightage modules. Day 2: Repeated patterns. Day 3: Final revision.
+
+                    Rules: Use technical terminology. No generic advice. Be so accurate it feels like a leaked pattern analysis.
                     """
 
                     res = groq_client.chat.completions.create(
@@ -386,7 +399,6 @@ with tab1: # Isse Tab 1 bana dena priority ke liye
                         messages=[{"role": "user", "content": prompt}]
                     )
                     
-                    # Text parse karke save karenge (JSON hata diya)
                     st.session_state.prediction_pro_out = res.choices[0].message.content
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons(); st.rerun()
@@ -414,12 +426,10 @@ with tab1: # Isse Tab 1 bana dena priority ke liye
         
         for marker, title in sections.items():
             if marker in out_text:
-                # Content extract karne ka bulletproof tarika
                 content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
                 with st.expander(title, expanded=True):
                     st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
         
-        # WhatsApp Share button (Loop ke bahar)
         share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 Check them out: toppergpt.in"
         import urllib.parse
         st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
