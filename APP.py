@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V95 FINAL SNIPER) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V100 LIVE-READY) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
@@ -368,18 +368,17 @@ with tab1:
                     # --- UNIVERSAL AUTO-RESEARCH SNIPER ENGINE ---
                     prompt = f"""
                     Act as a PhD Senior Moderator and Data Analyst for {p_uni}.
-                    Subject: '{user_subj}'.
-                    Context: {final_context}
+                    Subject: '{user_subj}'. Context: {final_context}
 
-                    MISSION: Analyze context and determine the ASALI (actual) exam pattern.
+                    MISSION: Analyze context and determine the ASALI exam pattern.
                     - If Physics/Chemistry: strictly follow 2-5M pattern.
                     - If Graphics/Maths/BEE: identify if questions go up to 6, 10, or 15M.
 
-                    OUTPUT THIS EXACT STRUCTURE (TEXT ONLY):
-                    [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS with exact Marks and Trend Analysis.
-                    [REPEATED] 📊 PROOF-BACKED PYQs from 2024-2025 sessions with original Marks.
-                    [PASS_JUGAAD] 🛡️ EMERGENCY 40% MARKS TOPICS for failing students.
-                    [3DAY_PLAN] 📅 3-DAY ROADMAP (Morning/Afternoon/Night).
+                    OUTPUT THIS EXACT STRUCTURE (TEXT ONLY, NO JSON):
+                    [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS with exact Marks.
+                    [REPEATED] 📊 PROOF-BACKED PYQs from 2024-2025 sessions.
+                    [PASS_JUGAAD] 🛡️ EMERGENCY 40% MARKS TOPICS.
+                    [3DAY_PLAN] 📅 3-DAY ROADMAP.
                     """
 
                     res = groq_client.chat.completions.create(
@@ -387,27 +386,27 @@ with tab1:
                         messages=[{"role": "user", "content": prompt}]
                     )
                     
-                    # 🛡️ SAFE CHECK: Verify response before storing
+                    # 🛡️ BULLETPROOF STORAGE: Text content only
                     if res and res.choices[0].message.content:
-                        raw_content = res.choices[0].message.content.strip()
+                        raw_output = res.choices[0].message.content.strip()
                         
-                        # Store text directly (No JSON loads call)
-                        st.session_state.prediction_pro_out = raw_content
+                        # Session storage
+                        st.session_state.prediction_pro_out = raw_output
                         st.session_state.p_subj_pro_final = user_subj
                         st.balloons()
                         st.rerun()
                     else:
-                        st.error("API ne khali response diya hai. Bhai shayad Groq ki limit khatam ho gayi hai.")
+                        raise Exception("Empty response from AI")
 
                 except Exception as e:
-                    # Refund logic
+                    # Automatic Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ API Error: Check your Groq Key or Limits. Error: {str(e)}")
+                    st.error(f"⚠️ Sniper Alert: {str(e)}. Credits refunded.")
         else:
             st.error("Bhai credits khatam!")
 
-    # --- DISPLAY AREA: ALWAYS OUTSIDE THE BUTTON ---
+    # --- DISPLAY AREA: ALWAYS INDEPENDENT ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
@@ -423,12 +422,14 @@ with tab1:
         
         for marker, title in sections.items():
             if marker in out_text:
+                # Text-based splitting logic (No JSON dependency)
                 parts = out_text.split(marker)
                 if len(parts) > 1:
                     content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
                     with st.expander(title, expanded=True):
                         st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
         
+        # Share logic
         share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
         import urllib.parse
         st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
