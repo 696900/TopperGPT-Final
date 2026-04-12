@@ -330,9 +330,9 @@ with st.sidebar:
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 
 # --- 5. MAIN FEATURES TABS ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "💬 Chat PDF", "🧪 FORMULA ARCHITECT", "🔮 Predict Questions", "🧠 MindMap", 
-    "🃏 Flashcards", "❓ Engg PYQs", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
+    "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
 # --- TAB 1: STABLE TEXT-BASED MENTOR (MOBILE OPTIMIZED) ---
@@ -528,7 +528,7 @@ with tab2:
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
-    predict_cost = 5
+    predict_cost = 25
     
     c1, c2 = st.columns(2)
     with c1:
@@ -566,17 +566,19 @@ with tab3:
                         raise Exception(f"Syllabus mein '{user_subj}' ka exact section nahi mila. Topics manually paste karo.")
 
                     # ✅ UPDATED MASTER PROMPT (FOR NATURAL QUESTIONS)
+                   # Line 560 Naya Master Prompt
                     prompt = f"""
-                    Act as a Senior University Professor and External Examiner for {p_uni}.
-                    TARGET SUBJECT: {user_subj}.
-                    CONTEXT DATA: {final_context}
+                    Act as a PhD Professor and Senior Moderator for {p_uni}. 
+                    Target Subject: {user_subj}.  
+                    Context: NEP 2020 Guidelines & last 5 years analysis.
 
-                    STRICT GUIDELINES:
-                    1. Predict 5 'Sureshot' questions based on the provided technical context.
-                    2. DO NOT include the subject name '{user_subj}' or phrases like 'in applied physics' INSIDE the questions.
-                    3. The questions must look like REAL exam questions (e.g., 'Explain Population Inversion' instead of 'Explain Population Inversion in Applied Physics').
-                    4. Focus only on core technical concepts (derivations, explanations, numericals).
-                    5. Format as JSON: {{"questions": [{{"question": "...", "marks": 10, "difficulty": "Hard", "probability": 95}}]}}
+                    STRICT OUTPUT FORMAT:
+                    [SURESHOT] 5 High probability questions for this year.
+                    [REPEATED] 5 Most repeated PYQs with exact year/session mentions (e.g. Dec '23, May '24) as proof.
+                    [PASS_JUGAAD] Minimum 3 topics to study just to pass (40% marks guaranteed).
+                    [3DAY_PLAN] A strict morning/afternoon/night schedule to finish the subject in 3 days.
+
+                    Rules: Do NOT include subject name inside questions. Focus on technical accuracy.
                     """
 
                     res = groq_client.chat.completions.create(
@@ -599,16 +601,22 @@ with tab3:
             st.error("Bhai credits khatam!")
 
     # --- DISPLAY & SHARE ---
+    # Line 589 ke baad ye dalo
     if "prediction_list" in st.session_state:
-        st.divider()
-        st.subheader(f"🎯 Predictions for: {st.session_state.p_subj_final}")
-        for q in st.session_state.prediction_list:
-            prob = q.get('probability', 90)
-            st.markdown(f'''<div style="background:#161b22; padding:15px; border-radius:10px; border-left:5px solid #4CAF50; margin-bottom:10px; border:1px solid #30363d;">
-                <p style="color:#8b949e; font-size:10px;">PROBABILITY: {prob}%</p>
-                <h4 style="color:white; margin:0;">{q.get('question')}</h4>
-                <p style="color:#4CAF50; font-size:12px;">{q.get('marks', 10)}M | {q.get('difficulty', 'Medium')}</p>
-            </div>''', unsafe_allow_html=True)
+     out = st.session_state.prediction_list # Response text
+    
+     sections = {
+        "[SURESHOT]": "🎯 Next Paper Sureshots",
+        "[REPEATED]": "📊 Repeated PYQs (with Proof)",
+        "[PASS_JUGAAD]": "🛡️ Pass Hone ka Jugaad",
+        "[3DAY_PLAN]": "📅 3-Day Ultimate Roadmap"
+    }
+    
+    for marker, title in sections.items():
+        # Logic to extract text between markers
+        content = out.split(marker)[1].split("[")[0] if marker in out else "Data missing"
+        with st.expander(title, expanded=True):
+            st.markdown(f"<div style='color:#babbbe;'>{content.strip()}</div>", unsafe_allow_html=True)
         
         # WhatsApp Share logic intact
         share_text = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_final}! 🔥\n\nCheck them out: toppergpt.in"
