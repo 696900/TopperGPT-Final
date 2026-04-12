@@ -353,7 +353,7 @@ with tab1:
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"AI Sniper is researching {user_subj} patterns..."):
+            with st.spinner(f"AI Sniper is researching {user_subj} for NEP 2020 patterns..."):
                 try:
                     final_context = ""
                     if syllabus_file:
@@ -367,34 +367,25 @@ with tab1:
                     if p_topics_manual.strip():
                         final_context = f"PRIMARY TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
 
-                    # --- UPDATED MASTER PROMPT: THE AUTO-RESEARCH SNIPER ENGINE (V85) ---
+                    # --- THE AUTO-RESEARCH SNIPER ENGINE ---
                     prompt = f"""
                     Act as a PhD Senior Moderator and Data Analyst for {p_uni}.
                     You are an expert in '{user_subj}' with deep knowledge of NEP 2020 patterns.
 
-                    MISSION: Analyze the provided Context ({final_context}) and determine the ASALI (actual) exam pattern.
+                    MISSION: Analyze Context ({final_context}) and determine the actual exam pattern.
 
                     RESEARCH PROTOCOL:
-                    1. MARKS DETECTION: Scan the context to find the maximum marks per question for THIS specific subject. 
-                       - If Physics/Chemistry: strictly follow 2-5M pattern.
-                       - If Graphics/Maths/BEE: identify if questions go up to 6, 10, or 15M.
-                    2. FREQUENCY ANALYSIS: Cross-reference May '24, Dec '24, and May '25 patterns found in the context.
+                    1. MARKS DETECTION: Scan context for max marks. Physics/Chemistry follow 2-5M. 
+                       Graphics/Maths/BEE go up to 6, 10, or 15M.
+                    2. FREQUENCY ANALYSIS: Cross-reference May '24, Dec '24, and May '25 patterns.
 
                     STRICT OUTPUT FORMAT:
-                    [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS:
-                    - Predict questions with the EXACT marks weightage you found during research.
-                    - Add a 'Moderator Note' on why this specific marks-weightage is chosen based on 2024-2025 trends.
+                    [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS with EXACT marks weightage and 'Moderator Note' on trends.
+                    [REPEATED] 📊 5 PROOF-BACKED PYQs with Year and original Marks.
+                    [PASS_JUGAAD] 🛡️ 3 'Killer Chapters' for fast 40% marks.
+                    [3DAY_PLAN] 📅 Morning/Afternoon/Night 3-day battle strategy.
 
-                    [REPEATED] 📊 PROOF-BACKED PYQs:
-                    - List 5 frequent questions with their actual Year (e.g. Dec '24) and original Marks.
-
-                    [PASS_JUGAAD] 🛡️ EMERGENCY 40% MARKS STRATEGY:
-                    - Identify the 'Killer Chapters' that provide the fastest route to passing marks.
-
-                    [3DAY_PLAN] 📅 3-DAY BATTLE MAP:
-                    - Morning/Afternoon/Night schedule based on the subject's technical depth.
-
-                    Rule: Precision over everything. If the research says it's a 15M drawing, give it for 15M. Stick to actual NEP patterns.
+                    Rule: Precision over everything. No generic advice.
                     """
 
                     res = groq_client.chat.completions.create(
@@ -404,16 +395,17 @@ with tab1:
                     
                     st.session_state.prediction_pro_out = res.choices[0].message.content
                     st.session_state.p_subj_pro_final = user_subj
-                    st.balloons(); st.rerun()
+                    st.balloons()
+                    st.rerun()
 
                 except Exception as e:
-                    st.session_state.user_data['credits'] += predict_cost # Refund
+                    st.session_state.user_data['credits'] += predict_cost # Refund logic
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"Sniper Alert: {str(e)}")
         else:
             st.error("Bhai credits khatam!")
 
-    # --- DISPLAY LOGIC ---
+    # --- DISPLAY LOGIC (OUTSIDE BUTTON FOR PERSISTENCE) ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
@@ -429,10 +421,13 @@ with tab1:
         
         for marker, title in sections.items():
             if marker in out_text:
-                content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
-                with st.expander(title, expanded=True):
-                    st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
+                parts = out_text.split(marker)
+                if len(parts) > 1:
+                    content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
+                    with st.expander(title, expanded=True):
+                        st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
         
+        # WhatsApp Share button
         share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 Check them out: toppergpt.in"
         import urllib.parse
         st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
