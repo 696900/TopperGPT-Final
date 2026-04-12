@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V100 LIVE-READY) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V105 LIVE-STABLE) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
@@ -360,12 +360,23 @@ with tab1:
                         import pdfplumber
                         with pdfplumber.open(syllabus_file) as pdf:
                             all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
-                            final_context = "\n".join(all_text)
+                            full_text = "\n".join(all_text)
+                            
+                            # 🛡️ SMART TRIMMING: Groq Free Tier ke liye context filter karo
+                            if user_subj.lower() in full_text.lower():
+                                idx = full_text.lower().find(user_subj.lower())
+                                # Subject ke aas-paas ka 7000 characters uthao (Safe for 12k TPM limit)
+                                final_context = full_text[max(0, idx-500): idx+6500]
+                            else:
+                                final_context = full_text[:6000]
 
                     if p_topics_manual.strip():
                         final_context = f"PRIMARY TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
 
-                    # --- UNIVERSAL AUTO-RESEARCH SNIPER ENGINE ---
+                    # 🛡️ EMERGENCY HARD LIMIT: 8000 Chars Max for Free Tier
+                    final_context = final_context[:8000]
+
+                    # --- THE AUTO-RESEARCH SNIPER ENGINE ---
                     prompt = f"""
                     Act as a PhD Senior Moderator and Data Analyst for {p_uni}.
                     Subject: '{user_subj}'. Context: {final_context}
@@ -386,11 +397,8 @@ with tab1:
                         messages=[{"role": "user", "content": prompt}]
                     )
                     
-                    # 🛡️ BULLETPROOF STORAGE: Text content only
                     if res and res.choices[0].message.content:
                         raw_output = res.choices[0].message.content.strip()
-                        
-                        # Session storage
                         st.session_state.prediction_pro_out = raw_output
                         st.session_state.p_subj_pro_final = user_subj
                         st.balloons()
@@ -399,7 +407,7 @@ with tab1:
                         raise Exception("Empty response from AI")
 
                 except Exception as e:
-                    # Automatic Refund
+                    # Automatic Refund logic
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"⚠️ Sniper Alert: {str(e)}. Credits refunded.")
@@ -409,27 +417,19 @@ with tab1:
     # --- DISPLAY AREA: ALWAYS INDEPENDENT ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
-        
-        sections = {
-            "[SURESHOT]": "🎯 Next Paper Sureshots",
-            "[REPEATED]": "📊 Repeated PYQs (with Proof)",
-            "[PASS_JUGAAD]": "🛡️ Pass Hone ka Jugaad",
-            "[3DAY_PLAN]": "📅 3-Day Ultimate Roadmap"
-        }
+        sections = {"[SURESHOT]": "🎯 Next Paper Sureshots", "[REPEATED]": "📊 Repeated PYQs (with Proof)", "[PASS_JUGAAD]": "🛡️ Pass Hone ka Jugaad", "[3DAY_PLAN]": "📅 3-Day Ultimate Roadmap"}
         
         st.divider()
         st.subheader(f"🔥 Battle Plan for: {st.session_state.p_subj_pro_final}")
         
         for marker, title in sections.items():
             if marker in out_text:
-                # Text-based splitting logic (No JSON dependency)
                 parts = out_text.split(marker)
                 if len(parts) > 1:
                     content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
                     with st.expander(title, expanded=True):
                         st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
         
-        # Share logic
         share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
         import urllib.parse
         st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
