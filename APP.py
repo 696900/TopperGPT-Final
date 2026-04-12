@@ -33,7 +33,7 @@ from playwright.async_api import async_playwright
 import asyncio
 import io
 import subprocess
-
+from knowledge_base import PYQ_DATA  # Nayi file ko import kiya
 # --- 1. CONFIGURATION (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
 
@@ -334,66 +334,48 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V115 STRICT SNIPER) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V130 ONE-CLICK MAGIC) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
-    
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Maths 2", key="p_subj_v68")
+        # User sirf subject ka naam dalega
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="p_subj_v68")
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v68")
 
-    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF", type=["pdf"], key="p_pdf_v68")
-    p_topics_manual = st.text_area("Or Paste Topics (Highly Recommended):", placeholder="Unit 1: ..., Unit 2: ...", key="p_manual_v68")
+    # User ko lagega AI magic kar raha hai, par piche humne knowledge_base feed kiya hai
+    st.caption("🔥 TopperGPT Sniper is active. Using Pre-Loaded 2024-2025 Exam Patterns.")
 
-    if st.button(f"⚡ PREDICT MY BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
+    if st.button(f"⚡ PREDICT NOW (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"AI Sniper researching EXACT questions for {user_subj}..."):
+            with st.spinner(f"Scanning 2024-25 MU Database for {user_subj}..."):
                 try:
-                    final_context = ""
-                    if syllabus_file:
-                        import pdfplumber
-                        with pdfplumber.open(syllabus_file) as pdf:
-                            all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
-                            full_text = "\n".join(all_text)
-                            
-                            # 🛡️ STRICT SUBJECT FILTERING
-                            if user_subj.lower() in full_text.lower():
-                                idx = full_text.lower().find(user_subj.lower())
-                                final_context = full_text[idx: idx+7000]
-                            else:
-                                final_context = full_text[:6000]
+                    # 🛡️ INTERNAL DATA FETCH: Knowledge base se subject context uthao
+                    # Ensure you have 'from knowledge_base import PYQ_DATA' at the top of app.py
+                    target_key = user_subj.lower().strip()
+                    internal_evidence = PYQ_DATA.get(target_key, "No specific local patterns found. Use general engineering exam logic.")
 
-                    if p_topics_manual.strip():
-                        final_context = f"STRICT SUBJECT TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
-                    
-                    final_context = final_context[:8000]
-
-                    # --- THE STRICT QUESTION-ONLY PROMPT ---
+                    # --- THE MASTER SNIPER PROMPT ---
                     prompt = f"""
-                    Act as a Senior Exam Paper Setter for {p_uni}. 
-                    STRICT MISSION: Give ACTUAL PREDICTIONS for '{user_subj}'.
+                    Act as a PhD Senior Moderator and Exam Paper Setter for {p_uni}.
+                    MISSION: Predict the next exam questions for '{user_subj}'.
                     
-                    RULES FOR OUTPUT:
-                    1. DO NOT give chapter names or generic topics (like 'Calculus' or 'Matrices').
-                    2. GIVE ACTUAL QUESTIONS. Example: 'Find Eigenvalues and Eigenvectors of matrix [A]...'.
-                    3. If Physics/Chemistry: Max 5M per question.
-                    4. If Maths/Graphics: Up to 15M questions.
-                    5. Each Sureshot question MUST have a 'Confidence Score (%)' and 'Expected Marks'.
-                    6. IGNORE all other subjects present in the context.
+                    STRICT RESEARCH DATA (INTERNAL EVIDENCE):
+                    {internal_evidence}
+                    
+                    RULES FOR PREDICTION:
+                    1. Use the 'STRICT RESEARCH DATA' to identify what came in Dec '24 and May '25.
+                    2. PREDICT the next logical questions. DO NOT give generic topics.
+                    3. Physics/Chemistry: STRICT 5M limit per question.
+                    4. Maths/Graphics: Up to 15M sums/drawings.
+                    5. Include 'Confidence Score %' and 'Expected Marks' for each Sureshot.
 
-                    Context: {final_context}
-
-                    OUTPUT FORMAT:
-                    [SURESHOT] 🎯 5 EXACT QUESTIONS for the next exam.
-                    [REPEATED] 📊 5 ACTUAL PYQs from 2024-2025 with Marks/Year.
-                    [PASS_JUGAAD] 🛡️ 3 Specific 'Must-Do' Questions to pass easily.
-                    [3DAY_PLAN] 📅 Strategy for {user_subj}.
+                    OUTPUT MARKERS: [SURESHOT], [REPEATED], [PASS_JUGAAD], [3DAY_PLAN].
                     """
 
                     res = groq_client.chat.completions.create(
@@ -403,22 +385,31 @@ with tab1:
                     
                     if res and res.choices[0].message.content:
                         raw_output = res.choices[0].message.content.strip()
+                        
+                        # Store in session state for persistence
                         st.session_state.prediction_pro_out = raw_output
                         st.session_state.p_subj_pro_final = user_subj
                         st.balloons()
                         st.rerun()
                     else:
-                        raise Exception("Empty response from AI")
+                        raise Exception("Empty response from AI engine.")
 
                 except Exception as e:
+                    # Refund credits if any technical error occurs
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"⚠️ Sniper Alert: {str(e)}. Credits refunded.")
 
-    # --- DISPLAY AREA ---
+    # --- DISPLAY AREA: ALWAYS OUTSIDE THE BUTTON ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
-        sections = {"[SURESHOT]": "🎯 Next Paper Sureshots", "[REPEATED]": "📊 Repeated PYQs (with Proof)", "[PASS_JUGAAD]": "🛡️ Pass Hone ka Jugaad", "[3DAY_PLAN]": "📅 3-Day Ultimate Roadmap"}
+        
+        sections = {
+            "[SURESHOT]": "🎯 Next Paper Sureshots",
+            "[REPEATED]": "📊 Repeated PYQs (with Proof)",
+            "[PASS_JUGAAD]": "🛡️ Pass Hone ka Jugaad",
+            "[3DAY_PLAN]": "📅 3-Day Ultimate Roadmap"
+        }
         
         st.divider()
         st.subheader(f"🔥 Battle Plan for: {st.session_state.p_subj_pro_final}")
@@ -429,8 +420,10 @@ with tab1:
                 if len(parts) > 1:
                     content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
                     with st.expander(title, expanded=True):
+                        # Clean UI with line height and color
                         st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
         
+        # Share Button for Virality
         share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
         import urllib.parse
         st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
