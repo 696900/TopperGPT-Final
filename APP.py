@@ -353,7 +353,7 @@ with tab1:
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"AI Sniper is researching ONLY {user_subj}..."):
+            with st.spinner(f"AI Sniper researching EXACT questions for {user_subj}..."):
                 try:
                     final_context = ""
                     if syllabus_file:
