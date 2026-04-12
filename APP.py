@@ -331,91 +331,98 @@ with st.sidebar:
 
 # --- 5. MAIN FEATURES TABS ---
 tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
-    "💬 Chat PDF", "🧪 FORMULA ARCHITECT", "🔮 Predict Questions", "🧠 MindMap", 
+    "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
 ## --- TAB 1: SMART NOTE ANALYSIS (STABLE VISION ENGINE) ---
-# --- TAB 1: STABLE TEXT-BASED MENTOR (MOBILE OPTIMIZED) ---
-with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor (Stable)</h2>", unsafe_allow_html=True)
+with tab1: # Isse Tab 1 bana dena priority ke liye
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
-    # ✅ ADDED: Professional Warning for Users
-    st.warning("⚠️ Note: Only Text-based PDFs are supported. Scanned images or handwritten PDFs will not work.")
+    predict_cost = 25
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics or Maths 1", key="p_subj_v68")
+    with c2:
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v68")
 
-    # 1. CLEAN PERSISTENT STATE
-    if "master_docs" not in st.session_state: st.session_state.master_docs = {} 
-    if "active_doc_key" not in st.session_state: st.session_state.active_doc_key = None
+    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF", type=["pdf"], key="p_pdf_v68")
+    p_topics_manual = st.text_area("Or Paste Topics (Highly Recommended):", placeholder="e.g. Unit 1: Lasers, Unit 2: Quantum...", key="p_manual_v68")
 
-    # --- 🌍 LANGUAGE LOCK ---
-    t_lang = st.radio("Response Language:", ["Mix (Hinglish)", "English", "Marathi-English"], horizontal=True, key="lang_v156")
+    if st.button(f"⚡ PREDICT MY BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
+        if not user_subj:
+            st.warning("Bhai, subject ka naam toh dalo!")
+        elif use_credits(predict_cost): 
+            with st.spinner(f"AI Sniper is analyzing {user_subj} for NEP 2020 patterns..."):
+                try:
+                    final_context = ""
+                    if syllabus_file:
+                        with pdfplumber.open(syllabus_file) as pdf:
+                            all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
+                            full_pdf_text = "\n".join(all_text)
+                            if user_subj.lower() in full_pdf_text.lower():
+                                start_idx = full_pdf_text.lower().find(user_subj.lower())
+                                final_context = full_pdf_text[start_idx : start_idx + 10000]
 
-    # --- 🔄 TOP SESSION SWITCHER (MOBILE FRIENDLY) ---
-    if st.session_state.master_docs:
-        st.markdown("### 📑 Switch PDF Session:")
-        nav_cols = st.columns(len(st.session_state.master_docs) + 1)
-        for i, d_name in enumerate(st.session_state.master_docs.keys()):
-            with nav_cols[i]:
-                b_type = "primary" if d_name == st.session_state.active_doc_key else "secondary"
-                if st.button(f"📄 {d_name[:8]}..", key=f"nav_{d_name}", type=b_type, use_container_width=True):
-                    st.session_state.active_doc_key = d_name
-                    st.rerun()
-        with nav_cols[-1]:
-            if st.button("🗑️ Reset", type="primary", use_container_width=True):
-                st.session_state.master_docs = {}; st.session_state.active_doc_key = None; st.rerun()
-        st.markdown("---")
+                    if p_topics_manual.strip():
+                        final_context = f"PRIMARY TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
 
-    # --- 📤 PDF ONLY UPLOADER ---
-    u_file = st.file_uploader("Upload Exam PDF", type=["pdf"], key="pdf_only_v156")
+                    # MASTER PROMPT (NEP 2020 SNIPER MODE)
+                    prompt = f"""
+                    Act as a PhD Professor and Senior Moderator for {p_uni}. 
+                    Target Subject: {user_subj}.  
+                    Context: NEP 2020 Guidelines & last 5 years historical data.
+                    Syllabus: {final_context}
 
-    if u_file and u_file.name not in st.session_state.master_docs:
-        with st.spinner(f"Reading {u_file.name}..."):
-            import fitz
-            doc = fitz.open(stream=u_file.read(), filetype="pdf")
-            content = "".join([f"\n[Page {i+1}]\n{p.get_text()}" for i, p in enumerate(doc)])
-            
-            st.session_state.master_docs[u_file.name] = {"data": content, "history": []}
-            st.session_state.active_doc_key = u_file.name
-            st.rerun()
+                    STRICT OUTPUT FORMAT:
+                    [SURESHOT] List 5 High probability questions for this year.
+                    [REPEATED] List 5 Most repeated PYQs with exact years (e.g. Dec '23, May '24) as proof.
+                    [PASS_JUGAAD] Minimum 3 specific topics to study just to pass.
+                    [3DAY_PLAN] Strict Morning/Afternoon/Night 3-day schedule to finish subject.
+                    """
 
-    # --- 💬 STABLE TEXT ENGINE (GROQ) ---
-    if st.session_state.active_doc_key:
-        active_key = st.session_state.active_doc_key
-        session = st.session_state.master_docs[active_key]
-        st.success(f"🎯 Currently Studying: **{active_key}**")
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    
+                    # Text parse karke save karenge (JSON hata diya)
+                    st.session_state.prediction_pro_out = res.choices[0].message.content
+                    st.session_state.p_subj_pro_final = user_subj
+                    st.balloons(); st.rerun()
+
+                except Exception as e:
+                    st.session_state.user_data['credits'] += predict_cost # Refund
+                    supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
+                    st.error(f"Sniper Alert: {str(e)}")
+        else:
+            st.error("Bhai credits khatam!")
+
+    # --- DISPLAY LOGIC (FIXED NameError & Indentation) ---
+    if "prediction_pro_out" in st.session_state:
+        out_text = st.session_state.prediction_pro_out
         
-        for idx, m in enumerate(session["history"]):
-            with st.chat_message(m["role"]):
-                st.markdown(m["content"])
-                if m["role"] == "assistant":
-                    if st.button(f"🔊 Listen", key=f"pod_{active_key}_{idx}"):
-                        from gtts import gTTS
-                        import io
-                        a_lang = 'hi' if "Mix" in t_lang else ('mr' if "Marathi" in t_lang else 'en')
-                        tts = gTTS(text=m["content"][:400], lang=a_lang)
-                        b = io.BytesIO(); tts.write_to_fp(b); st.audio(b)
-
-        if p := st.chat_input(f"Ask anything about {active_key}..."):
-            if use_credits(1):
-                session["history"].append({"role": "user", "content": p})
-                with st.chat_message("user"): st.markdown(p)
-
-                with st.chat_message("assistant"):
-                    try:
-                        from groq import Groq
-                        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-                        sys_msg = f"Tu Expert Professor hai. {t_lang} mein jawab de. Context: {session['data'][:30000]}"
-                        chat_res = client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": p}]
-                        )
-                        ans = chat_res.choices[0].message.content
-                        st.markdown(ans)
-                        session["history"].append({"role": "assistant", "content": ans})
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Backend Busy. Please try again in 5 seconds.")
-    else:
-        st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
+        sections = {
+            "[SURESHOT]": "🎯 Next Paper Sureshots",
+            "[REPEATED]": "📊 Repeated PYQs (with Proof)",
+            "[PASS_JUGAAD]": "🛡️ Pass Hone ka Jugaad",
+            "[3DAY_PLAN]": "📅 3-Day Ultimate Roadmap"
+        }
+        
+        st.divider()
+        st.subheader(f"🔥 Battle Plan for: {st.session_state.p_subj_pro_final}")
+        
+        for marker, title in sections.items():
+            if marker in out_text:
+                # Content extract karne ka bulletproof tarika
+                content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
+                with st.expander(title, expanded=True):
+                    st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
+        
+        # WhatsApp Share button (Loop ke bahar)
+        share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 Check them out: toppergpt.in"
+        import urllib.parse
+        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
@@ -522,106 +529,87 @@ with tab2:
         """
         final_html = html_template.replace("{{TITLE}}", f_title).replace("{{UNI}}", u_name).replace("{{CONTENT}}", raw_data.replace("\n", "<br>"))
         st.components.v1.html(final_html, height=1200, scrolling=True)
-# ==================================================
-# --- TAB 3: AI EXAM PREDICTOR (V69 - REALISM SYNC) ---
-# ==================================================
+# --- TAB 1: STABLE TEXT-BASED MENTOR (MOBILE OPTIMIZED) ---
 with tab3:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor (Stable)</h2>", unsafe_allow_html=True)
     
-    predict_cost = 25
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics or Maths 1", key="p_subj_v68")
-    with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v68")
+    # ✅ ADDED: Professional Warning for Users
+    st.warning("⚠️ Note: Only Text-based PDFs are supported. Scanned images or handwritten PDFs will not work.")
 
-    syllabus_file = st.file_uploader("📂 Upload Syllabus PDF", type=["pdf"], key="p_pdf_v68")
-    p_topics_manual = st.text_area("Or Paste Topics (Highly Recommended):", placeholder="e.g. Unit 1: Lasers, Unit 2: Quantum... OR Unit 1: Matrices, Unit 2: Calculus...", key="p_manual_v68")
+    # 1. CLEAN PERSISTENT STATE
+    if "master_docs" not in st.session_state: st.session_state.master_docs = {} 
+    if "active_doc_key" not in st.session_state: st.session_state.active_doc_key = None
 
-    if st.button(f"⚡ PREDICT MY NEXT QUESTION (-{predict_cost} Credits)", use_container_width=True):
-        if not user_subj:
-            st.warning("Bhai, subject ka naam toh dalo!")
-        elif use_credits(predict_cost): 
-            with st.spinner(f"AI Sniper is aligning with {user_subj} syllabus..."):
-                try:
-                    final_context = ""
-                    
-                    if syllabus_file:
-                        import pdfplumber
-                        with pdfplumber.open(syllabus_file) as pdf:
-                            all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
-                            full_pdf_text = "\n".join(all_text)
-                            
-                            # 🎯 DYNAMIC SEARCH
-                            if user_subj.lower() in full_pdf_text.lower():
-                                start_idx = full_pdf_text.lower().find(user_subj.lower())
-                                final_context = full_pdf_text[start_idx : start_idx + 10000]
+    # --- 🌍 LANGUAGE LOCK ---
+    t_lang = st.radio("Response Language:", ["Mix (Hinglish)", "English", "Marathi-English"], horizontal=True, key="lang_v156")
 
-                    # 📄 MANUAL TOPICS OVERRIDE
-                    if p_topics_manual.strip():
-                        final_context = f"PRIMARY TOPICS TO COVER:\n{p_topics_manual.strip()}\n\n" + final_context
+    # --- 🔄 TOP SESSION SWITCHER (MOBILE FRIENDLY) ---
+    if st.session_state.master_docs:
+        st.markdown("### 📑 Switch PDF Session:")
+        nav_cols = st.columns(len(st.session_state.master_docs) + 1)
+        for i, d_name in enumerate(st.session_state.master_docs.keys()):
+            with nav_cols[i]:
+                b_type = "primary" if d_name == st.session_state.active_doc_key else "secondary"
+                if st.button(f"📄 {d_name[:8]}..", key=f"nav_{d_name}", type=b_type, use_container_width=True):
+                    st.session_state.active_doc_key = d_name
+                    st.rerun()
+        with nav_cols[-1]:
+            if st.button("🗑️ Reset", type="primary", use_container_width=True):
+                st.session_state.master_docs = {}; st.session_state.active_doc_key = None; st.rerun()
+        st.markdown("---")
 
-                    if len(final_context.strip()) < 15:
-                        raise Exception(f"Syllabus mein '{user_subj}' ka exact section nahi mila. Topics manually paste karo.")
+    # --- 📤 PDF ONLY UPLOADER ---
+    u_file = st.file_uploader("Upload Exam PDF", type=["pdf"], key="pdf_only_v156")
 
-                    # ✅ UPDATED MASTER PROMPT (FOR NATURAL QUESTIONS)
-                   # Line 560 Naya Master Prompt
-                    prompt = f"""
-                    Act as a PhD Professor and Senior Moderator for {p_uni}. 
-                    Target Subject: {user_subj}.  
-                    Context: NEP 2020 Guidelines & last 5 years analysis.
+    if u_file and u_file.name not in st.session_state.master_docs:
+        with st.spinner(f"Reading {u_file.name}..."):
+            import fitz
+            doc = fitz.open(stream=u_file.read(), filetype="pdf")
+            content = "".join([f"\n[Page {i+1}]\n{p.get_text()}" for i, p in enumerate(doc)])
+            
+            st.session_state.master_docs[u_file.name] = {"data": content, "history": []}
+            st.session_state.active_doc_key = u_file.name
+            st.rerun()
 
-                    STRICT OUTPUT FORMAT:
-                    [SURESHOT] 5 High probability questions for this year.
-                    [REPEATED] 5 Most repeated PYQs with exact year/session mentions (e.g. Dec '23, May '24) as proof.
-                    [PASS_JUGAAD] Minimum 3 topics to study just to pass (40% marks guaranteed).
-                    [3DAY_PLAN] A strict morning/afternoon/night schedule to finish the subject in 3 days.
-
-                    Rules: Do NOT include subject name inside questions. Focus on technical accuracy.
-                    """
-
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": prompt}],
-                        response_format={"type": "json_object"}
-                    )
-                    
-                    raw_data = json.loads(res.choices[0].message.content)
-                    st.session_state.prediction_list = raw_data.get('questions', list(raw_data.values())[0])
-                    st.session_state.p_subj_final = user_subj
-                    st.balloons(); st.rerun()
-
-                except Exception as e:
-                    # ✅ REFUND LOGIC
-                    st.session_state.user_data['credits'] += predict_cost
-                    supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"Sniper Alert: {str(e)}")
-        else:
-            st.error("Bhai credits khatam!")
-
-    # --- DISPLAY & SHARE ---
-    # Line 589 ke baad ye dalo
-    if "prediction_list" in st.session_state:
-     out = st.session_state.prediction_list # Response text
-    
-     sections = {
-        "[SURESHOT]": "🎯 Next Paper Sureshots",
-        "[REPEATED]": "📊 Repeated PYQs (with Proof)",
-        "[PASS_JUGAAD]": "🛡️ Pass Hone ka Jugaad",
-        "[3DAY_PLAN]": "📅 3-Day Ultimate Roadmap"
-    }
-    
-    for marker, title in sections.items():
-        # Logic to extract text between markers
-        content = out.split(marker)[1].split("[")[0] if marker in out else "Data missing"
-        with st.expander(title, expanded=True):
-            st.markdown(f"<div style='color:#babbbe;'>{content.strip()}</div>", unsafe_allow_html=True)
+    # --- 💬 STABLE TEXT ENGINE (GROQ) ---
+    if st.session_state.active_doc_key:
+        active_key = st.session_state.active_doc_key
+        session = st.session_state.master_docs[active_key]
+        st.success(f"🎯 Currently Studying: **{active_key}**")
         
-        # WhatsApp Share logic intact
-        share_text = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_final}! 🔥\n\nCheck them out: toppergpt.in"
-        import urllib.parse
-        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_text)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share Sureshot Questions on WhatsApp</button></a>''', unsafe_allow_html=True)
+        for idx, m in enumerate(session["history"]):
+            with st.chat_message(m["role"]):
+                st.markdown(m["content"])
+                if m["role"] == "assistant":
+                    if st.button(f"🔊 Listen", key=f"pod_{active_key}_{idx}"):
+                        from gtts import gTTS
+                        import io
+                        a_lang = 'hi' if "Mix" in t_lang else ('mr' if "Marathi" in t_lang else 'en')
+                        tts = gTTS(text=m["content"][:400], lang=a_lang)
+                        b = io.BytesIO(); tts.write_to_fp(b); st.audio(b)
+
+        if p := st.chat_input(f"Ask anything about {active_key}..."):
+            if use_credits(1):
+                session["history"].append({"role": "user", "content": p})
+                with st.chat_message("user"): st.markdown(p)
+
+                with st.chat_message("assistant"):
+                    try:
+                        from groq import Groq
+                        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                        sys_msg = f"Tu Expert Professor hai. {t_lang} mein jawab de. Context: {session['data'][:30000]}"
+                        chat_res = client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": p}]
+                        )
+                        ans = chat_res.choices[0].message.content
+                        st.markdown(ans)
+                        session["history"].append({"role": "assistant", "content": ans})
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Backend Busy. Please try again in 5 seconds.")
+    else:
+        st.info("Pehle koi PDF upload karo taaki hum padhai shuru kar sakein!")
 # --- TAB 4: CONCEPT MINDMAP ARCHITECT (REVENUE SYNCED) ---
 # --- TAB 4: CONCEPT MINDMAP (V156 - WATERMARK EDITION) ---
 with tab4:
