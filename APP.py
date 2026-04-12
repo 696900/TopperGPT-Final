@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V105 LIVE-STABLE) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V110 SUBJECT-LOCKED) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
@@ -353,7 +353,7 @@ with tab1:
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"AI Sniper is researching {user_subj} for NEP 2020 patterns..."):
+            with st.spinner(f"AI Sniper is researching ONLY {user_subj}..."):
                 try:
                     final_context = ""
                     if syllabus_file:
@@ -362,34 +362,38 @@ with tab1:
                             all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
                             full_text = "\n".join(all_text)
                             
-                            # 🛡️ SMART TRIMMING: Groq Free Tier ke liye context filter karo
+                            # 🛡️ STRICT FILTERING: Sirf relevant subject ka context uthao
                             if user_subj.lower() in full_text.lower():
                                 idx = full_text.lower().find(user_subj.lower())
-                                # Subject ke aas-paas ka 7000 characters uthao (Safe for 12k TPM limit)
-                                final_context = full_text[max(0, idx-500): idx+6500]
+                                # Subject milne par wahan se 7000 characters ka slice lo
+                                final_context = full_text[idx: idx+7000]
                             else:
                                 final_context = full_text[:6000]
 
                     if p_topics_manual.strip():
-                        final_context = f"PRIMARY TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
+                        final_context = f"PRIMARY SUBJECT TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
 
-                    # 🛡️ EMERGENCY HARD LIMIT: 8000 Chars Max for Free Tier
+                    # 🛡️ EMERGENCY HARD LIMIT: 8000 Chars Max for Groq Free Tier
                     final_context = final_context[:8000]
 
-                    # --- THE AUTO-RESEARCH SNIPER ENGINE ---
+                    # --- THE FOCUSSED SNIPER PROMPT ---
                     prompt = f"""
-                    Act as a PhD Senior Moderator and Data Analyst for {p_uni}.
-                    Subject: '{user_subj}'. Context: {final_context}
+                    Act as a PhD Senior Moderator for {p_uni}. 
+                    STRICT MISSION: Predict ONLY for the subject '{user_subj}'.
+                    
+                    CRITICAL RULES:
+                    1. IGNORE all other subjects (like Maths, Mechanics, etc.) in the context.
+                    2. If Physics/Chemistry: STRICT 5 Marks Limit per question.
+                    3. If Graphics/Maths/BEE: Predict up to 15 Marks.
+                    4. Use ONLY NEP 2020 patterns (2024-2025 trends).
 
-                    MISSION: Analyze context and determine the ASALI exam pattern.
-                    - If Physics/Chemistry: strictly follow 2-5M pattern.
-                    - If Graphics/Maths/BEE: identify if questions go up to 6, 10, or 15M.
+                    Context: {final_context}
 
-                    OUTPUT THIS EXACT STRUCTURE (TEXT ONLY, NO JSON):
-                    [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS with exact Marks.
-                    [REPEATED] 📊 PROOF-BACKED PYQs from 2024-2025 sessions.
-                    [PASS_JUGAAD] 🛡️ EMERGENCY 40% MARKS TOPICS.
-                    [3DAY_PLAN] 📅 3-DAY ROADMAP.
+                    OUTPUT STRUCTURE (TEXT ONLY):
+                    [SURESHOT] 🎯 5 PREDICTIONS for {user_subj} with marks and trend reason.
+                    [REPEATED] 📊 PROOF-BACKED PYQs from 2024-2025 sessions for {user_subj}.
+                    [PASS_JUGAAD] 🛡️ 3 'Golden Chapters' to pass {user_subj}.
+                    [3DAY_PLAN] 📅 Battle strategy for {user_subj}.
                     """
 
                     res = groq_client.chat.completions.create(
@@ -414,7 +418,7 @@ with tab1:
         else:
             st.error("Bhai credits khatam!")
 
-    # --- DISPLAY AREA: ALWAYS INDEPENDENT ---
+    # --- DISPLAY AREA ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         sections = {"[SURESHOT]": "🎯 Next Paper Sureshots", "[REPEATED]": "📊 Repeated PYQs (with Proof)", "[PASS_JUGAAD]": "🛡️ Pass Hone ka Jugaad", "[3DAY_PLAN]": "📅 3-Day Ultimate Roadmap"}
