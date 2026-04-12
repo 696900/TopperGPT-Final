@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V85 CLEAN) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (CLEAN SNIPER V85) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
@@ -353,10 +353,11 @@ with tab1:
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"AI Sniper is researching {user_subj}..."):
+            with st.spinner(f"AI Sniper is researching {user_subj} for NEP 2020 patterns..."):
                 try:
                     final_context = ""
                     if syllabus_file:
+                        import pdfplumber
                         with pdfplumber.open(syllabus_file) as pdf:
                             all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
                             final_context = "\n".join(all_text)
@@ -364,47 +365,43 @@ with tab1:
                     if p_topics_manual.strip():
                         final_context = f"PRIMARY TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
 
-                    # --- STRICT TEXT PROMPT (NO JSON) ---
+                    # --- THE AUTO-RESEARCH SNIPER ENGINE ---
                     prompt = f"""
-                    Act as a PhD Moderator for {p_uni}. 
-                    Subject: {user_subj}
+                    Act as a PhD Senior Moderator and Data Analyst for {p_uni}.
+                    Subject: '{user_subj}'.
                     Context: {final_context}
 
-                    MISSION: Predict based on NEP 2020 Scheme.
-                    - If Physics/Chemistry: STRICT 5 MARKS LIMIT per question.
-                    - If Graphics/Maths/BEE: Questions can go up to 10-15M.
+                    MISSION: Analyze context and determine the ASALI (actual) exam pattern.
+                    - If Physics/Chemistry: strictly follow 2-5M pattern.
+                    - If Graphics/Maths/BEE: identify if questions go up to 6, 10, or 15M.
 
                     OUTPUT THIS EXACT STRUCTURE (TEXT ONLY):
-                    [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS:
-                    (List questions with marks and a brief trend reason)
-
-                    [REPEATED] 📊 PROOF-BACKED PYQs:
-                    (List 5 questions from May '24, Dec '24, May '25 with Years/Marks)
-
-                    [PASS_JUGAAD] 🛡️ EMERGENCY 40% MARKS TOPICS:
-                    (Chapters to cover to pass)
-
-                    [3DAY_PLAN] 📅 3-DAY ROADMAP:
-                    (Day 1-3 Strategy)
+                    [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS with exact Marks and Trend Analysis.
+                    [REPEATED] 📊 PROOF-BACKED PYQs from 2024-2025 sessions with original Marks.
+                    [PASS_JUGAAD] 🛡️ EMERGENCY 40% MARKS TOPICS for failing students.
+                    [3DAY_PLAN] 📅 3-DAY ROADMAP (Morning/Afternoon/Night).
                     """
 
-                    # 🛑 CRITICAL: response_format=json HATA DIYA HAI
+                    # 🛑 CRITICAL: response_format=json HAS BEEN REMOVED TO PREVENT ERRORS
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": prompt}]
                     )
                     
+                    # Store text directly without json.loads()
                     st.session_state.prediction_pro_out = res.choices[0].message.content
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons()
                     st.rerun()
 
                 except Exception as e:
-                    st.session_state.user_data['credits'] += predict_cost
+                    st.session_state.user_data['credits'] += predict_cost # Refund logic
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"Sniper Alert: {str(e)}")
+        else:
+            st.error("Bhai credits khatam!")
 
-    # --- DISPLAY LOGIC (FIXED PARSING) ---
+    # --- DISPLAY LOGIC (FIXED FOR PLAIN TEXT PARSING) ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
@@ -420,7 +417,7 @@ with tab1:
         
         for marker, title in sections.items():
             if marker in out_text:
-                # Content splitting logic updated for reliability
+                # Content splitting logic updated for plain text markers
                 content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
                 with st.expander(title, expanded=True):
                     st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
