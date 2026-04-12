@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (AUTO-RESEARCH SNIPER V85) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V85 CLEAN) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
@@ -342,52 +342,53 @@ with tab1:
     
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics or Maths 1", key="p_subj_v68")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="p_subj_v68")
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v68")
 
     syllabus_file = st.file_uploader("📂 Upload Syllabus PDF", type=["pdf"], key="p_pdf_v68")
-    p_topics_manual = st.text_area("Or Paste Topics (Highly Recommended):", placeholder="e.g. Unit 1: Lasers, Unit 2: Quantum...", key="p_manual_v68")
+    p_topics_manual = st.text_area("Or Paste Topics (Highly Recommended):", placeholder="e.g. Unit 1: Quantum Physics...", key="p_manual_v68")
 
     if st.button(f"⚡ PREDICT MY BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"AI Sniper is researching {user_subj} for NEP 2020 patterns..."):
+            with st.spinner(f"AI Sniper is researching {user_subj}..."):
                 try:
                     final_context = ""
                     if syllabus_file:
                         with pdfplumber.open(syllabus_file) as pdf:
                             all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
-                            full_pdf_text = "\n".join(all_text)
-                            if user_subj.lower() in full_pdf_text.lower():
-                                start_idx = full_pdf_text.lower().find(user_subj.lower())
-                                final_context = full_pdf_text[start_idx : start_idx + 10000]
+                            final_context = "\n".join(all_text)
 
                     if p_topics_manual.strip():
                         final_context = f"PRIMARY TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
 
-                    # --- THE AUTO-RESEARCH SNIPER ENGINE ---
+                    # --- STRICT TEXT PROMPT (NO JSON) ---
                     prompt = f"""
-                    Act as a PhD Senior Moderator and Data Analyst for {p_uni}.
-                    You are an expert in '{user_subj}' with deep knowledge of NEP 2020 patterns.
+                    Act as a PhD Moderator for {p_uni}. 
+                    Subject: {user_subj}
+                    Context: {final_context}
 
-                    MISSION: Analyze Context ({final_context}) and determine the actual exam pattern.
+                    MISSION: Predict based on NEP 2020 Scheme.
+                    - If Physics/Chemistry: STRICT 5 MARKS LIMIT per question.
+                    - If Graphics/Maths/BEE: Questions can go up to 10-15M.
 
-                    RESEARCH PROTOCOL:
-                    1. MARKS DETECTION: Scan context for max marks. Physics/Chemistry follow 2-5M. 
-                       Graphics/Maths/BEE go up to 6, 10, or 15M.
-                    2. FREQUENCY ANALYSIS: Cross-reference May '24, Dec '24, and May '25 patterns.
+                    OUTPUT THIS EXACT STRUCTURE (TEXT ONLY):
+                    [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS:
+                    (List questions with marks and a brief trend reason)
 
-                    STRICT OUTPUT FORMAT:
-                    [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS with EXACT marks weightage and 'Moderator Note' on trends.
-                    [REPEATED] 📊 5 PROOF-BACKED PYQs with Year and original Marks.
-                    [PASS_JUGAAD] 🛡️ 3 'Killer Chapters' for fast 40% marks.
-                    [3DAY_PLAN] 📅 Morning/Afternoon/Night 3-day battle strategy.
+                    [REPEATED] 📊 PROOF-BACKED PYQs:
+                    (List 5 questions from May '24, Dec '24, May '25 with Years/Marks)
 
-                    Rule: Precision over everything. No generic advice.
+                    [PASS_JUGAAD] 🛡️ EMERGENCY 40% MARKS TOPICS:
+                    (Chapters to cover to pass)
+
+                    [3DAY_PLAN] 📅 3-DAY ROADMAP:
+                    (Day 1-3 Strategy)
                     """
 
+                    # 🛑 CRITICAL: response_format=json HATA DIYA HAI
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": prompt}]
@@ -399,13 +400,11 @@ with tab1:
                     st.rerun()
 
                 except Exception as e:
-                    st.session_state.user_data['credits'] += predict_cost # Refund logic
+                    st.session_state.user_data['credits'] += predict_cost
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"Sniper Alert: {str(e)}")
-        else:
-            st.error("Bhai credits khatam!")
 
-    # --- DISPLAY LOGIC (OUTSIDE BUTTON FOR PERSISTENCE) ---
+    # --- DISPLAY LOGIC (FIXED PARSING) ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
@@ -421,16 +420,14 @@ with tab1:
         
         for marker, title in sections.items():
             if marker in out_text:
-                parts = out_text.split(marker)
-                if len(parts) > 1:
-                    content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
-                    with st.expander(title, expanded=True):
-                        st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
+                # Content splitting logic updated for reliability
+                content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
+                with st.expander(title, expanded=True):
+                    st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
         
-        # WhatsApp Share button
-        share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 Check them out: toppergpt.in"
+        share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
         import urllib.parse
-        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
+        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
