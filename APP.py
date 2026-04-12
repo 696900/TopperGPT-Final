@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (VIRAL RESEARCH ENGINE V75) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (AUTO-RESEARCH SNIPER V85) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
@@ -353,7 +353,7 @@ with tab1:
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"AI Sniper is analyzing {user_subj} for NEP 2020 patterns..."):
+            with st.spinner(f"AI Sniper is researching {user_subj} patterns..."):
                 try:
                     final_context = ""
                     if syllabus_file:
@@ -367,31 +367,34 @@ with tab1:
                     if p_topics_manual.strip():
                         final_context = f"PRIMARY TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
 
-                    # --- UPDATED MASTER PROMPT: THE VIRAL RESEARCH ENGINE ---
+                    # --- UPDATED MASTER PROMPT: THE AUTO-RESEARCH SNIPER ENGINE (V85) ---
                     prompt = f"""
-                    Act as a PhD Senior Moderator and Exam Paper Setter for {p_uni}. 
-                    You are a specialist in the Subject: '{user_subj}'.
+                    Act as a PhD Senior Moderator and Data Analyst for {p_uni}.
+                    You are an expert in '{user_subj}' with deep knowledge of NEP 2020 patterns.
 
-                    RESEARCH PROTOCOL (NEP 2020 Guidelines):
-                    1. DEEP ANALYZE the Syllabus Context: {final_context}.
-                    2. If DRAWING: Focus on 'Condition-based' problems.
-                    3. If NUMERICAL: Focus on 'Methods' and 'Repeating Patterns'.
-                    4. If THEORY: Focus on 'Technical Keywords' and 'Comparisons'.
+                    MISSION: Analyze the provided Context ({final_context}) and determine the ASALI (actual) exam pattern.
+
+                    RESEARCH PROTOCOL:
+                    1. MARKS DETECTION: Scan the context to find the maximum marks per question for THIS specific subject. 
+                       - If Physics/Chemistry: strictly follow 2-5M pattern.
+                       - If Graphics/Maths/BEE: identify if questions go up to 6, 10, or 15M.
+                    2. FREQUENCY ANALYSIS: Cross-reference May '24, Dec '24, and May '25 patterns found in the context.
 
                     STRICT OUTPUT FORMAT:
                     [SURESHOT] 🎯 5 NEXT-PAPER PREDICTIONS:
-                    - Format each question with Marks and a 'Reason why it will come' based on 2024-2025 trends.
+                    - Predict questions with the EXACT marks weightage you found during research.
+                    - Add a 'Moderator Note' on why this specific marks-weightage is chosen based on 2024-2025 trends.
 
                     [REPEATED] 📊 PROOF-BACKED PYQs:
-                    - List 5 questions with EXACT Year/Session (e.g. May '24, Dec '24). No fake data.
+                    - List 5 frequent questions with their actual Year (e.g. Dec '24) and original Marks.
 
-                    [PASS_JUGAAD] 🛡️ EMERGENCY SURVIVAL TOPICS (40% Marks):
-                    - Name the 3 'Golden Chapters' from the context that carry maximum weightage.
+                    [PASS_JUGAAD] 🛡️ EMERGENCY 40% MARKS STRATEGY:
+                    - Identify the 'Killer Chapters' that provide the fastest route to passing marks.
 
-                    [3DAY_PLAN] 📅 3-DAY BATTLE STRATEGY:
-                    - Day 1: High weightage modules. Day 2: Repeated patterns. Day 3: Final revision.
+                    [3DAY_PLAN] 📅 3-DAY BATTLE MAP:
+                    - Morning/Afternoon/Night schedule based on the subject's technical depth.
 
-                    Rules: Use technical terminology. No generic advice. Be so accurate it feels like a leaked pattern analysis.
+                    Rule: Precision over everything. If the research says it's a 15M drawing, give it for 15M. Stick to actual NEP patterns.
                     """
 
                     res = groq_client.chat.completions.create(
@@ -410,7 +413,7 @@ with tab1:
         else:
             st.error("Bhai credits khatam!")
 
-    # --- DISPLAY LOGIC (FIXED NameError & Indentation) ---
+    # --- DISPLAY LOGIC ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
