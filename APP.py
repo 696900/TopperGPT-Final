@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (CLEAN SNIPER V85) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V90 FINAL SNIPER) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
@@ -365,7 +365,7 @@ with tab1:
                     if p_topics_manual.strip():
                         final_context = f"PRIMARY TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
 
-                    # --- THE AUTO-RESEARCH SNIPER ENGINE ---
+                    # --- THE AUTO-RESEARCH SNIPER ENGINE (V90) ---
                     prompt = f"""
                     Act as a PhD Senior Moderator and Data Analyst for {p_uni}.
                     Subject: '{user_subj}'.
@@ -382,13 +382,13 @@ with tab1:
                     [3DAY_PLAN] 📅 3-DAY ROADMAP (Morning/Afternoon/Night).
                     """
 
-                    # 🛑 CRITICAL: response_format=json HAS BEEN REMOVED TO PREVENT ERRORS
+                    # 🛑 CRITICAL: NO response_format=json HERE
                     res = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": prompt}]
                     )
                     
-                    # Store text directly without json.loads()
+                    # Store text directly
                     st.session_state.prediction_pro_out = res.choices[0].message.content
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons()
@@ -401,7 +401,7 @@ with tab1:
         else:
             st.error("Bhai credits khatam!")
 
-    # --- DISPLAY LOGIC (FIXED FOR PLAIN TEXT PARSING) ---
+    # --- DISPLAY AREA: ALWAYS OUTSIDE THE BUTTON ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
@@ -417,11 +417,14 @@ with tab1:
         
         for marker, title in sections.items():
             if marker in out_text:
-                # Content splitting logic updated for plain text markers
-                content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
-                with st.expander(title, expanded=True):
-                    st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
+                # Text extraction logic (No JSON loads call)
+                parts = out_text.split(marker)
+                if len(parts) > 1:
+                    content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
+                    with st.expander(title, expanded=True):
+                        st.markdown(f"<div style='color:#babbbe; line-height:1.6;'>{content.strip()}</div>", unsafe_allow_html=True)
         
+        # WhatsApp Share button
         share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
         import urllib.parse
         st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
