@@ -334,14 +334,14 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V190 NO-LAZY) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V185 NO-MERCY) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="p_subj_v68")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Data Structure", key="p_subj_v68")
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="p_uni_v68")
 
@@ -351,24 +351,23 @@ with tab1:
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Force-Extracting 10+ Detailed Questions for {user_subj}..."):
+            with st.spinner(f"Force-Extracting 10+ Questions for {user_subj}..."):
                 try:
                     target_key = user_subj.lower().strip()
-                    # Internal evidence from knowledge_base.py
-                    internal_evidence = PYQ_DATA.get(target_key, "No local data found. Scan internal patterns.")
+                    internal_evidence = PYQ_DATA.get(target_key, "No local data found.")
 
-                    # --- THE "STRICT ENFORCEMENT" COMMAND PROMPT ---
+                    # --- THE "STRICT ENFORCEMENT" PROMPT ---
                     prompt = f"""
                     Act as an Extremely Strict PhD Moderator for {p_uni}. 
-                    MISSION: Set a High-Quality paper for '{user_subj}' using ONLY this EVIDENCE: {internal_evidence}.
+                    MISSION: Predict exactly what will come in the next '{user_subj}' paper.
+                    INTERNAL DATABASE: {internal_evidence}
 
                     CRITICAL REQUIREMENTS (NO EXCEPTIONS):
-                    1. [SURESHOT]: You MUST provide EXACTLY 10 detailed technical questions. DO NOT combine them.
-                    2. [REPEATED]: List 6 most frequent numericals/theory from Dec'24 and May'25 papers.
-                    3. Each question MUST specify: 'Expected Marks' and 'Confidence Score %'.
-                    4. Provide FULL technical questions (e.g., 'Derive expression for Numerical Aperture of Step Index Fiber') not just topics.
-                    5. Use strictly NEP 2020 Marks: Physics/Chem max 5M. Maths/DS up to 15M.
-                    6. If you fail to provide 10 technical questions, the student will fail. BE DETAILED.
+                    1. [SURESHOT]: You MUST provide EXACTLY 10 detailed technical questions. 
+                    2. [REPEATED]: List 6 most frequent questions from Dec'24 and May'25 papers.
+                    3. Each question MUST specify: 'Marks' and 'Confidence %'.
+                    4. Provide full technical questions (e.g., 'Derive Huffman code for word MALAYALAM') not just keywords.
+                    5. Use strictly NEP 2020 Marks: Physics/Chem max 5M, Maths/DS/EME up to 15M.
 
                     OUTPUT MARKERS: [SURESHOT], [REPEATED], [PASS_JUGAAD], [3DAY_PLAN].
                     """
@@ -379,52 +378,44 @@ with tab1:
                     )
                     
                     if res and res.choices[0].message.content:
-                        raw_output = res.choices[0].message.content.strip()
-                        st.session_state.prediction_pro_out = raw_output
+                        st.session_state.prediction_pro_out = res.choices[0].message.content
                         st.session_state.p_subj_pro_final = user_subj
                         st.balloons(); st.rerun()
                     else:
                         raise Exception("AI failed to generate response.")
 
                 except Exception as e:
-                    # Automatic Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"⚠️ Sniper Error: {str(e)}. Credits refunded.")
 
-    # --- DISPLAY AREA: PREMIUM UI CARDS ---
+    # --- DISPLAY AREA: PREMIUM CARDS ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
-        
-        # Color mapping for sections
         sections = {
             "[SURESHOT]": ("🎯 Next Paper Sureshots (Top 10)", "#4CAF50"),
-            "[REPEATED]": ("📊 Proven PYQs (2024-25)", "#2196F3"),
+            "[REPEATED]": ("📊 Repeated PYQs (Proof-Backed)", "#2196F3"),
             "[PASS_JUGAAD]": ("🛡️ Pass Hone ka Jugaad", "#FF9800"),
             "[3DAY_PLAN]": ("📅 3-Day Battle Plan", "#9C27B0")
         }
-        
         st.divider()
-        st.markdown(f"### 🔥 Battle Plan for: <span style='color:#4CAF50;'>{st.session_state.p_subj_pro_final.upper()}</span>", unsafe_allow_html=True)
+        st.subheader(f"🔥 Battle Plan for: {st.session_state.p_subj_pro_final.upper()}")
         
         for marker, (title, color) in sections.items():
             if marker in out_text:
-                parts = out_text.split(marker)
-                if len(parts) > 1:
-                    content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
-                    with st.expander(title, expanded=True):
-                        st.markdown(f"""
-                        <div style='background-color: #1e1e1e; padding: 15px; border-radius: 10px; border-left: 5px solid {color}; margin-top: 5px;'>
-                            <div style='color:#e0e0e0; line-height:1.8; font-size: 15px; font-family: sans-serif;'>
-                                {content.strip().replace('-', '•')}
-                            </div>
+                content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
+                with st.expander(title, expanded=True):
+                    st.markdown(f"""
+                    <div style='background-color: #1e1e1e; padding: 15px; border-radius: 10px; border-left: 5px solid {color}; margin-top: 5px;'>
+                        <div style='color:#e0e0e0; line-height:1.8; font-family: sans-serif;'>
+                            {content.strip()}
                         </div>
-                        """, unsafe_allow_html=True)
+                    </div>
+                    """, unsafe_allow_html=True)
         
-        # Share Button
         share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
         import urllib.parse
-        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer; width:100%; box-shadow: 0px 4px 10px rgba(0,0,0,0.3);">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
+        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer; width:100%;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
