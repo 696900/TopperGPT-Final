@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V110 SUBJECT-LOCKED) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V115 STRICT SNIPER) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
@@ -342,12 +342,12 @@ with tab1:
     
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="p_subj_v68")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Maths 2", key="p_subj_v68")
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "SPPU (Pune)", "GTU", "AKTU", "Other"], key="p_uni_v68")
 
     syllabus_file = st.file_uploader("📂 Upload Syllabus PDF", type=["pdf"], key="p_pdf_v68")
-    p_topics_manual = st.text_area("Or Paste Topics (Highly Recommended):", placeholder="e.g. Unit 1: Quantum Physics...", key="p_manual_v68")
+    p_topics_manual = st.text_area("Or Paste Topics (Highly Recommended):", placeholder="Unit 1: ..., Unit 2: ...", key="p_manual_v68")
 
     if st.button(f"⚡ PREDICT MY BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
@@ -362,38 +362,38 @@ with tab1:
                             all_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
                             full_text = "\n".join(all_text)
                             
-                            # 🛡️ STRICT FILTERING: Sirf relevant subject ka context uthao
+                            # 🛡️ STRICT SUBJECT FILTERING
                             if user_subj.lower() in full_text.lower():
                                 idx = full_text.lower().find(user_subj.lower())
-                                # Subject milne par wahan se 7000 characters ka slice lo
                                 final_context = full_text[idx: idx+7000]
                             else:
                                 final_context = full_text[:6000]
 
                     if p_topics_manual.strip():
-                        final_context = f"PRIMARY SUBJECT TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
-
-                    # 🛡️ EMERGENCY HARD LIMIT: 8000 Chars Max for Groq Free Tier
+                        final_context = f"STRICT SUBJECT TOPICS:\n{p_topics_manual.strip()}\n\n" + final_context
+                    
                     final_context = final_context[:8000]
 
-                    # --- THE FOCUSSED SNIPER PROMPT ---
+                    # --- THE STRICT QUESTION-ONLY PROMPT ---
                     prompt = f"""
-                    Act as a PhD Senior Moderator for {p_uni}. 
-                    STRICT MISSION: Predict ONLY for the subject '{user_subj}'.
+                    Act as a Senior Exam Paper Setter for {p_uni}. 
+                    STRICT MISSION: Give ACTUAL PREDICTIONS for '{user_subj}'.
                     
-                    CRITICAL RULES:
-                    1. IGNORE all other subjects (like Maths, Mechanics, etc.) in the context.
-                    2. If Physics/Chemistry: STRICT 5 Marks Limit per question.
-                    3. If Graphics/Maths/BEE: Predict up to 15 Marks.
-                    4. Use ONLY NEP 2020 patterns (2024-2025 trends).
+                    RULES FOR OUTPUT:
+                    1. DO NOT give chapter names or generic topics (like 'Calculus' or 'Matrices').
+                    2. GIVE ACTUAL QUESTIONS. Example: 'Find Eigenvalues and Eigenvectors of matrix [A]...'.
+                    3. If Physics/Chemistry: Max 5M per question.
+                    4. If Maths/Graphics: Up to 15M questions.
+                    5. Each Sureshot question MUST have a 'Confidence Score (%)' and 'Expected Marks'.
+                    6. IGNORE all other subjects present in the context.
 
                     Context: {final_context}
 
-                    OUTPUT STRUCTURE (TEXT ONLY):
-                    [SURESHOT] 🎯 5 PREDICTIONS for {user_subj} with marks and trend reason.
-                    [REPEATED] 📊 PROOF-BACKED PYQs from 2024-2025 sessions for {user_subj}.
-                    [PASS_JUGAAD] 🛡️ 3 'Golden Chapters' to pass {user_subj}.
-                    [3DAY_PLAN] 📅 Battle strategy for {user_subj}.
+                    OUTPUT FORMAT:
+                    [SURESHOT] 🎯 5 EXACT QUESTIONS for the next exam.
+                    [REPEATED] 📊 5 ACTUAL PYQs from 2024-2025 with Marks/Year.
+                    [PASS_JUGAAD] 🛡️ 3 Specific 'Must-Do' Questions to pass easily.
+                    [3DAY_PLAN] 📅 Strategy for {user_subj}.
                     """
 
                     res = groq_client.chat.completions.create(
@@ -411,12 +411,9 @@ with tab1:
                         raise Exception("Empty response from AI")
 
                 except Exception as e:
-                    # Automatic Refund logic
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"⚠️ Sniper Alert: {str(e)}. Credits refunded.")
-        else:
-            st.error("Bhai credits khatam!")
 
     # --- DISPLAY AREA ---
     if "prediction_pro_out" in st.session_state:
@@ -543,6 +540,7 @@ with tab2:
         """
         final_html = html_template.replace("{{TITLE}}", f_title).replace("{{UNI}}", u_name).replace("{{CONTENT}}", raw_data.replace("\n", "<br>"))
         st.components.v1.html(final_html, height=1200, scrolling=True)
+
 # --- TAB 1: STABLE TEXT-BASED MENTOR (MOBILE OPTIMIZED) ---
 with tab3:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>📚 Smart PDF Mentor (Stable)</h2>", unsafe_allow_html=True)
