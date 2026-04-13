@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V240 STUDENT-DELIGHT) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V250 STUDENT-DELIGHT) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Exam Sniper</h2>", unsafe_allow_html=True)
     
@@ -345,35 +345,34 @@ with tab1:
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="p_uni_v68")
 
-    st.caption("🛡️ Safe-Mode + Pattern Injection Active. (Targeting Dec'24 & May'25 Trends)")
+    st.caption("🛡️ V250: Standardized List Format. Zero Paragraphs. Pure Engineering Data.")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Force-Extracting High-Probability Questions for {user_subj}..."):
+            with st.spinner(f"Force-Formatting High-Density Report for {user_subj}..."):
                 try:
                     target_key = user_subj.lower().strip()
                     internal_evidence = PYQ_DATA.get(target_key, None)
 
-                    # 🛡️ FAIL-SAFE: Check if subject exists in knowledge_base.py
                     if not internal_evidence:
                         st.session_state.prediction_pro_out = "[NOT_FOUND]"
                     else:
-                        # --- THE ULTIMATE "STUDENT-JOY" PROMPT ---
+                        # --- THE "STRICT LIST-ONLY" COMMAND ---
                         prompt = f"""
                         Act as the Chief Moderator of {p_uni}. 
-                        MISSION: Create a 'Sureshot Success Report' for '{user_subj}'.
+                        MISSION: Generate a Sureshot Report for '{user_subj}'.
                         DATA SOURCE: {internal_evidence}
 
-                        STRICT OUTPUT REQUIREMENTS:
-                        1. Start with: MATCH_STATUS: YES | CONFIDENCE: HIGH
-                        2. [SURESHOT]: List EXACTLY 10 hard-core technical questions. If Maths/Mech: Give actual sums with numerical values.
-                        3. [REPEATED]: List 6 most frequent questions from Dec'24/May'25 with marks (e.g., 5M, 8M).
-                        4. [PASS_JUGAAD]: Give 5 'Must-Do' questions for students who just want to pass.
-                        5. [3DAY_PLAN]: Provide a day-by-day (Morning/Noon/Night) study roadmap.
-                        6. Use strictly NEP 2020 marks system.
-                        7. NO GENERIC ADVICE. If confidence is low, add a [WARNING] tag.
+                        STRICT OUTPUT RULES:
+                        1. NO PARAGRAPHS. Use strictly Bullet Points or Numbered Lists.
+                        2. Start with: MATCH_STATUS: YES | CONFIDENCE: HIGH
+                        3. [SURESHOT]: List EXACTLY 10 hard-core technical questions. If Maths/Mech: Give actual numerical values from the source. Format: "Q. Question | Marks | Confidence %".
+                        4. [REPEATED]: Provide a Bulleted List of 6 questions with "Year: Dec'24/May'25 | Marks".
+                        5. [PASS_JUGAAD]: List 5 'Must-Do' high-weightage numericals/topics.
+                        6. [3DAY_PLAN]: List Morning, Noon, and Night tasks clearly.
+                        7. NO GENERIC ADVICE. If the database has a specific sum, use that exact sum.
                         """
 
                         res = groq_client.chat.completions.create(
@@ -382,8 +381,8 @@ with tab1:
                         )
                         raw_out = res.choices[0].message.content.strip()
                         
-                        # 🛡️ QUALITY GATE: If AI was lazy, force rerun or fail
-                        if len(raw_out) < 700:
+                        # 🛡️ QUALITY CHECK: Ensure enough data is generated
+                        if len(raw_out) < 800:
                             raise Exception("AI generated insufficient data. Try again.")
                             
                         st.session_state.prediction_pro_out = raw_out
@@ -416,17 +415,18 @@ with tab1:
             sections = {
                 "[SURESHOT]": ("🎯 Ultimate Sureshots (Top 10)", "#4CAF50"),
                 "[REPEATED]": ("📊 Most Repeated (2024-25)", "#2196F3"),
-                "[PASS_JUGAAD]": ("🛡️ Pass Hone Ka Jugaad", "#FF9800"),
-                "[3DAY_PLAN]": ("📅 3-Day Last Moment Strategy", "#9C27B0")
+                "[PASS_JUGAAD]": ("🛡️ Pass Hone Ka Jugaad (Must-Do)", "#FF9800"),
+                "[3DAY_PLAN]": ("📅 3-Day Battle Roadmap", "#9C27B0")
             }
 
             for marker, (title, color) in sections.items():
                 if marker in out_text:
                     content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
                     with st.expander(title, expanded=(marker == "[SURESHOT]")):
+                        # Styled content block with high contrast and list-friendly spacing
                         st.markdown(f"""
                         <div style='background-color: #121212; padding: 20px; border-radius: 12px; border-left: 6px solid {color}; box-shadow: 2px 5px 15px rgba(0,0,0,0.3);'>
-                            <div style='color:#ffffff; line-height:1.9; font-size: 15px;'>
+                            <div style='color:#ffffff; line-height:2.0; font-size: 15px; white-space: pre-wrap;'>
                                 {content.strip().replace('-', '•')}
                             </div>
                         </div>
@@ -435,7 +435,7 @@ with tab1:
             # Virality Share
             share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke asali questions predict kar diye hain! Check kar: toppergpt.in"
             import urllib.parse
-            st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px;">📲 Share Battle Plan with Friends</button></a>''', unsafe_allow_html=True)
+            st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.3);">📲 Share Battle Plan with Friends</button></a>''', unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
