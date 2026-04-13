@@ -340,18 +340,18 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V350 HYBRID SNIPER) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V360 THE-ENFORCER HYBRID) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Hybrid Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Data Structure or Physics", key="subj_hybrid_v350")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Data Structure or Physics", key="subj_hybrid_v360")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_hybrid_v350")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_hybrid_v360")
 
-    st.caption("🧠 Hybrid Mode: Pattern Matching + AI Predictive Brain Active.")
+    st.caption("🧠 Hybrid Mode: Pattern Matching + AI Predictive Brain Active. (Strict 10+ Questions)")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
@@ -373,23 +373,21 @@ with tab1:
                     if not internal_evidence:
                         st.session_state.prediction_pro_out = "[DATABASE_GAP]"
                     else:
-                        # --- THE HYBRID BRAIN PROMPT ---
+                        # --- THE "STRICT ENFORCER" HYBRID PROMPT ---
                         prompt = f"""
-                        Act as a PhD Senior Paper Setter for {p_uni}. 
-                        FOUNDATION DATA: {internal_evidence}
-
+                        Act as an Extremely Strict PhD Paper Setter for {p_uni}.
+                        FOUNDATION DATA (PYQs): {internal_evidence}
+                        
                         MISSION: Predict for '{user_subj}' using Hybrid Logic.
                         
-                        RULES:
-                        1. Use FOUNDATION DATA to identify historical repeats.
-                        2. Use AI BRAIN to predict 10 questions that are logical variations (e.g. if Theory came last year, suggest a Numerical now).
-                        3. Identify each as [PYQ-BASED] or [AI-PREDICTED].
-                        4. [SURESHOT]: List 10 detailed questions. 
-                        5. [REPEATED]: List 6 historical PYQs from 2024-25.
-                        6. [PASS_JUGAAD]: 5 Most stable topics to pass.
-                        7. [3DAY_PLAN]: Day-wise strategy.
-
-                        Format: Bullet points only. No paragraphs.
+                        STRICT PROTOCOL (MANDATORY):
+                        1. [SURESHOT]: You MUST provide EXACTLY 10 to 12 long-form technical questions. 
+                        2. Identify each as [PYQ-BASED] or [AI-PREDICTED VARIATION].
+                        3. If Maths/DS/Physics: Give ACTUAL NUMERICALS or ALGORITHMS (e.g. 'Solve dy/dx + P(x)y = Q(x)').
+                        4. For [REPEATED]: List 6 historical PYQs from 2024-25 foundation data.
+                        5. For [PASS_JUGAAD]: 5 Most stable topics to pass.
+                        6. Format: Bullet points only. NO code blocks. NO paragraphs. 
+                        7. If you fail to provide 10+ technical questions, the student fails. BE DETAILED.
                         """
 
                         res = groq_client.chat.completions.create(
@@ -398,14 +396,16 @@ with tab1:
                         )
                         raw_out = res.choices[0].message.content.strip().replace("```", "")
                         
-                        if len(raw_out) < 600:
-                            raise Exception("AI Brain Lag. Try again.")
+                        # 🛡️ THE ENFORCER VALIDATION: Check for density & question count
+                        if len(raw_out) < 800 or raw_out.count('.') < 10:
+                            raise Exception("AI failed to generate required question density. Please click again (Credits Refunded).")
                             
                         st.session_state.prediction_pro_out = raw_out
                         st.session_state.p_subj_pro_final = user_subj
                         st.balloons(); st.rerun()
 
                 except Exception as e:
+                    # Automatic Refund logic
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"⚠️ Sniper Alert: {str(e)}")
@@ -415,13 +415,13 @@ with tab1:
         out_text = st.session_state.prediction_pro_out
         
         if "[DATABASE_GAP]" in out_text:
-            st.error("❌ DATABASE GAP: Mapped subject data missing.")
+            st.error("❌ DATABASE GAP: Is subject ka pattern match nahi hua. Use subjects like 'DS' or 'Maths 2'.")
         else:
-            st.success("✅ Hybrid Logic: Database Sync + AI Prediction Successful.")
+            st.success("✅ Hybrid Logic: Database Sync + Verified 10+ Predictions Found.")
             
             sections = {
-                "[SURESHOT]": ("🎯 Hybrid Sureshots (PYQ + AI Prediction)", "#4CAF50"),
-                "[REPEATED]": ("📊 Most Repeated (2024-25)", "#2196F3"),
+                "[SURESHOT]": ("🎯 Hybrid Sureshots (PYQ + AI Logic)", "#4CAF50"),
+                "[REPEATED]": ("📊 Historical PYQs (2024-25)", "#2196F3"),
                 "[PASS_JUGAAD]": ("🛡️ Pass Hone Ka Jugaad", "#FF9800"),
                 "[3DAY_PLAN]": ("📅 3-Day Battle Roadmap", "#9C27B0")
             }
@@ -431,9 +431,9 @@ with tab1:
                     content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
                     with st.expander(title, expanded=(marker == "[SURESHOT]")):
                         st.markdown(f"""
-                        <div style='background-color: #121212; padding: 20px; border-radius: 12px; border-left: 6px solid {color};'>
+                        <div style='background-color: #121212; padding: 20px; border-radius: 12px; border-left: 6px solid {color}; box-shadow: 2px 5px 15px rgba(0,0,0,0.3);'>
                             <div style='color:#ffffff; line-height:2.0; font-size: 15px; white-space: pre-wrap;'>
-                                {content.strip()}
+                                {content.strip().replace('-', '•')}
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
