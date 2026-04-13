@@ -334,7 +334,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V215 IRON-CLAD) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V225 IRON-CLAD) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
@@ -345,30 +345,31 @@ with tab1:
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="p_uni_v68")
 
-    st.caption("🚀 Sniper V215: Force-Feeding Full MU Database (NEP 2024-25 Patterns).")
+    st.caption("🚀 Sniper V225: Strictly providing 12+ Technical Questions with Zero-Lazy Logic.")
 
     if st.button(f"⚡ RUN PREMIUM SNIPER (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Force-Extracting 12+ Technical Questions for {user_subj}..."):
+            with st.spinner(f"Extracting 12+ Hard Numericals for {user_subj}..."):
                 try:
                     target_key = user_subj.lower().strip()
                     # Internal evidence from knowledge_base.py
-                    internal_evidence = PYQ_DATA.get(target_key, "No local data found. Scan internal patterns.")
+                    internal_evidence = PYQ_DATA.get(target_key, "No local data found. Use PhD pattern matching.")
 
-                    # --- THE "STRICTEST COMMAND" PROMPT ---
+                    # --- THE "ZERO-LAZY" COMMAND PROMPT ---
                     prompt = f"""
-                    Act as the Extremely Strict Chief Moderator for Mumbai University (NEP 2020). 
-                    STRICT MISSION: Generate a High-Density Prediction Paper for '{user_subj}' using ONLY this EVIDENCE: {internal_evidence}.
+                    Act as the Chief Paper Setter for Mumbai University (NEP 2020). 
+                    MISSION: Generate an EXTREMELY DETAILED Prediction Paper for '{user_subj}'.
+                    DATA SOURCE: {internal_evidence}
 
-                    CRITICAL REQUIREMENTS (NO EXCEPTIONS):
-                    1. [SURESHOT]: You MUST provide AT LEAST 12 Technical Questions. DO NOT give generic advice. 
-                    2. If Subject is Maths/Mechanics: Give ACTUAL NUMERICALS with values (e.g., 'Solve (D^2-2D+2)y = e^x tanx').
-                    3. Each question MUST specify: 'Marks' and 'Confidence %'.
-                    4. For [REPEATED]: List 6 most frequent questions from Dec'24/May'25 papers with exact marks.
-                    5. Use strictly NEP 2020 Marks: Physics/Chem max 5M, Maths/DS/EME (6M, 8M, up to 15M).
-                    6. If you fail to provide 12 technical questions, the student will fail. BE EXTREMELY DETAILED.
+                    STRICT PROTOCOL (MANDATORY):
+                    1. [SURESHOT]: You MUST provide EXACTLY 12 detailed technical questions. 
+                    2. NO GENERIC TOPICS. If Subject is Maths/DS: Give ACTUAL NUMERICALS/ALGORITHMS with values.
+                    3. For Maths: Include exact Differential Equations, Integrals, or RK4/Euler steps.
+                    4. Each question MUST specify: 'Target Marks' and 'Confidence % (85%+)'.
+                    5. For [REPEATED]: List 6 most frequent questions from Dec'24/May'25.
+                    6. DO NOT BE LAZY. If the total response is short, the student will fail. Provide a minimum of 1000 words of technical content.
 
                     OUTPUT MARKERS: [SURESHOT], [REPEATED], [PASS_JUGAAD], [3DAY_PLAN].
                     """
@@ -380,23 +381,28 @@ with tab1:
                     
                     if res and res.choices[0].message.content:
                         raw_output = res.choices[0].message.content.strip()
+                        
+                        # 🛡️ ANTI-LAZY VALIDATION: Response length check
+                        if len(raw_output) < 600:
+                            raise Exception("AI provided insufficient data. Please click Predict again (Credits won't be deducted twice for the same session).")
+                        
                         st.session_state.prediction_pro_out = raw_output
                         st.session_state.p_subj_pro_final = user_subj
                         st.balloons(); st.rerun()
                     else:
-                        raise Exception("AI failed to generate response.")
+                        raise Exception("AI failed to generate. Check connection.")
 
                 except Exception as e:
                     # Automatic Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ Sniper Error: {str(e)}. Credits refunded.")
+                    st.error(f"⚠️ Sniper Error: {str(e)}. Credits Refunded.")
 
-    # --- DISPLAY AREA: PREMIUM UI CARDS ---
+    # --- DISPLAY AREA: PREMIUM CARDS ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
-        # Color mapping for sections
+        # Section titles and colors
         sections = {
             "[SURESHOT]": ("🎯 Ultimate Sureshots (Guaranteed 12+)", "#4CAF50"),
             "[REPEATED]": ("📊 Proven PYQs (2024-25)", "#2196F3"),
@@ -405,20 +411,18 @@ with tab1:
         }
         
         st.divider()
-        st.markdown(f"### 🔥 Battle Plan for: <span style='color:#4CAF50;'>{st.session_state.p_subj_pro_final.upper()}</span>", unsafe_allow_html=True)
+        st.markdown(f"### 🔥 Battle Plan: <span style='color:#4CAF50;'>{st.session_state.p_subj_pro_final.upper()}</span>", unsafe_allow_html=True)
         
         for marker, (title, color) in sections.items():
             if marker in out_text:
                 parts = out_text.split(marker)
                 if len(parts) > 1:
                     content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
-                    # Cleaning for UI
-                    clean_content = content.strip().replace('-', '•')
                     with st.expander(title, expanded=True):
                         st.markdown(f"""
-                        <div style='background-color: #1e1e1e; padding: 18px; border-radius: 12px; border-left: 6px solid {color}; margin-top: 5px; box-shadow: 2px 2px 15px rgba(0,0,0,0.2);'>
+                        <div style='background-color: #1e1e1e; padding: 18px; border-radius: 12px; border-left: 6px solid {color}; margin-top: 5px; box-shadow: 2px 5px 15px rgba(0,0,0,0.3);'>
                             <div style='color:#f0f0f0; line-height:1.8; font-size: 15px; font-family: sans-serif;'>
-                                {clean_content}
+                                {content.strip().replace('-', '•')}
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
@@ -426,7 +430,7 @@ with tab1:
         # Share Button
         share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
         import urllib.parse
-        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; box-shadow: 0px 5px 15px rgba(0,0,0,0.3);">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
+        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; width:100%;">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
