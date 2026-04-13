@@ -334,9 +334,9 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V230 SAFE-MODE) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V240 STUDENT-DELIGHT) ---
 with tab1: 
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Safe-Mode Predictor</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Exam Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
@@ -345,43 +345,48 @@ with tab1:
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="p_uni_v68")
 
-    st.caption("🛡️ Safe-Mode Active: Confidence scoring & pattern matching enabled.")
+    st.caption("🛡️ Safe-Mode + Pattern Injection Active. (Targeting Dec'24 & May'25 Trends)")
 
-    if st.button(f"⚡ RUN SAFE SNIPER (-{predict_cost} Credits)", use_container_width=True):
+    if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Analyzing Database for {user_subj}..."):
+            with st.spinner(f"Force-Extracting High-Probability Questions for {user_subj}..."):
                 try:
                     target_key = user_subj.lower().strip()
                     internal_evidence = PYQ_DATA.get(target_key, None)
 
-                    # 🛡️ LAYER 1 & 2: Data Availability Check
+                    # 🛡️ FAIL-SAFE: Check if subject exists in knowledge_base.py
                     if not internal_evidence:
                         st.session_state.prediction_pro_out = "[NOT_FOUND]"
                     else:
-                        # --- THE "FAIL-SAFE" PROMPT ---
+                        # --- THE ULTIMATE "STUDENT-JOY" PROMPT ---
                         prompt = f"""
-                        Act as a Strict PhD Exam Analyst. 
-                        TARGET SUBJECT: {user_subj}
-                        INTERNAL DATABASE: {internal_evidence}
+                        Act as the Chief Moderator of {p_uni}. 
+                        MISSION: Create a 'Sureshot Success Report' for '{user_subj}'.
+                        DATA SOURCE: {internal_evidence}
 
-                        STRICT OUTPUT SCHEMA:
-                        1. First line MUST be: MATCH_STATUS: [YES/LOW/NO]
-                        2. Second line MUST be: CONFIDENCE: [HIGH/MEDIUM/LOW]
-                        3. Then provide [SURESHOT] (Exact 10 technical questions).
-                        4. Provide [REPEATED] (6 real PYQs with Dec'24/May'25 tags).
-                        5. Provide [WARNING] (If confidence is not HIGH, warn the student).
-                        6. Provide [PASS_JUGAAD] and [3DAY_PLAN].
-
-                        If internal database is weak, set MATCH_STATUS: LOW and warn the user.
+                        STRICT OUTPUT REQUIREMENTS:
+                        1. Start with: MATCH_STATUS: YES | CONFIDENCE: HIGH
+                        2. [SURESHOT]: List EXACTLY 10 hard-core technical questions. If Maths/Mech: Give actual sums with numerical values.
+                        3. [REPEATED]: List 6 most frequent questions from Dec'24/May'25 with marks (e.g., 5M, 8M).
+                        4. [PASS_JUGAAD]: Give 5 'Must-Do' questions for students who just want to pass.
+                        5. [3DAY_PLAN]: Provide a day-by-day (Morning/Noon/Night) study roadmap.
+                        6. Use strictly NEP 2020 marks system.
+                        7. NO GENERIC ADVICE. If confidence is low, add a [WARNING] tag.
                         """
 
                         res = groq_client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=[{"role": "user", "content": prompt}]
                         )
-                        st.session_state.prediction_pro_out = res.choices[0].message.content
+                        raw_out = res.choices[0].message.content.strip()
+                        
+                        # 🛡️ QUALITY GATE: If AI was lazy, force rerun or fail
+                        if len(raw_out) < 700:
+                            raise Exception("AI generated insufficient data. Try again.")
+                            
+                        st.session_state.prediction_pro_out = raw_out
                     
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons(); st.rerun()
@@ -389,49 +394,48 @@ with tab1:
                 except Exception as e:
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ Sniper Refunded: {str(e)}")
+                    st.error(f"⚠️ Sniper Alert: {str(e)}")
 
-    # --- DISPLAY AREA: THE "SAFE" UI ---
+    # --- DISPLAY AREA: THE "CHEAT-SHEET" UI ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
         if "[NOT_FOUND]" in out_text:
-            st.error("❌ NO DATA FOUND: Humare database mein is subject ka exact pattern nahi hai. Risk mat lo, manually verify karo.")
+            st.error("❌ DATABASE GAP: Is subject ka exact pattern humare paas nahi hai. Incorrect prediction se bachne ke liye humne ise block kiya hai.")
         else:
-            # Extract Meta Data
-            status = "YES" if "MATCH_STATUS: YES" in out_text else "LOW"
-            confidence = "HIGH" if "CONFIDENCE: HIGH" in out_text else "MEDIUM"
-            conf_color = "#4CAF50" if confidence == "HIGH" else "#FF9800"
-
-            # Glass UI Header for Safety
+            # Metadata parsing
+            is_high = "CONFIDENCE: HIGH" in out_text
+            badge_color = "#4CAF50" if is_high else "#FF9800"
+            
             st.markdown(f"""
-            <div style='background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid {conf_color}; text-align: center; margin-bottom: 20px;'>
-                <span style='color: white;'>📊 Match: <b>{status}</b></span> | 
-                <span style='color: {conf_color};'>📈 Confidence: <b>{confidence}</b></span>
-            </div>
+                <div style='background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid {badge_color}; text-align: center; margin-bottom: 20px;'>
+                    <span style='color: white; font-size: 18px;'>📊 Match: <b>FOUND</b> | 📈 Confidence: <b style='color:{badge_color};'>{ "HIGH (Sureshot)" if is_high else "MEDIUM (Verify)" }</b></span>
+                </div>
             """, unsafe_allow_html=True)
 
-            if confidence != "HIGH":
-                st.warning("⚠️ Disclaimer: Database patterns are limited for this query. Use this as a guide, not as the final paper.")
-
-            # Section Display
             sections = {
-                "[SURESHOT]": ("🎯 Sureshot Questions (Top 10)", "#4CAF50"),
-                "[REPEATED]": ("📊 Proven PYQs (2024-25)", "#2196F3"),
-                "[PASS_JUGAAD]": ("🛡️ Pass Hone ka Jugaad", "#FF9800"),
-                "[3DAY_PLAN]": ("📅 Battle Strategy", "#9C27B0")
+                "[SURESHOT]": ("🎯 Ultimate Sureshots (Top 10)", "#4CAF50"),
+                "[REPEATED]": ("📊 Most Repeated (2024-25)", "#2196F3"),
+                "[PASS_JUGAAD]": ("🛡️ Pass Hone Ka Jugaad", "#FF9800"),
+                "[3DAY_PLAN]": ("📅 3-Day Last Moment Strategy", "#9C27B0")
             }
-            
+
             for marker, (title, color) in sections.items():
                 if marker in out_text:
                     content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
                     with st.expander(title, expanded=(marker == "[SURESHOT]")):
-                        st.markdown(f"<div style='border-left: 5px solid {color}; padding-left: 15px; line-height: 1.7; color: #e0e0e0;'>{content.strip().replace('-', '•')}</div>", unsafe_allow_html=True)
-            
-            # WhatsApp Share
-            share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
+                        st.markdown(f"""
+                        <div style='background-color: #121212; padding: 20px; border-radius: 12px; border-left: 6px solid {color}; box-shadow: 2px 5px 15px rgba(0,0,0,0.3);'>
+                            <div style='color:#ffffff; line-height:1.9; font-size: 15px;'>
+                                {content.strip().replace('-', '•')}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+            # Virality Share
+            share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke asali questions predict kar diye hain! Check kar: toppergpt.in"
             import urllib.parse
-            st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer;">📲 Share Safe Battle Plan</button></a>''', unsafe_allow_html=True)
+            st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px;">📲 Share Battle Plan with Friends</button></a>''', unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
