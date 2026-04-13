@@ -179,7 +179,7 @@ PYQ_DATA_SEM2 = {
     - Huffman tree for word 'CONSTRUCTION' (7M)
     - Singly linked list (Insert beginning, Insert end, Display) (8M)
     """,
-
+    
     "elements of mechanical engineering": """
     --- ASALI MU PAPERS DATA (NEP 2020) ---
     DEC 2025 (QP: 94138):
