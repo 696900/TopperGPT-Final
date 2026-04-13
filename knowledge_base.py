@@ -264,10 +264,41 @@ PYQ_DATA_SEM2 = {
     - Runge-Kutta 4th Order solve dy/dx = 1/(x+y), h=0.5 (6M)
     - Mass of lamina ay^2=x^3 and line by=x with variable density (5M)
 
+    --- MU FE SEM 2 (NEP 2020) ---
     MAY 2025 (QP: 10083956):
-    - Solve (tan y + x)dx + (x sec^2 y - 3y)dy = 0 (3M)
-    - Solve x dy/dx + y = x^3 y^6 (Bernoulli's) (6M)
-    - Area inside circle r = a sin theta using double integration (5M)
+
+    Q1 (Attempt any FIVE):
+   - Solve (tan y + x)dx + (x sec^2 y − 3y)dy = 0 (3M)
+   - Euler’s method: dy/dx = x − y^2, y(0)=1, find y at x=0.06, h=0.02 (3M)
+   - Evaluate ∫∫∫ (x + y + z) dydxdz with limits given (3M)
+   - Evaluate ∫₀^∞ x e^(−x²) dx (3M)
+   - Evaluate ∫∫ x(x² + y²) dydx (3M)
+   - Solve d³y/dx³ − 5 d²y/dx² + 8 dy/dx − 4y = 0 (3M)
+
+    Q2:
+   - Solve dy/dx = x + 3y, y(0)=1 using Euler’s modified method at x=0.05 (4M)
+   - Evaluate ∫ sin²6x cos³3x dx (5M)
+   - Variation of parameters: (D² + 3D + 2)y = e^(e^x) (6M)
+
+     Q3:
+    - Evaluate ∫∫ r dr dθ with limits (4M)
+    - Solve (x⁴ + y⁴)dx − xy³ dy = 0 (5M)
+    - Runge-Kutta 4th order: dy/dx = x³ + y, y(0)=2, find at x=0.2 (6M)
+
+     Q4:
+    - Solve (D² + 4)y = x² + 1 (4M)
+    - Mass of lamina bounded by y² = x and x² = y, density ∝ distance² from origin (5M)
+    - Solve x dy/dx + y = x³y⁶ (6M)
+
+     Q5:
+    - Prove ∫₀¹ (x^a − 1)/log x dx = log(1+a), a > 0 (4M)
+    - Area inside circle r = a sinθ and outside cardioid r = a(1 − cosθ) (5M)
+    - Convert to polar and evaluate ∫∫ (x² + y²)dydx (6M)
+
+     Q6:
+    - Solve (D² − 4D + 4)y = e^(2x) sin2x (4M)
+    - Change order of integration ∫∫ f(x,y) dydx (5M)
+    - Approximate ∫ e^x dx using Trapezoidal & Simpson’s 1/3 rule (6M)
     """,
 
     "semiconductor physics": """
