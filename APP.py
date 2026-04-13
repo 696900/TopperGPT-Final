@@ -334,9 +334,9 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V225 IRON-CLAD) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V230 SAFE-MODE) ---
 with tab1: 
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Safe-Mode Predictor</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
@@ -345,92 +345,93 @@ with tab1:
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="p_uni_v68")
 
-    st.caption("🚀 Sniper V225: Strictly providing 12+ Technical Questions with Zero-Lazy Logic.")
+    st.caption("🛡️ Safe-Mode Active: Confidence scoring & pattern matching enabled.")
 
-    if st.button(f"⚡ RUN PREMIUM SNIPER (-{predict_cost} Credits)", use_container_width=True):
+    if st.button(f"⚡ RUN SAFE SNIPER (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Extracting 12+ Hard Numericals for {user_subj}..."):
+            with st.spinner(f"Analyzing Database for {user_subj}..."):
                 try:
                     target_key = user_subj.lower().strip()
-                    # Internal evidence from knowledge_base.py
-                    internal_evidence = PYQ_DATA.get(target_key, "No local data found. Use PhD pattern matching.")
+                    internal_evidence = PYQ_DATA.get(target_key, None)
 
-                    # --- THE "ZERO-LAZY" COMMAND PROMPT ---
-                    prompt = f"""
-                    Act as the Chief Paper Setter for Mumbai University (NEP 2020). 
-                    MISSION: Generate an EXTREMELY DETAILED Prediction Paper for '{user_subj}'.
-                    DATA SOURCE: {internal_evidence}
-
-                    STRICT PROTOCOL (MANDATORY):
-                    1. [SURESHOT]: You MUST provide EXACTLY 12 detailed technical questions. 
-                    2. NO GENERIC TOPICS. If Subject is Maths/DS: Give ACTUAL NUMERICALS/ALGORITHMS with values.
-                    3. For Maths: Include exact Differential Equations, Integrals, or RK4/Euler steps.
-                    4. Each question MUST specify: 'Target Marks' and 'Confidence % (85%+)'.
-                    5. For [REPEATED]: List 6 most frequent questions from Dec'24/May'25.
-                    6. DO NOT BE LAZY. If the total response is short, the student will fail. Provide a minimum of 1000 words of technical content.
-
-                    OUTPUT MARKERS: [SURESHOT], [REPEATED], [PASS_JUGAAD], [3DAY_PLAN].
-                    """
-
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    
-                    if res and res.choices[0].message.content:
-                        raw_output = res.choices[0].message.content.strip()
-                        
-                        # 🛡️ ANTI-LAZY VALIDATION: Response length check
-                        if len(raw_output) < 600:
-                            raise Exception("AI provided insufficient data. Please click Predict again (Credits won't be deducted twice for the same session).")
-                        
-                        st.session_state.prediction_pro_out = raw_output
-                        st.session_state.p_subj_pro_final = user_subj
-                        st.balloons(); st.rerun()
+                    # 🛡️ LAYER 1 & 2: Data Availability Check
+                    if not internal_evidence:
+                        st.session_state.prediction_pro_out = "[NOT_FOUND]"
                     else:
-                        raise Exception("AI failed to generate. Check connection.")
+                        # --- THE "FAIL-SAFE" PROMPT ---
+                        prompt = f"""
+                        Act as a Strict PhD Exam Analyst. 
+                        TARGET SUBJECT: {user_subj}
+                        INTERNAL DATABASE: {internal_evidence}
+
+                        STRICT OUTPUT SCHEMA:
+                        1. First line MUST be: MATCH_STATUS: [YES/LOW/NO]
+                        2. Second line MUST be: CONFIDENCE: [HIGH/MEDIUM/LOW]
+                        3. Then provide [SURESHOT] (Exact 10 technical questions).
+                        4. Provide [REPEATED] (6 real PYQs with Dec'24/May'25 tags).
+                        5. Provide [WARNING] (If confidence is not HIGH, warn the student).
+                        6. Provide [PASS_JUGAAD] and [3DAY_PLAN].
+
+                        If internal database is weak, set MATCH_STATUS: LOW and warn the user.
+                        """
+
+                        res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                        st.session_state.prediction_pro_out = res.choices[0].message.content
+                    
+                    st.session_state.p_subj_pro_final = user_subj
+                    st.balloons(); st.rerun()
 
                 except Exception as e:
-                    # Automatic Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ Sniper Error: {str(e)}. Credits Refunded.")
+                    st.error(f"⚠️ Sniper Refunded: {str(e)}")
 
-    # --- DISPLAY AREA: PREMIUM CARDS ---
+    # --- DISPLAY AREA: THE "SAFE" UI ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
-        # Section titles and colors
-        sections = {
-            "[SURESHOT]": ("🎯 Ultimate Sureshots (Guaranteed 12+)", "#4CAF50"),
-            "[REPEATED]": ("📊 Proven PYQs (2024-25)", "#2196F3"),
-            "[PASS_JUGAAD]": ("🛡️ Pass Hone ka Jugaad", "#FF9800"),
-            "[3DAY_PLAN]": ("📅 Battle Strategy", "#9C27B0")
-        }
-        
-        st.divider()
-        st.markdown(f"### 🔥 Battle Plan: <span style='color:#4CAF50;'>{st.session_state.p_subj_pro_final.upper()}</span>", unsafe_allow_html=True)
-        
-        for marker, (title, color) in sections.items():
-            if marker in out_text:
-                parts = out_text.split(marker)
-                if len(parts) > 1:
-                    content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
-                    with st.expander(title, expanded=True):
-                        st.markdown(f"""
-                        <div style='background-color: #1e1e1e; padding: 18px; border-radius: 12px; border-left: 6px solid {color}; margin-top: 5px; box-shadow: 2px 5px 15px rgba(0,0,0,0.3);'>
-                            <div style='color:#f0f0f0; line-height:1.8; font-size: 15px; font-family: sans-serif;'>
-                                {content.strip().replace('-', '•')}
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-        
-        # Share Button
-        share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
-        import urllib.parse
-        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; width:100%;">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
+        if "[NOT_FOUND]" in out_text:
+            st.error("❌ NO DATA FOUND: Humare database mein is subject ka exact pattern nahi hai. Risk mat lo, manually verify karo.")
+        else:
+            # Extract Meta Data
+            status = "YES" if "MATCH_STATUS: YES" in out_text else "LOW"
+            confidence = "HIGH" if "CONFIDENCE: HIGH" in out_text else "MEDIUM"
+            conf_color = "#4CAF50" if confidence == "HIGH" else "#FF9800"
+
+            # Glass UI Header for Safety
+            st.markdown(f"""
+            <div style='background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid {conf_color}; text-align: center; margin-bottom: 20px;'>
+                <span style='color: white;'>📊 Match: <b>{status}</b></span> | 
+                <span style='color: {conf_color};'>📈 Confidence: <b>{confidence}</b></span>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if confidence != "HIGH":
+                st.warning("⚠️ Disclaimer: Database patterns are limited for this query. Use this as a guide, not as the final paper.")
+
+            # Section Display
+            sections = {
+                "[SURESHOT]": ("🎯 Sureshot Questions (Top 10)", "#4CAF50"),
+                "[REPEATED]": ("📊 Proven PYQs (2024-25)", "#2196F3"),
+                "[PASS_JUGAAD]": ("🛡️ Pass Hone ka Jugaad", "#FF9800"),
+                "[3DAY_PLAN]": ("📅 Battle Strategy", "#9C27B0")
+            }
+            
+            for marker, (title, color) in sections.items():
+                if marker in out_text:
+                    content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
+                    with st.expander(title, expanded=(marker == "[SURESHOT]")):
+                        st.markdown(f"<div style='border-left: 5px solid {color}; padding-left: 15px; line-height: 1.7; color: #e0e0e0;'>{content.strip().replace('-', '•')}</div>", unsafe_allow_html=True)
+            
+            # WhatsApp Share
+            share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
+            import urllib.parse
+            st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer;">📲 Share Safe Battle Plan</button></a>''', unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
