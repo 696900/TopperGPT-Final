@@ -334,40 +334,41 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V185 NO-MERCY) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V215 IRON-CLAD) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 Predict My Next Question</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Data Structure", key="p_subj_v68")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics 2", key="p_subj_v68")
     with c2:
         p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="p_uni_v68")
 
-    st.caption("🚀 Sniper Engine: Providing high-density engineering predictions based on 2024-25 MU trends.")
+    st.caption("🚀 Sniper V215: Force-Feeding Full MU Database (NEP 2024-25 Patterns).")
 
     if st.button(f"⚡ RUN PREMIUM SNIPER (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Force-Extracting 10+ Questions for {user_subj}..."):
+            with st.spinner(f"Force-Extracting 12+ Technical Questions for {user_subj}..."):
                 try:
                     target_key = user_subj.lower().strip()
-                    internal_evidence = PYQ_DATA.get(target_key, "No local data found.")
+                    # Internal evidence from knowledge_base.py
+                    internal_evidence = PYQ_DATA.get(target_key, "No local data found. Scan internal patterns.")
 
-                    # --- THE "STRICT ENFORCEMENT" PROMPT ---
+                    # --- THE "STRICTEST COMMAND" PROMPT ---
                     prompt = f"""
-                    Act as an Extremely Strict PhD Moderator for {p_uni}. 
-                    MISSION: Predict exactly what will come in the next '{user_subj}' paper.
-                    INTERNAL DATABASE: {internal_evidence}
+                    Act as the Extremely Strict Chief Moderator for Mumbai University (NEP 2020). 
+                    STRICT MISSION: Generate a High-Density Prediction Paper for '{user_subj}' using ONLY this EVIDENCE: {internal_evidence}.
 
                     CRITICAL REQUIREMENTS (NO EXCEPTIONS):
-                    1. [SURESHOT]: You MUST provide EXACTLY 10 detailed technical questions. 
-                    2. [REPEATED]: List 6 most frequent questions from Dec'24 and May'25 papers.
+                    1. [SURESHOT]: You MUST provide AT LEAST 12 Technical Questions. DO NOT give generic advice. 
+                    2. If Subject is Maths/Mechanics: Give ACTUAL NUMERICALS with values (e.g., 'Solve (D^2-2D+2)y = e^x tanx').
                     3. Each question MUST specify: 'Marks' and 'Confidence %'.
-                    4. Provide full technical questions (e.g., 'Derive Huffman code for word MALAYALAM') not just keywords.
-                    5. Use strictly NEP 2020 Marks: Physics/Chem max 5M, Maths/DS/EME up to 15M.
+                    4. For [REPEATED]: List 6 most frequent questions from Dec'24/May'25 papers with exact marks.
+                    5. Use strictly NEP 2020 Marks: Physics/Chem max 5M, Maths/DS/EME (6M, 8M, up to 15M).
+                    6. If you fail to provide 12 technical questions, the student will fail. BE EXTREMELY DETAILED.
 
                     OUTPUT MARKERS: [SURESHOT], [REPEATED], [PASS_JUGAAD], [3DAY_PLAN].
                     """
@@ -378,44 +379,54 @@ with tab1:
                     )
                     
                     if res and res.choices[0].message.content:
-                        st.session_state.prediction_pro_out = res.choices[0].message.content
+                        raw_output = res.choices[0].message.content.strip()
+                        st.session_state.prediction_pro_out = raw_output
                         st.session_state.p_subj_pro_final = user_subj
                         st.balloons(); st.rerun()
                     else:
                         raise Exception("AI failed to generate response.")
 
                 except Exception as e:
+                    # Automatic Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"⚠️ Sniper Error: {str(e)}. Credits refunded.")
 
-    # --- DISPLAY AREA: PREMIUM CARDS ---
+    # --- DISPLAY AREA: PREMIUM UI CARDS ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
+        
+        # Color mapping for sections
         sections = {
-            "[SURESHOT]": ("🎯 Next Paper Sureshots (Top 10)", "#4CAF50"),
-            "[REPEATED]": ("📊 Repeated PYQs (Proof-Backed)", "#2196F3"),
+            "[SURESHOT]": ("🎯 Ultimate Sureshots (Guaranteed 12+)", "#4CAF50"),
+            "[REPEATED]": ("📊 Proven PYQs (2024-25)", "#2196F3"),
             "[PASS_JUGAAD]": ("🛡️ Pass Hone ka Jugaad", "#FF9800"),
-            "[3DAY_PLAN]": ("📅 3-Day Battle Plan", "#9C27B0")
+            "[3DAY_PLAN]": ("📅 Battle Strategy", "#9C27B0")
         }
+        
         st.divider()
-        st.subheader(f"🔥 Battle Plan for: {st.session_state.p_subj_pro_final.upper()}")
+        st.markdown(f"### 🔥 Battle Plan for: <span style='color:#4CAF50;'>{st.session_state.p_subj_pro_final.upper()}</span>", unsafe_allow_html=True)
         
         for marker, (title, color) in sections.items():
             if marker in out_text:
-                content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
-                with st.expander(title, expanded=True):
-                    st.markdown(f"""
-                    <div style='background-color: #1e1e1e; padding: 15px; border-radius: 10px; border-left: 5px solid {color}; margin-top: 5px;'>
-                        <div style='color:#e0e0e0; line-height:1.8; font-family: sans-serif;'>
-                            {content.strip()}
+                parts = out_text.split(marker)
+                if len(parts) > 1:
+                    content = parts[1].split("[")[0] if "[" in parts[1] else parts[1]
+                    # Cleaning for UI
+                    clean_content = content.strip().replace('-', '•')
+                    with st.expander(title, expanded=True):
+                        st.markdown(f"""
+                        <div style='background-color: #1e1e1e; padding: 18px; border-radius: 12px; border-left: 6px solid {color}; margin-top: 5px; box-shadow: 2px 2px 15px rgba(0,0,0,0.2);'>
+                            <div style='color:#f0f0f0; line-height:1.8; font-size: 15px; font-family: sans-serif;'>
+                                {clean_content}
+                            </div>
                         </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
         
+        # Share Button
         share_msg = f"TopperGPT Predicted these Sureshot Questions for {st.session_state.p_subj_pro_final}! 🔥 toppergpt.in"
         import urllib.parse
-        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer; width:100%;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
+        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; box-shadow: 0px 5px 15px rgba(0,0,0,0.3);">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
