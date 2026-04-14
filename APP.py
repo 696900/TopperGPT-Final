@@ -340,111 +340,85 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V375 RESEARCH-SNIPER) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V380 STABILITY-FIX) ---
 with tab1: 
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Hybrid Sniper</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Exam Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Data Structure or Applied Physics", key="subj_v375_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="subj_v380_presentation")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_v375_final")
-
-    st.caption("🚀 Research Mode: Deep-scanning MU 2024-25 patterns + AI Predictive Logic.")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_v380_presentation")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Analyzing Deep Patterns for {user_subj}..."):
+            with st.spinner(f"Extracting Predictions for {user_subj}..."):
                 try:
-                    # 🔍 SMART MAPPING (Handles SEM 1 & 2)
                     raw_in = user_subj.lower().strip()
                     search_key = raw_in
-                    if any(x in raw_in for x in ["ds", "data structure", "dsa"]): search_key = "data structure"
-                    elif any(x in raw_in for x in ["math", "m2", "mathematics"]): search_key = "applied mathematics 2"
+                    if any(x in raw_in for x in ["ds", "data structure"]): search_key = "data structure"
+                    elif any(x in raw_in for x in ["math", "m2"]): search_key = "applied mathematics 2"
                     elif "physics" in raw_in: search_key = "applied physics"
-                    elif any(x in raw_in for x in ["mech", "mechanics"]): search_key = "engineering mechanics"
-                    elif "bee" in raw_in: search_key = "basic electrical electronics"
+                    
+                    internal_evidence = ALL_SUBJECTS.get(search_key, "No local data.")
 
-                    # Fetching from the Master Dictionary ALL_SUBJECTS
-                    internal_evidence = ALL_SUBJECTS.get(search_key, None)
+                    # --- THE "STABLE & FAST" PROMPT ---
+                    prompt = f"""
+                    Act as a Senior MU Paper Setter. 
+                    SUBJECT: {user_subj} | EVIDENCE: {internal_evidence}
+                    
+                    MISSION: Generate exactly 4 sections. Use bullet points only. 
+                    1. [SURESHOT]: List 10 technical questions with Marks and Confidence%.
+                    2. [REPEATED]: List 6 actual PYQs from Dec'24/May'25.
+                    3. [PASS_JUGAAD]: 5 most important topics.
+                    4. [3DAY_PLAN]: Day 1, 2, 3 roadmap.
+                    
+                    STRICT: No paragraphs. No long intros. Just pure exam data.
+                    """
 
-                    if not internal_evidence:
-                        st.session_state.prediction_pro_out = "[DATABASE_GAP]"
-                    else:
-                        # --- THE "PERPLEXITY-STYLE" DEEP RESEARCH PROMPT ---
-                        prompt = f"""
-                        Act as a Senior Research Analyst for {p_uni} (NEP 2020). 
-                        MISSION: Predict the next exam paper for '{user_subj}' using internal patterns: {internal_evidence}.
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    raw_out = res.choices[0].message.content.strip()
+                    
+                    # Optimized Validation: Sirf check karo ki marker present hai ya nahi
+                    if "[SURESHOT]" not in raw_out:
+                        raise Exception("AI failed to format correctly. Try again.")
 
-                        STRICT PROTOCOL:
-                        1. [SURESHOT]: List EXACTLY 10-12 technical questions. No theory-only fluff. Give numerical values for sums.
-                        2. Identify: [PYQ-BASED] or [AI-PREDICTED VARIATION].
-                        3. [REPEATED]: List 6 verified PYQs from 2024-25 foundation data.
-                        4. [PASS_JUGAAD]: 5 topics that guarantee passing marks.
-                        5. [3DAY_PLAN]: Strategic morning/noon/night study roadmap.
-
-                        FORMATTING: 
-                        - Bullet points ONLY. 
-                        - NO Paragraphs. 
-                        - NO backticks (```).
-                        - Total output must be detailed (min 800 words).
-                        """
-
-                        res = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[{"role": "user", "content": prompt}]
-                        )
-                        raw_out = res.choices[0].message.content.strip().replace("```", "")
-                        
-                        # 🛡️ THE ENFORCER VALIDATION: Stop lazy responses
-                        if len(raw_out) < 700 or "[SURESHOT]" not in raw_out:
-                            raise Exception("AI failed to reach required data density. Try again (Credits Refunded).")
-
-                        st.session_state.prediction_pro_out = raw_out
-                        st.session_state.p_subj_pro_final = user_subj
-                        st.balloons(); st.rerun()
+                    st.session_state.prediction_pro_out = raw_out
+                    st.session_state.p_subj_pro_final = user_subj
+                    st.balloons(); st.rerun()
 
                 except Exception as e:
-                    # Automatic Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ Sniper Failure: {str(e)}")
+                    st.error(f"⚠️ Stability Error: {str(e)}. Credits Refunded.")
 
-    # --- DISPLAY AREA ---
+    # --- UI RENDER ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         
-        if "[DATABASE_GAP]" in out_text:
-            st.error("❌ DATABASE GAP: Is subject ka pattern match nahi hua. Use 'DS', 'Maths 2' or 'Applied Physics'.")
-        else:
-            st.success("✅ Research Successful: Verified High-Density Patterns Found.")
-            
-            sections = {
-                "[SURESHOT]": ("🎯 Sureshot Predictions (Top 10-12)", "#4CAF50"),
-                "[REPEATED]": ("📊 Historical PYQs (2024-25)", "#2196F3"),
-                "[PASS_JUGAAD]": ("🛡️ Pass Hone Ka Jugaad", "#FF9800"),
-                "[3DAY_PLAN]": ("📅 3-Day Battle Roadmap", "#9C27B0")
-            }
-
-            for marker, (title, color) in sections.items():
-                if marker in out_text:
-                    parts = out_text.split(marker)
-                    content = parts[1].split("[")[0] if len(parts) > 1 and "[" in parts[1] else (parts[1] if len(parts) > 1 else "")
-                    with st.expander(title, expanded=(marker == "[SURESHOT]")):
-                        st.markdown(f"""
-                        <div style='background-color: #121212; padding: 20px; border-radius: 12px; border-left: 6px solid {color}; box-shadow: 2px 5px 15px rgba(0,0,0,0.3);'>
-                            <div style='color:#ffffff; line-height:2.0; font-size: 15px; white-space: pre-wrap;'>
-                                {content.strip().replace('-', '•')}
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-
-            share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke questions predict kar diye hain! 🔥 toppergpt.in"
-            import urllib.parse
-            st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; width:100%; margin-top:10px;">📲 Share Battle Plan</button></a>''', unsafe_allow_html=True)
+        sections = {
+            "[SURESHOT]": ("🎯 Sureshot Predictions (Top 10)", "#4CAF50"), 
+            "[REPEATED]": ("📊 Historical PYQs", "#2196F3"), 
+            "[PASS_JUGAAD]": ("🛡️ Pass Hone Ka Jugaad", "#FF9800"),
+            "[3DAY_PLAN]": ("📅 Battle Roadmap", "#9C27B0")
+        }
+        
+        for marker, (title, color) in sections.items():
+            if marker in out_text:
+                parts = out_text.split(marker)
+                content = parts[1].split("[")[0] if len(parts) > 1 and "[" in parts[1] else (parts[1] if len(parts) > 1 else "")
+                with st.expander(title, expanded=(marker == "[SURESHOT]")):
+                    st.markdown(f"""
+                    <div style='border-left:5px solid {color}; padding:15px; background:#121212; border-radius:10px; line-height:1.8; color:white; white-space: pre-wrap;'>
+                        {content.strip().replace('-', '•')}
+                    </div>
+                    """, unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
