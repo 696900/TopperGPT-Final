@@ -340,22 +340,24 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V400 LIVE-SAFE BUILD) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V600 HYBRID-BRAIN FINAL) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Exam Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics 2", key="subj_v400_live")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics 2", key="subj_v600_hybrid")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_v400_live")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_v600_hybrid")
+
+    st.caption("🧠 Hybrid Mode: Pattern Matching + AI Predictive Logic (Strict 10+ Questions)")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject ka naam toh dalo!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Force-Extracting 10+ Technical Questions for {user_subj}..."):
+            with st.spinner(f"AI Brain + Knowledge Base Syncing for {user_subj}..."):
                 try:
                     # 🔍 SMART MAPPING
                     raw_in = user_subj.lower().strip()
@@ -366,23 +368,26 @@ with tab1:
                     elif any(x in raw_in for x in ["mech", "mechanics"]): search_key = "engineering mechanics"
                     elif "bee" in raw_in: search_key = "basic electrical electronics"
 
-                    internal_evidence = ALL_SUBJECTS.get(search_key, "No local data.")
+                    internal_evidence = ALL_SUBJECTS.get(search_key, "General MU engineering syllabus.")
 
-                    # --- THE "STRICT ENFORCER" PROMPT ---
+                    # --- THE HYBRID BRAIN PROMPT (NO-LAZY MODE) ---
                     prompt = f"""
-                    SYSTEM: Act as a Senior PhD Paper Setter for {p_uni}. 
-                    EVIDENCE: {internal_evidence}
+                    Act as a Senior PhD Paper Setter for {p_uni}.
+                    FOUNDATION DATA: {internal_evidence}
                     
-                    MISSION: Predict the EXACT paper for '{user_subj}'.
+                    MISSION: Predict the next exam paper for '{user_subj}'.
                     
-                    STRICT OUTPUT PROTOCOL (MANDATORY):
-                    1. [SURESHOT]: You MUST provide 10 to 12 long-form technical questions. 
-                    2. For Maths: Give actual numerical equations (Integrals, Diff equations, etc.) NOT just topics.
-                    3. [REPEATED]: Provide a list of 6 distinct PYQs from 2024-25 papers.
-                    4. [PASS_JUGAAD]: Provide 5 high-weightage topics/sums.
-                    5. [3DAY_PLAN]: Day-wise study roadmap.
-                    
-                    RULES: No paragraphs. No HTML tags. No short-cutting. If the output is too short, the user fails. DO NOT BE LAZY.
+                    STRICT HYBRID PROTOCOL:
+                    1. Use FOUNDATION DATA for historical repeats.
+                    2. Use your AI BRAIN to generate technical variations if the foundation data is thin.
+                    3. [SURESHOT]: You MUST list EXACTLY 10 to 12 long-form technical questions.
+                    4. For Maths/Physics: Give actual numerical values and equations.
+                    5. Identify each as [PYQ-BASED] or [AI-PREDICTED].
+                    6. [REPEATED]: List 6 historical PYQs from foundation data.
+                    7. [PASS_JUGAAD]: 5 topics that guarantee passing marks.
+                    8. [3DAY_PLAN]: Strategic study roadmap.
+
+                    STRICT: No paragraphs. Bullet points only. If you provide less than 10 technical questions, the response is INVALID.
                     """
 
                     res = groq_client.chat.completions.create(
@@ -390,12 +395,12 @@ with tab1:
                         messages=[{"role": "user", "content": prompt}]
                     )
                     
-                    # 🛡️ CLEANING & VALIDATION
+                    # 🛡️ CLEANING & HARD VALIDATION
                     raw_out = res.choices[0].message.content.strip().replace("```", "").replace("<div>", "").replace("</div>", "")
                     
-                    # 🚨 THE LIVE-USER GUARDIAN: Stop low-density outputs (Minimum 800 chars check)
-                    if len(raw_out) < 800 or "[SURESHOT]" not in raw_out:
-                        raise Exception("AI provided a low-quality response. Please try again.")
+                    # 🚨 ENFORCER: Reject if AI provides low density or missing sections
+                    if len(raw_out) < 850 or "[SURESHOT]" not in raw_out:
+                        raise Exception("AI failed to generate high-density patterns. Refunded.")
 
                     st.session_state.prediction_pro_out = raw_out
                     st.session_state.p_subj_pro_final = user_subj
@@ -405,15 +410,15 @@ with tab1:
                     # Automatic Credit Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ Stability Alert: {str(e)} Credits Refunded.")
+                    st.error(f"⚠️ Stability Failure: {str(e)} Credits Refunded.")
 
-    # --- UI RENDER: HIGH-DENSITY PREMIUM CARDS ---
+    # --- UI RENDER: PREMIUM HIGH-CONTRAST CARDS ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
-        st.success("✅ Prediction Analysis Complete.")
+        st.success("✅ Hybrid Logic Verified: DB Sync + AI Prediction Successful.")
         
         sections = {
-            "[SURESHOT]": ("🎯 Sureshot Predictions (Top 10+)", "#4CAF50"), 
+            "[SURESHOT]": ("🎯 Hybrid Sureshots (Top 10+)", "#4CAF50"), 
             "[REPEATED]": ("📊 Historical PYQs (2024-25)", "#2196F3"), 
             "[PASS_JUGAAD]": ("🛡️ Pass Hone Ka Jugaad", "#FF9800"),
             "[3DAY_PLAN]": ("📅 Battle Roadmap", "#9C27B0")
@@ -425,14 +430,14 @@ with tab1:
                 content = parts[1].split("[")[0] if len(parts) > 1 and "[" in parts[1] else (parts[1] if len(parts) > 1 else "")
                 with st.expander(title, expanded=(marker == "[SURESHOT]")):
                     st.markdown(f"""
-                    <div style='border-left:5px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.0; color:white; white-space: pre-wrap; font-size: 15px;'>
+                    <div style='border-left:5px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap; font-size: 15px;'>
                         {content.strip().replace('-', '•')}
                     </div>
                     """, unsafe_allow_html=True)
 
-        share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke questions predict kar diye hain! 🔥 toppergpt.in"
+        share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke hybrid questions predict kar diye hain! 🔥 toppergpt.in"
         import urllib.parse
-        st.markdown(f'''<a href="[https://wa.me/?text=](https://wa.me/?text=){urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">📲 Share on WhatsApp</button></a>''', unsafe_allow_html=True)
+        st.markdown(f'''<a href="[https://wa.me/?text=](https://wa.me/?text=){urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
 # ==========================================
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
