@@ -350,24 +350,25 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V900 DEEPSEEK EDITION) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V1000 GOD-MODE SNIPER) ---
 with tab1: 
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT DeepSeek Sniper</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT God-Mode Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics 2", key="subj_v900_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics 2", key="subj_v1000_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v900_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1000_final")
 
-    st.caption("🚀 V900: DeepSeek-V3 Architecture. Professional Engineering Extraction Active.")
+    st.caption("🛡️ V1000: Dual-Engine Active (DeepSeek + Llama Fail-Safe). Zero-Lag Architecture.")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject dalo pehle!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"DeepSeek-V3 Analysing {user_subj}..."):
+            with st.spinner(f"AI Sniper researching {user_subj}..."):
+                raw_out = None
                 try:
                     # 🔍 SMART MAPPING
                     raw_in = user_subj.lower().strip()
@@ -375,45 +376,35 @@ with tab1:
                     if any(x in raw_in for x in ["ds", "data structure", "dsa"]): search_key = "data structure"
                     elif any(x in raw_in for x in ["math", "m2", "mathematics"]): search_key = "applied mathematics 2"
                     elif "physics" in raw_in: search_key = "applied physics"
+                    
+                    evidence = ALL_SUBJECTS.get(search_key, "MU NEP 2020 Engineering Pattern.")
 
-                    evidence = ALL_SUBJECTS.get(search_key, "MU General Engineering Pattern.")
-
-                    # --- THE DEEPSEEK PROMPT (STRICT FORMATTING) ---
                     prompt = f"""
-                    Role: PhD Engineering Moderator. 
-                    Target: {user_subj} | Pattern Data: {evidence}
-                    
-                    MISSION: Predict 12 high-density technical questions. 
-                    If Maths/Physics: Provide actual numerical variations and full equations.
-                    
-                    STRICT STRUCTURE (USE THESE MARKERS):
-                    START_SURESHOT
-                    [List 12 technical questions here]
-                    END_SURESHOT
-
-                    START_JUGAAD
-                    [5 topics to pass easily]
-                    END_JUGAAD
-
-                    START_PLAN
-                    [3-Day Roadmap]
-                    END_PLAN
-
-                    RULES: No intro. No markdown code blocks. Technical English only.
+                    Role: PhD Engineering Moderator. Target: {user_subj}. Data: {evidence}
+                    MISSION: Predict 12 high-density questions. Use actual numericals for Maths/Physics.
+                    STRUCTURE: START_SURESHOT [questions] END_SURESHOT. START_JUGAAD [topics] END_JUGAAD. START_PLAN [plan] END_PLAN.
                     """
 
-                    # 🚀 DEEPSEEK API CALL
-                    # Note: Ensure deepseek_client is defined at the top of app.py
-                    res = deepseek_client.chat.completions.create(
-                        model="deepseek-chat",
-                        messages=[{"role": "user", "content": prompt}],
-                        stream=False
-                    )
-                    raw_out = res.choices[0].message.content.strip()
+                    # --- ENGINE 1: DEEPSEEK (Try First with Timeout) ---
+                    try:
+                        # DeepSeek V3 is smart but can be slow/busy
+                        res = deepseek_client.chat.completions.create(
+                            model="deepseek-chat",
+                            messages=[{"role": "user", "content": prompt}],
+                            timeout=12  # 12 seconds max for DeepSeek
+                        )
+                        raw_out = res.choices[0].message.content.strip()
+                    except Exception:
+                        # --- ENGINE 2: GROQ LLAMA 3.3 (High-Speed Fallback) ---
+                        st.info("🔄 DeepSeek Server Busy... Switching to Llama Stability Core.")
+                        res_fallback = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                        raw_out = res_fallback.choices[0].message.content.strip()
 
-                    # Validation: Density check to prevent empty expanders
-                    if len(raw_out) < 500 or "START_SURESHOT" not in raw_out:
-                        raise Exception("AI Output Density Failure. Please retry.")
+                    if not raw_out or len(raw_out) < 400:
+                        raise Exception("AI Output Density Failure.")
 
                     st.session_state.prediction_pro_out = raw_out
                     st.session_state.p_subj_pro_final = user_subj
@@ -423,18 +414,17 @@ with tab1:
                     # Automatic Credit Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ DeepSeek Alert: {str(e)}. Credits Refunded.")
+                    st.error(f"⚠️ Dual-Engine Alert: {str(e)}. Credits Refunded.")
 
-    # --- UI RENDER: ZERO-FAIL SECTION PARSING ---
+    # --- UI RENDER (Zero-Fail Parsing) ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
-        st.success(f"✅ DeepSeek Verified Plan: {st.session_state.p_subj_pro_final.upper()}")
+        st.success(f"✅ Battle Plan Verified for {st.session_state.p_subj_pro_final.upper()}")
         
-        # Section UI Config
         ui_sections = {
-            "Sureshot Predictions": ("START_SURESHOT", "END_SURESHOT", "#4CAF50", True),
-            "Pass Hone Ka Jugaad": ("START_JUGAAD", "END_JUGAAD", "#FF9800", False),
-            "3-Day Battle Roadmap": ("START_PLAN", "END_PLAN", "#9C27B0", False)
+            "🎯 Sureshot Technical Predictions": ("START_SURESHOT", "END_SURESHOT", "#4CAF50", True),
+            "🛡️ Pass Hone Ka Jugaad": ("START_JUGAAD", "END_JUGAAD", "#FF9800", False),
+            "📅 3-Day Battle Roadmap": ("START_PLAN", "END_PLAN", "#9C27B0", False)
         }
         
         for title, (start, end, color, expand) in ui_sections.items():
@@ -442,13 +432,17 @@ with tab1:
                 content = out_text.split(start)[1].split(end)[0]
                 with st.expander(title, expanded=expand):
                     st.markdown(f"""
-                    <div style='border-left:5px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.0; color:white; white-space: pre-wrap; font-size: 15px;'>
+                    <div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.0; color:white; white-space: pre-wrap; font-size: 15px;'>
                         {content.strip()}
                     </div>
                     """, unsafe_allow_html=True)
+            elif start in out_text: # Fallback if end marker is missing
+                content = out_text.split(start)[1][:1000] 
+                with st.expander(title, expanded=expand):
+                    st.markdown(content)
 
-        # Share Button
-        share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke questions DeepSeek-AI se predict kar diye hain! 🔥 toppergpt.in"
+        # WhatsApp Share
+        share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke hybrid questions predict kar diye hain! 🔥 toppergpt.in"
         import urllib.parse
         st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">📲 Share Battle Plan</button></a>''', unsafe_allow_html=True)
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
