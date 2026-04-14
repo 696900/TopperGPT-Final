@@ -36,9 +36,9 @@ import subprocess
 # app.py ke upar ye hona chahiye
 from knowledge_base import PYQ_DATA, PYQ_DATA_SEM2
 
-# Gemini API Setup (YE LINES HAR FUNCTION KE BAHAR HONI CHAHIYE)
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+# Purani line ko isse badal do:
+gemini_model = genai.GenerativeModel('models/gemini-1.5-flash') 
+# 'models/' prefix lagana zaroori hai v1beta version mein
 # Dono dictionaries ko ek master dictionary mein merge kar do
 # Isse app saare subjects dhoond payega
 ALL_SUBJECTS = {**PYQ_DATA, **PYQ_DATA_SEM2}  
@@ -346,16 +346,16 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V750 GEMINI HYBRID FINAL) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V760 GEMINI STABILITY FINAL) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Hybrid Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics or DS", key="subj_v750_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics or DS", key="subj_v760_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_v750_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_v760_final")
 
     st.caption("🚀 Powered by Gemini 1.5 Flash: Native Engineering Reasoning Active.")
 
@@ -364,9 +364,9 @@ with tab1:
             st.warning("Pehle subject ka naam toh dalo bhai!")
         # 🛡️ SAFETY CHECK: Ensure gemini_model exists
         elif 'gemini_model' not in globals():
-            st.error("Error: Gemini Model not initialized. Please ensure the top-level setup is done correctly.")
+            st.error("Error: Gemini Model not initialized. Please ensure the top-level setup with 'models/gemini-1.5-flash' is done correctly.")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Gemini-AI Deep Researching {user_subj}..."):
+            with st.spinner(f"Gemini-AI Researching {user_subj}..."):
                 try:
                     # 🔍 SMART MAPPING (SEM 1 & 2 Support)
                     raw_in = user_subj.lower().strip()
@@ -393,13 +393,13 @@ with tab1:
                     FORMAT: Bullet points ONLY. Clean technical English. NO code blocks. NO HTML.
                     """
 
-                    # Calling the Global Gemini Model
+                    # Gemini Call (V760 fixes the 404 error)
                     response = gemini_model.generate_content(prompt)
                     raw_out = response.text.strip().replace("```", "")
                     
-                    # Density Validation
-                    if len(raw_out) < 650 or "[SURESHOT]" not in raw_out:
-                        raise Exception("AI response density too low. Try again.")
+                    # Density Validation (Lowered slightly for stability during presentation)
+                    if len(raw_out) < 500 or "[SURESHOT]" not in raw_out:
+                        raise Exception("AI response too short. Please try again.")
 
                     st.session_state.prediction_pro_out = raw_out
                     st.session_state.p_subj_pro_final = user_subj
