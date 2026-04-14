@@ -350,24 +350,24 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V1000 GOD-MODE SNIPER) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V1100 DEEPSEEK MASTER) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT God-Mode Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics 2", key="subj_v1000_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics", key="subj_v1100_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1000_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1100_final")
 
-    st.caption("🛡️ V1000: Dual-Engine Active (DeepSeek + Llama Fail-Safe). Zero-Lag Architecture.")
+    st.caption("🛡️ V1100: DeepSeek Master + Llama Stability. Most Repeated PYQs Active.")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject dalo pehle!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"AI Sniper researching {user_subj}..."):
+            with st.spinner(f"Force-Extracting Technical Data for {user_subj}..."):
                 raw_out = None
                 try:
                     # 🔍 SMART MAPPING
@@ -379,23 +379,28 @@ with tab1:
                     
                     evidence = ALL_SUBJECTS.get(search_key, "MU NEP 2020 Engineering Pattern.")
 
+                    # --- THE STRICT FOUR-SECTION PROMPT ---
                     prompt = f"""
-                    Role: PhD Engineering Moderator. Target: {user_subj}. Data: {evidence}
-                    MISSION: Predict 12 high-density questions. Use actual numericals for Maths/Physics.
-                    STRUCTURE: START_SURESHOT [questions] END_SURESHOT. START_JUGAAD [topics] END_JUGAAD. START_PLAN [plan] END_PLAN.
+                    Role: PhD Engineering Moderator. Target: {user_subj} | Pattern: {evidence}
+                    MISSION: Provide 4 distinct technical sections. NO MERGING.
+                    
+                    START_SURESHOT: Provide 10 Advanced Numericals with actual values.
+                    START_REPEATED: Provide 6 Most repeated PYQs from 2024-25 papers.
+                    START_JUGAAD: Provide 5 Pass-guarantee stable topics.
+                    START_PLAN: Provide a detailed 3-Day Roadmap.
+                    
+                    RULES: Use markers strictly. For Maths/Physics, use actual equations and values. No intro.
                     """
 
-                    # --- ENGINE 1: DEEPSEEK (Try First with Timeout) ---
+                    # --- DUAL-ENGINE FAILOVER ---
                     try:
-                        # DeepSeek V3 is smart but can be slow/busy
                         res = deepseek_client.chat.completions.create(
                             model="deepseek-chat",
                             messages=[{"role": "user", "content": prompt}],
-                            timeout=12  # 12 seconds max for DeepSeek
+                            timeout=15 
                         )
                         raw_out = res.choices[0].message.content.strip()
                     except Exception:
-                        # --- ENGINE 2: GROQ LLAMA 3.3 (High-Speed Fallback) ---
                         st.info("🔄 DeepSeek Server Busy... Switching to Llama Stability Core.")
                         res_fallback = groq_client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
@@ -414,35 +419,33 @@ with tab1:
                     # Automatic Credit Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ Dual-Engine Alert: {str(e)}. Credits Refunded.")
+                    st.error(f"⚠️ Sniper Failure: {str(e)}. Credits Refunded.")
 
-    # --- UI RENDER (Zero-Fail Parsing) ---
+    # --- UI RENDER (Four-Section Zero-Fail Parser) ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         st.success(f"✅ Battle Plan Verified for {st.session_state.p_subj_pro_final.upper()}")
         
         ui_sections = {
-            "🎯 Sureshot Technical Predictions": ("START_SURESHOT", "END_SURESHOT", "#4CAF50", True),
-            "🛡️ Pass Hone Ka Jugaad": ("START_JUGAAD", "END_JUGAAD", "#FF9800", False),
-            "📅 3-Day Battle Roadmap": ("START_PLAN", "END_PLAN", "#9C27B0", False)
+            "🎯 Sureshot Technical Predictions": ("START_SURESHOT", "START_REPEATED", "#4CAF50"),
+            "📊 Most Repeated PYQs": ("START_REPEATED", "START_JUGAAD", "#2196F3"),
+            "🛡️ Pass Hone Ka Jugaad": ("START_JUGAAD", "START_PLAN", "#FF9800"),
+            "📅 3-Day Battle Roadmap": ("START_PLAN", "END_PLAN", "#9C27B0")
         }
         
-        for title, (start, end, color, expand) in ui_sections.items():
-            if start in out_text and end in out_text:
-                content = out_text.split(start)[1].split(end)[0]
-                with st.expander(title, expanded=expand):
+        for title, (start, end, color) in ui_sections.items():
+            if start in out_text:
+                # Splitting logic to handle end of text safely
+                content = out_text.split(start)[1].split(end)[0] if end in out_text else out_text.split(start)[1]
+                with st.expander(title, expanded=(start == "START_SURESHOT")):
                     st.markdown(f"""
                     <div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.0; color:white; white-space: pre-wrap; font-size: 15px;'>
                         {content.strip()}
                     </div>
                     """, unsafe_allow_html=True)
-            elif start in out_text: # Fallback if end marker is missing
-                content = out_text.split(start)[1][:1000] 
-                with st.expander(title, expanded=expand):
-                    st.markdown(content)
 
         # WhatsApp Share
-        share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke hybrid questions predict kar diye hain! 🔥 toppergpt.in"
+        share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke detailed questions predict kar diye hain! 🔥 toppergpt.in"
         import urllib.parse
         st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">📲 Share Battle Plan</button></a>''', unsafe_allow_html=True)
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
