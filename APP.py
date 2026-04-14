@@ -36,9 +36,15 @@ import subprocess
 # app.py ke upar ye hona chahiye
 from knowledge_base import PYQ_DATA, PYQ_DATA_SEM2
 
+# Gemini API Setup (YE LINES HAR FUNCTION KE BAHAR HONI CHAHIYE)
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 # Dono dictionaries ko ek master dictionary mein merge kar do
 # Isse app saare subjects dhoond payega
 ALL_SUBJECTS = {**PYQ_DATA, **PYQ_DATA_SEM2}  
+# Gemini API Setup (YE LINES HAR FUNCTION KE BAHAR HONI CHAHIYE)
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+gemini_model = genai.GenerativeModel('gemini-1.5-flash') 
 
 # --- 1. CONFIGURATION (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
@@ -340,26 +346,29 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V700 GEMINI POWERHOUSE) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V750 GEMINI HYBRID FINAL) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Hybrid Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics 2", key="subj_v700_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics or DS", key="subj_v750_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_v700_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_v750_final")
 
-    st.caption("🚀 Gemini-Powered: Native Engineering Logic + MU Pattern Matching Active.")
+    st.caption("🚀 Powered by Gemini 1.5 Flash: Native Engineering Reasoning Active.")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
-            st.warning("Subject name dalo bhai!")
+            st.warning("Pehle subject ka naam toh dalo bhai!")
+        # 🛡️ SAFETY CHECK: Ensure gemini_model exists
+        elif 'gemini_model' not in globals():
+            st.error("Error: Gemini Model not initialized. Please ensure the top-level setup is done correctly.")
         elif use_credits(predict_cost): 
             with st.spinner(f"Gemini-AI Deep Researching {user_subj}..."):
                 try:
-                    # 🔍 SMART MAPPING
+                    # 🔍 SMART MAPPING (SEM 1 & 2 Support)
                     raw_in = user_subj.lower().strip()
                     search_key = raw_in
                     if any(x in raw_in for x in ["ds", "data structure", "dsa"]): search_key = "data structure"
@@ -368,54 +377,50 @@ with tab1:
                     elif any(x in raw_in for x in ["mech", "mechanics"]): search_key = "engineering mechanics"
                     elif "bee" in raw_in: search_key = "basic electrical electronics"
 
-                    evidence = ALL_SUBJECTS.get(search_key, "MU NEP 2020 Engineering Pattern.")
+                    evidence = ALL_SUBJECTS.get(search_key, "MU Pattern Logic.")
 
-                    # --- THE MASTER GEMINI PROMPT ---
+                    # --- THE FINAL GEMINI PROMPT ---
                     prompt = f"""
-                    You are a PhD Paper Setter for Mumbai University. 
-                    CONTEXT DATA: {evidence}
+                    Role: PhD Engineering Paper Setter for {p_uni}.
+                    Subject: {user_subj} | Data Base: {evidence}
                     
-                    MISSION: Predict the exact technical paper for '{user_subj}'.
-                    Gemini, use your native reasoning to provide 10-12 technical questions. 
-                    If it's Maths/BEE, you MUST include actual numerical values and equations.
-
-                    STRICT STRUCTURE:
-                    1. [SURESHOT]: List 10 to 12 Technical Questions. Format: Q. Question | Marks | Confidence%.
-                    2. [REPEATED]: List 6 verified PYQs from foundation data.
-                    3. [PASS_JUGAAD]: 5 Most stable topics to pass.
-                    4. [BATTLE_PLAN]: Day 1, 2, 3 strategic roadmap.
+                    MISSION: Predict 12 high-probability technical questions. 
+                    - [SURESHOT]: List 12 questions. For Maths/BEE/Physics, use actual numericals.
+                    - [REPEATED]: 6 verified PYQs from foundation data.
+                    - [PASS_JUGAAD]: 5 topics to clear easily.
+                    - [BATTLE_PLAN]: Day 1, 2, 3 strategic roadmap.
                     
-                    FORMAT: Bullet points only. No paragraphs. No markdown code blocks.
+                    FORMAT: Bullet points ONLY. Clean technical English. NO code blocks. NO HTML.
                     """
 
-                    # Gemini Call
+                    # Calling the Global Gemini Model
                     response = gemini_model.generate_content(prompt)
                     raw_out = response.text.strip().replace("```", "")
                     
-                    # 🛡️ VALIDATION: Gemini is smart, but we still verify density
-                    if len(raw_out) < 700 or "[SURESHOT]" not in raw_out:
-                        raise Exception("AI Response too thin. Refunded.")
+                    # Density Validation
+                    if len(raw_out) < 650 or "[SURESHOT]" not in raw_out:
+                        raise Exception("AI response density too low. Try again.")
 
                     st.session_state.prediction_pro_out = raw_out
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons(); st.rerun()
 
                 except Exception as e:
-                    # Automatic Refund
+                    # Automatic Credit Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ Sniper Failure: {str(e)}. Please click again.")
+                    st.error(f"⚠️ Sniper Failure: {str(e)}. Credits Refunded.")
 
-    # --- UI RENDER: PREMIUM CARDS ---
+    # --- UI RENDER: HIGH-CONTRAST PREMIUM CARDS ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
-        st.success("✅ Gemini-AI Analysis Successful: Patterns Matched.")
+        st.success(f"✅ Pattern Matched for {st.session_state.p_subj_pro_final.upper()}.")
         
         sections = {
-            "[SURESHOT]": ("🎯 Sureshot Predictions (Top 10-12)", "#4CAF50"), 
+            "[SURESHOT]": ("🎯 Hybrid Sureshot Predictions", "#4CAF50"), 
             "[REPEATED]": ("📊 Historical PYQs (2024-25)", "#2196F3"), 
             "[PASS_JUGAAD]": ("🛡️ Pass Hone Ka Jugaad", "#FF9800"),
-            "[BATTLE_PLAN]": ("📅 Battle Roadmap", "#9C27B0")
+            "[BATTLE_PLAN]": ("📅 3-Day Battle Roadmap", "#9C27B0")
         }
         
         for marker, (title, color) in sections.items():
@@ -431,8 +436,7 @@ with tab1:
 
         share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke questions Gemini-AI se predict kar diye hain! 🔥 toppergpt.in"
         import urllib.parse
-        st.markdown(f'''<a href="[https://wa.me/?text=](https://wa.me/?text=){urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; width:100%; margin-top:10px;">📲 Share Battle Plan on WhatsApp</button></a>''', unsafe_allow_html=True)
-# ==========================================
+        st.markdown(f'''<a href="[https://wa.me/?text=](https://wa.me/?text=){urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">📲 Share Analysis on WhatsApp</button></a>''', unsafe_allow_html=True)
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
 with tab2:
