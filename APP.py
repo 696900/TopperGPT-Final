@@ -36,15 +36,19 @@ import subprocess
 # app.py ke upar ye hona chahiye
 from knowledge_base import PYQ_DATA, PYQ_DATA_SEM2
 
-# Purani line ko isse badal do:
-gemini_model = genai.GenerativeModel('models/gemini-1.5-flash') 
-# 'models/' prefix lagana zaroori hai v1beta version mein
-# Dono dictionaries ko ek master dictionary mein merge kar do
-# Isse app saare subjects dhoond payega
-ALL_SUBJECTS = {**PYQ_DATA, **PYQ_DATA_SEM2}  
-# Gemini API Setup (YE LINES HAR FUNCTION KE BAHAR HONI CHAHIYE)
+# 1. Gemini ko ek hi baar sahi model name ke saath rakho
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-gemini_model = genai.GenerativeModel('gemini-1.5-flash') 
+gemini_model = genai.GenerativeModel('models/gemini-1.5-flash')
+
+# 2. DeepSeek Client add karo (Groq library hi use hoti hai iske liye)
+# Iske liye secrets.toml mein DEEPSEEK_API_KEY hona zaroori hai
+deepseek_client = Groq(
+    api_key=st.secrets["DEEPSEEK_API_KEY"],
+    base_url="https://api.deepseek.com"
+)
+
+# 3. Master dictionary merge (Ye sahi hai tera)
+ALL_SUBJECTS = {**PYQ_DATA, **PYQ_DATA_SEM2}
 
 # --- 1. CONFIGURATION (STRICTLY FIRST) ---
 st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
@@ -346,92 +350,107 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V800 ZERO-FAIL BULLETPROOF) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V900 DEEPSEEK EDITION) ---
 with tab1: 
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Hybrid Sniper</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT DeepSeek Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics 2", key="subj_v800_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics 2", key="subj_v900_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)", "Other"], key="uni_v800_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v900_final")
 
-    st.caption("🚀 V800: Zero-Fail Architecture. Deep Pattern Extraction Active.")
+    st.caption("🚀 V900: DeepSeek-V3 Architecture. Professional Engineering Extraction Active.")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Bhai, subject dalo pehle!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Force-Extracting Data for {user_subj}..."):
+            with st.spinner(f"DeepSeek-V3 Analysing {user_subj}..."):
                 try:
                     # 🔍 SMART MAPPING
                     raw_in = user_subj.lower().strip()
                     search_key = raw_in
-                    if any(x in raw_in for x in ["ds", "data structure"]): search_key = "data structure"
-                    elif any(x in raw_in for x in ["math", "m2"]): search_key = "applied mathematics 2"
+                    if any(x in raw_in for x in ["ds", "data structure", "dsa"]): search_key = "data structure"
+                    elif any(x in raw_in for x in ["math", "m2", "mathematics"]): search_key = "applied mathematics 2"
                     elif "physics" in raw_in: search_key = "applied physics"
 
                     evidence = ALL_SUBJECTS.get(search_key, "MU General Engineering Pattern.")
 
-                    # --- THE ZERO-FAIL PROMPT ---
+                    # --- THE DEEPSEEK PROMPT (STRICT FORMATTING) ---
                     prompt = f"""
-                    Role: PhD Engineering Moderator for {p_uni}. 
-                    Evidence: {evidence} | Target Subject: {user_subj}
+                    Role: PhD Engineering Moderator. 
+                    Target: {user_subj} | Pattern Data: {evidence}
                     
                     MISSION: Predict 12 high-density technical questions. 
-                    If Maths/Physics: Provide actual numerical variations (e.g. Newton's Rings RI=1.33).
+                    If Maths/Physics: Provide actual numerical variations and full equations.
                     
-                    STRICT STRUCTURE:
-                    [SURESHOT] - 12 Questions
-                    [JUGAAD] - 5 Pass-Guarantee topics
-                    [PLAN] - 3-Day Roadmap
-                    
-                    RULES: No intro, no HTML, no backticks.
+                    STRICT STRUCTURE (USE THESE MARKERS):
+                    START_SURESHOT
+                    [List 12 technical questions here]
+                    END_SURESHOT
+
+                    START_JUGAAD
+                    [5 topics to pass easily]
+                    END_JUGAAD
+
+                    START_PLAN
+                    [3-Day Roadmap]
+                    END_PLAN
+
+                    RULES: No intro. No markdown code blocks. Technical English only.
                     """
 
-                    # 🛡️ DUAL-LAYER CALL: Try Gemini, Fallback to stability
-                    try:
-                        # Try the flash model with the corrected prefix
-                        response = gemini_model.generate_content(prompt)
-                        raw_out = response.text.strip()
-                    except:
-                        # Fallback if specific model name still lags in v1beta
-                        st.warning("⚠️ High load detected. Switching to AI Stability Core.")
-                        res_fallback = groq_client.chat.completions.create(
-                            model="llama-3.1-8b-instant",
-                            messages=[{"role": "user", "content": prompt}]
-                        )
-                        raw_out = res_fallback.choices[0].message.content.strip()
+                    # 🚀 DEEPSEEK API CALL
+                    # Note: Ensure deepseek_client is defined at the top of app.py
+                    res = deepseek_client.chat.completions.create(
+                        model="deepseek-chat",
+                        messages=[{"role": "user", "content": prompt}],
+                        stream=False
+                    )
+                    raw_out = res.choices[0].message.content.strip()
 
-                    if len(raw_out) < 400:
-                        raise Exception("AI Response Density Too Low.")
+                    # Validation: Density check to prevent empty expanders
+                    if len(raw_out) < 500 or "START_SURESHOT" not in raw_out:
+                        raise Exception("AI Output Density Failure. Please retry.")
 
                     st.session_state.prediction_pro_out = raw_out
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons(); st.rerun()
 
                 except Exception as e:
+                    # Automatic Credit Refund
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ Stability Alert: {str(e)}. Credits Refunded.")
+                    st.error(f"⚠️ DeepSeek Alert: {str(e)}. Credits Refunded.")
 
-    # --- UI RENDER: ZERO-FAIL DISPLAY ---
+    # --- UI RENDER: ZERO-FAIL SECTION PARSING ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
-        st.success(f"✅ Battle Plan Ready: {st.session_state.p_subj_pro_final.upper()}")
+        st.success(f"✅ DeepSeek Verified Plan: {st.session_state.p_subj_pro_final.upper()}")
         
-        sections = {"[SURESHOT]": ("🎯 Sureshot Predictions", "#4CAF50"), "[JUGAAD]": ("🛡️ Pass Jugaad", "#FF9800"), "[PLAN]": ("📅 Battle Roadmap", "#9C27B0")}
+        # Section UI Config
+        ui_sections = {
+            "Sureshot Predictions": ("START_SURESHOT", "END_SURESHOT", "#4CAF50", True),
+            "Pass Hone Ka Jugaad": ("START_JUGAAD", "END_JUGAAD", "#FF9800", False),
+            "3-Day Battle Roadmap": ("START_PLAN", "END_PLAN", "#9C27B0", False)
+        }
         
-        for marker, (title, color) in sections.items():
-            if marker in out_text:
-                content = out_text.split(marker)[1].split("[")[0] if "[" in out_text.split(marker)[1] else out_text.split(marker)[1]
-                with st.expander(title, expanded=(marker == "[SURESHOT]")):
+        for title, (start, end, color, expand) in ui_sections.items():
+            if start in out_text and end in out_text:
+                content = out_text.split(start)[1].split(end)[0]
+                with st.expander(title, expanded=expand):
                     st.markdown(f"""
-                    <div style='border-left:5px solid {color}; padding:15px; background:#1e1e1e; border-radius:10px; line-height:2.0; color:white; white-space: pre-wrap;'>
+                    <div style='border-left:5px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.0; color:white; white-space: pre-wrap; font-size: 15px;'>
                         {content.strip()}
                     </div>
                     """, unsafe_allow_html=True)
+
+        # Share Button
+        share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke questions DeepSeek-AI se predict kar diye hain! 🔥 toppergpt.in"
+        import urllib.parse
+        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">📲 Share Battle Plan</button></a>''', unsafe_allow_html=True)
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
 with tab2:
