@@ -350,18 +350,16 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V1250 GRAPHICS & VIVA FIX) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V1300 FINAL STABLE) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Exam Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Engineering Graphics", key="subj_v1250_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Engineering Graphics", key="subj_v1300_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1250_final")
-
-    st.caption("🛡️ Stealth Engine Active: Secure Pattern Extraction.")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1300_final")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
@@ -380,17 +378,17 @@ with tab1:
                     
                     evidence = ALL_SUBJECTS.get(search_key, "MU NEP 2020 Engineering Pattern.")
 
-                    # --- GRAPHICS-AWARE PROMPT ---
+                    # --- ENFORCED PROMPT (Confidence + No CAD for Written) ---
                     prompt = f"""
                     Role: PhD Engineering Moderator for MU. Target: {user_subj} | Data: {evidence}
-                    MISSION: Provide 12 technical questions for THE WRITTEN EXAM. 
+                    MISSION: Predict 12 high-density questions for THE WRITTEN EXAM. 
                     
-                    STRICT RULES for Engineering Graphics:
-                    1. Focus ONLY on Projections (Points, Lines, Planes, Solids), Sectional Views, and Isometric.
-                    2. DO NOT mention CAD/AutoCAD theory (it is only for viva).
-                    3. Use specific dimensions (e.g. 50mm side, 30 deg inclination).
+                    STRICT RULES:
+                    1. For each question, add: | Confidence: [85-99]% | Marks: [X]M.
+                    2. For Engineering Graphics: Focus ONLY on Projections and Sectionals. DO NOT mention CAD.
+                    3. Use specific dimensions for problems.
                     
-                    STRUCTURE: START_SURESHOT [12 Problems] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Passing Topics] END_JUGAAD. START_PLAN [3-Day Roadmap] END_PLAN.
+                    STRUCTURE: START_SURESHOT [12 Problems] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Topics] END_JUGAAD. START_PLAN [3-Day Roadmap] END_PLAN.
                     STRICT: NO HTML. Bullet points only.
                     """
 
@@ -408,7 +406,9 @@ with tab1:
                         )
                         raw_out = res_fallback.choices[0].message.content.strip()
 
-                    clean_out = raw_out.replace("<div>", "").replace("</div>", "").replace("```", "").strip()
+                    # Clean markers that mess up UI
+                    clean_out = raw_out.replace("<div>", "").replace("</div>", "").replace("```", "").replace("END_SURESHOT", "").strip()
+                    
                     st.session_state.prediction_pro_out = clean_out
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons(); st.rerun()
@@ -424,7 +424,7 @@ with tab1:
         st.success(f"✅ Battle Plan Verified for {st.session_state.p_subj_pro_final.upper()}")
         
         ui_sections = {
-            "🎯 Sureshot Technical Predictions": ("START_SURESHOT", "START_REPEATED", "#4CAF50"),
+            "🎯 Sureshot Predictions (With Confidence %)": ("START_SURESHOT", "START_REPEATED", "#4CAF50"),
             "📊 Most Repeated PYQs": ("START_REPEATED", "START_JUGAAD", "#2196F3"),
             "🛡️ Pass Hone Ka Jugaad": ("START_JUGAAD", "START_PLAN", "#FF9800"),
             "📅 3-Day Battle Roadmap": ("START_PLAN", "END_PLAN", "#9C27B0")
@@ -436,7 +436,7 @@ with tab1:
                 with st.expander(title, expanded=(start == "START_SURESHOT")):
                     st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{content.strip()}</div>", unsafe_allow_html=True)
 
-        # --- ORAL SNIPER INTEGRATION (404 FIX) ---
+        # --- ORAL SNIPER (THE FINAL VIVA FIX) ---
         st.markdown("---")
         st.markdown("<h3 style='text-align: center; color: #FFD700;'>🎙️ TopperGPT Oral Sniper</h3>", unsafe_allow_html=True)
         
@@ -445,20 +445,15 @@ with tab1:
             if use_credits(oral_cost):
                 with st.spinner("Extracting External Examiner Patterns..."):
                     try:
-                        # 🚨 THE 404 FIX: Explicit model path with 'models/' prefix
-                        oral_model = genai.GenerativeModel('models/gemini-1.5-flash')
+                        # 🚨 THE FINAL FIX: Using 'gemini-1.5-flash-latest' to avoid version mismatch
+                        oral_model = genai.GenerativeModel('gemini-1.5-flash-latest')
                         
                         oral_prompt = f"""
                         Act as an MU External Examiner for {st.session_state.p_subj_pro_final}. 
-                        Predict 10 crucial Viva questions. 
+                        Predict 10 crucial Viva questions with short Answers and Confidence %.
                         If Engineering Graphics: Include CAD/AutoCAD questions here.
                         
-                        For each question:
-                        1. Question.
-                        2. Model Answer (1-2 crisp lines).
-                        3. Reason: Why is this predicted? (e.g. Core CAD concept, Repeated in Vivas).
-                        
-                        STRICT: Format in a clean yellow-themed list. No intro.
+                        FORMAT: Yellow-themed clean list. Reason of prediction included for each.
                         """
                         response = oral_model.generate_content(oral_prompt)
                         st.session_state.oral_output = response.text.strip()
@@ -469,7 +464,7 @@ with tab1:
         if "oral_output" in st.session_state:
             st.info(f"🎙️ Oral Sniper Active for {st.session_state.p_subj_pro_final}")
             st.markdown(f"""
-            <div style='background: #121212; border: 2px solid #FFD700; padding: 20px; border-radius: 15px; color: #FFD700; font-family: monospace;'>
+            <div style='background: #121212; border: 2px solid #FFD700; padding: 20px; border-radius: 15px; color: #FFD700;'>
                 {st.session_state.oral_output}
             </div>
             """, unsafe_allow_html=True)
