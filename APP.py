@@ -350,16 +350,16 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V1200 ORAL SNIPER EDITION) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V1250 GRAPHICS & VIVA FIX) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Exam Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Data Structures", key="subj_v1200_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Engineering Graphics", key="subj_v1250_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1200_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1250_final")
 
     st.caption("🛡️ Stealth Engine Active: Secure Pattern Extraction.")
 
@@ -370,20 +370,27 @@ with tab1:
             with st.spinner(f"Analyzing {user_subj} Exam Patterns..."):
                 raw_out = None
                 try:
+                    # 🔍 SMART MAPPING
                     raw_in = user_subj.lower().strip()
                     search_key = raw_in
                     if any(x in raw_in for x in ["ds", "data structure", "dsa"]): search_key = "data structure"
                     elif any(x in raw_in for x in ["math", "m2", "mathematics"]): search_key = "applied mathematics 2"
+                    elif any(x in raw_in for x in ["graphics", "eg", "drawing"]): search_key = "engineering graphics"
                     elif "physics" in raw_in: search_key = "applied physics"
                     
                     evidence = ALL_SUBJECTS.get(search_key, "MU NEP 2020 Engineering Pattern.")
 
+                    # --- GRAPHICS-AWARE PROMPT ---
                     prompt = f"""
-                    Role: PhD Engineering Moderator. Target: {user_subj} | Pattern: {evidence}
-                    MISSION: Provide 12 technical questions. 
-                    - 6 Theory/Conceptual questions.
-                    - 6 Practical/Numerical questions.
-                    STRUCTURE: START_SURESHOT [12 Balanced Questions] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Passing Topics] END_JUGAAD. START_PLAN [3-Day Roadmap] END_PLAN.
+                    Role: PhD Engineering Moderator for MU. Target: {user_subj} | Data: {evidence}
+                    MISSION: Provide 12 technical questions for THE WRITTEN EXAM. 
+                    
+                    STRICT RULES for Engineering Graphics:
+                    1. Focus ONLY on Projections (Points, Lines, Planes, Solids), Sectional Views, and Isometric.
+                    2. DO NOT mention CAD/AutoCAD theory (it is only for viva).
+                    3. Use specific dimensions (e.g. 50mm side, 30 deg inclination).
+                    
+                    STRUCTURE: START_SURESHOT [12 Problems] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Passing Topics] END_JUGAAD. START_PLAN [3-Day Roadmap] END_PLAN.
                     STRICT: NO HTML. Bullet points only.
                     """
 
@@ -429,7 +436,7 @@ with tab1:
                 with st.expander(title, expanded=(start == "START_SURESHOT")):
                     st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{content.strip()}</div>", unsafe_allow_html=True)
 
-        # --- NEW: ORAL SNIPER INTEGRATION (Inside UI Render) ---
+        # --- ORAL SNIPER INTEGRATION (404 FIX) ---
         st.markdown("---")
         st.markdown("<h3 style='text-align: center; color: #FFD700;'>🎙️ TopperGPT Oral Sniper</h3>", unsafe_allow_html=True)
         
@@ -438,19 +445,22 @@ with tab1:
             if use_credits(oral_cost):
                 with st.spinner("Extracting External Examiner Patterns..."):
                     try:
-                        # Direct Gemini 1.5 Flash Call for Orals
+                        # 🚨 THE 404 FIX: Explicit model path with 'models/' prefix
+                        oral_model = genai.GenerativeModel('models/gemini-1.5-flash')
+                        
                         oral_prompt = f"""
                         Act as an MU External Examiner for {st.session_state.p_subj_pro_final}. 
-                        Predict 10 crucial Viva questions based on these patterns: {ALL_SUBJECTS.get(st.session_state.p_subj_pro_final.lower(), "")}
+                        Predict 10 crucial Viva questions. 
+                        If Engineering Graphics: Include CAD/AutoCAD questions here.
                         
                         For each question:
                         1. Question.
                         2. Model Answer (1-2 crisp lines).
-                        3. Reason: Why is this predicted? (e.g. Repeated in 2022, 2024 Vivas).
+                        3. Reason: Why is this predicted? (e.g. Core CAD concept, Repeated in Vivas).
                         
                         STRICT: Format in a clean yellow-themed list. No intro.
                         """
-                        response = gemini_model.generate_content(oral_prompt)
+                        response = oral_model.generate_content(oral_prompt)
                         st.session_state.oral_output = response.text.strip()
                         st.rerun()
                     except Exception as e:
