@@ -350,25 +350,24 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V1300 FINAL STABLE) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V1500 UNIVERSAL DYNAMIC) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Exam Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Engineering Graphics", key="subj_v1300_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v1500_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1300_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1500_final")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
-            st.warning("Bhai, subject dalo pehle!")
+            st.warning("Pehle subject ka naam dalo bhai!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Analyzing {user_subj} Exam Patterns..."):
-                raw_out = None
+            with st.spinner(f"Analyzing {user_subj} Patterns..."):
                 try:
-                    # 🔍 SMART MAPPING
+                    # 🔍 DYNAMIC SMART MAPPING
                     raw_in = user_subj.lower().strip()
                     search_key = raw_in
                     if any(x in raw_in for x in ["ds", "data structure", "dsa"]): search_key = "data structure"
@@ -376,37 +375,36 @@ with tab1:
                     elif any(x in raw_in for x in ["graphics", "eg", "drawing"]): search_key = "engineering graphics"
                     elif "physics" in raw_in: search_key = "applied physics"
                     
-                    evidence = ALL_SUBJECTS.get(search_key, "MU NEP 2020 Engineering Pattern.")
+                    evidence = ALL_SUBJECTS.get(search_key, "MU NEP 2020 Engineering Standard.")
 
-                    # --- ENFORCED PROMPT (Confidence + No CAD for Written) ---
+                    # --- THE UNIVERSAL INTELLIGENT PROMPT ---
                     prompt = f"""
-                    Role: PhD Engineering Moderator for MU. Target: {user_subj} | Data: {evidence}
-                    MISSION: Predict 12 high-density questions for THE WRITTEN EXAM. 
+                    Role: Senior MU Paper Setter. Target: {user_subj} | Data: {evidence}
+                    MISSION: Predict 12 high-probability questions for WRITTEN EXAM.
                     
-                    STRICT RULES:
-                    1. For each question, add: | Confidence: [85-99]% | Marks: [X]M.
-                    2. For Engineering Graphics: Focus ONLY on Projections and Sectionals. DO NOT mention CAD.
-                    3. Use specific dimensions for problems.
-                    
-                    STRUCTURE: START_SURESHOT [12 Problems] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Topics] END_JUGAAD. START_PLAN [3-Day Roadmap] END_PLAN.
+                    STRICT DYNAMIC RULES:
+                    1. IF DRAWING (EG): Provide 10M-15M Drafting Problems. No theory.
+                    2. IF MATHS/NUMERICAL (M2/BEE): Provide actual numericals with values.
+                    3. IF THEORY (DS/CS): Balance theory (Explain/Compare) with 10M Logic/Traces.
+                    4. SOURCE PROOF: For 'REPEATED' section, include MU Exam Year (e.g. MAY 2024).
+                    5. CONFIDENCE: Add | Confidence: [85-99]% | Marks: [X]M to every question.
+
+                    STRUCTURE: START_SURESHOT [12 Balanced Questions] END_SURESHOT. START_REPEATED [6 PYQs with Proof] END_REPEATED. START_JUGAAD [5 Passing Topics] END_JUGAAD. START_PLAN [3-Day Roadmap] END_PLAN.
                     STRICT: NO HTML. Bullet points only.
                     """
 
                     try:
                         res = deepseek_client.chat.completions.create(
-                            model="deepseek-chat",
-                            messages=[{"role": "user", "content": prompt}],
-                            timeout=15 
+                            model="deepseek-chat", messages=[{"role": "user", "content": prompt}], timeout=15 
                         )
                         raw_out = res.choices[0].message.content.strip()
-                    except Exception:
-                        res_fallback = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[{"role": "user", "content": prompt}]
+                    except:
+                        res_f = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}]
                         )
-                        raw_out = res_fallback.choices[0].message.content.strip()
+                        raw_out = res_f.choices[0].message.content.strip()
 
-                    # Clean markers that mess up UI
+                    # Clean the markers and junk tags
                     clean_out = raw_out.replace("<div>", "").replace("</div>", "").replace("```", "").replace("END_SURESHOT", "").strip()
                     
                     st.session_state.prediction_pro_out = clean_out
@@ -418,14 +416,14 @@ with tab1:
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
                     st.error(f"⚠️ Stability Alert: {str(e)}. Credits Refunded.")
 
-    # --- UI RENDER ---
+    # --- UI RENDER (Four-Section Zero-Fail Parser) ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
         st.success(f"✅ Battle Plan Verified for {st.session_state.p_subj_pro_final.upper()}")
         
         ui_sections = {
-            "🎯 Sureshot Predictions (With Confidence %)": ("START_SURESHOT", "START_REPEATED", "#4CAF50"),
-            "📊 Most Repeated PYQs": ("START_REPEATED", "START_JUGAAD", "#2196F3"),
+            "🎯 Sureshot Predictions (Confidence Verified)": ("START_SURESHOT", "START_REPEATED", "#4CAF50"),
+            "📊 PYQs with Exam Proof (Source-Verified)": ("START_REPEATED", "START_JUGAAD", "#2196F3"),
             "🛡️ Pass Hone Ka Jugaad": ("START_JUGAAD", "START_PLAN", "#FF9800"),
             "📅 3-Day Battle Roadmap": ("START_PLAN", "END_PLAN", "#9C27B0")
         }
@@ -436,26 +434,23 @@ with tab1:
                 with st.expander(title, expanded=(start == "START_SURESHOT")):
                     st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{content.strip()}</div>", unsafe_allow_html=True)
 
-        # --- ORAL SNIPER (THE FINAL VIVA FIX) ---
+        # --- ORAL SNIPER (VIVA 404 PERMANENT FIX) ---
         st.markdown("---")
         st.markdown("<h3 style='text-align: center; color: #FFD700;'>🎙️ TopperGPT Oral Sniper</h3>", unsafe_allow_html=True)
         
         oral_cost = 15
         if st.button(f"🎯 UNLOCK VIVA QUESTIONS (-{oral_cost} Credits)", use_container_width=True):
             if use_credits(oral_cost):
-                with st.spinner("Extracting External Examiner Patterns..."):
+                with st.spinner("Extracting Examiner Intelligence..."):
                     try:
-                        # 🚨 THE FINAL FIX: Using 'gemini-1.5-flash-latest' to avoid version mismatch
-                        oral_model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                        
-                        oral_prompt = f"""
+                        # 🚨 STABLE VERSIONING: Pro model is less likely to 404
+                        viva_model = genai.GenerativeModel('gemini-1.5-pro-002') 
+                        viva_prompt = f"""
                         Act as an MU External Examiner for {st.session_state.p_subj_pro_final}. 
-                        Predict 10 crucial Viva questions with short Answers and Confidence %.
-                        If Engineering Graphics: Include CAD/AutoCAD questions here.
-                        
-                        FORMAT: Yellow-themed clean list. Reason of prediction included for each.
+                        Predict 10 crucial Viva questions with short Answers, Confidence %, and Reason of Prediction.
+                        If Graphics: Include CAD questions.
                         """
-                        response = oral_model.generate_content(oral_prompt)
+                        response = viva_model.generate_content(viva_prompt)
                         st.session_state.oral_output = response.text.strip()
                         st.rerun()
                     except Exception as e:
@@ -463,11 +458,7 @@ with tab1:
 
         if "oral_output" in st.session_state:
             st.info(f"🎙️ Oral Sniper Active for {st.session_state.p_subj_pro_final}")
-            st.markdown(f"""
-            <div style='background: #121212; border: 2px solid #FFD700; padding: 20px; border-radius: 15px; color: #FFD700;'>
-                {st.session_state.oral_output}
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"<div style='background: #121212; border: 2px solid #FFD700; padding: 20px; border-radius: 15px; color: #FFD700;'>{st.session_state.oral_output}</div>", unsafe_allow_html=True)
 
         # WhatsApp Share
         share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke Written + Viva questions predict kar diye hain! 🔥 toppergpt.in"
