@@ -420,7 +420,7 @@ if not st.session_state.offer_seen:
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Universal Sniper</h2>", unsafe_allow_html=True)
     
-    predict_cost = 25
+    predict_cost = 15
     c1, c2 = st.columns(2)
     with c1:
         user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v2600_final")
@@ -505,7 +505,7 @@ with tab1:
         with v_col2:
             intensity = st.select_slider("Intensity Level", options=["Warm-up", "Deep Dive", "Pressure"], key="v_intense_v26")
 
-        oral_cost = 15
+        oral_cost = 10
         if st.button(f"🔥 START VIVA SIMULATION (-{oral_cost} Credits)", key="oral_v26", use_container_width=True):
             if use_credits(oral_cost):
                 with st.spinner("Professor is reviewing preparation..."):
