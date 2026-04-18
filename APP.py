@@ -350,16 +350,16 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V1600 UNIVERSAL STABLE) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V1650 REST-API STABLE) ---
 with tab1: 
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Exam Sniper</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Universal Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v1600_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v1650_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1600_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1650_final")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
@@ -376,20 +376,20 @@ with tab1:
                     
                     evidence = ALL_SUBJECTS.get(search_key, "MU Engineering Standard.")
 
-                    # --- THE UNIVERSAL PROMPT (Graphics Marks + Proof) ---
+                    # --- UNIVERSAL PROMPT (Graphics Marks + Proof) ---
                     prompt = f"""
                     Role: Senior MU Paper Setter. Subject: {user_subj} | Data: {evidence}
-                    MISSION: Predict 12 questions for WRITTEN EXAM. 
+                    MISSION: Predict 12 high-density questions for THE WRITTEN EXAM. 
                     
                     STRICT DYNAMIC RULES: 
-                    1. FOR GRAPHICS: Minimum 10M and 15M problems only. No theory/viva questions. 
-                    2. FOR REPEATED: Mention MU Exam Year (e.g. MAY 2024, DEC 2023) for each question.
+                    1. FOR GRAPHICS: Minimum 10M-15M Drafting Problems. No CAD theory. 
+                    2. FOR REPEATED: Mention MU Exam Year (e.g. MAY 2024, DEC 2023) for each.
                     3. FORMAT: | Confidence: [85-99]% | Marks: [X]M.
                     
                     STRUCTURE: START_SURESHOT [12 Qs] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Topics] END_JUGAAD. START_PLAN [Roadmap] END_PLAN.
                     """
 
-                    # DUAL-ENGINE FAILOVER (DeepSeek/Groq)
+                    # DUAL-ENGINE FAILOVER
                     try:
                         res = deepseek_client.chat.completions.create(
                             model="deepseek-chat", messages=[{"role": "user", "content": prompt}], timeout=15 
@@ -417,7 +417,7 @@ with tab1:
         
         ui_sections = {
             "🎯 Sureshot Predictions (Confidence Verified)": ("START_SURESHOT", "START_REPEATED", "#4CAF50"),
-            "📊 PYQs with Exam Year (Source Proof)": ("START_REPEATED", "START_JUGAAD", "#2196F3"),
+            "📊 Most Repeated PYQs (Source Proof)": ("START_REPEATED", "START_JUGAAD", "#2196F3"),
             "🛡️ Pass Hone Ka Jugaad": ("START_JUGAAD", "START_PLAN", "#FF9800"),
             "📅 3-Day Battle Roadmap": ("START_PLAN", "END_PLAN", "#9C27B0")
         }
@@ -427,38 +427,44 @@ with tab1:
                 with st.expander(title, expanded=(start == "START_SURESHOT")):
                     st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{content.strip()}</div>", unsafe_allow_html=True)
 
-        # --- ORAL SNIPER (VIVA NUCLEAR FIX) ---
+        # --- ORAL SNIPER (VIVA API REST-CALL FIX) ---
         st.markdown("---")
         st.markdown("<h3 style='text-align: center; color: #FFD700;'>🎙️ TopperGPT Oral Sniper</h3>", unsafe_allow_html=True)
         
         oral_cost = 15
         if st.button(f"🎯 UNLOCK VIVA QUESTIONS (-{oral_cost} Credits)", use_container_width=True):
             if use_credits(oral_cost):
-                with st.spinner("Bypassing API Restrictions..."):
+                with st.spinner("Bypassing Library Restrictions..."):
                     try:
-                        # 🚨 THE NUCLEAR FIX: Try multiple model strings until one works
-                        success = False
-                        # List of models to try in order to avoid 404
-                        for m_name in ['gemini-1.5-flash', 'models/gemini-1.5-flash', 'gemini-1.5-pro-002']:
-                            try:
-                                viva_model = genai.GenerativeModel(m_name)
-                                oral_prompt = f"Act as MU External Examiner for {st.session_state.p_subj_pro_final}. Predict 10 Viva questions with short Answers, Confidence %, and Reason of Prediction."
-                                response = viva_model.generate_content(oral_prompt)
-                                st.session_state.oral_output = response.text.strip()
-                                success = True
-                                break
-                            except:
-                                continue
+                        # 🚨 THE NUCLEAR FIX: Direct REST API call (Ignores library bugs)
+                        import requests, json
+                        api_key = st.secrets["GEMINI_API_KEY"]
+                        model_id = "gemini-1.5-flash-latest"
+                        url = f"[https://generativelanguage.googleapis.com/v1beta/models/](https://generativelanguage.googleapis.com/v1beta/models/){model_id}:generateContent?key={api_key}"
                         
-                        if not success:
-                            raise Exception("All Gemini Endpoints busy on Streamlit Cloud. Please retry in 10s.")
-                        st.rerun()
+                        headers = {'Content-Type': 'application/json'}
+                        viva_p = f"Act as MU External Examiner for {st.session_state.p_subj_pro_final}. Provide 10 Viva questions with short Answers, Confidence %, and Reasons."
+                        payload = {"contents": [{"parts": [{"text": viva_p}]}]}
+                        
+                        response = requests.post(url, headers=headers, data=json.dumps(payload))
+                        
+                        if response.status_code == 200:
+                            viva_data = response.json()
+                            st.session_state.oral_output = viva_data['candidates'][0]['content']['parts'][0]['text'].strip()
+                            st.rerun()
+                        else:
+                            st.error(f"Google Server Error: {response.status_code}")
                     except Exception as e:
                         st.error(f"Oral Sniper Error: {str(e)}")
 
         if "oral_output" in st.session_state:
             st.info(f"🎙️ Oral Sniper Active for {st.session_state.p_subj_pro_final}")
             st.markdown(f"<div style='background: #121212; border: 2px solid #FFD700; padding: 20px; border-radius: 15px; color: #FFD700;'>{st.session_state.oral_output}</div>", unsafe_allow_html=True)
+
+        # WhatsApp Share
+        share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke Written + Viva questions predict kar diye hain! 🔥 toppergpt.in"
+        import urllib.parse
+        st.markdown(f'''<a href="[https://wa.me/?text=](https://wa.me/?text=){urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">📲 Share Battle Plan</button></a>''', unsafe_allow_html=True)
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
 with tab2:
