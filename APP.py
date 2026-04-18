@@ -331,6 +331,20 @@ with st.sidebar:
     
     st.divider()
     st.markdown("### 💎 Refill Credits")
+
+    # --- 🚀 EXAM SPECIAL: WARRIOR PACK (NEW ADDITION) ---
+    st.markdown(f'''
+        <a href="https://rzp.io/rzp/qPkvjWF2" target="_blank" style="text-decoration: none;">
+            <div style="background: linear-gradient(45deg, #FFD700, #FFA500); 
+                        padding: 15px; border-radius: 12px; text-align: center; 
+                        margin-bottom: 15px; border: 2px solid white; box-shadow: 0px 4px 15px rgba(255, 215, 0, 0.3);">
+                <b style="color: black; font-size: 14px;">🔥 WARRIOR PACK (₹10)</b><br>
+                <span style="color: black; font-size: 11px; font-weight: bold;">+ 100 CREDITS (Limited Exam Offer)</span>
+            </div>
+        </a>
+    ''', unsafe_allow_html=True)
+
+    # --- TERI PURANI PACKS LIST (AS IT IS) ---
     packs = [
         {"n": "Sureshot Pack", "c": "70", "p": "₹59", "u": "https://rzp.io/rzp/FmwE0Ms6"},
         {"n": "Jugaad Pack", "c": "150", "p": "₹99", "u": "https://rzp.io/rzp/AWiyLxEi"},
@@ -342,6 +356,7 @@ with st.sidebar:
             <p style="margin:5px 0 0 0; font-size:11px; color:#4CAF50;">+ {pack['c']} Credits</p>
         </a>''', unsafe_allow_html=True)
     
+    # --- TERA LOGOUT BUTTON (AS IT IS) ---
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 
