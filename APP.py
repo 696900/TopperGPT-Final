@@ -350,18 +350,18 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V2000 - STABLE VIVA & UNIVERSAL LOGIC) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V2100 PROFESSOR EDITION) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Universal Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v2000_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v2100_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v2000_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v2100_final")
 
-    # --- PREDICT QUESTION FEATURE (UNCHANGED AS REQUESTED) ---
+    # --- 🎯 SECTION 1: PREDICT QUESTION (STRICTLY UNCHANGED) ---
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Pehle subject ka naam dalo bhai!")
@@ -387,7 +387,7 @@ with tab1:
                     3. SURESHOT: Add | Confidence: [85-99]% | Marks: [X]M.
                     4. REPEATED: Mention MU Exam Year (e.g. MAY 2024). NO Confidence %.
                     
-                    STRUCTURE: START_SURESHOT [12 Qs] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Topics] END_JUGAAD. START_PLAN [3-Day Roadmap] END_PLAN.
+                    STRUCTURE: START_SURESHOT [12 Qs] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Topics] END_JUGAAD. START_PLAN [Roadmap] END_PLAN.
                     """
 
                     try:
@@ -429,31 +429,46 @@ with tab1:
                 with st.expander(title, expanded=(start == "START_SURESHOT")):
                     st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{display_content}</div>", unsafe_allow_html=True)
 
-        # --- ORAL SNIPER (VIVA FIX: Shifted to Stable Groq Engine) ---
+        # --- 🎙️ SECTION 2: PROFESSOR-LEVEL VIVA SNIPER (THE UPGRADE) ---
         st.markdown("---")
-        st.markdown("<h3 style='text-align: center; color: #FFD700;'>🎙️ TopperGPT Oral Sniper</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center; color: #FFD700;'>🎙️ Professor-Level Viva Sniper</h3>", unsafe_allow_html=True)
         
+        v_col1, v_col2 = st.columns(2)
+        with v_col1:
+            personality = st.selectbox("Examiner Style", ["Strict External (Grilling)", "Silent Killer (Tricky)", "Chill Senior (Conceptual)"], key="v_style")
+        with v_col2:
+            intensity = st.select_slider("Intensity", options=["Warm-up", "Deep Dive", "Pressure"], key="v_intense")
+
         oral_cost = 15
-        if st.button(f"🎯 UNLOCK VIVA QUESTIONS (-{oral_cost} Credits)", key="oral_v2000", use_container_width=True):
+        if st.button(f"🔥 START VIVA SIMULATION (-{oral_cost} Credits)", key="oral_v2100", use_container_width=True):
             if use_credits(oral_cost):
-                with st.spinner("Extracting Examiner Intelligence..."):
+                with st.spinner("Professor is reviewing your preparation..."):
                     try:
-                        # 🚀 GROQ IS USED HERE FOR 100% STABILITY ON STREAMLIT CLOUD
-                        viva_p = f"""
-                        Act as an MU External Examiner for {st.session_state.p_subj_pro_final}. 
-                        Provide 10 high-probability Viva questions.
+                        # 🚀 ADVANCED MULTI-SUBJECT VIVA LOGIC
+                        viva_logic = f"""
+                        Act as an MU External Examiner with a {personality} personality. 
+                        Target Subject: {st.session_state.p_subj_pro_final}. Intensity: {intensity}.
                         
-                        For each question include:
-                        1. Question.
-                        2. Short Answer (1-2 crisp lines).
-                        3. Reason: Why is this predicted? (e.g. 'Repetitive PYQ', 'Core engineering Concept').
+                        MISSION: Ask 10 questions that test DEPTH, LOGIC, and APPLICATION. 
+                        DO NOT ask basic definitions. Ask 'Why', 'How', and 'What if' scenarios.
                         
-                        If Engineering Graphics, strictly include AutoCAD/CAD viva questions here.
+                        SUBJECT-SPECIFIC INTELLIGENCE:
+                        - Engineering Graphics: Focus on drawing failure reasons, AutoCAD command traps (Ortho, Osnap, Layers), and dimensioning logic.
+                        - Maths: Focus on physical significance of theorems and sign-change effects.
+                        - BEE/Physics: Focus on real-world component failure and 'Why this specific material/type?'.
+                        
+                        STRUCTURE FOR EACH QUESTION:
+                        1. The Grilling Question.
+                        2. The Follow-up (to test confidence).
+                        3. Professor's Expected Answer (Crisp & Technical).
+                        4. The 'Trap': What common mistake to avoid.
+                        
+                        Theme: Clean, professional, and high-pressure.
                         """
                         
                         viva_res = groq_client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
-                            messages=[{"role": "user", "content": viva_p}]
+                            messages=[{"role": "user", "content": viva_logic}]
                         )
                         st.session_state.oral_output = viva_res.choices[0].message.content.strip()
                         st.rerun()
@@ -461,11 +476,11 @@ with tab1:
                         st.error(f"Oral Sniper Error: {str(e)}")
 
         if "oral_output" in st.session_state:
-            st.info(f"🎙️ Viva Practice Active")
-            st.markdown(f"<div style='background: #121212; border: 2px solid #FFD700; padding: 20px; border-radius: 15px; color: #FFD700;'>{st.session_state.oral_output}</div>", unsafe_allow_html=True)
+            st.info(f"🎙️ Simulation Mode Active: {personality}")
+            st.markdown(f"<div style='background: #000; border: 2px solid #FFD700; padding: 25px; border-radius: 15px; color: white; line-height: 1.8;'>{st.session_state.oral_output}</div>", unsafe_allow_html=True)
 
         # WhatsApp Share
-        share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke Written + Viva questions predict kar diye hain! 🔥 toppergpt.in"
+        share_msg = f"Bhai! TopperGPT ke Professor Mode ne meri Viva mein g**nd maar di! 😂 Tu bhi try kar: toppergpt.in"
         import urllib.parse
         st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">📲 Share Battle Plan</button></a>''', unsafe_allow_html=True)
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
