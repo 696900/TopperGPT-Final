@@ -350,6 +350,57 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
+# --- EXAM WARRIOR POPUP LOGIC ---
+if 'offer_seen' not in st.session_state:
+    st.session_state.offer_seen = False
+
+if not st.session_state.offer_seen:
+    # Custom CSS for the Popup Overlay
+    st.markdown("""
+        <style>
+        .offer-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.85);
+            z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .offer-card {
+            background: linear-gradient(135deg, #1e1e1e 0%, #111 100%);
+            padding: 40px; border-radius: 20px;
+            border: 3px solid #FFD700;
+            text-align: center; max-width: 450px;
+            box-shadow: 0px 0px 30px rgba(255, 215, 0, 0.3);
+        }
+        .promo-text { color: #FFD700; font-size: 2.5rem; font-weight: bold; margin-bottom: 10px; }
+        .price-tag { background: #FFD700; color: black; padding: 5px 15px; border-radius: 10px; font-weight: bold; font-size: 1.5rem; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Popup UI
+    with st.container():
+        st.markdown(f"""
+            <div class="offer-card" style="margin: auto; margin-top: 50px;">
+                <p style="color: #FF4B4B; font-weight: bold; letter-spacing: 2px;">LIMITED EXAM OFFER</p>
+                <h1 class="promo-text">100 CREDITS</h1>
+                <p style="font-size: 1.2rem; color: white;">Unlock all Sureshot Predictions & Viva Answers</p>
+                <div style="margin: 20px 0;">
+                    <span class="price-tag">FOR JUST ₹10</span>
+                </div>
+                <p style="color: #aaa; font-size: 0.8rem;">Offer valid for next 24 hours only!</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            # Tera Razorpay URL yahan aayega
+            st.markdown(f'''<a href="https://rzp.io/rzp/qPkvjWF2" target="_blank" style="text-decoration:none;">
+                <button style="width:100%; background:#FFD700; color:black; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">Loot Lo! 🚀</button>
+            </a>''', unsafe_allow_html=True)
+        with c2:
+            if st.button("Close & Continue", use_container_width=True):
+                st.session_state.offer_seen = True
+                st.rerun()
 ## --- TAB 1: PREDICT MY NEXT QUESTION (V2600 NEON SNIPER + UNCUT FIX) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Universal Sniper</h2>", unsafe_allow_html=True)
