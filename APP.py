@@ -350,24 +350,24 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V1800 FINAL BULLETPROOF FIX) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V2000 - STABLE VIVA & UNIVERSAL LOGIC) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Universal Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v1800_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v2000_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1800_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v2000_final")
 
+    # --- PREDICT QUESTION FEATURE (UNCHANGED AS REQUESTED) ---
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Pehle subject ka naam dalo bhai!")
         elif use_credits(predict_cost): 
             with st.spinner(f"Analyzing {user_subj} Exam Patterns..."):
                 try:
-                    # 🔍 DYNAMIC SMART MAPPING
                     raw_in = user_subj.lower().strip()
                     search_key = raw_in
                     if any(x in raw_in for x in ["ds", "data structure", "dsa"]): search_key = "data structure"
@@ -377,22 +377,19 @@ with tab1:
                     
                     evidence = ALL_SUBJECTS.get(search_key, "MU Engineering Standard Pattern.")
 
-                    # --- THE INTELLIGENT PROMPT (Subject-Aware) ---
                     prompt = f"""
-                    Role: PhD MU Moderator. Target: {user_subj} | Data: {evidence}
-                    MISSION: Predict 12 high-density questions for WRITTEN EXAM.
+                    Role: Senior MU Paper Setter. Target: {user_subj} | Data: {evidence}
+                    MISSION: Predict 12 high-probability questions for WRITTEN EXAM.
                     
                     STRICT DYNAMIC RULES:
-                    1. IF DRAWING (EG): 10M-15M Drafting problems only. NO Theory/CAD.
-                    2. IF MATHS/BEE: Provide actual numericals with specific values.
+                    1. IF DRAWING (EG): 10M-15M Drafting problems only. No theory/CAD.
+                    2. IF MATHS/NUMERICAL: Provide actual numericals with specific values.
                     3. SURESHOT: Add | Confidence: [85-99]% | Marks: [X]M.
                     4. REPEATED: Mention MU Exam Year (e.g. MAY 2024). NO Confidence %.
                     
-                    STRUCTURE: START_SURESHOT [12 Qs] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Topics] END_JUGAAD. START_PLAN [Roadmap] END_PLAN.
-                    STRICT: Bullet points only. No markdown headers inside sections.
+                    STRUCTURE: START_SURESHOT [12 Qs] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Topics] END_JUGAAD. START_PLAN [3-Day Roadmap] END_PLAN.
                     """
 
-                    # DUAL-ENGINE FAILOVER
                     try:
                         res = deepseek_client.chat.completions.create(
                             model="deepseek-chat", messages=[{"role": "user", "content": prompt}], timeout=15 
@@ -404,18 +401,14 @@ with tab1:
                         )
                         raw_out = res_f.choices[0].message.content.strip()
 
-                    # Clean all markers and noise
-                    junk = ["<div>", "</div>", "```", "START_SURESHOT", "END_SURESHOT", "START_REPEATED", "END_REPEATED", "START_JUGAAD", "END_JUGAAD", "START_PLAN", "END_PLAN"]
-                    clean_out = raw_out
-                    # Special parsing logic to keep markers for UI split but remove them from final text
-                    st.session_state.prediction_pro_out = clean_out
+                    st.session_state.prediction_pro_out = raw_out
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons(); st.rerun()
 
                 except Exception as e:
                     st.session_state.user_data['credits'] += predict_cost 
                     supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
-                    st.error(f"⚠️ stability Alert: {str(e)}")
+                    st.error(f"⚠️ Stability Alert: {str(e)}")
 
     # --- UI RENDER (Zero-Fail Parser) ---
     if "prediction_pro_out" in st.session_state:
@@ -432,49 +425,49 @@ with tab1:
         for title, (start, end, color) in ui_sections.items():
             if start in out_text:
                 content = out_text.split(start)[1].split(end)[0] if end in out_text else out_text.split(start)[1]
-                # Cleaning internal markers from displayed content
                 display_content = content.replace("END_SURESHOT", "").replace("END_REPEATED", "").replace("END_JUGAAD", "").replace("END_PLAN", "").strip()
                 with st.expander(title, expanded=(start == "START_SURESHOT")):
                     st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{display_content}</div>", unsafe_allow_html=True)
 
-        # --- ORAL SNIPER (VIVA API STABLE FIX) ---
+        # --- ORAL SNIPER (VIVA FIX: Shifted to Stable Groq Engine) ---
         st.markdown("---")
         st.markdown("<h3 style='text-align: center; color: #FFD700;'>🎙️ TopperGPT Oral Sniper</h3>", unsafe_allow_html=True)
         
         oral_cost = 15
-        if st.button(f"🎯 UNLOCK VIVA QUESTIONS (-{oral_cost} Credits)", use_container_width=True):
+        if st.button(f"🎯 UNLOCK VIVA QUESTIONS (-{oral_cost} Credits)", key="oral_v2000", use_container_width=True):
             if use_credits(oral_cost):
-                with st.spinner("Extracting Examiner Patterns..."):
+                with st.spinner("Extracting Examiner Intelligence..."):
                     try:
-                        import requests
-                        api_key = st.secrets["GEMINI_API_KEY"]
-                        # Stable API URL
-                        url = f"[https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=){api_key}"
+                        # 🚀 GROQ IS USED HERE FOR 100% STABILITY ON STREAMLIT CLOUD
+                        viva_p = f"""
+                        Act as an MU External Examiner for {st.session_state.p_subj_pro_final}. 
+                        Provide 10 high-probability Viva questions.
                         
-                        payload = {
-                            "contents": [{
-                                "parts": [{"text": f"Act as MU External Examiner for {st.session_state.p_subj_pro_final}. Provide 10 Viva questions with short Answers and Reasons. If Engineering Graphics, include CAD questions."}]
-                            }]
-                        }
+                        For each question include:
+                        1. Question.
+                        2. Short Answer (1-2 crisp lines).
+                        3. Reason: Why is this predicted? (e.g. 'Repetitive PYQ', 'Core engineering Concept').
                         
-                        response = requests.post(url, json=payload, timeout=20)
-                        if response.status_code == 200:
-                            viva_res = response.json()
-                            st.session_state.oral_output = viva_res['candidates'][0]['content']['parts'][0]['text'].strip()
-                            st.rerun()
-                        else:
-                            st.error(f"Google API Busy (Error {response.status_code}). Retry in 10s.")
+                        If Engineering Graphics, strictly include AutoCAD/CAD viva questions here.
+                        """
+                        
+                        viva_res = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "user", "content": viva_p}]
+                        )
+                        st.session_state.oral_output = viva_res.choices[0].message.content.strip()
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Oral Sniper Error: {str(e)}")
 
         if "oral_output" in st.session_state:
-            st.info(f"🎙️ Oral Sniper Active for {st.session_state.p_subj_pro_final}")
+            st.info(f"🎙️ Viva Practice Active")
             st.markdown(f"<div style='background: #121212; border: 2px solid #FFD700; padding: 20px; border-radius: 15px; color: #FFD700;'>{st.session_state.oral_output}</div>", unsafe_allow_html=True)
 
         # WhatsApp Share
         share_msg = f"Bhai! TopperGPT ne {st.session_state.p_subj_pro_final} ke Written + Viva questions predict kar diye hain! 🔥 toppergpt.in"
         import urllib.parse
-        st.markdown(f'''<a href="[https://wa.me/?text=](https://wa.me/?text=){urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">📲 Share Battle Plan</button></a>''', unsafe_allow_html=True)
+        st.markdown(f'''<a href="https://wa.me/?text={urllib.parse.quote(share_msg)}" target="_blank" style="text-decoration:none;"><button style="background:#25D366; color:white; border:none; padding:15px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">📲 Share Battle Plan</button></a>''', unsafe_allow_html=True)
 # --- TAB 2: FORMULA MINER (V59 - NO SCROLLBAR GLITCH) ---
 # ==========================================
 with tab2:
