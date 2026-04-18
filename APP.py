@@ -350,18 +350,18 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V2500 NEON SNIPER EDITION) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V2600 NEON SNIPER + UNCUT FIX) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Universal Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v2500_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v2600_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v2500_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v2600_final")
 
-    # --- 🎯 SECTION 1: PREDICT QUESTION (STRICTLY UNCHANGED) ---
+    # --- 🎯 SECTION 1: PREDICT QUESTION (STRICTLY UNCHANGED AS REQUESTED) ---
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Pehle subject ka naam dalo bhai!")
@@ -429,51 +429,43 @@ with tab1:
                 with st.expander(title, expanded=(start == "START_SURESHOT")):
                     st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{display_content}</div>", unsafe_allow_html=True)
 
-        # --- 🎙️ SECTION 2: PROFESSOR-LEVEL VIVA MASTER (NEON HIGHLIGHT EDITION) ---
+        # --- 🎙️ SECTION 2: PROFESSOR-LEVEL VIVA MASTER (NEON + UNCUT UPGRADE) ---
         st.markdown("---")
         st.markdown("<h3 style='text-align: center; color: #FFD700;'>🎙️ Professor-Level Viva Sniper</h3>", unsafe_allow_html=True)
         
         v_col1, v_col2 = st.columns(2)
         with v_col1:
-            personality = st.selectbox("Examiner Style", ["Strict External (Grilling)", "Silent Killer (Tricky)", "Chill Senior (Conceptual)"], key="v_style_v25")
+            personality = st.selectbox("Examiner Style", ["Strict External (Grilling)", "Silent Killer (Tricky)", "Chill Senior (Conceptual)"], key="v_style_v26")
         with v_col2:
-            intensity = st.select_slider("Intensity Level", options=["Warm-up", "Deep Dive", "Pressure"], key="v_intense_v25")
+            intensity = st.select_slider("Intensity Level", options=["Warm-up", "Deep Dive", "Pressure"], key="v_intense_v26")
 
         oral_cost = 15
-        if st.button(f"🔥 START VIVA SIMULATION (-{oral_cost} Credits)", key="oral_v25", use_container_width=True):
+        if st.button(f"🔥 START VIVA SIMULATION (-{oral_cost} Credits)", key="oral_v26", use_container_width=True):
             if use_credits(oral_cost):
-                with st.spinner("Professor is reviewing your preparation..."):
+                with st.spinner("Professor is reviewing preparation..."):
                     try:
-                        # 🚀 MULTI-SUBJECT INTELLIGENCE WITH NEON HIGHLIGHTS
                         viva_logic = f"""
-                        Act as an MU External Examiner for {st.session_state.p_subj_pro_final}. 
-                        Style: {personality}. Level: {intensity}.
+                        Act as an MU External Examiner for {st.session_state.p_subj_pro_final}. Style: {personality}. Level: {intensity}.
+                        MISSION: Ask 10 depth-testing questions. 
                         
-                        STRICT FORMAT RULES:
+                        STRICT FORMAT RULES (USE SPAN TAGS FOR COLOR):
                         1. Wrap the Question in <span style='color: #FFD700;'>...</span>
                         2. Wrap the TOPPER ANSWER in <span style='color: #4CAF50;'>...</span> (Must be Bullet Points).
                         3. Wrap the THE TRAP in <span style='color: #FF4B4B;'>...</span>
                         4. NO Markdown Headers (###). Use plain BOLD text.
                         
-                        SUBJECT LOGIC:
-                        - Graphics: Osnap/Ortho failure, AutoCAD edit chains, Dimensioning traps.
-                        - Maths: Physical significance and real-world failure cases.
-                        - BEE/Theory: Component selection logic and 'What if' failure scenarios.
-                        
                         STRUCTURE:
-                        Q[X]: <span style='color: #FFD700;'>[The Question]</span>
-                        CONCEPT: [Logic]
+                        Q[X]: <span style='color: #FFD700;'>[Question]</span>
                         TOPPER ANSWER: <span style='color: #4CAF50;'>
                         - [Bullet 1]
-                        - [Bullet 2]
-                        - [Bullet 3]</span>
-                        THE TRAP: <span style='color: #FF4B4B;'>[Common student mistake]</span>
-                        FOLLOW-UP: [Examiner's next move]
+                        - [Bullet 2]</span>
+                        THE TRAP: <span style='color: #FF4B4B;'>[Mistake]</span>
                         """
                         
                         viva_res = groq_client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
-                            messages=[{"role": "user", "content": viva_logic}]
+                            messages=[{"role": "user", "content": viva_logic}],
+                            max_tokens=3000 # 🚨 UNCUT FIX: Prevents output cutoff
                         )
                         st.session_state.oral_output = viva_res.choices[0].message.content.strip()
                         st.rerun()
