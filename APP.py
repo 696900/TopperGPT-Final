@@ -350,16 +350,16 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V2100 PROFESSOR EDITION) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V2300 PROFESSOR EDITION) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Universal Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v2100_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v2300_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v2100_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v2300_final")
 
     # --- 🎯 SECTION 1: PREDICT QUESTION (STRICTLY UNCHANGED) ---
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
@@ -435,35 +435,39 @@ with tab1:
         
         v_col1, v_col2 = st.columns(2)
         with v_col1:
-            personality = st.selectbox("Examiner Style", ["Strict External (Grilling)", "Silent Killer (Tricky)", "Chill Senior (Conceptual)"], key="v_style")
+            personality = st.selectbox("Examiner Style", ["Strict External (Grilling)", "Silent Killer (Tricky)", "Chill Senior (Conceptual)"], key="v_style_v23")
         with v_col2:
-            intensity = st.select_slider("Intensity", options=["Warm-up", "Deep Dive", "Pressure"], key="v_intense")
+            intensity = st.select_slider("Intensity Level", options=["Warm-up", "Deep Dive", "Pressure"], key="v_intense_v23")
 
         oral_cost = 15
-        if st.button(f"🔥 START VIVA SIMULATION (-{oral_cost} Credits)", key="oral_v2100", use_container_width=True):
+        if st.button(f"🔥 START VIVA SIMULATION (-{oral_cost} Credits)", key="oral_v23", use_container_width=True):
             if use_credits(oral_cost):
                 with st.spinner("Professor is reviewing your preparation..."):
                     try:
-                        # 🚀 ADVANCED MULTI-SUBJECT VIVA LOGIC
+                        # 🚀 ENHANCED APPLICATION-BASED LOGIC
                         viva_logic = f"""
                         Act as an MU External Examiner with a {personality} personality. 
                         Target Subject: {st.session_state.p_subj_pro_final}. Intensity: {intensity}.
                         
-                        MISSION: Ask 10 questions that test DEPTH, LOGIC, and APPLICATION. 
-                        DO NOT ask basic definitions. Ask 'Why', 'How', and 'What if' scenarios.
+                        MISSION: Ask 10 depth-testing questions. NO basic definitions.
+                        Focus on 'WHY', 'HOW', and 'APPLICATION'. 
                         
-                        SUBJECT-SPECIFIC INTELLIGENCE:
-                        - Engineering Graphics: Focus on drawing failure reasons, AutoCAD command traps (Ortho, Osnap, Layers), and dimensioning logic.
-                        - Maths: Focus on physical significance of theorems and sign-change effects.
-                        - BEE/Physics: Focus on real-world component failure and 'Why this specific material/type?'.
+                        SUBJECT-SPECIFIC RULES:
+                        - Engineering Graphics: Ask about Ortho/Osnap failure, dimensioning logic 
+
+[Image of engineering drawing dimensioning rules]
+, AutoCAD edit-chain effects, and scale vs units logic.
+                        - Maths: Physical significance of theorems, effect of sign changes, and real-world mapping.
+                        - BEE/Theory: Why this specific component? What happens if it fails?
                         
                         STRUCTURE FOR EACH QUESTION:
-                        1. The Grilling Question.
-                        2. The Follow-up (to test confidence).
-                        3. Professor's Expected Answer (Crisp & Technical).
-                        4. The 'Trap': What common mistake to avoid.
+                        - Q[X]: [The Grilling Question]
+                        - THE CONCEPT: [Logic behind the question]
+                        - TOPPER ANSWER: [Detailed technical answer to speak in Viva]
+                        - FOLLOW-UP: [The examiner's next counter-question]
+                        - THE TRAP: [What mistake students usually make here]
                         
-                        Theme: Clean, professional, and high-pressure.
+                        Theme: NO Markdown Headers (###). Use Plain Bold text for labels.
                         """
                         
                         viva_res = groq_client.chat.completions.create(
@@ -477,7 +481,7 @@ with tab1:
 
         if "oral_output" in st.session_state:
             st.info(f"🎙️ Simulation Mode Active: {personality}")
-            st.markdown(f"<div style='background: #000; border: 2px solid #FFD700; padding: 25px; border-radius: 15px; color: white; line-height: 1.8;'>{st.session_state.oral_output}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='background: #000; border: 2px solid #FFD700; padding: 25px; border-radius: 15px; color: white; line-height: 1.8; white-space: pre-wrap;'>{st.session_state.oral_output}</div>", unsafe_allow_html=True)
 
         # WhatsApp Share
         share_msg = f"Bhai! TopperGPT ke Professor Mode ne meri Viva mein g**nd maar di! 😂 Tu bhi try kar: toppergpt.in"
