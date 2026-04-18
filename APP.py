@@ -350,43 +350,46 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-## --- TAB 1: PREDICT MY NEXT QUESTION (V1650 REST-API STABLE) ---
+## --- TAB 1: PREDICT MY NEXT QUESTION (V1800 FINAL BULLETPROOF FIX) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Universal Sniper</h2>", unsafe_allow_html=True)
     
     predict_cost = 25
     c1, c2 = st.columns(2)
     with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v1650_final")
+        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics", key="subj_v1800_final")
     with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1650_final")
+        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v1800_final")
 
     if st.button(f"⚡ GENERATE BATTLE PLAN (-{predict_cost} Credits)", use_container_width=True):
         if not user_subj:
             st.warning("Pehle subject ka naam dalo bhai!")
         elif use_credits(predict_cost): 
-            with st.spinner(f"Analyzing {user_subj} Patterns..."):
+            with st.spinner(f"Analyzing {user_subj} Exam Patterns..."):
                 try:
                     # 🔍 DYNAMIC SMART MAPPING
                     raw_in = user_subj.lower().strip()
                     search_key = raw_in
-                    if any(x in raw_in for x in ["ds", "data structure"]): search_key = "data structure"
-                    elif any(x in raw_in for x in ["math", "m2"]): search_key = "applied mathematics 2"
-                    elif any(x in raw_in for x in ["graphics", "eg"]): search_key = "engineering graphics"
+                    if any(x in raw_in for x in ["ds", "data structure", "dsa"]): search_key = "data structure"
+                    elif any(x in raw_in for x in ["math", "m2", "mathematics"]): search_key = "applied mathematics 2"
+                    elif any(x in raw_in for x in ["graphics", "eg", "drawing"]): search_key = "engineering graphics"
+                    elif "physics" in raw_in: search_key = "applied physics"
                     
-                    evidence = ALL_SUBJECTS.get(search_key, "MU Engineering Standard.")
+                    evidence = ALL_SUBJECTS.get(search_key, "MU Engineering Standard Pattern.")
 
-                    # --- UNIVERSAL PROMPT (Graphics Marks + Proof) ---
+                    # --- THE INTELLIGENT PROMPT (Subject-Aware) ---
                     prompt = f"""
-                    Role: Senior MU Paper Setter. Subject: {user_subj} | Data: {evidence}
-                    MISSION: Predict 12 high-density questions for THE WRITTEN EXAM. 
+                    Role: PhD MU Moderator. Target: {user_subj} | Data: {evidence}
+                    MISSION: Predict 12 high-density questions for WRITTEN EXAM.
                     
-                    STRICT DYNAMIC RULES: 
-                    1. FOR GRAPHICS: Minimum 10M-15M Drafting Problems. No CAD theory. 
-                    2. FOR REPEATED: Mention MU Exam Year (e.g. MAY 2024, DEC 2023) for each.
-                    3. FORMAT: | Confidence: [85-99]% | Marks: [X]M.
+                    STRICT DYNAMIC RULES:
+                    1. IF DRAWING (EG): 10M-15M Drafting problems only. NO Theory/CAD.
+                    2. IF MATHS/BEE: Provide actual numericals with specific values.
+                    3. SURESHOT: Add | Confidence: [85-99]% | Marks: [X]M.
+                    4. REPEATED: Mention MU Exam Year (e.g. MAY 2024). NO Confidence %.
                     
                     STRUCTURE: START_SURESHOT [12 Qs] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Topics] END_JUGAAD. START_PLAN [Roadmap] END_PLAN.
+                    STRICT: Bullet points only. No markdown headers inside sections.
                     """
 
                     # DUAL-ENGINE FAILOVER
@@ -401,19 +404,23 @@ with tab1:
                         )
                         raw_out = res_f.choices[0].message.content.strip()
 
-                    clean_out = raw_out.replace("<div>", "").replace("</div>", "").replace("```", "").replace("END_SURESHOT", "").strip()
+                    # Clean all markers and noise
+                    junk = ["<div>", "</div>", "```", "START_SURESHOT", "END_SURESHOT", "START_REPEATED", "END_REPEATED", "START_JUGAAD", "END_JUGAAD", "START_PLAN", "END_PLAN"]
+                    clean_out = raw_out
+                    # Special parsing logic to keep markers for UI split but remove them from final text
                     st.session_state.prediction_pro_out = clean_out
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons(); st.rerun()
 
                 except Exception as e:
                     st.session_state.user_data['credits'] += predict_cost 
-                    st.error(f"⚠️ Stability Alert: {str(e)}")
+                    supabase.table("profiles").update({"credits": st.session_state.user_data['credits']}).eq("email", st.session_state.user_data['email']).execute()
+                    st.error(f"⚠️ stability Alert: {str(e)}")
 
-    # --- UI RENDER ---
+    # --- UI RENDER (Zero-Fail Parser) ---
     if "prediction_pro_out" in st.session_state:
         out_text = st.session_state.prediction_pro_out
-        st.success(f"✅ Battle Plan Verified for {st.session_state.p_subj_pro_final.upper()}")
+        st.success(f"✅ Pattern Verified for {st.session_state.p_subj_pro_final.upper()}")
         
         ui_sections = {
             "🎯 Sureshot Predictions (Confidence Verified)": ("START_SURESHOT", "START_REPEATED", "#4CAF50"),
@@ -421,39 +428,42 @@ with tab1:
             "🛡️ Pass Hone Ka Jugaad": ("START_JUGAAD", "START_PLAN", "#FF9800"),
             "📅 3-Day Battle Roadmap": ("START_PLAN", "END_PLAN", "#9C27B0")
         }
+        
         for title, (start, end, color) in ui_sections.items():
             if start in out_text:
                 content = out_text.split(start)[1].split(end)[0] if end in out_text else out_text.split(start)[1]
+                # Cleaning internal markers from displayed content
+                display_content = content.replace("END_SURESHOT", "").replace("END_REPEATED", "").replace("END_JUGAAD", "").replace("END_PLAN", "").strip()
                 with st.expander(title, expanded=(start == "START_SURESHOT")):
-                    st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{content.strip()}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{display_content}</div>", unsafe_allow_html=True)
 
-        # --- ORAL SNIPER (VIVA API REST-CALL FIX) ---
+        # --- ORAL SNIPER (VIVA API STABLE FIX) ---
         st.markdown("---")
         st.markdown("<h3 style='text-align: center; color: #FFD700;'>🎙️ TopperGPT Oral Sniper</h3>", unsafe_allow_html=True)
         
         oral_cost = 15
         if st.button(f"🎯 UNLOCK VIVA QUESTIONS (-{oral_cost} Credits)", use_container_width=True):
             if use_credits(oral_cost):
-                with st.spinner("Bypassing Library Restrictions..."):
+                with st.spinner("Extracting Examiner Patterns..."):
                     try:
-                        # 🚨 THE NUCLEAR FIX: Direct REST API call (Ignores library bugs)
-                        import requests, json
+                        import requests
                         api_key = st.secrets["GEMINI_API_KEY"]
-                        model_id = "gemini-1.5-flash-latest"
-                        url = f"[https://generativelanguage.googleapis.com/v1beta/models/](https://generativelanguage.googleapis.com/v1beta/models/){model_id}:generateContent?key={api_key}"
+                        # Stable API URL
+                        url = f"[https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=){api_key}"
                         
-                        headers = {'Content-Type': 'application/json'}
-                        viva_p = f"Act as MU External Examiner for {st.session_state.p_subj_pro_final}. Provide 10 Viva questions with short Answers, Confidence %, and Reasons."
-                        payload = {"contents": [{"parts": [{"text": viva_p}]}]}
+                        payload = {
+                            "contents": [{
+                                "parts": [{"text": f"Act as MU External Examiner for {st.session_state.p_subj_pro_final}. Provide 10 Viva questions with short Answers and Reasons. If Engineering Graphics, include CAD questions."}]
+                            }]
+                        }
                         
-                        response = requests.post(url, headers=headers, data=json.dumps(payload))
-                        
+                        response = requests.post(url, json=payload, timeout=20)
                         if response.status_code == 200:
-                            viva_data = response.json()
-                            st.session_state.oral_output = viva_data['candidates'][0]['content']['parts'][0]['text'].strip()
+                            viva_res = response.json()
+                            st.session_state.oral_output = viva_res['candidates'][0]['content']['parts'][0]['text'].strip()
                             st.rerun()
                         else:
-                            st.error(f"Google Server Error: {response.status_code}")
+                            st.error(f"Google API Busy (Error {response.status_code}). Retry in 10s.")
                     except Exception as e:
                         st.error(f"Oral Sniper Error: {str(e)}")
 
