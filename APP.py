@@ -360,91 +360,97 @@ with st.sidebar:
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 
-# --- ULTRA-SLIM PROFESSIONAL HEADER (V2900) ---
+# --- PRO-WALLET HEADER (V3000) ---
 if st.session_state.user_data:
     st.markdown("""
         <style>
-        .pro-header {
-            background: #0d1117;
+        .pro-container {
+            background: #161b22;
             border: 1px solid #30363d;
-            border-radius: 8px;
-            padding: 8px 15px;
+            border-radius: 12px;
+            padding: 12px 18px;
+            margin-bottom: 25px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
         }
-        .balance-group {
+        .balance-section {
+            border-left: 3px solid #4CAF50;
+            padding-left: 12px;
+        }
+        .shop-section {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
         }
-        .shop-group {
-            display: flex;
-            gap: 10px;
-        }
-        .pro-pill {
-            text-decoration: none;
-            color: #4CAF50 !important;
-            font-size: 12px;
-            font-weight: 600;
-            padding: 4px 8px;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            background: #161b22;
-            transition: all 0.2s;
-        }
-        .pro-pill:hover {
-            border-color: #4CAF50;
-            background: #1c2128;
-        }
-        .label-text {
+        .shop-label {
+            font-size: 11px;
             color: #8b949e;
-            font-size: 10px;
+            font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: -2px;
         }
-        /* Mobile adjustment */
-        @media (max-width: 600px) {
-            .pro-header {
-                padding: 10px;
+        .buy-pill {
+            text-decoration: none;
+            background: #21262d;
+            border: 1px solid #30363d;
+            padding: 6px 12px;
+            border-radius: 8px;
+            text-align: center;
+            transition: 0.2s;
+        }
+        .buy-pill:hover { border-color: #4CAF50; background: #1c2128; }
+        
+        /* Mobile View Fix */
+        @media (max-width: 768px) {
+            .pro-container {
                 flex-direction: column;
-                gap: 10px;
                 align-items: flex-start;
+                gap: 15px;
             }
-            .shop-group {
+            .shop-section {
                 width: 100%;
-                justify-content: space-between;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
             }
-            .pro-pill {
-                flex: 1;
-                text-align: center;
+            .pills-row {
+                display: flex;
+                gap: 8px;
+                width: 100%;
             }
+            .buy-pill { flex: 1; padding: 10px 5px; }
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Main Header Logic
+    # UI Layout
     st.markdown(f"""
-        <div class="pro-header">
-            <div class="balance-group">
-                <div style="background: #4CAF50; width: 3px; height: 24px; border-radius: 2px;"></div>
-                <div>
-                    <div class="label-text">Credits</div>
-                    <div style="color: white; font-size: 16px; font-weight: bold; line-height:1;">
-                        {st.session_state.user_data["credits"]} <span style="font-size:12px;">🔥</span>
-                    </div>
+        <div class="pro-container">
+            <div class="balance-section">
+                <div style="font-size: 10px; color: #8b949e; text-transform: uppercase;">Your Balance</div>
+                <div style="color: white; font-size: 20px; font-weight: bold;">
+                    {st.session_state.user_data["credits"]} <span style="font-size: 14px;">🔥</span>
                 </div>
             </div>
-            <div class="shop-group">
-                <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="pro-pill">70 @ ₹59</a>
-                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="pro-pill">150 @ ₹99</a>
-                <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="pro-pill">350 @ ₹149</a>
+            <div class="shop-section">
+                <div class="shop-label">⚡ Quick Top-up:</div>
+                <div class="pills-row">
+                    <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="buy-pill">
+                        <div style="color:#4CAF50; font-size:12px; font-weight:bold;">70 Credits</div>
+                        <div style="color:white; font-size:10px;">at ₹59</div>
+                    </a>
+                    <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="buy-pill">
+                        <div style="color:#4CAF50; font-size:12px; font-weight:bold;">150 Credits</div>
+                        <div style="color:white; font-size:10px;">at ₹99</div>
+                    </a>
+                    <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="buy-pill">
+                        <div style="color:#4CAF50; font-size:12px; font-weight:bold;">350 Credits</div>
+                        <div style="color:white; font-size:10px;">at ₹149</div>
+                    </a>
+                </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
-
 # --- 5. MAIN FEATURES TABS ---
 tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
