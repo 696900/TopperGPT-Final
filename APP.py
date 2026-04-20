@@ -360,93 +360,87 @@ with st.sidebar:
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 
-# --- GLASS-STORE HEADER (V2800) ---
+# --- ULTRA-SLIM PROFESSIONAL HEADER (V2900) ---
 if st.session_state.user_data:
     st.markdown("""
         <style>
-        /* Glassmorphism Effect */
-        .glass-header {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            margin-bottom: 20px;
+        .pro-header {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 8px 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap; /* Mobile compatibility */
+            margin-bottom: 20px;
         }
-        .balance-box {
+        .balance-group {
             display: flex;
             align-items: center;
+            gap: 8px;
+        }
+        .shop-group {
+            display: flex;
             gap: 10px;
         }
-        .shop-pills {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .pill {
-            background: #1c1c1c;
-            border: 1px solid #333;
-            padding: 8px 12px;
-            border-radius: 10px;
-            text-align: center;
+        .pro-pill {
             text-decoration: none;
-            transition: 0.3s;
+            color: #4CAF50 !important;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: #161b22;
+            transition: all 0.2s;
         }
-        .pill:hover { border-color: #4CAF50; transform: translateY(-2px); }
-        
-        /* Animated Sidebar Pointer */
-        @keyframes pointing {
-            0% { transform: translateX(0); }
-            50% { transform: translateX(-10px); }
-            100% { transform: translateX(0); }
+        .pro-pill:hover {
+            border-color: #4CAF50;
+            background: #1c2128;
         }
-        .sidebar-hint {
-            position: fixed;
-            top: 60px;
-            left: 10px;
-            z-index: 1000;
-            color: #FFD700;
-            font-weight: bold;
-            font-size: 14px;
-            animation: pointing 1.5s infinite;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+        .label-text {
+            color: #8b949e;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: -2px;
+        }
+        /* Mobile adjustment */
+        @media (max-width: 600px) {
+            .pro-header {
+                padding: 10px;
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            .shop-group {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .pro-pill {
+                flex: 1;
+                text-align: center;
+            }
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # 1. Sidebar Hint (Sirf tab dikhega jab credits < 50 honge)
-    if st.session_state.user_data['credits'] < 50:
-        st.markdown('<div class="sidebar-hint">⬅️ Check Sidebar for More Offers</div>', unsafe_allow_html=True)
-
-    # 2. Main Glass Header
+    # Main Header Logic
     st.markdown(f"""
-        <div class="glass-header">
-            <div class="balance-box">
-                <div style="background: #4CAF50; width: 4px; height: 40px; border-radius: 2px;"></div>
+        <div class="pro-header">
+            <div class="balance-group">
+                <div style="background: #4CAF50; width: 3px; height: 24px; border-radius: 2px;"></div>
                 <div>
-                    <p style="margin:0; font-size:11px; color:#888; text-transform: uppercase;">Total Balance</p>
-                    <h2 style="margin:0; color:white;">{st.session_state.user_data["credits"]} <span style="font-size:16px;">🔥</span></h2>
+                    <div class="label-text">Credits</div>
+                    <div style="color: white; font-size: 16px; font-weight: bold; line-height:1;">
+                        {st.session_state.user_data["credits"]} <span style="font-size:12px;">🔥</span>
+                    </div>
                 </div>
             </div>
-            <div class="shop-pills">
-                <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="pill">
-                    <span style="color:#888; font-size:10px;">Sureshot</span><br>
-                    <span style="color:#4CAF50; font-weight:bold;">₹59</span>
-                </a>
-                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="pill">
-                    <span style="color:#888; font-size:10px;">Jugaad</span><br>
-                    <span style="color:#4CAF50; font-weight:bold;">₹99</span>
-                </a>
-                <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="pill">
-                    <span style="color:#888; font-size:10px;">Topper Pro</span><br>
-                    <span style="color:#4CAF50; font-weight:bold;">₹149</span>
-                </a>
+            <div class="shop-group">
+                <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="pro-pill">70 @ ₹59</a>
+                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="pro-pill">150 @ ₹99</a>
+                <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="pro-pill">350 @ ₹149</a>
             </div>
         </div>
     """, unsafe_allow_html=True)
