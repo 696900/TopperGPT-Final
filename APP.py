@@ -359,67 +359,60 @@ with st.sidebar:
     # --- TERA LOGOUT BUTTON (AS IT IS) ---
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
-# --- SLIM MOBILE-FIRST HEADER ---
+
+# --- COMPACT WALLET & SHOP SECTION ---
 if st.session_state.user_data:
-    # Ek container mein sab kuch pack karenge space bachane ke liye
+    # Stylized Row for Credits & Store Links
     st.markdown("""
         <style>
-        .slim-card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 10px;
-            padding: 10px;
+        .economy-bar {
+            background: #111;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #333;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 5px;
+            margin-bottom: 15px;
         }
-        .offer-btn {
-            background: linear-gradient(45deg, #FFD700, #FFA500);
-            color: black !important;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 12px;
+        .mini-pack {
             text-decoration: none;
-            display: inline-block;
+            background: #222;
+            border: 1px solid #444;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: #4CAF50 !important;
+            font-weight: bold;
+            margin-left: 5px;
+            text-align: center;
         }
+        .mini-pack:hover { border-color: #4CAF50; }
         </style>
     """, unsafe_allow_html=True)
 
-    # 1. Top Row: Credits & Mini Top-up Button
-    col_a, col_b = st.columns([1.2, 1])
-    with col_a:
+    # Header Row
+    c_bal, c_shop = st.columns([1, 1.8])
+    
+    with c_bal:
         st.markdown(f"""
-            <div class='slim-card' style='border-left: 4px solid #4CAF50;'>
-                <div>
-                    <p style='margin:0; font-size:10px; color:#aaa;'>CREDITS</p>
-                    <h3 style='margin:0; color:white;'>{st.session_state.user_data["credits"]} 🔥</h3>
-                </div>
+            <div style='background: #1e1e1e; padding: 10px; border-radius: 10px; border-left: 4px solid #4CAF50;'>
+                <p style='margin:0; font-size:10px; color:#aaa;'>BALANCE</p>
+                <h3 style='margin:0; color:white;'>{st.session_state.user_data["credits"]} 🔥</h3>
             </div>
         """, unsafe_allow_html=True)
-    with col_b:
-        # Chota Quick Top-up link
+
+    with c_shop:
+        # Saare Top-up options ek hi row mein chote buttons ki tarah
         st.markdown(f'''
-            <a href="https://rzp.io/rzp/qPkvjWF2" target="_blank" style="text-decoration: none;">
-                <div class='slim-card' style='background: #238636; border: none;'>
-                    <div style='text-align: center; width: 100%;'>
-                        <p style='margin:0; font-size:10px; color:white;'>RECHARGE</p>
-                        <h4 style='margin:0; color:white;'>Get 100 ⚡</h4>
-                    </div>
-                </div>
-            </a>
+            <div style="display: flex; justify-content: flex-end; align-items: center; height: 100%;">
+                <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="mini-pack">70Cr<br><span style="color:white">₹59</span></a>
+                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="mini-pack">150Cr<br><span style="color:white">₹99</span></a>
+                <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="mini-pack">350Cr<br><span style="color:white">₹149</span></a>
+            </div>
         ''', unsafe_allow_html=True)
 
-    # 2. Single Line Exam Offer (Mobile par space nahi khayega)
-    st.markdown(f'''
-        <div style="background: #1e1e1e; border: 1px dashed #FFD700; padding: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: #FFD700; font-size: 12px; font-weight: bold;">🎁 EXAM OFFER: 100 Cr @ ₹10</span>
-            <a href="https://rzp.io/rzp/qPkvjWF2" target="_blank" class="offer-btn">CLAIM NOW</a>
-        </div>
-    ''', unsafe_allow_html=True)
-    
-    st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
 # --- 5. MAIN FEATURES TABS ---
 tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
