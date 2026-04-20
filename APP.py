@@ -360,83 +360,81 @@ with st.sidebar:
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 
-# --- ULTRA-MINIMAL PRO HEADER (V4000 + Sidebar Guide) ---
+# --- V5000: DYNAMIC DIRECTIONAL HEADER ---
 if st.session_state.user_data:
     st.markdown("""
         <style>
-        /* Sidebar Indicator Logic */
-        .sidebar-beacon {
-            position: fixed;
-            top: 15px;
-            left: 15px;
-            z-index: 99999;
+        /* Floating Instruction Bar */
+        @keyframes slideIn {
+            0% { transform: translateY(-50px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes pointLeft {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(-15px); }
+        }
+        .guide-bar {
+            background: #FFD700;
+            color: black;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 800;
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            z-index: 1000;
             display: flex;
             align-items: center;
-            gap: 8px;
-            pointer-events: none;
+            animation: slideIn 0.5s ease-out;
         }
-        .pulse-dot {
-            width: 10px;
-            height: 10px;
-            background: #FFD700;
-            border-radius: 50%;
-            box-shadow: 0 0 0 rgba(255, 215, 0, 0.4);
-            animation: pulse-ring 1.5s infinite;
-        }
-        @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
-        }
-        .beacon-text {
-            color: #FFD700;
-            font-size: 11px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            text-transform: uppercase;
+        .guide-arrow {
+            font-size: 20px;
+            margin-right: 10px;
+            animation: pointLeft 1s infinite;
         }
 
-        /* Rest of the Header Styles (Same as before but more refined) */
+        /* Slim Professional Header */
         .mini-header {
             background: #0d1117;
-            border-bottom: 1px solid #30363d;
-            padding: 8px 15px;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
         }
         .balance-text { color: #4CAF50; font-weight: 800; font-size: 18px; }
-        .shop-strip { display: flex; gap: 12px; }
+        .shop-strip { display: flex; gap: 8px; }
         .mini-link {
             text-decoration: none; font-size: 11px; font-weight: bold;
-            color: #8b949e !important; padding: 4px 8px;
-            border: 1px solid #30363d; border-radius: 5px;
+            color: #8b949e !important; padding: 6px 10px;
+            border: 1px solid #30363d; border-radius: 6px; background: #161b22;
         }
         .mini-link b { color: #4CAF50; }
 
         @media (max-width: 600px) {
             .mini-header { flex-direction: column; gap: 10px; align-items: flex-start; }
             .shop-strip { width: 100%; justify-content: space-between; }
-            .sidebar-beacon { top: 12px; left: 45px; } /* Mobile sidebar arrow position */
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # 1. The Beacon (Sidebar ki taraf ishara)
-    if st.session_state.user_data['credits'] < 100:
+    # 1. THE BIG HINT (Sirf unhe dikhega jo sidebar ke baare mein nahi jaante)
+    if st.session_state.user_data['credits'] < 50:
         st.markdown('''
-            <div class="sidebar-beacon">
-                <div class="pulse-dot"></div>
-                <div class="beacon-text">Offers Inside</div>
+            <div class="guide-bar">
+                <span class="guide-arrow">⬅️</span> 
+                OPEN FOR ₹10 OFFER!
             </div>
         ''', unsafe_allow_html=True)
 
-    # 2. UI Render (Main Header)
+    # 2. UI Render
     st.markdown(f"""
         <div class="mini-header">
             <div>
-                <span style="font-size: 10px; color: #8b949e; text-transform: uppercase;">Balance:</span>
+                <span style="font-size: 10px; color: #8b949e; text-transform: uppercase;">Current Balance:</span><br>
                 <span class="balance-text">{st.session_state.user_data["credits"]} 🔥</span>
             </div>
             <div class="shop-strip">
