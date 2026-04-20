@@ -360,87 +360,77 @@ with st.sidebar:
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 
-# --- V5000: DYNAMIC DIRECTIONAL HEADER ---
+# --- V6000: NEON STEALTH HEADER (CLEAN & PRO) ---
 if st.session_state.user_data:
     st.markdown("""
         <style>
-        /* Floating Instruction Bar */
-        @keyframes slideIn {
-            0% { transform: translateY(-50px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes pointLeft {
-            0%, 100% { transform: translateX(0); }
-            50% { transform: translateX(-15px); }
-        }
-        .guide-bar {
-            background: #FFD700;
-            color: black;
-            padding: 8px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 800;
+        /* Top Left Stealth Notification */
+        .stealth-hint {
             position: absolute;
-            top: 10px;
-            left: 50px;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            animation: slideIn 0.5s ease-out;
+            top: -55px; /* Sidebar arrow ke paas alignment */
+            left: 0;
+            background: rgba(255, 215, 0, 0.1);
+            border-left: 3px solid #FFD700;
+            padding: 5px 12px;
+            font-size: 11px;
+            color: #FFD700;
+            font-weight: bold;
+            letter-spacing: 1px;
+            animation: breathe 2s infinite;
         }
-        .guide-arrow {
-            font-size: 20px;
-            margin-right: 10px;
-            animation: pointLeft 1s infinite;
+        @keyframes breathe {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
         }
 
-        /* Slim Professional Header */
-        .mini-header {
+        /* Ultra Slim Glass Header */
+        .pro-strip {
             background: #0d1117;
             border: 1px solid #30363d;
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 20px;
+            border-radius: 8px;
+            padding: 10px 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 20px;
         }
-        .balance-text { color: #4CAF50; font-weight: 800; font-size: 18px; }
-        .shop-strip { display: flex; gap: 8px; }
-        .mini-link {
-            text-decoration: none; font-size: 11px; font-weight: bold;
-            color: #8b949e !important; padding: 6px 10px;
-            border: 1px solid #30363d; border-radius: 6px; background: #161b22;
+        .bal-val { color: #4CAF50; font-weight: 800; font-size: 18px; }
+        .shop-pills { display: flex; gap: 8px; }
+        .price-pill {
+            text-decoration: none;
+            font-size: 10px;
+            color: #8b949e !important;
+            padding: 5px 10px;
+            border-radius: 6px;
+            background: #161b22;
+            border: 1px solid #30363d;
         }
-        .mini-link b { color: #4CAF50; }
+        .price-pill b { color: #4CAF50; }
 
         @media (max-width: 600px) {
-            .mini-header { flex-direction: column; gap: 10px; align-items: flex-start; }
-            .shop-strip { width: 100%; justify-content: space-between; }
+            .pro-strip { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .shop-pills { width: 100%; justify-content: space-between; }
+            .stealth-hint { top: -75px; left: 40px; }
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # 1. THE BIG HINT (Sirf unhe dikhega jo sidebar ke baare mein nahi jaante)
+    # 1. Subtle Stealth Hint
     if st.session_state.user_data['credits'] < 50:
-        st.markdown('''
-            <div class="guide-bar">
-                <span class="guide-arrow">⬅️</span> 
-                OPEN FOR ₹10 OFFER!
-            </div>
-        ''', unsafe_allow_html=True)
+        st.markdown('<div class="stealth-hint">⚡ TAP SIDEBAR FOR ₹10 OFFER</div>', unsafe_allow_html=True)
 
-    # 2. UI Render
+    # 2. Main Header
     st.markdown(f"""
-        <div class="mini-header">
+        <div class="pro-strip">
             <div>
-                <span style="font-size: 10px; color: #8b949e; text-transform: uppercase;">Current Balance:</span><br>
-                <span class="balance-text">{st.session_state.user_data["credits"]} 🔥</span>
+                <span style="font-size: 10px; color: #8b949e; text-transform: uppercase;">Wallet:</span>
+                <span class="bal-val">{st.session_state.user_data["credits"]} 🔥</span>
             </div>
-            <div class="shop-strip">
-                <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="mini-link">70 Cr @ <b>₹59</b></a>
-                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="mini-link">150 Cr @ <b>₹99</b></a>
-                <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="mini-link">350 Cr @ <b>₹149</b></a>
+            <div class="shop-pills">
+                <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="price-pill">70Cr @ <b>₹59</b></a>
+                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="price-pill">150Cr @ <b>₹99</b></a>
+                <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="price-pill">350Cr @ <b>₹149</b></a>
             </div>
         </div>
     """, unsafe_allow_html=True)
