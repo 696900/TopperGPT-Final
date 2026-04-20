@@ -359,6 +359,56 @@ with st.sidebar:
     # --- TERA LOGOUT BUTTON (AS IT IS) ---
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
+# --- 📱 MOBILE-FIRST WALLET & TOP-UP SECTION ---
+if st.session_state.user_data:
+    # Title for the section
+    st.markdown("<h4 style='margin-bottom: 0px;'>💳 Your Account Summary</h4>", unsafe_allow_html=True)
+    
+    # Row 1: Credit Balance & Recharge Button
+    c1, c2 = st.columns([1, 1])
+    
+    with c1:
+        st.markdown(f"""
+            <div style='background: #1e1e1e; padding: 15px; border-radius: 12px; border-left: 5px solid #4CAF50; height: 80px;'>
+                <p style='margin:0; font-size:11px; color:#aaa; text-transform: uppercase;'>Credits Available</p>
+                <h2 style='margin:0; color:white;'>{st.session_state.user_data["credits"]} <span style='font-size:15px; color:#4CAF50;'>🔥</span></h2>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with c2:
+        # Ye button user ko seedha refill wale area tak scroll karwayega ya shop ka feel dega
+        st.markdown(f'''
+            <a href="#refill-your-credits" style="text-decoration: none;">
+                <div style="background: #252525; padding: 15px; border-radius: 12px; border: 1px dashed #FFD700; height: 80px; text-align: center;">
+                    <p style='margin:0; font-size:11px; color:#FFD700; font-weight: bold;'>RECHARGE NOW</p>
+                    <h3 style='margin:0; color:white;'>Top-up ⚡</h3>
+                </div>
+            </a>
+        ''', unsafe_allow_html=True)
+
+    # Row 2: Special Offers Horizontal Scroll (Mobile Friendly)
+    st.markdown("<p style='font-size: 12px; color: #666; margin-top: 10px;'>SPECIAL EXAM OFFERS:</p>", unsafe_allow_html=True)
+    
+    offer_cols = st.columns(2)
+    with offer_cols[0]:
+        st.markdown(f'''
+            <a href="https://rzp.io/rzp/qPkvjWF2" target="_blank" style="text-decoration: none;">
+                <div style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 10px; border-radius: 8px; text-align: center;">
+                    <span style="color: black; font-size: 12px; font-weight: bold;">Warrior: 100 Cr @ ₹10</span>
+                </div>
+            </a>
+        ''', unsafe_allow_html=True)
+    
+    with offer_cols[1]:
+        st.markdown(f'''
+            <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" style="text-decoration: none;">
+                <div style="background: #333; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #4CAF50;">
+                    <span style="color: #4CAF50; font-size: 12px; font-weight: bold;">Sureshot: 70 Cr @ ₹59</span>
+                </div>
+            </a>
+        ''', unsafe_allow_html=True)
+
+    st.markdown("---") # Tabs shuru hone se pehle ek separator
 
 # --- 5. MAIN FEATURES TABS ---
 tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
