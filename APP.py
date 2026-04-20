@@ -360,94 +360,89 @@ with st.sidebar:
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 
-# --- PRO-WALLET HEADER (V3000) ---
+# --- ULTRA-MINIMAL PRO HEADER (V4000 + Sidebar Guide) ---
 if st.session_state.user_data:
     st.markdown("""
         <style>
-        .pro-container {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            padding: 12px 18px;
-            margin-bottom: 25px;
+        /* Sidebar Indicator Logic */
+        .sidebar-beacon {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background: #FFD700;
+            border-radius: 50%;
+            box-shadow: 0 0 0 rgba(255, 215, 0, 0.4);
+            animation: pulse-ring 1.5s infinite;
+        }
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+        }
+        .beacon-text {
+            color: #FFD700;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Rest of the Header Styles (Same as before but more refined) */
+        .mini-header {
+            background: #0d1117;
+            border-bottom: 1px solid #30363d;
+            padding: 8px 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 15px;
         }
-        .balance-section {
-            border-left: 3px solid #4CAF50;
-            padding-left: 12px;
+        .balance-text { color: #4CAF50; font-weight: 800; font-size: 18px; }
+        .shop-strip { display: flex; gap: 12px; }
+        .mini-link {
+            text-decoration: none; font-size: 11px; font-weight: bold;
+            color: #8b949e !important; padding: 4px 8px;
+            border: 1px solid #30363d; border-radius: 5px;
         }
-        .shop-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .shop-label {
-            font-size: 11px;
-            color: #8b949e;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        .buy-pill {
-            text-decoration: none;
-            background: #21262d;
-            border: 1px solid #30363d;
-            padding: 6px 12px;
-            border-radius: 8px;
-            text-align: center;
-            transition: 0.2s;
-        }
-        .buy-pill:hover { border-color: #4CAF50; background: #1c2128; }
-        
-        /* Mobile View Fix */
-        @media (max-width: 768px) {
-            .pro-container {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 15px;
-            }
-            .shop-section {
-                width: 100%;
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-            .pills-row {
-                display: flex;
-                gap: 8px;
-                width: 100%;
-            }
-            .buy-pill { flex: 1; padding: 10px 5px; }
+        .mini-link b { color: #4CAF50; }
+
+        @media (max-width: 600px) {
+            .mini-header { flex-direction: column; gap: 10px; align-items: flex-start; }
+            .shop-strip { width: 100%; justify-content: space-between; }
+            .sidebar-beacon { top: 12px; left: 45px; } /* Mobile sidebar arrow position */
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # UI Layout
-    st.markdown(f"""
-        <div class="pro-container">
-            <div class="balance-section">
-                <div style="font-size: 10px; color: #8b949e; text-transform: uppercase;">Your Balance</div>
-                <div style="color: white; font-size: 20px; font-weight: bold;">
-                    {st.session_state.user_data["credits"]} <span style="font-size: 14px;">🔥</span>
-                </div>
+    # 1. The Beacon (Sidebar ki taraf ishara)
+    if st.session_state.user_data['credits'] < 100:
+        st.markdown('''
+            <div class="sidebar-beacon">
+                <div class="pulse-dot"></div>
+                <div class="beacon-text">Offers Inside</div>
             </div>
-            <div class="shop-section">
-                <div class="shop-label">⚡ Quick Top-up:</div>
-                <div class="pills-row">
-                    <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="buy-pill">
-                        <div style="color:#4CAF50; font-size:12px; font-weight:bold;">70 Credits</div>
-                        <div style="color:white; font-size:10px;">at ₹59</div>
-                    </a>
-                    <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="buy-pill">
-                        <div style="color:#4CAF50; font-size:12px; font-weight:bold;">150 Credits</div>
-                        <div style="color:white; font-size:10px;">at ₹99</div>
-                    </a>
-                    <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="buy-pill">
-                        <div style="color:#4CAF50; font-size:12px; font-weight:bold;">350 Credits</div>
-                        <div style="color:white; font-size:10px;">at ₹149</div>
-                    </a>
-                </div>
+        ''', unsafe_allow_html=True)
+
+    # 2. UI Render (Main Header)
+    st.markdown(f"""
+        <div class="mini-header">
+            <div>
+                <span style="font-size: 10px; color: #8b949e; text-transform: uppercase;">Balance:</span>
+                <span class="balance-text">{st.session_state.user_data["credits"]} 🔥</span>
+            </div>
+            <div class="shop-strip">
+                <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="mini-link">70 Cr @ <b>₹59</b></a>
+                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="mini-link">150 Cr @ <b>₹99</b></a>
+                <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="mini-link">350 Cr @ <b>₹149</b></a>
             </div>
         </div>
     """, unsafe_allow_html=True)
