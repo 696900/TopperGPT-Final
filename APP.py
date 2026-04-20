@@ -360,59 +360,96 @@ with st.sidebar:
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 
-# --- COMPACT WALLET & SHOP SECTION ---
+# --- GLASS-STORE HEADER (V2800) ---
 if st.session_state.user_data:
-    # Stylized Row for Credits & Store Links
     st.markdown("""
         <style>
-        .economy-bar {
-            background: #111;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid #333;
+        /* Glassmorphism Effect */
+        .glass-header {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            flex-wrap: wrap; /* Mobile compatibility */
         }
-        .mini-pack {
-            text-decoration: none;
-            background: #222;
-            border: 1px solid #444;
-            padding: 5px 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            color: #4CAF50 !important;
-            font-weight: bold;
-            margin-left: 5px;
+        .balance-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .shop-pills {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .pill {
+            background: #1c1c1c;
+            border: 1px solid #333;
+            padding: 8px 12px;
+            border-radius: 10px;
             text-align: center;
+            text-decoration: none;
+            transition: 0.3s;
         }
-        .mini-pack:hover { border-color: #4CAF50; }
+        .pill:hover { border-color: #4CAF50; transform: translateY(-2px); }
+        
+        /* Animated Sidebar Pointer */
+        @keyframes pointing {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(-10px); }
+            100% { transform: translateX(0); }
+        }
+        .sidebar-hint {
+            position: fixed;
+            top: 60px;
+            left: 10px;
+            z-index: 1000;
+            color: #FFD700;
+            font-weight: bold;
+            font-size: 14px;
+            animation: pointing 1.5s infinite;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
         </style>
     """, unsafe_allow_html=True)
 
-    # Header Row
-    c_bal, c_shop = st.columns([1, 1.8])
-    
-    with c_bal:
-        st.markdown(f"""
-            <div style='background: #1e1e1e; padding: 10px; border-radius: 10px; border-left: 4px solid #4CAF50;'>
-                <p style='margin:0; font-size:10px; color:#aaa;'>BALANCE</p>
-                <h3 style='margin:0; color:white;'>{st.session_state.user_data["credits"]} 🔥</h3>
-            </div>
-        """, unsafe_allow_html=True)
+    # 1. Sidebar Hint (Sirf tab dikhega jab credits < 50 honge)
+    if st.session_state.user_data['credits'] < 50:
+        st.markdown('<div class="sidebar-hint">⬅️ Check Sidebar for More Offers</div>', unsafe_allow_html=True)
 
-    with c_shop:
-        # Saare Top-up options ek hi row mein chote buttons ki tarah
-        st.markdown(f'''
-            <div style="display: flex; justify-content: flex-end; align-items: center; height: 100%;">
-                <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="mini-pack">70Cr<br><span style="color:white">₹59</span></a>
-                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="mini-pack">150Cr<br><span style="color:white">₹99</span></a>
-                <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="mini-pack">350Cr<br><span style="color:white">₹149</span></a>
+    # 2. Main Glass Header
+    st.markdown(f"""
+        <div class="glass-header">
+            <div class="balance-box">
+                <div style="background: #4CAF50; width: 4px; height: 40px; border-radius: 2px;"></div>
+                <div>
+                    <p style="margin:0; font-size:11px; color:#888; text-transform: uppercase;">Total Balance</p>
+                    <h2 style="margin:0; color:white;">{st.session_state.user_data["credits"]} <span style="font-size:16px;">🔥</span></h2>
+                </div>
             </div>
-        ''', unsafe_allow_html=True)
-
-    st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
+            <div class="shop-pills">
+                <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="pill">
+                    <span style="color:#888; font-size:10px;">Sureshot</span><br>
+                    <span style="color:#4CAF50; font-weight:bold;">₹59</span>
+                </a>
+                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="pill">
+                    <span style="color:#888; font-size:10px;">Jugaad</span><br>
+                    <span style="color:#4CAF50; font-weight:bold;">₹99</span>
+                </a>
+                <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="pill">
+                    <span style="color:#888; font-size:10px;">Topper Pro</span><br>
+                    <span style="color:#4CAF50; font-weight:bold;">₹149</span>
+                </a>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 # --- 5. MAIN FEATURES TABS ---
 tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
