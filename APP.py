@@ -331,20 +331,8 @@ with st.sidebar:
     
     st.divider()
     st.markdown("### 💎 Refill Credits")
-
-    # --- 🚀 EXAM SPECIAL: WARRIOR PACK (NEW ADDITION) ---
-    st.markdown(f'''
-        <a href="https://rzp.io/rzp/qPkvjWF2" target="_blank" style="text-decoration: none;">
-            <div style="background: linear-gradient(45deg, #FFD700, #FFA500); 
-                        padding: 15px; border-radius: 12px; text-align: center; 
-                        margin-bottom: 15px; border: 2px solid white; box-shadow: 0px 4px 15px rgba(255, 215, 0, 0.3);">
-                <b style="color: black; font-size: 14px;">🔥 WARRIOR PACK (₹10)</b><br>
-                <span style="color: black; font-size: 11px; font-weight: bold;">+ 100 CREDITS (Limited Exam Offer)</span>
-            </div>
-        </a>
-    ''', unsafe_allow_html=True)
-
-    # --- TERI PURANI PACKS LIST (AS IT IS) ---
+    
+    # Standard Packs List
     packs = [
         {"n": "Sureshot Pack", "c": "70", "p": "₹59", "u": "https://rzp.io/rzp/FmwE0Ms6"},
         {"n": "Jugaad Pack", "c": "150", "p": "₹99", "u": "https://rzp.io/rzp/AWiyLxEi"},
@@ -360,31 +348,11 @@ with st.sidebar:
     if st.button("🔓 Logout", use_container_width=True):
         supabase.auth.sign_out(); st.session_state.clear(); st.rerun()
 
-# --- V6000: NEON STEALTH HEADER (CLEAN & PRO) ---
+# --- V7000: PREMIUM STABLE HEADER (OFFERS REMOVED) ---
 if st.session_state.user_data:
     st.markdown("""
         <style>
-        /* Top Left Stealth Notification */
-        .stealth-hint {
-            position: absolute;
-            top: -55px; /* Sidebar arrow ke paas alignment */
-            left: 0;
-            background: rgba(255, 215, 0, 0.1);
-            border-left: 3px solid #FFD700;
-            padding: 5px 12px;
-            font-size: 11px;
-            color: #FFD700;
-            font-weight: bold;
-            letter-spacing: 1px;
-            animation: breathe 2s infinite;
-        }
-        @keyframes breathe {
-            0% { opacity: 0.4; }
-            50% { opacity: 1; }
-            100% { opacity: 0.4; }
-        }
-
-        /* Ultra Slim Glass Header */
+        /* Ultra Slim Professional Header */
         .pro-strip {
             background: #0d1117;
             border: 1px solid #30363d;
@@ -393,27 +361,43 @@ if st.session_state.user_data:
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
         .bal-val { color: #4CAF50; font-weight: 800; font-size: 18px; }
-        .shop-pills { display: flex; gap: 8px; }
+        .shop-pills { display: flex; gap: 10px; }
         .price-pill {
             text-decoration: none;
-            font-size: 10px;
+            font-size: 11px;
             color: #8b949e !important;
-            padding: 5px 10px;
+            padding: 6px 12px;
             border-radius: 6px;
             background: #161b22;
             border: 1px solid #30363d;
+            transition: 0.3s;
         }
+        .price-pill:hover { border-color: #4CAF50; transform: translateY(-2px); }
         .price-pill b { color: #4CAF50; }
 
         @media (max-width: 600px) {
             .pro-strip { flex-direction: column; gap: 12px; align-items: flex-start; }
             .shop-pills { width: 100%; justify-content: space-between; }
-            .stealth-hint { top: -75px; left: 40px; }
         }
         </style>
+    """, unsafe_allow_html=True)
+
+    # Main Header (No Hints, No Popups)
+    st.markdown(f"""
+        <div class="pro-strip">
+            <div>
+                <span style="font-size: 10px; color: #8b949e; text-transform: uppercase;">Credits Balance:</span>
+                <span class="bal-val">{st.session_state.user_data["credits"]} 🔥</span>
+            </div>
+            <div class="shop-pills">
+                <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="price-pill">70Cr @ <b>₹59</b></a>
+                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="price-pill">150Cr @ <b>₹99</b></a>
+                <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="price-pill">350Cr @ <b>₹149</b></a>
+            </div>
+        </div>
     """, unsafe_allow_html=True)
 
     # 1. Subtle Stealth Hint
