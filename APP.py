@@ -400,24 +400,13 @@ if st.session_state.user_data:
         </div>
     """, unsafe_allow_html=True)
 
-    # --- Line 403 se Line 420 tak pura DELETE karein ---
-
-# 1. Subtle Stealth Hint (Isko bhi uda do kyunki ₹10 offer ab band hai)
+# --- Line 403 se 420 tak pura DELETE karein ---
 if st.session_state.user_data['credits'] < 50:
-    st.markdown('<div class="stealth-hint">⚡ TAP SIDEBAR FOR ₹10 OFFER</div>', unsafe_allow_html=True)
+    st.markdown('<div class="stealth-hint">...</div>', unsafe_allow_html=True)
 
-# 2. Main Header (Ye duplicate hai, isliye delete karein)
 st.markdown(f"""
     <div class="pro-strip">
-        <div>
-            <span style="font-size: 10px; color: #8b949e; text-transform: uppercase;">Wallet:</span>
-            <span class="bal-val">{st.session_state.user_data["credits"]} 🔥</span>
-        </div>
-        <div class="shop-pills">
-            <a href="https://rzp.io/rzp/FmwE0Ms6" target="_blank" class="price-pill">70Cr @ <b>₹59</b></a>
-            <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" class="price-pill">150Cr @ <b>₹99</b></a>
-            <a href="https://rzp.io/rzp/hXcR54E" target="_blank" class="price-pill">350Cr @ <b>₹149</b></a>
-        </div>
+        ... Wallet: ...
     </div>
 """, unsafe_allow_html=True)
 # --- 5. MAIN FEATURES TABS ---
