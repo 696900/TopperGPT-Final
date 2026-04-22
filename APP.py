@@ -405,18 +405,7 @@ tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
     "🃏 Flashcards", "🔍 Search", "📊 MU SGPA Battle Planner", "⚖️ Legal"
 ])
-# --- Line 426 se 476 tak pura DELETE karein ---
-# --- EXAM WARRIOR POPUP LOGIC ---
-if 'offer_seen' not in st.session_state:
-    st.session_state.offer_seen = False
 
-if not st.session_state.offer_seen:
-    st.markdown(""" <style> ... </style> """, unsafe_allow_html=True)
-    with st.container():
-        # ... (Pura HTML aur Button logic yahan khatam hota hai Line 476 par)
-        if st.button("Close & Continue", ...):
-            st.session_state.offer_seen = True
-            st.rerun()
 ## --- TAB 1: PREDICT MY NEXT QUESTION (V2600 NEON SNIPER + UNCUT FIX) ---
 with tab1: 
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Universal Sniper</h2>", unsafe_allow_html=True)
