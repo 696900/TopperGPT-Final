@@ -400,15 +400,6 @@ if st.session_state.user_data:
         </div>
     """, unsafe_allow_html=True)
 
-# --- Line 403 se 420 tak pura DELETE karein ---
-if st.session_state.user_data['credits'] < 50:
-    st.markdown('<div class="stealth-hint">...</div>', unsafe_allow_html=True)
-
-st.markdown(f"""
-    <div class="pro-strip">
-        ... Wallet: ...
-    </div>
-""", unsafe_allow_html=True)
 # --- 5. MAIN FEATURES TABS ---
 tab1, tab2, tab3, tab4, tab5, tab7, tab8, tab9 = st.tabs([
     "🔮 Predict Questions", "🧪 FORMULA ARCHITECT", "💬 Chat PDF", "🧠 MindMap", 
