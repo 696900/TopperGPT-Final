@@ -658,35 +658,3 @@ with tab7:
             st.session_state.research_data = None
             st.rerun()
 
-# --- TAB 9: LEGAL & POLICIES ---
-with tab9:
-    st.header("⚖️ Legal, Terms & Privacy Policy")
-    st.info("Bhai, TopperGPT use karne se pehle ye rules ek baar dekh lo. Ye tumhari aur hamari dono ki safety ke liye hain.")
-
-    col_policy1, col_policy2 = st.columns(2)
-
-    with col_policy1:
-        st.subheader("📜 Terms of Service")
-        st.write("""
-        1. **Educational Use Only**: TopperGPT sirf padhai mein help karne ke liye hai. Iska use exam mein cheating karne ke liye na karein.
-        2. **Accuracy**: AI kabhi-kabhi mistakes kar sakta hai (hallucinations). Final exam se pehle apne university textbook se verify zaroori karein.
-        3. **Account Safety**: Apna login kisi aur ke saath share na karein, varna system access block kar sakta hai.
-        4. **Usage Limit**: Free users ke liye daily limits hain. Commercial use ya bulk downloading allowed nahi hai.
-        """)
-
-    with col_policy2:
-        st.subheader("🔒 Privacy Policy")
-        st.write("""
-        1. **Data Collection**: Hum sirf tumhara email aur university name save karte hain taaki tumhara progress (Syllabus Tracker) save rahe.
-        2. **PDF Security**: Jo notes tum upload karte ho, wo sirf tumhare analysis ke liye use hote hain. Hum tumhara data kisi 3rd party ko nahi bechte.
-        3. **Google Login**: Google Auth ke waqt hum sirf tumhari basic profile info access karte hain.
-        4. **Cookies**: Session manage karne ke liye hum temporary cookies use karte hain.
-        """)
-
-    st.divider()
-    st.caption("© 2026 TopperGPT Engineering. All Rights Reserved. Built with ❤️ for Engineering Students.")
-    
-    # Branded Button for Trust
-    if st.button("I Agree to the Terms ✅", use_container_width=True):
-        st.balloons()
-        st.success("Dhanyawad Topper! Ab jaakar fod do exams mein.")        
