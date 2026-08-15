@@ -122,7 +122,10 @@ def deduct_trial():
         curr = user.get("free_trials_left", 10)
         new_val = max(0, curr - 1)
         st.session_state.user_data["free_trials_left"] = new_val
-        supabase.table("profiles").update({"free_trials_left": new_val}).eq("email", user["email"]).execute()
+        try:
+            supabase.table("profiles").update({"free_trials_left": new_val}).eq("email", user["email"]).execute()
+        except Exception:
+            pass  # DB column missing hone par bhi app crash nahi hoga
 
 def show_paywall():
     st.error("🚨 Free Trials Khatam! Upgrade to TopperGPT PRO.")
