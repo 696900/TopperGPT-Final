@@ -305,26 +305,37 @@ with tab2:
                 
                 Generate a precision 1-page revision cheat sheet structured strictly into these 3 sections:
                 
-                ### 1. 🧮 Important Formulas, Constants & Units
-                - List all critical formulas with clear parameter definitions and standard SI units using LaTeX ($...$).
+                ### 1. Important Formulas, Constants & Units
+                - List all critical formulas with clear parameter definitions and standard SI units.
                 
-                ### 2. 🎯 High-Weightage Core Topics (Exam Priority)
+                ### 2. High-Weightage Core Topics (Exam Priority)
                 - List top 4 to 5 high-yield topics with expected question type (e.g., 6-Mark Derivation, 10-Mark Numerical, 2-Mark Concept).
                 
-                ### 3. ⚡ 10-Minute Rapid Revision Summary
+                ### 3. 10-Minute Rapid Revision Summary
                 - Crisp, point-to-point technical explanations using textbook-standard keywords for last-minute revision.
                 """
+                output_text = None
+                
+                # Primary Attempt: Groq LLaMA 3.1
                 try:
                     res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
+                        model="llama-3.1-70b-versatile",
                         messages=[{"role": "user", "content": sn_prompt}]
                     )
-                    st.session_state.sn_output_data = res.choices[0].message.content
+                    output_text = res.choices[0].message.content
+                except Exception:
+                    # Fallback Attempt: Gemini 1.5 Flash
+                    try:
+                        res = gemini_model.generate_content(sn_prompt)
+                        output_text = res.text
+                    except Exception as e:
+                        st.error(f"Generation error: {e}")
+
+                if output_text:
+                    st.session_state.sn_output_data = output_text
                     st.session_state.sn_current_chap = sn_chapter
                     st.session_state.sn_current_subj = sn_subject
                     st.rerun()
-                except Exception as e:
-                    st.error(f"Error generating notes: {e}")
 
     if "sn_output_data" in st.session_state and st.session_state.sn_output_data:
         st.markdown("---")
@@ -334,7 +345,7 @@ with tab2:
         if st.button("🗑️ Clear Short Notes"):
             del st.session_state.sn_output_data
             st.rerun()
-            
+
 # ==================================================
 # --- TAB 7: STREAMLINED TOPIC SEARCH ---
 # ==================================================
