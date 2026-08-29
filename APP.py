@@ -314,32 +314,18 @@ with tab2:
                 ### 3. ⚡ 10-Minute Rapid Revision Summary
                 - Crisp, point-to-point technical explanations using textbook-standard keywords for last-minute revision.
                 """
-                output_text = None
-                
-                # 1. Primary Engine: DeepSeek
                 try:
                     res = deepseek_client.chat.completions.create(
                         model="deepseek-chat",
                         messages=[{"role": "user", "content": sn_prompt}],
-                        timeout=20
+                        timeout=25
                     )
-                    output_text = res.choices[0].message.content
-                except Exception:
-                    # 2. Fallback Engine: Groq 8B
-                    try:
-                        res = groq_client.chat.completions.create(
-                            model="llama-3.1-8b-instant",
-                            messages=[{"role": "user", "content": sn_prompt}]
-                        )
-                        output_text = res.choices[0].message.content
-                    except Exception as e:
-                        st.error(f"Generation error: {e}")
-
-                if output_text:
-                    st.session_state.sn_output_data = output_text
+                    st.session_state.sn_output_data = res.choices[0].message.content
                     st.session_state.sn_current_chap = sn_chapter
                     st.session_state.sn_current_subj = sn_subject
                     st.rerun()
+                except Exception as e:
+                    st.error(f"Generation error: {e}")
 
     if "sn_output_data" in st.session_state and st.session_state.sn_output_data:
         st.markdown("---")
