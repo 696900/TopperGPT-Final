@@ -12,7 +12,7 @@ from knowledge_base import PYQ_DATA, PYQ_DATA_SEM2
 
 # 1. Gemini Client Setup
 genai.configure(api_key=st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY"))
-gemini_model = genai.GenerativeModel('models/gemini-1.5-flash')
+gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 2. DeepSeek Client Setup
 deepseek_client = Groq(
@@ -288,7 +288,7 @@ with tab2:
     with col_sn1:
         sn_subject = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics IV, DSA, BEE, Physics", key="sn_subj_input")
     with col_sn2:
-        sn_chapter = st.text_input("Chapter / Module Name", placeholder="e.g. Complex Integration, Trees, Transient Analysis", key="sn_chap_input")
+        sn_chapter = st.text_input("Chapter / Module Name", placeholder="e.g. Complex Integration, Trees, Semiconductor", key="sn_chap_input")
         
     if st.button("📑 Generate 3-Block Short Notes", use_container_width=True):
         if not sn_subject.strip() or not sn_chapter.strip():
@@ -305,29 +305,33 @@ with tab2:
                 
                 Generate a precision 1-page revision cheat sheet structured strictly into these 3 sections:
                 
-                ### 1. Important Formulas, Constants & Units
+                ### 1. 🧮 Important Formulas, Constants & Units
                 - List all critical formulas with clear parameter definitions and standard SI units.
                 
-                ### 2. High-Weightage Core Topics (Exam Priority)
+                ### 2. 🎯 High-Weightage Core Topics (Exam Priority)
                 - List top 4 to 5 high-yield topics with expected question type (e.g., 6-Mark Derivation, 10-Mark Numerical, 2-Mark Concept).
                 
-                ### 3. 10-Minute Rapid Revision Summary
+                ### 3. ⚡ 10-Minute Rapid Revision Summary
                 - Crisp, point-to-point technical explanations using textbook-standard keywords for last-minute revision.
                 """
                 output_text = None
                 
-                # Primary Attempt: Groq LLaMA 3.1
+                # 1. Primary Engine: DeepSeek
                 try:
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.1-70b-versatile",
-                        messages=[{"role": "user", "content": sn_prompt}]
+                    res = deepseek_client.chat.completions.create(
+                        model="deepseek-chat",
+                        messages=[{"role": "user", "content": sn_prompt}],
+                        timeout=20
                     )
                     output_text = res.choices[0].message.content
                 except Exception:
-                    # Fallback Attempt: Gemini 1.5 Flash
+                    # 2. Fallback Engine: Groq 8B
                     try:
-                        res = gemini_model.generate_content(sn_prompt)
-                        output_text = res.text
+                        res = groq_client.chat.completions.create(
+                            model="llama-3.1-8b-instant",
+                            messages=[{"role": "user", "content": sn_prompt}]
+                        )
+                        output_text = res.choices[0].message.content
                     except Exception as e:
                         st.error(f"Generation error: {e}")
 
@@ -345,7 +349,6 @@ with tab2:
         if st.button("🗑️ Clear Short Notes"):
             del st.session_state.sn_output_data
             st.rerun()
-
 # ==================================================
 # --- TAB 7: STREAMLINED TOPIC SEARCH ---
 # ==================================================
