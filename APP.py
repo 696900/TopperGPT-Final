@@ -191,7 +191,11 @@ with st.sidebar:
 st.markdown(f"### Welcome back, {st.session_state.user_data.get('full_name', 'Student')}! 🎓")
 
 # --- MAIN FEATURES TABS ---
-tab1, tab7 = st.tabs(["🔮 Predict Questions", "🔍 Streamlined Topic Search"])
+tab1, tab2, tab7 = st.tabs([
+    "🔮 Predict Questions", 
+    "📝 Chapter Short-Notes", 
+    "🔍 Streamlined Topic Search"
+])
 
 # ==================================================
 # --- TAB 1: PREDICT MY NEXT QUESTION ---
@@ -273,6 +277,64 @@ with tab1:
                 with st.expander(title, expanded=(start == "START_SURESHOT")):
                     st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{display_content}</div>", unsafe_allow_html=True)
 
+# ==================================================
+# --- TAB 2: CHAPTER SHORT-NOTES GENERATOR ---
+# ==================================================
+with tab2:
+    st.subheader("📝 Chapter Short-Notes Generator")
+    st.caption("1-Click 3-Block Revision Sheet: Formulas & Units, High Weightage Topics, and Quick Summary.")
+    
+    col_sn1, col_sn2 = st.columns(2)
+    with col_sn1:
+        sn_subject = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics IV, DSA, BEE, Physics", key="sn_subj_input")
+    with col_sn2:
+        sn_chapter = st.text_input("Chapter / Module Name", placeholder="e.g. Complex Integration, Trees, Transient Analysis", key="sn_chap_input")
+        
+    if st.button("📑 Generate 3-Block Short Notes", use_container_width=True):
+        if not sn_subject.strip() or not sn_chapter.strip():
+            st.warning("Subject aur Chapter dono ka naam dalo bhai!")
+        elif not check_access():
+            show_paywall()
+        else:
+            deduct_trial()
+            with st.spinner(f"Generating high-scoring revision sheet for {sn_chapter}..."):
+                sn_prompt = f"""
+                Act as a Principal Mumbai University (MU) Engineering Professor.
+                Target Subject: {sn_subject}
+                Target Chapter/Module: {sn_chapter}
+                
+                Generate a precision 1-page revision cheat sheet structured strictly into these 3 sections:
+                
+                ### 1. 🧮 Important Formulas, Constants & Units
+                - List all critical formulas with clear parameter definitions and standard SI units using LaTeX ($...$).
+                
+                ### 2. 🎯 High-Weightage Core Topics (Exam Priority)
+                - List top 4 to 5 high-yield topics with expected question type (e.g., 6-Mark Derivation, 10-Mark Numerical, 2-Mark Concept).
+                
+                ### 3. ⚡ 10-Minute Rapid Revision Summary
+                - Crisp, point-to-point technical explanations using textbook-standard keywords for last-minute revision.
+                """
+                try:
+                    res = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": sn_prompt}]
+                    )
+                    st.session_state.sn_output_data = res.choices[0].message.content
+                    st.session_state.sn_current_chap = sn_chapter
+                    st.session_state.sn_current_subj = sn_subject
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error generating notes: {e}")
+
+    if "sn_output_data" in st.session_state and st.session_state.sn_output_data:
+        st.markdown("---")
+        st.markdown(f"### 📘 Revision Sheet: **{st.session_state.get('sn_current_subj', '').upper()}** — *{st.session_state.get('sn_current_chap', '')}*")
+        st.markdown(st.session_state.sn_output_data)
+        
+        if st.button("🗑️ Clear Short Notes"):
+            del st.session_state.sn_output_data
+            st.rerun()
+            
 # ==================================================
 # --- TAB 7: STREAMLINED TOPIC SEARCH ---
 # ==================================================
