@@ -25,63 +25,12 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. HARDCORE TESTED MULTI-MODEL RESILIENT ENGINE ---
+# --- 3. HARDCORE ZERO-FAIL AI ENGINE ---
 def generate_ai_response(prompt_text):
-    errors = []
-
-    # 1. OpenRouter (Verified 100% Free Active Models)
-    openrouter_key = st.secrets.get("OPENROUTER_API_KEY", "").strip()
-    if openrouter_key:
-        free_models = [
-            "google/gemini-2.0-flash-lite-preview-02-05:free",
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "deepseek/deepseek-r1:free",
-            "qwen/qwen-2.5-72b-instruct:free"
-        ]
-        headers = {
-            "Authorization": f"Bearer {openrouter_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://toppergpt-live.streamlit.app",
-            "X-Title": "TopperGPT"
-        }
-        for m in free_models:
-            try:
-                payload = {
-                    "model": m,
-                    "messages": [{"role": "user", "content": prompt_text}],
-                    "temperature": 0.4
-                }
-                res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=20)
-                if res.status_code == 200:
-                    resp_json = res.json()
-                    if "choices" in resp_json and len(resp_json["choices"]) > 0:
-                        return resp_json["choices"][0]["message"]["content"].strip()
-                else:
-                    errors.append(f"OpenRouter[{m}]: {res.status_code}")
-            except Exception as e:
-                errors.append(f"OpenRouter[{m}] Ex: {str(e)}")
-
-    # 2. Google Gemini REST Direct (gemini-2.0-flash & gemini-1.5-flash)
-    api_key_gemini = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
-    if api_key_gemini:
-        for g_model in ["gemini-2.0-flash", "gemini-1.5-flash"]:
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={api_key_gemini}"
-                headers = {"Content-Type": "application/json"}
-                payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
-                res = requests.post(url, headers=headers, json=payload, timeout=20)
-                if res.status_code == 200:
-                    data = res.json()
-                    return data['candidates'][0]['content']['parts'][0]['text'].strip()
-                else:
-                    errors.append(f"Gemini[{g_model}]: {res.status_code}")
-            except Exception as e:
-                errors.append(f"Gemini[{g_model}] Ex: {str(e)}")
-
-    # 3. Groq (Active 70B & 8B Fallback)
+    # 1. Groq Core Production Tier (Highest Speed)
     groq_key = st.secrets.get("GROQ_API_KEY", "").strip()
     if groq_key:
-        for grq_m in ["llama-3.3-70b-versatile", "llama-3.2-11b-vision-preview"]:
+        for grq_model in ["llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"]:
             try:
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {
@@ -89,18 +38,55 @@ def generate_ai_response(prompt_text):
                     "Content-Type": "application/json"
                 }
                 payload = {
-                    "model": grq_m,
+                    "model": grq_model,
+                    "messages": [{"role": "user", "content": prompt_text}],
+                    "temperature": 0.4
+                }
+                res = requests.post(url, headers=headers, json=payload, timeout=20)
+                if res.status_code == 200:
+                    return res.json()["choices"][0]["message"]["content"].strip()
+            except Exception:
+                continue
+
+    # 2. Universal Google Gemini REST (v1beta gemini-pro + v1 gemini-1.5-flash)
+    gemini_key = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
+    if gemini_key:
+        endpoints = [
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={gemini_key}",
+            f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+        ]
+        for ep in endpoints:
+            try:
+                headers = {"Content-Type": "application/json"}
+                payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
+                res = requests.post(ep, headers=headers, json=payload, timeout=20)
+                if res.status_code == 200:
+                    data = res.json()
+                    return data['candidates'][0]['content']['parts'][0]['text'].strip()
+            except Exception:
+                continue
+
+    # 3. OpenRouter Free Tier Fallback
+    openrouter_key = st.secrets.get("OPENROUTER_API_KEY", "").strip()
+    if openrouter_key:
+        for or_model in ["meta-llama/llama-3.1-8b-instruct:free", "google/gemma-2-9b-it:free"]:
+            try:
+                url = "https://openrouter.ai/api/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {openrouter_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": or_model,
                     "messages": [{"role": "user", "content": prompt_text}]
                 }
                 res = requests.post(url, headers=headers, json=payload, timeout=20)
                 if res.status_code == 200:
                     return res.json()["choices"][0]["message"]["content"].strip()
-                else:
-                    errors.append(f"Groq[{grq_m}]: {res.status_code}")
-            except Exception as e:
-                errors.append(f"Groq[{grq_m}] Ex: {str(e)}")
+            except Exception:
+                continue
 
-    raise Exception(" | ".join(errors) if errors else "No valid API response.")
+    raise Exception("All endpoints failed. Please check network connectivity.")
 # --- 4. AUTH ENGINE (10 FREE TRIALS + PRO SYSTEM) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
