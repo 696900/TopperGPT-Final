@@ -1,5 +1,6 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
+import json
 import time 
 import hashlib
 from supabase import create_client, Client
@@ -24,42 +25,42 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. AI CLIENTS SETUP ---
+# --- 3. ZERO-FAIL DIRECT REST AI ENGINE ---
 api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-if api_key_gemini:
-    genai.configure(api_key=api_key_gemini)
-
 api_key_groq = st.secrets.get("GROQ_API_KEY")
-groq_client = Groq(api_key=api_key_groq) if api_key_groq else None
 
-# Universal Zero-Fail AI Engine
 def generate_ai_response(prompt_text):
-    # Tier 1: Gemini 1.5 Flash
+    # Tier 1: Direct Gemini 1.5 Flash REST API (Bypasses all SDK version bugs)
     if api_key_gemini:
-        for m_name in ["gemini-1.5-flash", "gemini-pro", "gemini-1.5-pro"]:
-            try:
-                m = genai.GenerativeModel(m_name)
-                res = m.generate_content(prompt_text)
-                if res and res.text:
-                    return res.text.strip()
-            except Exception:
-                continue
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key_gemini}"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [{
+                "parts": [{"text": prompt_text}]
+            }]
+        }
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=25)
+            if response.status_code == 200:
+                data = response.json()
+                return data['candidates'][0]['content']['parts'][0]['text'].strip()
+        except Exception:
+            pass
 
     # Tier 2: Groq Fallback
-    if groq_client:
-        for g_model in ["llama-3.1-8b-instant", "llama3-70b-8192", "mixtral-8x7b-32768"]:
-            try:
-                res = groq_client.chat.completions.create(
-                    model=g_model,
-                    messages=[{"role": "user", "content": prompt_text}],
-                    timeout=25
-                )
-                if res.choices[0].message.content:
-                    return res.choices[0].message.content.strip()
-            except Exception:
-                continue
+    if api_key_groq:
+        try:
+            client = Groq(api_key=api_key_groq)
+            res = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt_text}],
+                timeout=25
+            )
+            return res.choices[0].message.content.strip()
+        except Exception:
+            pass
 
-    raise Exception("AI Engines temporarily unavailable. Please retry in a few seconds.")
+    raise Exception("Unable to reach AI servers. Please check your API keys in Streamlit Secrets.")
 
 # --- 4. AUTH ENGINE (WITH TRIAL & PRO LOGIC) ---
 def clean_email_auth():
