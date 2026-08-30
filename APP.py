@@ -6,7 +6,7 @@ import hashlib
 from supabase import create_client, Client
 from groq import Groq
 
-# Knowledge base import
+# Knowledge base import (agar available hai)
 try:
     from knowledge_base import PYQ_DATA, PYQ_DATA_SEM2
     ALL_SUBJECTS = {**PYQ_DATA, **PYQ_DATA_SEM2}
@@ -25,44 +25,41 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. ZERO-FAIL DIRECT REST AI ENGINE ---
+# --- 3. ZERO-FAIL DUAL AI ENGINE (GEMINI REST + GROQ BACKUP) ---
 api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 api_key_groq = st.secrets.get("GROQ_API_KEY")
 
 def generate_ai_response(prompt_text):
-    # Tier 1: Direct Gemini 1.5 Flash REST API (Bypasses all SDK version bugs)
+    # Tier 1: Gemini 1.5 Flash Direct REST Call
     if api_key_gemini:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key_gemini}"
         headers = {"Content-Type": "application/json"}
-        payload = {
-            "contents": [{
-                "parts": [{"text": prompt_text}]
-            }]
-        }
+        payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=25)
-            if response.status_code == 200:
-                data = response.json()
+            res = requests.post(url, headers=headers, json=payload, timeout=25)
+            if res.status_code == 200:
+                data = res.json()
                 return data['candidates'][0]['content']['parts'][0]['text'].strip()
         except Exception:
             pass
 
-    # Tier 2: Groq Fallback
+    # Tier 2: Groq LLaMA Fallback
     if api_key_groq:
-        try:
-            client = Groq(api_key=api_key_groq)
-            res = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": prompt_text}],
-                timeout=25
-            )
-            return res.choices[0].message.content.strip()
-        except Exception:
-            pass
+        for model_id in ["llama-3.1-8b-instant", "llama3-70b-8192"]:
+            try:
+                client = Groq(api_key=api_key_groq)
+                res = client.chat.completions.create(
+                    model=model_id,
+                    messages=[{"role": "user", "content": prompt_text}],
+                    timeout=25
+                )
+                return res.choices[0].message.content.strip()
+            except Exception:
+                continue
 
-    raise Exception("Unable to reach AI servers. Please check your API keys in Streamlit Secrets.")
+    raise Exception("AI backend connect nahi ho raha. Secrets mein API keys check karein.")
 
-# --- 4. AUTH ENGINE (WITH TRIAL & PRO LOGIC) ---
+# --- 4. AUTH ENGINE (10 FREE TRIALS + PRO SYSTEM) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
@@ -71,7 +68,7 @@ def clean_email_auth():
         st.markdown("""
             <div style="text-align:center; padding: 15px;">
                 <div style="font-size: 70px; margin-bottom: 0;">🎓</div>
-                <h1 style="color:#4CAF50; font-size: 3.5rem; margin-bottom:0;">TopperGPT</h1>
+                <h1 style="color:#4CAF50; font-size: 3.2rem; margin-bottom:0;">TopperGPT</h1>
                 <p style="color:#8b949e; margin-top:0; font-weight:bold;">Precision Engineering Intelligence Dashboard</p>
             </div>
         """, unsafe_allow_html=True)
@@ -80,7 +77,6 @@ def clean_email_auth():
         with center_col:
             auth_tab = st.tabs(["🔑 Quick Login", "📝 New Account"])
             
-            # 1. Quick Login
             with auth_tab[0]:
                 with st.form("quick_login"):
                     l_email = st.text_input("Enter Registered Email", key="l_email_quick").strip().lower()
@@ -90,20 +86,19 @@ def clean_email_auth():
                                 prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
                                 if prof.data:
                                     st.session_state.user_data = prof.data[0]
-                                    st.success("Pehchan liya bhai! Khul raha hai dashboard...")
+                                    st.success("Welcome back! Loading dashboard...")
                                     time.sleep(1)
                                     st.rerun()
                                 else:
-                                    st.error("Ye email registered nahi hai. New Account tab pe jao.")
+                                    st.error("Email registered nahi hai. New Account tab use karo.")
                             except Exception as e:
                                 st.error(f"Database error: {e}")
                         else:
-                            st.warning("Email toh dalo!")
+                            st.warning("Email required!")
 
-            # 2. New Account
             with auth_tab[1]:
                 with st.form("reg_form_quick"):
-                    st.info("🎁 Naya account banao aur 10 Free Trials pao!")
+                    st.info("🎁 New account banao aur 10 Free Trials pao!")
                     s_name = st.text_input("Full Name", placeholder="Krishna", key="reg_name_quick")
                     s_email = st.text_input("Email ID", key="reg_email_quick").strip().lower()
                     
@@ -112,7 +107,7 @@ def clean_email_auth():
                             try:
                                 check = supabase.table("profiles").select("*").eq("email", s_email).execute()
                                 if check.data:
-                                    st.warning("Account pehle se hai! Login tab use karo.")
+                                    st.warning("Account already exists! Use Login tab.")
                                 else:
                                     new_u = {
                                         "email": s_email, 
@@ -123,12 +118,12 @@ def clean_email_auth():
                                     ins = supabase.table("profiles").insert(new_u).execute()
                                     if ins.data:
                                         st.session_state.user_data = ins.data[0]
-                                        st.success(f"Welcome {s_name}! Setup complete.")
+                                        st.success(f"Welcome {s_name}!")
                                         st.rerun()
                             except Exception as e:
-                                st.error(f"Server Busy: {str(e)}")
+                                st.error(f"Server error: {str(e)}")
                         else:
-                            st.warning("Bhai, details toh bharo!")
+                            st.warning("Details fill karo!")
         st.stop()
 
 # --- 5. ACCESS MANAGEMENT ---
@@ -150,7 +145,7 @@ def deduct_trial():
             pass
 
 def show_paywall():
-    st.error("🚨 Free Trials Khatam! Upgrade to TopperGPT PRO.")
+    st.error("🚨 Free Trials Finished! Upgrade to TopperGPT PRO.")
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("""
@@ -179,7 +174,7 @@ st.markdown("""
 .stApp { background-color: #0d1117; color: white; }
 [data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
 .trial-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 18px; border-radius: 12px; border: 1px solid #4CAF50; text-align: center; margin-bottom: 20px; }
-.card-box { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; margin-bottom: 15px; }
+.blueprint-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; margin-bottom: 12px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -194,13 +189,13 @@ with st.sidebar:
         st.markdown('''<div class="trial-card" style="border-color:#00F2FE;">
             <p style="margin:0; font-size:12px; color:#00F2FE; font-weight:bold;">STATUS</p>
             <h2 style="margin:5px 0; color:white;">👑 PRO USER</h2>
-            <p style="margin:0; font-size:11px; color:#8b949e;">Unlimited Access</p>
+            <p style="margin:0; font-size:11px; color:#8b949e;">Unlimited Access Unlocked</p>
         </div>''', unsafe_allow_html=True)
     else:
         st.markdown(f'''<div class="trial-card">
             <p style="margin:0; font-size:12px; color:#eab308; font-weight:bold;">{user.get("full_name", "Student")}</p>
             <h1 style="margin:5px 0; color:white; font-size:38px; font-weight:900;">{trials}/10</h1>
-            <p style="margin:0; font-size:11px;">FREE TRIALS LEFT</p>
+            <p style="margin:0; font-size:11px;">FREE TRIALS REMAINING</p>
         </div>''', unsafe_allow_html=True)
 
     st.divider()
@@ -211,93 +206,82 @@ with st.sidebar:
 st.markdown(f"### Welcome back, {st.session_state.user_data.get('full_name', 'Student')}! 🎓")
 
 # --- 8. MAIN FEATURES TABS ---
-tab1, tab2, tab7 = st.tabs([
-    "🔮 Predict Questions", 
+tab1, tab2, tab3 = st.tabs([
+    "🎯 Predicted Questions", 
     "📝 Chapter Short-Notes", 
     "🔍 Streamlined Topic Search"
 ])
 
 # ==================================================
-# --- TAB 1: PREDICT MY NEXT QUESTION ---
+# --- TAB 1: PREDICTED QUESTIONS ENGINE (NEW 2-SECTION ARCHITECTURE) ---
 # ==================================================
-with tab1: 
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🔮 TopperGPT Universal Sniper</h2>", unsafe_allow_html=True)
+with tab1:
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Predicted Questions & Exam Blueprint</h2>", unsafe_allow_html=True)
+    st.caption("Extract high-probability questions, marking rubrics, and complete past PYQ archives.")
     
-    c1, c2 = st.columns(2)
-    with c1:
-        user_subj = st.text_input("Subject Name", placeholder="e.g. Applied Maths, BEE, Graphics, DSA", key="subj_v2600_final")
-    with c2:
-        p_uni = st.selectbox("University Pattern", ["Mumbai University (MU)"], key="uni_v2600_final")
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        p_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics, DSA, Applied Mathematics IV, BEE", key="p_subj_v2")
+    with col_p2:
+        p_topic = st.text_input("Chapter / Module / Topic", placeholder="e.g. Semiconductor, Trees, Numerical Methods, AC Circuits", key="p_topic_v2")
 
-    if st.button("⚡ GENERATE BATTLE PLAN", use_container_width=True):
-        if not user_subj.strip():
-            st.warning("Pehle subject ka naam dalo bhai!")
+    if st.button("⚡ EXTRACT EXAM BLUEPRINTS", use_container_width=True):
+        if not p_subj.strip() or not p_topic.strip():
+            st.warning("Subject aur Chapter/Topic dono bharna zaroori hai!")
         elif not check_access():
             show_paywall()
         else:
             deduct_trial()
-            with st.spinner(f"Analyzing {user_subj} Exam Patterns..."):
+            with st.spinner(f"Analyzing past patterns & rubrics for {p_topic}..."):
+                prompt = f"""
+                Act as a Senior Mumbai University (MU) C-Scheme Chief Paper Setter.
+                Target Subject: {p_subj}
+                Target Topic / Chapter: {p_topic}
+
+                Generate a comprehensive exam blueprint structured into these 2 distinct sections:
+
+                ### SECTION 1: 🎯 Top High-Probability Questions (Top Scoring Priority)
+                For the top 5 most frequently repeated questions on this topic, provide:
+                - Question statement with exact marks allocated (2M / 6M / 10M).
+                - **Examiner Marking Rubric Breakdown** (e.g. Diagram: 2M, Derivation steps: 3M, Final Equation/Unit: 1M).
+                - **2-Line Key Solution Summary** highlighting compulsory keywords and equations needed to secure full marks.
+
+                ---
+
+                ### SECTION 2: 📚 Complete Historical Archive (PYQ Bank)
+                List all past exam questions asked on this topic grouped cleanly into:
+                1. **2-Mark Short Concepts & Definitions**
+                2. **6-Mark Derivations & Analytical Questions** (Include expected university exam session tags like May 2024, Dec 2023)
+                3. **10-Mark Comprehensive Numericals / Long Questions** (Include specific values and a **⚠️ Common Numerical Trap Alert** warning where students lose marks).
+                """
                 try:
-                    raw_in = user_subj.lower().strip()
-                    search_key = raw_in
-                    if any(x in raw_in for x in ["ds", "data structure", "dsa"]): search_key = "data structure"
-                    elif any(x in raw_in for x in ["math", "m2"]): search_key = "applied mathematics 2"
-                    elif any(x in raw_in for x in ["graphics", "eg"]): search_key = "engineering graphics"
-                    elif "physics" in raw_in: search_key = "applied physics"
-                    
-                    evidence = ALL_SUBJECTS.get(search_key, "MU Engineering Standard Pattern.")
-
-                    prompt = f"""
-                    Role: Senior MU Paper Setter. Target: {user_subj} | Data: {evidence}
-                    MISSION: Predict 12 high-probability questions for WRITTEN EXAM.
-                    
-                    STRICT RULES:
-                    1. IF EG: 10M-15M Drafting problems only. No theory/CAD.
-                    2. IF MATHS/NUMERICAL: Provide actual numericals with specific values.
-                    3. SURESHOT: Add Confidence [85-99]% | Marks [X]M.
-                    4. REPEATED: Mention MU Exam Year (e.g. MAY 2024).
-                    
-                    STRUCTURE REQUIRED:
-                    START_SURESHOT
-                    [12 Qs]
-                    END_SURESHOT
-                    START_REPEATED
-                    [6 PYQs]
-                    END_REPEATED
-                    START_JUGAAD
-                    [5 Topics]
-                    END_JUGAAD
-                    START_PLAN
-                    [Roadmap]
-                    END_PLAN
-                    """
-
-                    out_res = generate_ai_response(prompt)
-                    st.session_state.prediction_pro_out = out_res
-                    st.session_state.p_subj_pro_final = user_subj
+                    res_text = generate_ai_response(prompt)
+                    st.session_state.p_blueprint_out = res_text
+                    st.session_state.p_active_subj = p_subj
+                    st.session_state.p_active_topic = p_topic
                     st.balloons()
                     st.rerun()
-
                 except Exception as e:
-                    st.error(f"⚠️ Stability Alert: {str(e)}")
+                    st.error(f"Generation error: {e}")
 
-    if "prediction_pro_out" in st.session_state:
-        out_text = st.session_state.prediction_pro_out
-        st.success(f"✅ Pattern Verified for {st.session_state.p_subj_pro_final.upper()}")
+    if "p_blueprint_out" in st.session_state and st.session_state.p_blueprint_out:
+        st.markdown("---")
+        st.markdown(f"### 📘 Exam Blueprint: **{st.session_state.get('p_active_subj', '').upper()}** — *{st.session_state.get('p_active_topic', '')}*")
+        st.markdown(st.session_state.p_blueprint_out)
         
-        ui_sections = {
-            "🎯 Sureshot Predictions (Confidence Verified)": ("START_SURESHOT", "START_REPEATED", "#4CAF50"),
-            "📊 Most Repeated PYQs (Source Proof)": ("START_REPEATED", "START_JUGAAD", "#2196F3"),
-            "🛡️ Pass Hone Ka Jugaad": ("START_JUGAAD", "START_PLAN", "#FF9800"),
-            "📅 3-Day Battle Roadmap": ("START_PLAN", "END_PLAN", "#9C27B0")
-        }
-        
-        for title, (start, end, color) in ui_sections.items():
-            if start in out_text:
-                content = out_text.split(start)[1].split(end)[0] if end in out_text else out_text.split(start)[1]
-                display_content = content.replace("END_SURESHOT", "").replace("END_REPEATED", "").replace("END_JUGAAD", "").replace("END_PLAN", "").strip()
-                with st.expander(title, expanded=(start == "START_SURESHOT")):
-                    st.markdown(f"<div style='border-left:6px solid {color}; padding:15px; background:#1e1e1e; border-radius:12px; line-height:2.2; color:white; white-space: pre-wrap;'>{display_content}</div>", unsafe_allow_html=True)
+        c_act1, c_act2 = st.columns(2)
+        with c_act1:
+            if st.button("🗑️ Clear Blueprint", use_container_width=True):
+                del st.session_state.p_blueprint_out
+                st.rerun()
+        with c_act2:
+            st.download_button(
+                label="📥 Download Blueprint (Markdown)",
+                data=st.session_state.p_blueprint_out,
+                file_name=f"{st.session_state.get('p_active_topic', 'Blueprint')}_Exam_Questions.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
 
 # ==================================================
 # --- TAB 2: CHAPTER SHORT-NOTES GENERATOR ---
@@ -314,27 +298,24 @@ with tab2:
         
     if st.button("📑 Generate 3-Block Short Notes", use_container_width=True):
         if not sn_subject.strip() or not sn_chapter.strip():
-            st.warning("Subject aur Chapter dono ka naam dalo bhai!")
+            st.warning("Subject aur Chapter dono ka naam dalo!")
         elif not check_access():
             show_paywall()
         else:
             deduct_trial()
-            with st.spinner(f"Generating high-scoring revision sheet for {sn_chapter}..."):
+            with st.spinner(f"Generating revision sheet for {sn_chapter}..."):
                 sn_prompt = f"""
                 Act as a Principal Mumbai University (MU) Engineering Professor.
                 Target Subject: {sn_subject}
                 Target Chapter/Module: {sn_chapter}
                 
-                Generate a precision 1-page revision cheat sheet structured strictly into these 3 sections:
-                
+                Generate a precision 1-page revision sheet divided strictly into:
                 ### 1. 🧮 Important Formulas, Constants & Units
-                - List all critical formulas with clear parameter definitions and standard SI units.
-                
+                - List all critical formulas with standard SI units.
                 ### 2. 🎯 High-Weightage Core Topics (Exam Priority)
-                - List top 4 to 5 high-yield topics with expected question type (e.g., 6-Mark Derivation, 10-Mark Numerical, 2-Mark Concept).
-                
+                - List top 5 high-yield exam topics with expected marks (2M, 6M, 10M).
                 ### 3. ⚡ 10-Minute Rapid Revision Summary
-                - Crisp, point-to-point technical explanations using textbook-standard keywords for last-minute revision.
+                - Point-to-point technical explanation using standard textbook keywords.
                 """
                 try:
                     sn_res = generate_ai_response(sn_prompt)
@@ -355,9 +336,9 @@ with tab2:
             st.rerun()
 
 # ==================================================
-# --- TAB 7: STREAMLINED TOPIC SEARCH ---
+# --- TAB 3: STREAMLINED TOPIC SEARCH ---
 # ==================================================
-with tab7:
+with tab3:
     st.subheader("🔍 Streamlined Topic Search")
     st.caption("Instant 3-Card Breakdown: University Definition, Technical Breakdown, and Working Principle.")
     
@@ -371,27 +352,25 @@ with tab7:
         else:
             deduct_trial()
             with st.spinner(f"Analyzing '{query}'..."):
-                prompt = f"""
-                Act as a PhD Engineering Professor for Mumbai University curriculum.
-                Provide an academically accurate and high-scoring report for: '{query}'.
+                ts_prompt = f"""
+                Act as an Engineering Professor for Mumbai University curriculum.
+                Provide an academically accurate breakdown for: '{query}'.
                 
-                OUTPUT FORMAT STRICTLY USING THESE 3 HEADERS ONLY:
+                Use these 3 exact tags:
                 [1_DEF]
-                Exact University Standard 2-Mark definition as expected in MU marking rubrics.
-                
+                Exact University Standard 2-Mark definition.
                 [2_BRK]
                 Technical Breakdown: Architecture, internal equations, core components, and diagram notes.
-                
                 [3_WRK]
                 Working Principle: Step-by-step operational logic and mechanism.
                 """
                 try:
-                    ts_res = generate_ai_response(prompt)
+                    ts_res = generate_ai_response(ts_prompt)
                     st.session_state.research_data = ts_res
                     st.session_state.research_query = query
                     st.rerun()
                 except Exception as e: 
-                    st.error(f"System Busy. Error: {e}")
+                    st.error(f"Error: {e}")
 
     if "research_data" in st.session_state and st.session_state.research_data:
         out = st.session_state.research_data
@@ -417,7 +396,7 @@ with tab7:
         c1, c2, c3 = st.columns(3)
         with c1:
             st.markdown(f"""
-            <div class="card-box" style="border-left: 4px solid #4CAF50;">
+            <div class="blueprint-card" style="border-left: 4px solid #4CAF50;">
                 <h4 style="color:#4CAF50; margin-top:0;">1. University Standard Definition</h4>
                 <p style="font-size:14px; line-height:1.6;">{def_text}</p>
             </div>
@@ -425,7 +404,7 @@ with tab7:
             
         with c2:
             st.markdown(f"""
-            <div class="card-box" style="border-left: 4px solid #00F2FE;">
+            <div class="blueprint-card" style="border-left: 4px solid #00F2FE;">
                 <h4 style="color:#00F2FE; margin-top:0;">2. Technical Breakdown</h4>
                 <p style="font-size:14px; line-height:1.6;">{brk_text}</p>
             </div>
@@ -433,7 +412,7 @@ with tab7:
             
         with c3:
             st.markdown(f"""
-            <div class="card-box" style="border-left: 4px solid #FFD700;">
+            <div class="blueprint-card" style="border-left: 4px solid #FFD700;">
                 <h4 style="color:#FFD700; margin-top:0;">3. Working Principle</h4>
                 <p style="font-size:14px; line-height:1.6;">{wrk_text}</p>
             </div>
