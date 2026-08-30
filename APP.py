@@ -1,40 +1,20 @@
 import streamlit as st
 import google.generativeai as genai
 import time 
-import razorpay
-import re
-from groq import Groq
 import hashlib
 from supabase import create_client, Client
 
-# app.py ke upar ye hona chahiye
-from knowledge_base import PYQ_DATA, PYQ_DATA_SEM2
-
-# 1. Gemini Client Setup
-genai.configure(api_key=st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY"))
-gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-
-# 2. DeepSeek Client Setup
-deepseek_client = Groq(
-    api_key=st.secrets["DEEPSEEK_API_KEY"],
-    base_url="https://api.deepseek.com"
-)
-
-# 3. Master dictionary merge
-ALL_SUBJECTS = {**PYQ_DATA, **PYQ_DATA_SEM2}
+# Knowledge base import (agar file exist karti hai)
+try:
+    from knowledge_base import PYQ_DATA, PYQ_DATA_SEM2
+    ALL_SUBJECTS = {**PYQ_DATA, **PYQ_DATA_SEM2}
+except Exception:
+    ALL_SUBJECTS = {}
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🚀")
+st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="🎓")
 
-# Groq Client Setup
-if "groq_client" not in st.session_state or st.session_state.groq_client is None:
-    api_key_groq = st.secrets.get("GROQ_API_KEY")
-    if api_key_groq:
-        st.session_state.groq_client = Groq(api_key=api_key_groq)
-
-groq_client = st.session_state.get("groq_client")
-
-# --- SUPABASE INITIALIZATION ---
+# --- 2. SUPABASE INITIALIZATION ---
 @st.cache_resource
 def init_supabase():
     url = st.secrets["SUPABASE_URL"]
@@ -43,7 +23,12 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- AUTH ENGINE (WITH TRIAL & PRO LOGIC) ---
+# --- 3. GOOGLE GEMINI SETUP ---
+api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+genai.configure(api_key=api_key)
+gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+
+# --- 4. AUTH ENGINE (WITH TRIAL & PRO LOGIC) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
@@ -67,14 +52,17 @@ def clean_email_auth():
                     l_email = st.text_input("Enter Registered Email", key="l_email_quick").strip().lower()
                     if st.form_submit_button("ENTER DASHBOARD 🚀", use_container_width=True):
                         if l_email:
-                            prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
-                            if prof.data:
-                                st.session_state.user_data = prof.data[0]
-                                st.success("Pehchan liya bhai! Khul raha hai dashboard...")
-                                time.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error("Ye email registered nahi hai. New Account tab pe jao.")
+                            try:
+                                prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
+                                if prof.data:
+                                    st.session_state.user_data = prof.data[0]
+                                    st.success("Pehchan liya bhai! Khul raha hai dashboard...")
+                                    time.sleep(1)
+                                    st.rerun()
+                                else:
+                                    st.error("Ye email registered nahi hai. New Account tab pe jao.")
+                            except Exception as e:
+                                st.error(f"Database error: {e}")
                         else:
                             st.warning("Email toh dalo!")
 
@@ -109,7 +97,7 @@ def clean_email_auth():
                             st.warning("Bhai, details toh bharo!")
         st.stop()
 
-# --- TRIAL & PRO ACCESS HANDLERS ---
+# --- 5. TRIAL & PRO ACCESS HANDLERS ---
 def check_access():
     user = st.session_state.get("user_data", {})
     if user.get("is_pro", False):
@@ -125,7 +113,7 @@ def deduct_trial():
         try:
             supabase.table("profiles").update({"free_trials_left": new_val}).eq("email", user["email"]).execute()
         except Exception:
-            pass  # DB column missing hone par bhi app crash nahi hoga
+            pass  # DB column missing hone par bhi safe fallback
 
 def show_paywall():
     st.error("🚨 Free Trials Khatam! Upgrade to TopperGPT PRO.")
@@ -152,7 +140,7 @@ def show_paywall():
 # Run Auth
 clean_email_auth()
 
-# UI STYLES
+# --- 6. UI STYLES ---
 st.markdown("""
 <style>
 .stApp { background-color: #0d1117; color: white; }
@@ -162,7 +150,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- SIDEBAR ---
+# --- 7. SIDEBAR ---
 with st.sidebar:
     st.markdown("<h2 style='text-align:center; color:#4CAF50;'>TopperGPT</h2>", unsafe_allow_html=True)
     user = st.session_state.user_data
@@ -190,7 +178,7 @@ with st.sidebar:
 # Welcome Header
 st.markdown(f"### Welcome back, {st.session_state.user_data.get('full_name', 'Student')}! 🎓")
 
-# --- MAIN FEATURES TABS ---
+# --- 8. MAIN FEATURES TABS ---
 tab1, tab2, tab7 = st.tabs([
     "🔮 Predict Questions", 
     "📝 Chapter Short-Notes", 
@@ -237,21 +225,26 @@ with tab1:
                     3. SURESHOT: Add | Confidence: [85-99]% | Marks: [X]M.
                     4. REPEATED: Mention MU Exam Year (e.g. MAY 2024). NO Confidence %.
                     
-                    STRUCTURE: START_SURESHOT [12 Qs] END_SURESHOT. START_REPEATED [6 PYQs] END_REPEATED. START_JUGAAD [5 Topics] END_JUGAAD. START_PLAN [Roadmap] END_PLAN.
+                    STRUCTURE: 
+                    START_SURESHOT 
+                    [12 Qs] 
+                    END_SURESHOT 
+                    
+                    START_REPEATED 
+                    [6 PYQs] 
+                    END_REPEATED 
+                    
+                    START_JUGAAD 
+                    [5 Topics] 
+                    END_JUGAAD 
+                    
+                    START_PLAN 
+                    [Roadmap] 
+                    END_PLAN
                     """
 
-                    try:
-                        res = deepseek_client.chat.completions.create(
-                            model="deepseek-chat", messages=[{"role": "user", "content": prompt}], timeout=15 
-                        )
-                        raw_out = res.choices[0].message.content.strip()
-                    except:
-                        res_f = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}]
-                        )
-                        raw_out = res_f.choices[0].message.content.strip()
-
-                    st.session_state.prediction_pro_out = raw_out
+                    res = gemini_model.generate_content(prompt)
+                    st.session_state.prediction_pro_out = res.text.strip()
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons()
                     st.rerun()
@@ -315,12 +308,8 @@ with tab2:
                 - Crisp, point-to-point technical explanations using textbook-standard keywords for last-minute revision.
                 """
                 try:
-                    res = deepseek_client.chat.completions.create(
-                        model="deepseek-chat",
-                        messages=[{"role": "user", "content": sn_prompt}],
-                        timeout=25
-                    )
-                    st.session_state.sn_output_data = res.choices[0].message.content
+                    res = gemini_model.generate_content(sn_prompt)
+                    st.session_state.sn_output_data = res.text.strip()
                     st.session_state.sn_current_chap = sn_chapter
                     st.session_state.sn_current_subj = sn_subject
                     st.rerun()
@@ -335,6 +324,7 @@ with tab2:
         if st.button("🗑️ Clear Short Notes"):
             del st.session_state.sn_output_data
             st.rerun()
+
 # ==================================================
 # --- TAB 7: STREAMLINED TOPIC SEARCH ---
 # ==================================================
@@ -367,11 +357,8 @@ with tab7:
                 Working Principle: Step-by-step operational logic and mechanism.
                 """
                 try:
-                    res = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", 
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    st.session_state.research_data = res.choices[0].message.content
+                    res = gemini_model.generate_content(prompt)
+                    st.session_state.research_data = res.text.strip()
                     st.session_state.research_query = query
                     st.rerun()
                 except Exception as e: 
@@ -424,5 +411,5 @@ with tab7:
             """, unsafe_allow_html=True)
 
         if st.button("🗑️ Clear Research"):
-            st.session_state.research_data = None
+            del st.session_state.research_data
             st.rerun()
