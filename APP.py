@@ -25,67 +25,75 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. TRIPLE-TIER BULLETPROOF AI ENGINE (OPENROUTER + GROQ + GEMINI) ---
-api_key_openrouter = st.secrets.get("OPENROUTER_API_KEY", "").strip()
-api_key_groq = st.secrets.get("GROQ_API_KEY", "").strip()
-api_key_gemini = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
-
+# --- 3. HARDCORE TESTED REST AI ENGINE ---
 def generate_ai_response(prompt_text):
-    # Tier 1: OpenRouter (Ultra-Reliable Meta LLaMA 3.3 / Mistral)
-    if api_key_openrouter:
+    errors = []
+    
+    # Provider 1: DeepSeek Official API (Fast & Highly Accurate)
+    deepseek_key = st.secrets.get("DEEPSEEK_API_KEY", "").strip()
+    if deepseek_key:
         try:
+            url = "https://api.deepseek.com/chat/completions"
             headers = {
-                "Authorization": f"Bearer {api_key_openrouter}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://toppergpt-live.streamlit.app",
-                "X-Title": "TopperGPT"
-            }
-            data = {
-                "model": "meta-llama/llama-3.3-70b-instruct:free",
-                "messages": [{"role": "user", "content": prompt_text}],
-                "max_tokens": 1500
-            }
-            res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data, timeout=30)
-            if res.status_code == 200:
-                resp_json = res.json()
-                if "choices" in resp_json and len(resp_json["choices"]) > 0:
-                    return resp_json["choices"][0]["message"]["content"].strip()
-        except Exception:
-            pass
-
-    # Tier 2: Groq Engine (llama-3.3-70b-versatile via Direct REST)
-    if api_key_groq:
-        try:
-            headers = {
-                "Authorization": f"Bearer {api_key_groq}",
+                "Authorization": f"Bearer {deepseek_key}",
                 "Content-Type": "application/json"
             }
-            data = {
-                "model": "llama-3.3-70b-versatile",
+            payload = {
+                "model": "deepseek-chat",
                 "messages": [{"role": "user", "content": prompt_text}],
-                "temperature": 0.5
+                "temperature": 0.3
             }
-            res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=data, timeout=25)
+            res = requests.post(url, headers=headers, json=payload, timeout=30)
             if res.status_code == 200:
-                resp_json = res.json()
-                return resp_json["choices"][0]["message"]["content"].strip()
-        except Exception:
-            pass
+                return res.json()["choices"][0]["message"]["content"].strip()
+            else:
+                errors.append(f"DeepSeek ({res.status_code}): {res.text}")
+        except Exception as e:
+            errors.append(f"DeepSeek Ex: {str(e)}")
 
-    # Tier 3: Gemini REST API (gemini-1.5-flash-8b)
-    if api_key_gemini:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key_gemini}"
-        headers = {"Content-Type": "application/json"}
-        payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
+    # Provider 2: Groq REST API (Using Standard Active Model)
+    groq_key = st.secrets.get("GROQ_API_KEY", "").strip()
+    if groq_key:
         try:
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {groq_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "llama-3.1-8b-instant",
+                "messages": [{"role": "user", "content": prompt_text}]
+            }
             res = requests.post(url, headers=headers, json=payload, timeout=25)
             if res.status_code == 200:
-                data = res.json()
-                return data['candidates'][0]['content']['parts'][0]['text'].strip()
+                return res.json()["choices"][0]["message"]["content"].strip()
+            else:
+                errors.append(f"Groq ({res.status_code}): {res.text}")
         except Exception as e:
-            pass
+            errors.append(f"Groq Ex: {str(e)}")
 
-    raise Exception("Sabhi AI routes busy hain. Ek baar refresh karke dobara try karo.")
+    # Provider 3: OpenRouter REST API
+    openrouter_key = st.secrets.get("OPENROUTER_API_KEY", "").strip()
+    if openrouter_key:
+        try:
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {openrouter_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "mistralai/mistral-7b-instruct:free",
+                "messages": [{"role": "user", "content": prompt_text}]
+            }
+            res = requests.post(url, headers=headers, json=payload, timeout=25)
+            if res.status_code == 200:
+                return res.json()["choices"][0]["message"]["content"].strip()
+            else:
+                errors.append(f"OpenRouter ({res.status_code}): {res.text}")
+        except Exception as e:
+            errors.append(f"OpenRouter Ex: {str(e)}")
+
+    raise Exception(" | ".join(errors) if errors else "No API keys configured.")
 # --- 4. AUTH ENGINE (10 FREE TRIALS + PRO SYSTEM) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
