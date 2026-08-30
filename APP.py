@@ -6,7 +6,7 @@ import hashlib
 from supabase import create_client, Client
 from groq import Groq
 
-# Knowledge base import (agar available hai)
+# Knowledge base import
 try:
     from knowledge_base import PYQ_DATA, PYQ_DATA_SEM2
     ALL_SUBJECTS = {**PYQ_DATA, **PYQ_DATA_SEM2}
@@ -19,45 +19,46 @@ st.set_page_config(page_title="TopperGPT Dashboard", layout="wide", page_icon="ð
 # --- 2. SUPABASE INITIALIZATION ---
 @st.cache_resource
 def init_supabase():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
+    url = st.secrets["SUPABASE_URL"].strip()
+    key = st.secrets["SUPABASE_KEY"].strip()
     return create_client(url, key)
 
 supabase = init_supabase()
 
-# --- 3. ZERO-FAIL DUAL AI ENGINE (GEMINI REST + GROQ BACKUP) ---
-api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-api_key_groq = st.secrets.get("GROQ_API_KEY")
+# --- 3. ZERO-FAIL DUAL AI ENGINE ---
+api_key_gemini = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
+api_key_groq = st.secrets.get("GROQ_API_KEY", "").strip()
 
 def generate_ai_response(prompt_text):
-    # Tier 1: Gemini 1.5 Flash Direct REST Call
+    # Tier 1: Gemini REST API Call
     if api_key_gemini:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key_gemini}"
         headers = {"Content-Type": "application/json"}
         payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
         try:
-            res = requests.post(url, headers=headers, json=payload, timeout=25)
+            res = requests.post(url, headers=headers, json=payload, timeout=30)
             if res.status_code == 200:
                 data = res.json()
                 return data['candidates'][0]['content']['parts'][0]['text'].strip()
         except Exception:
             pass
 
-    # Tier 2: Groq LLaMA Fallback
+    # Tier 2: Groq Fallback
     if api_key_groq:
-        for model_id in ["llama-3.1-8b-instant", "llama3-70b-8192"]:
+        client = Groq(api_key=api_key_groq)
+        for model_id in ["llama-3.1-8b-instant", "llama3-8b-8192"]:
             try:
-                client = Groq(api_key=api_key_groq)
                 res = client.chat.completions.create(
                     model=model_id,
                     messages=[{"role": "user", "content": prompt_text}],
                     timeout=25
                 )
-                return res.choices[0].message.content.strip()
+                if res.choices[0].message.content:
+                    return res.choices[0].message.content.strip()
             except Exception:
                 continue
 
-    raise Exception("AI backend connect nahi ho raha. Secrets mein API keys check karein.")
+    raise Exception("AI backend connect nahi ho raha. Secrets aur network connection check karein.")
 
 # --- 4. AUTH ENGINE (10 FREE TRIALS + PRO SYSTEM) ---
 def clean_email_auth():
@@ -213,7 +214,7 @@ tab1, tab2, tab3 = st.tabs([
 ])
 
 # ==================================================
-# --- TAB 1: PREDICTED QUESTIONS ENGINE (NEW 2-SECTION ARCHITECTURE) ---
+# --- TAB 1: PREDICTED QUESTIONS ENGINE ---
 # ==================================================
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>ðŸŽ¯ Predicted Questions & Exam Blueprint</h2>", unsafe_allow_html=True)
@@ -352,7 +353,7 @@ with tab3:
         else:
             deduct_trial()
             with st.spinner(f"Analyzing '{query}'..."):
-                ts_prompt = f"""
+                prompt = f"""
                 Act as an Engineering Professor for Mumbai University curriculum.
                 Provide an academically accurate breakdown for: '{query}'.
                 
@@ -365,7 +366,7 @@ with tab3:
                 Working Principle: Step-by-step operational logic and mechanism.
                 """
                 try:
-                    ts_res = generate_ai_response(ts_prompt)
+                    ts_res = generate_ai_response(prompt)
                     st.session_state.research_data = ts_res
                     st.session_state.research_query = query
                     st.rerun()
