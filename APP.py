@@ -3,8 +3,9 @@ import google.generativeai as genai
 import time 
 import hashlib
 from supabase import create_client, Client
+from groq import Groq
 
-# Knowledge base import (agar file exist karti hai)
+# Knowledge base import
 try:
     from knowledge_base import PYQ_DATA, PYQ_DATA_SEM2
     ALL_SUBJECTS = {**PYQ_DATA, **PYQ_DATA_SEM2}
@@ -23,10 +24,42 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. GOOGLE GEMINI SETUP ---
-api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
-genai.configure(api_key=api_key)
-gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+# --- 3. AI CLIENTS SETUP ---
+api_key_gemini = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+if api_key_gemini:
+    genai.configure(api_key=api_key_gemini)
+
+api_key_groq = st.secrets.get("GROQ_API_KEY")
+groq_client = Groq(api_key=api_key_groq) if api_key_groq else None
+
+# Universal Zero-Fail AI Engine
+def generate_ai_response(prompt_text):
+    # Tier 1: Gemini 1.5 Flash
+    if api_key_gemini:
+        for m_name in ["gemini-1.5-flash", "gemini-pro", "gemini-1.5-pro"]:
+            try:
+                m = genai.GenerativeModel(m_name)
+                res = m.generate_content(prompt_text)
+                if res and res.text:
+                    return res.text.strip()
+            except Exception:
+                continue
+
+    # Tier 2: Groq Fallback
+    if groq_client:
+        for g_model in ["llama-3.1-8b-instant", "llama3-70b-8192", "mixtral-8x7b-32768"]:
+            try:
+                res = groq_client.chat.completions.create(
+                    model=g_model,
+                    messages=[{"role": "user", "content": prompt_text}],
+                    timeout=25
+                )
+                if res.choices[0].message.content:
+                    return res.choices[0].message.content.strip()
+            except Exception:
+                continue
+
+    raise Exception("AI Engines temporarily unavailable. Please retry in a few seconds.")
 
 # --- 4. AUTH ENGINE (WITH TRIAL & PRO LOGIC) ---
 def clean_email_auth():
@@ -35,8 +68,8 @@ def clean_email_auth():
 
     if st.session_state.user_data is None:
         st.markdown("""
-            <div style="text-align:center; padding: 10px;">
-                <div style="font-size: 80px; margin-bottom: 0;">🎓</div>
+            <div style="text-align:center; padding: 15px;">
+                <div style="font-size: 70px; margin-bottom: 0;">🎓</div>
                 <h1 style="color:#4CAF50; font-size: 3.5rem; margin-bottom:0;">TopperGPT</h1>
                 <p style="color:#8b949e; margin-top:0; font-weight:bold;">Precision Engineering Intelligence Dashboard</p>
             </div>
@@ -97,7 +130,7 @@ def clean_email_auth():
                             st.warning("Bhai, details toh bharo!")
         st.stop()
 
-# --- 5. TRIAL & PRO ACCESS HANDLERS ---
+# --- 5. ACCESS MANAGEMENT ---
 def check_access():
     user = st.session_state.get("user_data", {})
     if user.get("is_pro", False):
@@ -113,7 +146,7 @@ def deduct_trial():
         try:
             supabase.table("profiles").update({"free_trials_left": new_val}).eq("email", user["email"]).execute()
         except Exception:
-            pass  # DB column missing hone par bhi safe fallback
+            pass
 
 def show_paywall():
     st.error("🚨 Free Trials Khatam! Upgrade to TopperGPT PRO.")
@@ -137,10 +170,9 @@ def show_paywall():
         </div>
         """, unsafe_allow_html=True)
 
-# Run Auth
 clean_email_auth()
 
-# --- 6. UI STYLES ---
+# --- 6. UI STYLING ---
 st.markdown("""
 <style>
 .stApp { background-color: #0d1117; color: white; }
@@ -175,7 +207,6 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
 
-# Welcome Header
 st.markdown(f"### Welcome back, {st.session_state.user_data.get('full_name', 'Student')}! 🎓")
 
 # --- 8. MAIN FEATURES TABS ---
@@ -219,32 +250,29 @@ with tab1:
                     Role: Senior MU Paper Setter. Target: {user_subj} | Data: {evidence}
                     MISSION: Predict 12 high-probability questions for WRITTEN EXAM.
                     
-                    STRICT DYNAMIC RULES:
-                    1. IF DRAWING (EG): 10M-15M Drafting problems only. No theory/CAD.
+                    STRICT RULES:
+                    1. IF EG: 10M-15M Drafting problems only. No theory/CAD.
                     2. IF MATHS/NUMERICAL: Provide actual numericals with specific values.
-                    3. SURESHOT: Add | Confidence: [85-99]% | Marks: [X]M.
-                    4. REPEATED: Mention MU Exam Year (e.g. MAY 2024). NO Confidence %.
+                    3. SURESHOT: Add Confidence [85-99]% | Marks [X]M.
+                    4. REPEATED: Mention MU Exam Year (e.g. MAY 2024).
                     
-                    STRUCTURE: 
-                    START_SURESHOT 
-                    [12 Qs] 
-                    END_SURESHOT 
-                    
-                    START_REPEATED 
-                    [6 PYQs] 
-                    END_REPEATED 
-                    
-                    START_JUGAAD 
-                    [5 Topics] 
-                    END_JUGAAD 
-                    
-                    START_PLAN 
-                    [Roadmap] 
+                    STRUCTURE REQUIRED:
+                    START_SURESHOT
+                    [12 Qs]
+                    END_SURESHOT
+                    START_REPEATED
+                    [6 PYQs]
+                    END_REPEATED
+                    START_JUGAAD
+                    [5 Topics]
+                    END_JUGAAD
+                    START_PLAN
+                    [Roadmap]
                     END_PLAN
                     """
 
-                    res = gemini_model.generate_content(prompt)
-                    st.session_state.prediction_pro_out = res.text.strip()
+                    out_res = generate_ai_response(prompt)
+                    st.session_state.prediction_pro_out = out_res
                     st.session_state.p_subj_pro_final = user_subj
                     st.balloons()
                     st.rerun()
@@ -308,8 +336,8 @@ with tab2:
                 - Crisp, point-to-point technical explanations using textbook-standard keywords for last-minute revision.
                 """
                 try:
-                    res = gemini_model.generate_content(sn_prompt)
-                    st.session_state.sn_output_data = res.text.strip()
+                    sn_res = generate_ai_response(sn_prompt)
+                    st.session_state.sn_output_data = sn_res
                     st.session_state.sn_current_chap = sn_chapter
                     st.session_state.sn_current_subj = sn_subject
                     st.rerun()
@@ -341,7 +369,7 @@ with tab7:
             show_paywall()
         else:
             deduct_trial()
-            with st.spinner(f"PhD Mentor is analyzing '{query}'..."):
+            with st.spinner(f"Analyzing '{query}'..."):
                 prompt = f"""
                 Act as a PhD Engineering Professor for Mumbai University curriculum.
                 Provide an academically accurate and high-scoring report for: '{query}'.
@@ -357,8 +385,8 @@ with tab7:
                 Working Principle: Step-by-step operational logic and mechanism.
                 """
                 try:
-                    res = gemini_model.generate_content(prompt)
-                    st.session_state.research_data = res.text.strip()
+                    ts_res = generate_ai_response(prompt)
+                    st.session_state.research_data = ts_res
                     st.session_state.research_query = query
                     st.rerun()
                 except Exception as e: 
@@ -376,7 +404,7 @@ with tab7:
                 if end_tag and end_tag in content:
                     content = content.split(end_tag)[0]
                 return content.strip()
-            except:
+            except Exception:
                 return "Section parsing error."
 
         def_text = extract_block("[1_DEF]", "[2_BRK]")
