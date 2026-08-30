@@ -25,41 +25,67 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. ZERO-FAIL DUAL AI ENGINE ---
-api_key_gemini = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
+# --- 3. TRIPLE-TIER BULLETPROOF AI ENGINE (OPENROUTER + GROQ + GEMINI) ---
+api_key_openrouter = st.secrets.get("OPENROUTER_API_KEY", "").strip()
 api_key_groq = st.secrets.get("GROQ_API_KEY", "").strip()
+api_key_gemini = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
 
 def generate_ai_response(prompt_text):
-    # Tier 1: Gemini REST API Call
+    # Tier 1: OpenRouter (Ultra-Reliable Meta LLaMA 3.3 / Mistral)
+    if api_key_openrouter:
+        try:
+            headers = {
+                "Authorization": f"Bearer {api_key_openrouter}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://toppergpt-live.streamlit.app",
+                "X-Title": "TopperGPT"
+            }
+            data = {
+                "model": "meta-llama/llama-3.3-70b-instruct:free",
+                "messages": [{"role": "user", "content": prompt_text}],
+                "max_tokens": 1500
+            }
+            res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data, timeout=30)
+            if res.status_code == 200:
+                resp_json = res.json()
+                if "choices" in resp_json and len(resp_json["choices"]) > 0:
+                    return resp_json["choices"][0]["message"]["content"].strip()
+        except Exception:
+            pass
+
+    # Tier 2: Groq Engine (llama-3.3-70b-versatile via Direct REST)
+    if api_key_groq:
+        try:
+            headers = {
+                "Authorization": f"Bearer {api_key_groq}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": prompt_text}],
+                "temperature": 0.5
+            }
+            res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=data, timeout=25)
+            if res.status_code == 200:
+                resp_json = res.json()
+                return resp_json["choices"][0]["message"]["content"].strip()
+        except Exception:
+            pass
+
+    # Tier 3: Gemini REST API (gemini-1.5-flash-8b)
     if api_key_gemini:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key_gemini}"
         headers = {"Content-Type": "application/json"}
         payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
         try:
-            res = requests.post(url, headers=headers, json=payload, timeout=30)
+            res = requests.post(url, headers=headers, json=payload, timeout=25)
             if res.status_code == 200:
                 data = res.json()
                 return data['candidates'][0]['content']['parts'][0]['text'].strip()
-        except Exception:
+        except Exception as e:
             pass
 
-    # Tier 2: Groq Fallback
-    if api_key_groq:
-        client = Groq(api_key=api_key_groq)
-        for model_id in ["llama-3.1-8b-instant", "llama3-8b-8192"]:
-            try:
-                res = client.chat.completions.create(
-                    model=model_id,
-                    messages=[{"role": "user", "content": prompt_text}],
-                    timeout=25
-                )
-                if res.choices[0].message.content:
-                    return res.choices[0].message.content.strip()
-            except Exception:
-                continue
-
-    raise Exception("AI backend connect nahi ho raha. Secrets aur network connection check karein.")
-
+    raise Exception("Sabhi AI routes busy hain. Ek baar refresh karke dobara try karo.")
 # --- 4. AUTH ENGINE (10 FREE TRIALS + PRO SYSTEM) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
