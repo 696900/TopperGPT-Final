@@ -381,11 +381,110 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- 9. CORE APPLICATION SUITE ---
-main_tab1, main_tab2, main_tab3 = st.tabs([
+main_tab0, main_tab1, main_tab2, main_tab3 = st.tabs([
+    "🤖 24/7 AI Academic Tutor",
     "🎯 Predicted Questions", 
     "📝 Chapter Short-Notes", 
     "🔍 Topic Breakdown"
 ])
+
+# ==================================================
+# --- TAB 0: 24/7 AI ACADEMIC TUTOR (HERO FEATURE) ---
+# ==================================================
+with main_tab0:
+    st.markdown("""
+        <div class="topper-card">
+            <h3 style="margin-top:0; color:#4eedd8;">🤖 24/7 Mumbai University Academic Mentor</h3>
+            <p style="color:#8b949e; font-size:14px; margin-bottom:0;">
+                Ask any engineering doubt, derivation step, or numerical. Evaluated with the marking awareness of a senior MU paper checker.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Initialize chat history
+    if "tutor_messages" not in st.session_state:
+        st.session_state.tutor_messages = [
+            {
+                "role": "assistant",
+                "content": f"Hey {student_name}! Main tera Mumbai University Exam Mentor hoon. Koi bhi doubt, numerical ya derivation poocho, direct answer-sheet marking standard ke hisab se solve karenge!"
+            }
+        ]
+
+    # Render previous messages
+    for msg in st.session_state.tutor_messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # Chat Input Field
+    user_query = st.chat_input("Poocho koi bhi concept, question ya numerical (e.g. State Thevenin theorem, explain RK4 method)...")
+
+    if user_query:
+        if not check_access():
+            show_paywall()
+        else:
+            deduct_trial()
+            
+            # Append student query to history
+            st.session_state.tutor_messages.append({"role": "user", "content": user_query})
+            with st.chat_message("user"):
+                st.markdown(user_query)
+
+            # Master Examiner System Prompt
+            tutor_prompt = f"""
+You are TopperGPT's 24/7 AI Academic Tutor, operating as a Senior Evaluator, Subject Matter Expert, and Academic Mentor for Mumbai University (MU) Engineering students under the C-Scheme.
+You must answer the student's message below with the judgment, technical precision, and marking awareness of an experienced MU university paper checker.
+
+Student Query:
+"{user_query}"
+
+1. CORE ROLE & PERSONA
+Act as a Senior MU Engineering Professor and University Examination Evaluator.
+Your tone must be: Highly knowledgeable, encouraging but intellectually honest, direct, practical, academically strict, and focused on what earns marks in an examination paper.
+Do not blindly agree with the student. If the student's method, assumption, formula, calculation, or understanding is wrong, clearly identify the mistake and correct it.
+
+2. INPUT ROUTING LOGIC
+First, internally classify the query into exactly one route:
+
+ROUTE A: CASUAL / CONVERSATIONAL
+Use Route A when the message is casual, social, or non-academic (e.g., 'hi', 'hello', 'hey', 'kaise ho', 'help me', 'bro').
+For Route A:
+- Reply naturally and warmly in 1 to 2 short sentences.
+- Do NOT trigger the 3-block academic architecture. No definitions, no traps, no filler.
+
+ROUTE B: ACADEMIC (Theory, Numericals, Derivations, Coding, Concepts, Past Questions)
+For Route B, produce EXACTLY these 3 blocks in this exact order:
+
+📌 Block 1: University Standard Definition (2-Mark Standard)
+- State the accurate textbook-standard definition, governing law, or core theorem.
+- Clearly highlight mandatory keywords that an MU evaluator checks for.
+
+⚡ Block 2: Step-by-Step Technical Execution & Derivation
+- For numericals: Explicitly state Given Data, Formula, Step-by-Step Substitution, Intermediate Calculations, and Final Boxed Answer with correct SI units.
+- For derivations: State starting equations, clear assumptions, intermediate algebraic transformations, and final boxed expression.
+- For diagrams/schematics: If expected in an exam, write a dedicated sub-block 'Exam Diagram to Draw:' detailing the exact diagram, components, direction arrows, and label names needed.
+- Enforce strict Markdown LaTeX formatting ($inline$ and $$display$$). Never leak raw unformatted LaTeX.
+
+⚠️ Block 3: Examiner Trap Alert
+- State the exact spot where 90% of students lose marks on this specific question (e.g., degree to radian conversion, wrong sign convention, missing boundary conditions, forgotten assumptions).
+- Keep it specific to the problem. No generic advice.
+
+Produce only the designated structure without generic introductory setups or conversational summaries.
+"""
+
+            with st.chat_message("assistant"):
+                with st.spinner("Analyzing with MU Examiner standards..."):
+                    try:
+                        ai_reply = generate_ai_response(tutor_prompt)
+                        st.markdown(ai_reply)
+                        st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply})
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
+    # Reset chat option
+    if len(st.session_state.tutor_messages) > 1:
+        if st.button("🗑️ Clear Chat History"):
+            st.session_state.tutor_messages = [st.session_state.tutor_messages[0]]
+            st.rerun()
 
 # ==================================================
 # --- TAB 1: PREDICTED QUESTIONS ENGINE ---
