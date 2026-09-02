@@ -25,64 +25,49 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. ULTRA-FAST SPEED-OPTIMIZED AI ENGINE ---
+# --- 3. ZERO-FAIL STABLE AI ENGINE ---
 def generate_ai_response(prompt_text):
-    # Tier 1: Groq LPUs (Fastest Execution: ~1-2s Response)
+    errors = []
+
+    # 1. Groq (Primary Active Model: Fast & High Throughput)
     groq_key = st.secrets.get("GROQ_API_KEY", "").strip()
     if groq_key:
-        for grq_model in ["llama-3.1-8b-instant", "llama3-8b-8192", "gemma2-9b-it"]:
-            try:
-                url = "https://api.groq.com/openai/v1/chat/completions"
-                headers = {
-                    "Authorization": f"Bearer {groq_key}",
-                    "Content-Type": "application/json"
-                }
-                payload = {
-                    "model": grq_model,
-                    "messages": [{"role": "user", "content": prompt_text}],
-                    "temperature": 0.3,
-                    "max_tokens": 1200
-                }
-                res = requests.post(url, headers=headers, json=payload, timeout=8)
-                if res.status_code == 200:
-                    return res.json()["choices"][0]["message"]["content"].strip()
-            except Exception:
-                continue
-
-    # Tier 2: Gemini Direct Flash Endpoint (Fast Fallback)
-    gemini_key = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
-    if gemini_key:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-        headers = {"Content-Type": "application/json"}
-        payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
         try:
-            res = requests.post(url, headers=headers, json=payload, timeout=8)
-            if res.status_code == 200:
-                data = res.json()
-                return data['candidates'][0]['content']['parts'][0]['text'].strip()
-        except Exception:
-            pass
-
-    # Tier 3: OpenRouter Fallback
-    openrouter_key = st.secrets.get("OPENROUTER_API_KEY", "").strip()
-    if openrouter_key:
-        try:
-            url = "https://openrouter.ai/api/v1/chat/completions"
+            url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {
-                "Authorization": f"Bearer {openrouter_key}",
+                "Authorization": f"Bearer {groq_key}",
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": "meta-llama/llama-3.1-8b-instruct:free",
-                "messages": [{"role": "user", "content": prompt_text}]
+                "model": "llama3-8b-8192",
+                "messages": [{"role": "user", "content": prompt_text}],
+                "temperature": 0.4
             }
-            res = requests.post(url, headers=headers, json=payload, timeout=8)
+            res = requests.post(url, headers=headers, json=payload, timeout=25)
             if res.status_code == 200:
                 return res.json()["choices"][0]["message"]["content"].strip()
-        except Exception:
-            pass
+            else:
+                errors.append(f"Groq error ({res.status_code}): {res.text}")
+        except Exception as e:
+            errors.append(f"Groq Exception: {str(e)}")
 
-    raise Exception("Network slow hai bhai, ek baar dobara click karo.")
+    # 2. Gemini Direct REST (Reliable Backup)
+    gemini_key = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
+    if gemini_key:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+            headers = {"Content-Type": "application/json"}
+            payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
+            res = requests.post(url, headers=headers, json=payload, timeout=25)
+            if res.status_code == 200:
+                data = res.json()
+                return data['candidates'][0]['content']['parts'][0]['text'].strip()
+            else:
+                errors.append(f"Gemini error ({res.status_code}): {res.text}")
+        except Exception as e:
+            errors.append(f"Gemini Exception: {str(e)}")
+
+    raise Exception(" | ".join(errors) if errors else "API keys not detected.")
 # --- 4. AUTH ENGINE (10 FREE TRIALS + PRO SYSTEM) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
