@@ -25,14 +25,41 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. ZERO-FAIL STABLE AI ENGINE (LATEST ACTIVE ENDPOINTS) ---
+# --- 3. DYNAMIC AUTODETECT AI ENGINE ---
 def generate_ai_response(prompt_text):
     errors = []
 
-    # 1. Groq (Active Supported Models: llama-3.3-70b-versatile)
+    # 1. Google Gemini Dynamic Discovery (Calls ModelService.ListModels first)
+    gemini_key = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
+    if gemini_key:
+        try:
+            # Fetch all supported models for this specific API key
+            list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={gemini_key}"
+            list_res = requests.get(list_url, timeout=10)
+            if list_res.status_code == 200:
+                available = list_res.json().get("models", [])
+                valid_models = [
+                    m["name"] for m in available 
+                    if "generateContent" in m.get("supportedGenerationMethods", [])
+                ]
+                
+                # Pick any supported text model
+                for target_model in valid_models:
+                    post_url = f"https://generativelanguage.googleapis.com/v1beta/{target_model}:generateContent?key={gemini_key}"
+                    headers = {"Content-Type": "application/json"}
+                    payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
+                    res = requests.post(post_url, headers=headers, json=payload, timeout=25)
+                    if res.status_code == 200:
+                        return res.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+            else:
+                errors.append(f"Gemini ListModels Failed: {list_res.text}")
+        except Exception as e:
+            errors.append(f"Gemini AutoDetect Error: {str(e)}")
+
+    # 2. Groq Legacy Models
     groq_key = st.secrets.get("GROQ_API_KEY", "").strip()
     if groq_key:
-        for grq_model in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+        for grq_model in ["llama3-70b-8192", "mixtral-8x7b-32768"]:
             try:
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {
@@ -44,35 +71,15 @@ def generate_ai_response(prompt_text):
                     "messages": [{"role": "user", "content": prompt_text}],
                     "temperature": 0.4
                 }
-                res = requests.post(url, headers=headers, json=payload, timeout=25)
+                res = requests.post(url, headers=headers, json=payload, timeout=20)
                 if res.status_code == 200:
                     return res.json()["choices"][0]["message"]["content"].strip()
                 else:
-                    errors.append(f"Groq[{grq_model}] ({res.status_code}): {res.text}")
+                    errors.append(f"Groq[{grq_model}]: {res.status_code}")
             except Exception as e:
                 errors.append(f"Groq[{grq_model}] Ex: {str(e)}")
 
-    # 2. Gemini Official Stable v1 Endpoint (Bypasses v1beta 404 deprecation)
-    gemini_key = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
-    if gemini_key:
-        gemini_urls = [
-            f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}",
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={gemini_key}"
-        ]
-        for url in gemini_urls:
-            try:
-                headers = {"Content-Type": "application/json"}
-                payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
-                res = requests.post(url, headers=headers, json=payload, timeout=25)
-                if res.status_code == 200:
-                    data = res.json()
-                    return data['candidates'][0]['content']['parts'][0]['text'].strip()
-                else:
-                    errors.append(f"Gemini ({res.status_code}): {res.text}")
-            except Exception as e:
-                errors.append(f"Gemini Ex: {str(e)}")
-
-    raise Exception(" | ".join(errors) if errors else "API keys not detected.")
+    raise Exception(" | ".join(errors) if errors else "No valid API models found.")
 # --- 4. AUTH ENGINE (10 FREE TRIALS + PRO SYSTEM) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
