@@ -320,57 +320,95 @@ with tab1:
             del st.session_state.p_clean_out
             st.rerun()
 # ==================================================
-# --- TAB 2: CHAPTER SHORT-NOTES GENERATOR ---
+# --- TAB 2: CHAPTER SHORT-NOTES GENERATOR (CLEAN & READABLE) ---
 # ==================================================
 with tab2:
-    st.subheader("📝 Chapter Short-Notes Generator")
-    st.caption("1-Click 3-Block Revision Sheet: Formulas & Units, High Weightage Topics, and Quick Summary.")
+    st.markdown("<h2 style='text-align: center; color: #00F2FE;'>📝 1-Page Exam Cheat Sheet Generator</h2>", unsafe_allow_html=True)
+    st.caption("Instant 3-Block Revision Sheet: Rendered Formulas with Units, High-Weightage Core Topics, and Rapid Notes.")
     
-    col_sn1, col_sn2 = st.columns(2)
-    with col_sn1:
-        sn_subject = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics IV, DSA, BEE, Physics", key="sn_subj_input")
-    with col_sn2:
-        sn_chapter = st.text_input("Chapter / Module Name", placeholder="e.g. Complex Integration, Trees, Semiconductor", key="sn_chap_input")
+    sn_chapter = st.text_input(
+        "Enter Chapter / Module Name:",
+        placeholder="e.g. Semiconductor Physics, Complex Integration, Trees and Graphs, AC Circuits",
+        key="sn_chap_input_v2"
+    )
         
-    if st.button("📑 Generate 3-Block Short Notes", use_container_width=True):
-        if not sn_subject.strip() or not sn_chapter.strip():
-            st.warning("Subject aur Chapter dono ka naam dalo!")
+    if st.button("📑 GENERATE REVISION SHEET", use_container_width=True):
+        if not sn_chapter.strip():
+            st.warning("Bhai pehle chapter ka naam toh enter karo!")
         elif not check_access():
             show_paywall()
         else:
             deduct_trial()
-            with st.spinner(f"Generating revision sheet for {sn_chapter}..."):
+            with st.spinner(f"Preparing high-yield revision sheet for '{sn_chapter}'..."):
                 sn_prompt = f"""
                 Act as a Principal Mumbai University (MU) Engineering Professor.
-                Target Subject: {sn_subject}
                 Target Chapter/Module: {sn_chapter}
                 
-                Generate a precision 1-page revision sheet divided strictly into:
-                ### 1. 🧮 Important Formulas, Constants & Units
-                - List all critical formulas with standard SI units.
-                ### 2. 🎯 High-Weightage Core Topics (Exam Priority)
-                - List top 5 high-yield exam topics with expected marks (2M, 6M, 10M).
-                ### 3. ⚡ 10-Minute Rapid Revision Summary
-                - Point-to-point technical explanation using standard textbook keywords.
+                Generate an ultra-clean, high-yield 1-page revision sheet for last-minute exam preparation.
+                
+                CRITICAL FORMATTING INSTRUCTIONS:
+                - DO NOT use markdown tables for formulas because LaTeX breaks inside table cells.
+                - Use clear standalone bullets and clean display equations using $$...$$ or $...$.
+                - Ensure all equations render cleanly without raw LaTeX source tags showing.
+                
+                OUTPUT STRUCTURE:
+                
+                ### 1. 🧮 Core Exam Formulas & Calculation Traps
+                Provide the top 5 to 7 most critical numerical formulas for this chapter.
+                Format each formula as:
+                * **[Formula Name / Purpose]**
+                  $$[Formula in clean LaTeX]$$
+                  - **Variables & Units:** Parameter names with standard SI units.
+                  - **Where to apply:** 1 line stating the exact problem type where this formula is required.
+                
+                ---
+                
+                ### 2. 🎯 High-Weightage Exam Topics (Scoring Priority)
+                List the top 4 must-prepare core topics for this module:
+                * **[Topic Name]** ([Marks]M - e.g., 6M Derivation or 10M Numerical)
+                  - **Expected Question Type:** (e.g. Derive expression with neat diagram, Numerical calculation).
+                  - **Mandatory Keywords:** Words and laws the examiner looks for.
+                
+                ---
+                
+                ### 3. ⚡ 5-Minute Rapid Revision Keywords
+                Provide 5 concise, high-impact technical summary points with textbook-standard terms highlighted in bold.
                 """
                 try:
                     sn_res = generate_ai_response(sn_prompt)
                     st.session_state.sn_output_data = sn_res
                     st.session_state.sn_current_chap = sn_chapter
-                    st.session_state.sn_current_subj = sn_subject
                     st.rerun()
                 except Exception as e:
                     st.error(f"Generation error: {e}")
 
     if "sn_output_data" in st.session_state and st.session_state.sn_output_data:
         st.markdown("---")
-        st.markdown(f"### 📘 Revision Sheet: **{st.session_state.get('sn_current_subj', '').upper()}** — *{st.session_state.get('sn_current_chap', '')}*")
+        st.markdown(f"### 📘 High-Yield Revision Sheet: **{st.session_state.get('sn_current_chap', '').upper()}**")
         st.markdown(st.session_state.sn_output_data)
         
-        if st.button("🗑️ Clear Short Notes"):
-            del st.session_state.sn_output_data
-            st.rerun()
-
+        # --- PRO MONETIZATION TRIGGER ---
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #1f2937 0%, #111827 100%); border: 2px solid #4CAF50; border-radius: 12px; padding: 20px; text-align: center; margin-top: 25px;">
+            <h3 style="color: #4CAF50; margin-top: 0;">📚 Need Full Handwritten-Style Solved Derivations?</h3>
+            <p style="color: #9ca3af; font-size: 14px;">Unlock complete step-by-step mathematical proofs, circuit diagrams, and solved numerical sets with TopperGPT PRO.</p>
+            <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background: #4CAF50; color: white; padding: 10px 22px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 8px;">🔓 Unlock Complete Exam Pack (₹49)</a>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        c_sn1, c_sn2 = st.columns(2)
+        with c_sn1:
+            if st.button("🗑️ Clear Short Notes", use_container_width=True):
+                del st.session_state.sn_output_data
+                st.rerun()
+        with c_sn2:
+            st.download_button(
+                label="📥 Download Revision Sheet",
+                data=st.session_state.sn_output_data,
+                file_name=f"{st.session_state.get('sn_current_chap', 'ShortNotes')}_MU_Revision.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
 # ==================================================
 # --- TAB 3: STREAMLINED TOPIC SEARCH ---
 # ==================================================
