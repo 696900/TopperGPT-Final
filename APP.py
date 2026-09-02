@@ -251,131 +251,72 @@ tab1, tab2, tab3 = st.tabs([
 ])
 
 # ==================================================
-# --- TAB 1: PREDICTED QUESTIONS ENGINE (EXAMINER GRADE) ---
+# --- TAB 1: PREDICTED QUESTIONS ENGINE (FAST & CLEAN) ---
 # ==================================================
 with tab1:
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Predicted Questions & Exam Blueprint</h2>", unsafe_allow_html=True)
-    st.caption("Mumbai University C-Scheme Senior Paper Setter & Evaluator Engine.")
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 MU Exam Sniper: Predicted Questions</h2>", unsafe_allow_html=True)
+    st.caption("Enter any topic to get high-frequency MU questions and historical exam trends.")
     
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        p_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics IV, Applied Physics, BEE, DSA", key="p_subj_v2")
-    with col_p2:
-        p_topic = st.text_input("Chapter / Module / Topic", placeholder="e.g. Semiconductor, Trees, Numerical Methods, AC Circuits", key="p_topic_v2")
+    p_topic = st.text_input("Enter Topic or Module Name:", placeholder="e.g. Runge-Kutta, Newton-Raphson, Diode, Trees, Complex Integration", key="p_topic_only_v1")
 
-    if st.button("⚡ EXTRACT EXAM BLUEPRINTS", use_container_width=True):
-        if not p_subj.strip() or not p_topic.strip():
-            st.warning("Subject aur Chapter/Topic dono bharna zaroori hai!")
-        elif not check_access():
-            show_paywall()
+    if st.button("⚡ EXTRACT EXAM QUESTIONS", use_container_width=True):
+        if not p_topic.strip():
+            st.warning("Pehle topic ka naam toh likho bhai!")
         else:
-            deduct_trial()
-            with st.spinner(f"Analyzing past MU patterns & rubrics for {p_topic}..."):
-                prompt = f"""
-You are the Veteran Chief Paper Setter, Senior Evaluator, and Examiner for Mumbai University (MU) Engineering, C-Scheme examinations, with deep expertise in identifying recurring question patterns, assessing answer-writing standards, allocating marks, and predicting high-probability examination questions from historical MU papers.
-Your task is to operate as the backend Predicted Questions Engine for TopperGPT.
+            with st.spinner(f"Extracting high-probability MU questions for '{p_topic}'..."):
+                fast_prompt = f"""
+                You are a Senior Mumbai University (MU) Engineering Paper Setter.
+                Target Topic: {p_topic}
 
-INPUTS:
-Subject Name: {p_subj}
-Chapter / Topic Name: {p_topic}
+                Generate a crisp, high-speed examination blueprint. Do not output conversational filler.
+                Strictly format as:
 
-Analyze ONLY the specified subject and chapter/topic. Do not drift into unrelated chapters, units, or generic engineering content.
+                ### SECTION 1: 🎯 Top 5 Most Repeated Exam Questions
+                List 5 high-probability questions (combination of [2M], [6M], and [10M]).
+                For each question use this exact clean format:
+                **Q[Number] ([Marks]M) | [Expected Probability %]**
+                - **Question:** [Exact exam question statement]
+                - **Marking Rubric:** [1-line marks breakup, e.g., Formula: 2M, Calculation: 3M, Final Ans: 1M]
+                - **Examiner Trap:** [1-line common mistake students make]
 
-CORE OBJECTIVE:
-Generate an examiner-grade, MU-specific question prediction and historical PYQ variation archive for the supplied chapter/topic.
-Your output must reflect the way a Mumbai University engineering paper setter and evaluator would frame, mark, repeat, modify, and assess questions.
+                ---
 
-CRITICAL AUTHENTICITY RULE:
-Never fabricate historical MU PYQs, exam-session dates, paper references, marks, or claims of exact repetition.
-If a historical question or session cannot be confidently established from the information available to you, explicitly label it as one of:
-- "Historical pattern / reconstructed variation"
-- "Likely MU-style variation"
-- "Pattern-based prediction"
-When a specific session tag such as May 2024 or Dec 2023 is included, use it only when you have sufficient confidence that the association is genuine.
-
-ABSOLUTE NEGATIVE CONSTRAINTS:
-- DO NOT give generic "important questions" unrelated to MU patterns.
-- DO NOT give superficial one-line answers.
-- DO NOT use vague language such as "study this topic thoroughly."
-- Respect mark suitability: [2M] = short factual/conceptual, [6M] = structured analytical / derivation / medium problem, [10M] = comprehensive multi-step problem / major derivation.
-- All equations MUST use Markdown LaTeX ($inline$ or $$block$$).
-
-OUTPUT FORMAT:
-Produce EXACTLY 2 SECTIONS and no additional sections.
-
-### SECTION 1: 🎯 Top 5 High-Probability Questions (Top Scoring Priority)
-Select the 5 strongest questions for {p_subj} -> {p_topic}.
-Rank them from #1 to #5, where #1 has the highest predicted exam value.
-Each question MUST contain ALL of the following fields:
-- Question #X
-- Probability Rank: #X
-- Predicted MU Mark Tag: [2M], [6M], or [10M]
-- Question: [Write the complete examiner-style question.]
-- Why This Is High-Probability: [Concise explanation based on recurrence or concept importance]
-- Examiner Marking Rubric: [Breakdown totaling exactly 2M, 6M, or 10M]
-- 🎓 Topper Answer Blueprint:
-  * Line 1: Mandatory technical keywords, definitions, diagrams, and assumptions required.
-  * Line 2: Mandatory equations, derivation endpoints, numerical values, and units required.
-
----
-
-### SECTION 2: 📚 Complete Historical Question Archive (PYQ Variations)
-Organize STRICTLY under these three subsections:
-
-#### a) 2-Mark Short Concepts & Definitions
-For each question:
-- Question: [MU-style question]
-- Status: [Historical PYQ / Historical pattern / reconstructed variation / Likely MU-style variation]
-- Session: [e.g., May 2024, Dec 2023, or "Session not confidently established"]
-- Scoring Focus: [Exact points earning the 2 marks]
-
-#### b) 6-Mark Analytical Questions & Derivations
-For each question:
-- Question: [Complete MU-style question]
-- Status: [Historical PYQ / Historical pattern / reconstructed variation / Likely MU-style variation]
-- Session: [e.g., May 2024, Dec 2023, or "Session not confidently established"]
-- Expected Answer Structure: [Concise answer sequence]
-- Scoring Focus: [Exact components earning marks]
-
-#### c) 10-Mark Comprehensive Numericals / Long Problems
-For each question:
-- Question: [Complete engineering problem statement]
-- Status: [Historical PYQ / Historical pattern / reconstructed variation / Likely MU-style variation]
-- Session: [e.g., May 2024, Dec 2023, or "Session not confidently established"]
-- Given Parameters: [Explicit numerical values, boundary conditions, etc.]
-- Required To Find: [Exact calculation targets]
-- Expected Solution Path: [Step sequence]
-- ⚠️ Common Numerical Trap Alert: [Exact points where students lose marks like unit conversions, sign conventions, boundary traps]
-- Scoring Focus: [How to secure full 10 marks]
-"""
+                ### SECTION 2: 📚 Complete PYQ Archive for this Topic
+                Group all other previous years variations into:
+                - **2-Mark Short Questions & Definitions** (List 3-4 questions)
+                - **6-Mark Analytical & Derivations** (List 2-3 questions)
+                - **10-Mark Full Numericals / Long Problems** (List 2-3 questions with given values)
+                """
                 try:
-                    res_text = generate_ai_response(prompt)
-                    st.session_state.p_blueprint_out = res_text
-                    st.session_state.p_active_subj = p_subj
-                    st.session_state.p_active_topic = p_topic
-                    st.balloons()
+                    res_text = generate_ai_response(fast_prompt)
+                    st.session_state.p_clean_out = res_text
+                    st.session_state.p_clean_topic = p_topic
                     st.rerun()
                 except Exception as e:
                     st.error(f"Generation error: {e}")
 
-    if "p_blueprint_out" in st.session_state and st.session_state.p_blueprint_out:
+    # Display Clean Output with Pro Solution Locks
+    if "p_clean_out" in st.session_state and st.session_state.p_clean_out:
         st.markdown("---")
-        st.markdown(f"### 📘 Exam Blueprint: **{st.session_state.get('p_active_subj', '').upper()}** — *{st.session_state.get('p_active_topic', '')}*")
-        st.markdown(st.session_state.p_blueprint_out)
+        st.markdown(f"### 📘 Exam Target Sheet: **{st.session_state.get('p_clean_topic', '').upper()}**")
         
-        c_act1, c_act2 = st.columns(2)
-        with c_act1:
-            if st.button("🗑️ Clear Blueprint", use_container_width=True):
-                del st.session_state.p_blueprint_out
-                st.rerun()
-        with c_act2:
-            st.download_button(
-                label="📥 Download Blueprint (Markdown)",
-                data=st.session_state.p_blueprint_out,
-                file_name=f"{st.session_state.get('p_active_topic', 'Blueprint')}_MU_Exam_Questions.md",
-                mime="text/markdown",
-                use_container_width=True
-            )
+        # Split into main sections for display
+        raw_output = st.session_state.p_clean_out
+        st.markdown(raw_output)
+
+        st.markdown("---")
+        # --- PRO MONETIZATION TRIGGER ---
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #1f2937 0%, #111827 100%); border: 2px solid #00F2FE; border-radius: 12px; padding: 20px; text-align: center; margin-top: 25px;">
+            <h3 style="color: #00F2FE; margin-top: 0;">💡 In Questions Ke Step-by-Step Solved Answers Chahiye?</h3>
+            <p style="color: #9ca3af; font-size: 14px;">Topper Answer Sheet format, step-by-step derivations, aur solved numericals unlock karein TopperGPT PRO ke saath.</p>
+            <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background: #00F2FE; color: black; padding: 10px 22px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 8px;">🔓 Unlock Complete Solutions (₹49)</a>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("🗑️ Search Another Topic"):
+            del st.session_state.p_clean_out
+            st.rerun()
 # ==================================================
 # --- TAB 2: CHAPTER SHORT-NOTES GENERATOR ---
 # ==================================================
