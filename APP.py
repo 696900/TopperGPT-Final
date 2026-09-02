@@ -25,47 +25,52 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. ZERO-FAIL STABLE AI ENGINE ---
+# --- 3. ZERO-FAIL STABLE AI ENGINE (LATEST ACTIVE ENDPOINTS) ---
 def generate_ai_response(prompt_text):
     errors = []
 
-    # 1. Groq (Primary Active Model: Fast & High Throughput)
+    # 1. Groq (Active Supported Models: llama-3.3-70b-versatile)
     groq_key = st.secrets.get("GROQ_API_KEY", "").strip()
     if groq_key:
-        try:
-            url = "https://api.groq.com/openai/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {groq_key}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": "llama3-8b-8192",
-                "messages": [{"role": "user", "content": prompt_text}],
-                "temperature": 0.4
-            }
-            res = requests.post(url, headers=headers, json=payload, timeout=25)
-            if res.status_code == 200:
-                return res.json()["choices"][0]["message"]["content"].strip()
-            else:
-                errors.append(f"Groq error ({res.status_code}): {res.text}")
-        except Exception as e:
-            errors.append(f"Groq Exception: {str(e)}")
+        for grq_model in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+            try:
+                url = "https://api.groq.com/openai/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {groq_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": grq_model,
+                    "messages": [{"role": "user", "content": prompt_text}],
+                    "temperature": 0.4
+                }
+                res = requests.post(url, headers=headers, json=payload, timeout=25)
+                if res.status_code == 200:
+                    return res.json()["choices"][0]["message"]["content"].strip()
+                else:
+                    errors.append(f"Groq[{grq_model}] ({res.status_code}): {res.text}")
+            except Exception as e:
+                errors.append(f"Groq[{grq_model}] Ex: {str(e)}")
 
-    # 2. Gemini Direct REST (Reliable Backup)
+    # 2. Gemini Official Stable v1 Endpoint (Bypasses v1beta 404 deprecation)
     gemini_key = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
     if gemini_key:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-            headers = {"Content-Type": "application/json"}
-            payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
-            res = requests.post(url, headers=headers, json=payload, timeout=25)
-            if res.status_code == 200:
-                data = res.json()
-                return data['candidates'][0]['content']['parts'][0]['text'].strip()
-            else:
-                errors.append(f"Gemini error ({res.status_code}): {res.text}")
-        except Exception as e:
-            errors.append(f"Gemini Exception: {str(e)}")
+        gemini_urls = [
+            f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}",
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={gemini_key}"
+        ]
+        for url in gemini_urls:
+            try:
+                headers = {"Content-Type": "application/json"}
+                payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
+                res = requests.post(url, headers=headers, json=payload, timeout=25)
+                if res.status_code == 200:
+                    data = res.json()
+                    return data['candidates'][0]['content']['parts'][0]['text'].strip()
+                else:
+                    errors.append(f"Gemini ({res.status_code}): {res.text}")
+            except Exception as e:
+                errors.append(f"Gemini Ex: {str(e)}")
 
     raise Exception(" | ".join(errors) if errors else "API keys not detected.")
 # --- 4. AUTH ENGINE (10 FREE TRIALS + PRO SYSTEM) ---
