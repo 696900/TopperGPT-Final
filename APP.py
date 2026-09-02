@@ -25,18 +25,12 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. ZERO-FAIL ACTIVE MODEL ENGINE ---
+# --- 3. ULTRA-FAST SPEED-OPTIMIZED AI ENGINE ---
 def generate_ai_response(prompt_text):
-    # 1. Groq Engine (Using Verified Active Models)
+    # Tier 1: Groq LPUs (Fastest Execution: ~1-2s Response)
     groq_key = st.secrets.get("GROQ_API_KEY", "").strip()
     if groq_key:
-        active_groq_models = [
-            "gemma2-9b-it",
-            "llama-3.2-3b-preview",
-            "llama-3.2-1b-preview",
-            "llama3-8b-8192"
-        ]
-        for gm in active_groq_models:
+        for grq_model in ["llama-3.1-8b-instant", "llama3-8b-8192", "gemma2-9b-it"]:
             try:
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {
@@ -44,59 +38,51 @@ def generate_ai_response(prompt_text):
                     "Content-Type": "application/json"
                 }
                 payload = {
-                    "model": gm,
+                    "model": grq_model,
                     "messages": [{"role": "user", "content": prompt_text}],
-                    "temperature": 0.5
+                    "temperature": 0.3,
+                    "max_tokens": 1200
                 }
-                res = requests.post(url, headers=headers, json=payload, timeout=20)
+                res = requests.post(url, headers=headers, json=payload, timeout=8)
                 if res.status_code == 200:
                     return res.json()["choices"][0]["message"]["content"].strip()
             except Exception:
                 continue
 
-    # 2. OpenRouter Auto-Router (Auto-selects any live working model)
-    openrouter_key = st.secrets.get("OPENROUTER_API_KEY", "").strip()
-    if openrouter_key:
-        or_models = [
-            "openrouter/auto",
-            "meta-llama/llama-3.2-3b-instruct:free",
-            "mistralai/mistral-small-24b-instruct-2501:free"
-        ]
-        headers = {
-            "Authorization": f"Bearer {openrouter_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://toppergpt-live.streamlit.app",
-            "X-Title": "TopperGPT"
-        }
-        for om in or_models:
-            try:
-                payload = {
-                    "model": om,
-                    "messages": [{"role": "user", "content": prompt_text}]
-                }
-                res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=20)
-                if res.status_code == 200:
-                    resp_data = res.json()
-                    if "choices" in resp_data and len(resp_data["choices"]) > 0:
-                        return resp_data["choices"][0]["message"]["content"].strip()
-            except Exception:
-                continue
-
-    # 3. Google Gemini Official v1 Endpoint
+    # Tier 2: Gemini Direct Flash Endpoint (Fast Fallback)
     gemini_key = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
     if gemini_key:
-        for g_name in ["gemini-1.5-flash", "gemini-1.5-pro"]:
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1/models/{g_name}:generateContent?key={gemini_key}"
-                headers = {"Content-Type": "application/json"}
-                payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
-                res = requests.post(url, headers=headers, json=payload, timeout=20)
-                if res.status_code == 200:
-                    return res.json()['candidates'][0]['content']['parts'][0]['text'].strip()
-            except Exception:
-                continue
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+        headers = {"Content-Type": "application/json"}
+        payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
+        try:
+            res = requests.post(url, headers=headers, json=payload, timeout=8)
+            if res.status_code == 200:
+                data = res.json()
+                return data['candidates'][0]['content']['parts'][0]['text'].strip()
+        except Exception:
+            pass
 
-    raise Exception("AI backend is currently unreachable. Please retry.")
+    # Tier 3: OpenRouter Fallback
+    openrouter_key = st.secrets.get("OPENROUTER_API_KEY", "").strip()
+    if openrouter_key:
+        try:
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {openrouter_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "meta-llama/llama-3.1-8b-instruct:free",
+                "messages": [{"role": "user", "content": prompt_text}]
+            }
+            res = requests.post(url, headers=headers, json=payload, timeout=8)
+            if res.status_code == 200:
+                return res.json()["choices"][0]["message"]["content"].strip()
+        except Exception:
+            pass
+
+    raise Exception("Network slow hai bhai, ek baar dobara click karo.")
 # --- 4. AUTH ENGINE (10 FREE TRIALS + PRO SYSTEM) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
