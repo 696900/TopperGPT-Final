@@ -25,68 +25,80 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 3. HARDCORE ZERO-FAIL AI ENGINE ---
+# --- 3. ZERO-GUESSWORK AUTODISCOVERY AI ENGINE ---
 def generate_ai_response(prompt_text):
-    # 1. Groq Core Production Tier (Highest Speed)
+    errors = []
+
+    # 1. Groq Autodiscovery (Queries live active models directly from your account)
     groq_key = st.secrets.get("GROQ_API_KEY", "").strip()
     if groq_key:
-        for grq_model in ["llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"]:
-            try:
-                url = "https://api.groq.com/openai/v1/chat/completions"
-                headers = {
-                    "Authorization": f"Bearer {groq_key}",
-                    "Content-Type": "application/json"
-                }
-                payload = {
-                    "model": grq_model,
-                    "messages": [{"role": "user", "content": prompt_text}],
-                    "temperature": 0.4
-                }
-                res = requests.post(url, headers=headers, json=payload, timeout=20)
-                if res.status_code == 200:
-                    return res.json()["choices"][0]["message"]["content"].strip()
-            except Exception:
-                continue
+        try:
+            m_res = requests.get(
+                "https://api.groq.com/openai/v1/models",
+                headers={"Authorization": f"Bearer {groq_key}"},
+                timeout=5
+            )
+            if m_res.status_code == 200:
+                available_models = [m["id"] for m in m_res.json().get("data", [])]
+                # Filter out whisper/audio, prioritize chat models
+                chat_models = [
+                    m for m in available_models 
+                    if not any(x in m for x in ["whisper", "guard", "vision", "embed"])
+                ]
+                
+                for live_model in chat_models[:3]:
+                    try:
+                        res = requests.post(
+                            "https://api.groq.com/openai/v1/chat/completions",
+                            headers={
+                                "Authorization": f"Bearer {groq_key}",
+                                "Content-Type": "application/json"
+                            },
+                            json={
+                                "model": live_model,
+                                "messages": [{"role": "user", "content": prompt_text}],
+                                "temperature": 0.4,
+                                "max_tokens": 1200
+                            },
+                            timeout=12
+                        )
+                        if res.status_code == 200:
+                            return res.json()["choices"][0]["message"]["content"].strip()
+                    except Exception:
+                        continue
+            else:
+                errors.append(f"Groq Model List Error: {m_res.status_code}")
+        except Exception as e:
+            errors.append(f"Groq Discovery: {str(e)}")
 
-    # 2. Universal Google Gemini REST (v1beta gemini-pro + v1 gemini-1.5-flash)
-    gemini_key = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
-    if gemini_key:
-        endpoints = [
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={gemini_key}",
-            f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-        ]
-        for ep in endpoints:
-            try:
-                headers = {"Content-Type": "application/json"}
-                payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
-                res = requests.post(ep, headers=headers, json=payload, timeout=20)
-                if res.status_code == 200:
-                    data = res.json()
-                    return data['candidates'][0]['content']['parts'][0]['text'].strip()
-            except Exception:
-                continue
-
-    # 3. OpenRouter Free Tier Fallback
+    # 2. OpenRouter Fast Fallback
     openrouter_key = st.secrets.get("OPENROUTER_API_KEY", "").strip()
     if openrouter_key:
-        for or_model in ["meta-llama/llama-3.1-8b-instruct:free", "google/gemma-2-9b-it:free"]:
+        for or_m in ["meta-llama/llama-3.1-8b-instruct:free", "mistralai/mistral-small-24b-instruct-2501:free"]:
             try:
-                url = "https://openrouter.ai/api/v1/chat/completions"
-                headers = {
-                    "Authorization": f"Bearer {openrouter_key}",
-                    "Content-Type": "application/json"
-                }
-                payload = {
-                    "model": or_model,
-                    "messages": [{"role": "user", "content": prompt_text}]
-                }
-                res = requests.post(url, headers=headers, json=payload, timeout=20)
+                res = requests.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {openrouter_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://toppergpt-live.streamlit.app",
+                        "X-Title": "TopperGPT"
+                    },
+                    json={
+                        "model": or_m,
+                        "messages": [{"role": "user", "content": prompt_text}],
+                        "max_tokens": 1200
+                    },
+                    timeout=12
+                )
                 if res.status_code == 200:
-                    return res.json()["choices"][0]["message"]["content"].strip()
+                    resp_data = res.json()
+                    if "choices" in resp_data and len(resp_data["choices"]) > 0:
+                        return resp_data["choices"][0]["message"]["content"].strip()
             except Exception:
                 continue
 
-    raise Exception("All endpoints failed. Please check network connectivity.")
+    raise Exception(" | ".join(errors) if errors else "No responsive model found. Try again in a moment.")
 # --- 4. AUTH ENGINE (10 FREE TRIALS + PRO SYSTEM) ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
