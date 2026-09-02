@@ -251,15 +251,15 @@ tab1, tab2, tab3 = st.tabs([
 ])
 
 # ==================================================
-# --- TAB 1: PREDICTED QUESTIONS ENGINE ---
+# --- TAB 1: PREDICTED QUESTIONS ENGINE (EXAMINER GRADE) ---
 # ==================================================
 with tab1:
     st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🎯 Predicted Questions & Exam Blueprint</h2>", unsafe_allow_html=True)
-    st.caption("Extract high-probability questions, marking rubrics, and complete past PYQ archives.")
+    st.caption("Mumbai University C-Scheme Senior Paper Setter & Evaluator Engine.")
     
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-        p_subj = st.text_input("Subject Name", placeholder="e.g. Applied Physics, DSA, Applied Mathematics IV, BEE", key="p_subj_v2")
+        p_subj = st.text_input("Subject Name", placeholder="e.g. Applied Mathematics IV, Applied Physics, BEE, DSA", key="p_subj_v2")
     with col_p2:
         p_topic = st.text_input("Chapter / Module / Topic", placeholder="e.g. Semiconductor, Trees, Numerical Methods, AC Circuits", key="p_topic_v2")
 
@@ -270,28 +270,84 @@ with tab1:
             show_paywall()
         else:
             deduct_trial()
-            with st.spinner(f"Analyzing past patterns & rubrics for {p_topic}..."):
+            with st.spinner(f"Analyzing past MU patterns & rubrics for {p_topic}..."):
                 prompt = f"""
-                Act as a Senior Mumbai University (MU) C-Scheme Chief Paper Setter.
-                Target Subject: {p_subj}
-                Target Topic / Chapter: {p_topic}
+You are the Veteran Chief Paper Setter, Senior Evaluator, and Examiner for Mumbai University (MU) Engineering, C-Scheme examinations, with deep expertise in identifying recurring question patterns, assessing answer-writing standards, allocating marks, and predicting high-probability examination questions from historical MU papers.
+Your task is to operate as the backend Predicted Questions Engine for TopperGPT.
 
-                Generate a comprehensive exam blueprint structured into these 2 distinct sections:
+INPUTS:
+Subject Name: {p_subj}
+Chapter / Topic Name: {p_topic}
 
-                ### SECTION 1: 🎯 Top High-Probability Questions (Top Scoring Priority)
-                For the top 5 most frequently repeated questions on this topic, provide:
-                - Question statement with exact marks allocated (2M / 6M / 10M).
-                - **Examiner Marking Rubric Breakdown** (e.g. Diagram: 2M, Derivation steps: 3M, Final Equation/Unit: 1M).
-                - **2-Line Key Solution Summary** highlighting compulsory keywords and equations needed to secure full marks.
+Analyze ONLY the specified subject and chapter/topic. Do not drift into unrelated chapters, units, or generic engineering content.
 
-                ---
+CORE OBJECTIVE:
+Generate an examiner-grade, MU-specific question prediction and historical PYQ variation archive for the supplied chapter/topic.
+Your output must reflect the way a Mumbai University engineering paper setter and evaluator would frame, mark, repeat, modify, and assess questions.
 
-                ### SECTION 2: 📚 Complete Historical Archive (PYQ Bank)
-                List all past exam questions asked on this topic grouped cleanly into:
-                1. **2-Mark Short Concepts & Definitions**
-                2. **6-Mark Derivations & Analytical Questions** (Include expected university exam session tags like May 2024, Dec 2023)
-                3. **10-Mark Comprehensive Numericals / Long Questions** (Include specific values and a **⚠️ Common Numerical Trap Alert** warning where students lose marks).
-                """
+CRITICAL AUTHENTICITY RULE:
+Never fabricate historical MU PYQs, exam-session dates, paper references, marks, or claims of exact repetition.
+If a historical question or session cannot be confidently established from the information available to you, explicitly label it as one of:
+- "Historical pattern / reconstructed variation"
+- "Likely MU-style variation"
+- "Pattern-based prediction"
+When a specific session tag such as May 2024 or Dec 2023 is included, use it only when you have sufficient confidence that the association is genuine.
+
+ABSOLUTE NEGATIVE CONSTRAINTS:
+- DO NOT give generic "important questions" unrelated to MU patterns.
+- DO NOT give superficial one-line answers.
+- DO NOT use vague language such as "study this topic thoroughly."
+- Respect mark suitability: [2M] = short factual/conceptual, [6M] = structured analytical / derivation / medium problem, [10M] = comprehensive multi-step problem / major derivation.
+- All equations MUST use Markdown LaTeX ($inline$ or $$block$$).
+
+OUTPUT FORMAT:
+Produce EXACTLY 2 SECTIONS and no additional sections.
+
+### SECTION 1: 🎯 Top 5 High-Probability Questions (Top Scoring Priority)
+Select the 5 strongest questions for {p_subj} -> {p_topic}.
+Rank them from #1 to #5, where #1 has the highest predicted exam value.
+Each question MUST contain ALL of the following fields:
+- Question #X
+- Probability Rank: #X
+- Predicted MU Mark Tag: [2M], [6M], or [10M]
+- Question: [Write the complete examiner-style question.]
+- Why This Is High-Probability: [Concise explanation based on recurrence or concept importance]
+- Examiner Marking Rubric: [Breakdown totaling exactly 2M, 6M, or 10M]
+- 🎓 Topper Answer Blueprint:
+  * Line 1: Mandatory technical keywords, definitions, diagrams, and assumptions required.
+  * Line 2: Mandatory equations, derivation endpoints, numerical values, and units required.
+
+---
+
+### SECTION 2: 📚 Complete Historical Question Archive (PYQ Variations)
+Organize STRICTLY under these three subsections:
+
+#### a) 2-Mark Short Concepts & Definitions
+For each question:
+- Question: [MU-style question]
+- Status: [Historical PYQ / Historical pattern / reconstructed variation / Likely MU-style variation]
+- Session: [e.g., May 2024, Dec 2023, or "Session not confidently established"]
+- Scoring Focus: [Exact points earning the 2 marks]
+
+#### b) 6-Mark Analytical Questions & Derivations
+For each question:
+- Question: [Complete MU-style question]
+- Status: [Historical PYQ / Historical pattern / reconstructed variation / Likely MU-style variation]
+- Session: [e.g., May 2024, Dec 2023, or "Session not confidently established"]
+- Expected Answer Structure: [Concise answer sequence]
+- Scoring Focus: [Exact components earning marks]
+
+#### c) 10-Mark Comprehensive Numericals / Long Problems
+For each question:
+- Question: [Complete engineering problem statement]
+- Status: [Historical PYQ / Historical pattern / reconstructed variation / Likely MU-style variation]
+- Session: [e.g., May 2024, Dec 2023, or "Session not confidently established"]
+- Given Parameters: [Explicit numerical values, boundary conditions, etc.]
+- Required To Find: [Exact calculation targets]
+- Expected Solution Path: [Step sequence]
+- ⚠️ Common Numerical Trap Alert: [Exact points where students lose marks like unit conversions, sign conventions, boundary traps]
+- Scoring Focus: [How to secure full 10 marks]
+"""
                 try:
                     res_text = generate_ai_response(prompt)
                     st.session_state.p_blueprint_out = res_text
@@ -316,11 +372,10 @@ with tab1:
             st.download_button(
                 label="📥 Download Blueprint (Markdown)",
                 data=st.session_state.p_blueprint_out,
-                file_name=f"{st.session_state.get('p_active_topic', 'Blueprint')}_Exam_Questions.md",
+                file_name=f"{st.session_state.get('p_active_topic', 'Blueprint')}_MU_Exam_Questions.md",
                 mime="text/markdown",
                 use_container_width=True
             )
-
 # ==================================================
 # --- TAB 2: CHAPTER SHORT-NOTES GENERATOR ---
 # ==================================================
