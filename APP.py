@@ -1,11 +1,10 @@
 import streamlit as st
 import requests
 import json
-import time 
-import hashlib
+import time
 from supabase import create_client, Client
 
-# --- 1. CONFIGURATION & BROWSER TAB ---
+# --- 1. CONFIGURATION & PAGE SETUP ---
 st.set_page_config(
     page_title="TopperGPT Intelligence",
     layout="wide",
@@ -13,128 +12,123 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. THEME INJECTION (MATCHING LANDING PAGE DESIGN) ---
+# --- 2. CSS STYLING MATCHING EXACT DASHBOARD LAYOUT ---
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 html, body, [class*="css"] {
     font-family: 'Plus Jakarta Sans', sans-serif !important;
 }
 
-/* Background with Subtle Tech Grid */
+/* Background grid styling */
 .stApp {
-    background-color: #08090a !important;
+    background-color: #0c0d12 !important;
     background-image: 
-        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px) !important;
-    background-size: 38px 38px !important;
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px) !important;
+    background-size: 36px 36px !important;
     color: #f3f4f6 !important;
 }
 
-/* Sidebar Dark Glass */
+/* Sidebar Customization */
 [data-testid="stSidebar"] {
-    background-color: #0b0d10 !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background-color: #0e0f15 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+    padding-top: 15px !important;
 }
 
-/* Top App Header Removal */
 header[data-testid="stHeader"] {
     background-color: transparent !important;
 }
 
-/* Glowing Badges & Labels */
-.badge-pill {
-    display: inline-block;
-    padding: 4px 12px;
-    background: rgba(78, 237, 216, 0.1);
-    border: 1px solid #4eedd8;
-    color: #4eedd8;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+/* Top Streak Badge */
+.streak-badge {
+    background: rgba(251, 146, 60, 0.12);
+    border: 1px solid rgba(251, 146, 60, 0.4);
+    color: #fb923c;
+    padding: 6px 14px;
     border-radius: 9999px;
-    margin-bottom: 12px;
-    box-shadow: 0 0 12px rgba(78, 237, 216, 0.2);
+    font-size: 13px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    float: right;
 }
 
-/* Card Boxes */
-.topper-card {
-    background: #0e1217;
+/* Prompt Starter Quick Pills */
+.starter-chip {
+    display: inline-block;
+    background: #151722;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 20px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    color: #cbd5e1;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    margin-right: 8px;
+    margin-bottom: 12px;
 }
 
-/* Input Fields Styling */
-.stTextInput > div > div > input {
-    background-color: #12171f !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    color: #ffffff !important;
+/* Glassmorphic Dark Cards */
+.topper-card {
+    background: #13151f;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    padding: 22px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Chat Bubble Customization */
+[data-testid="stChatMessage"] {
+    background-color: #13151f !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
     border-radius: 12px !important;
+    margin-bottom: 12px !important;
+}
+
+/* Text Inputs */
+.stTextInput > div > div > input {
+    background-color: #151722 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    border-radius: 10px !important;
     padding: 12px 16px !important;
-    font-size: 15px !important;
-    transition: all 0.2s ease;
 }
 .stTextInput > div > div > input:focus {
-    border-color: #4eedd8 !important;
-    box-shadow: 0 0 14px rgba(78, 237, 216, 0.3) !important;
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.2) !important;
 }
 
-/* Custom Action Buttons */
+/* Accent Buttons */
 .stButton > button {
-    background: linear-gradient(135deg, #4eedd8 0%, #22c55e 100%) !important;
-    color: #050608 !important;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    color: #000000 !important;
     font-weight: 700 !important;
-    font-size: 15px !important;
-    letter-spacing: 0.02em !important;
     border: none !important;
-    border-radius: 12px !important;
-    padding: 10px 24px !important;
-    box-shadow: 0 0 18px rgba(78, 237, 216, 0.3) !important;
-    transition: all 0.25s ease !important;
+    border-radius: 10px !important;
+    padding: 8px 20px !important;
+    transition: all 0.2s ease !important;
 }
 .stButton > button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 26px rgba(78, 237, 216, 0.5) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.4) !important;
 }
 
-/* Tab Navigation Styling */
-.stTabs [data-baseweb="tab-list"] {
-    background: #0e1217;
-    padding: 6px;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    gap: 8px;
-}
-.stTabs [data-baseweb="tab"] {
-    border-radius: 10px;
-    color: #9ca3af !important;
-    font-weight: 600;
-    padding: 10px 20px;
-}
-.stTabs [aria-selected="true"] {
-    background-color: #161c24 !important;
-    color: #4eedd8 !important;
-    border: 1px solid rgba(78, 237, 216, 0.3) !important;
-}
-
-/* Trial Profile Widget */
-.profile-stat-box {
-    background: linear-gradient(135deg, #0e1217 0%, #161e27 100%);
-    border: 1px solid rgba(78, 237, 216, 0.4);
-    border-radius: 16px;
-    padding: 20px;
-    text-align: center;
-    box-shadow: 0 0 20px rgba(78, 237, 216, 0.1);
+/* Unlock Pro Bottom Box */
+.unlock-pro-box {
+    background: #151722;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 30px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SUPABASE INITIALIZATION ---
+# --- 3. SUPABASE CLIENT ---
 @st.cache_resource
 def init_supabase():
     url = st.secrets["SUPABASE_URL"].strip()
@@ -143,78 +137,76 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 4. BACKEND AI ENGINE (AUTODISCOVERY + FALLBACK) ---
-def generate_ai_response(prompt_text):
-    errors = []
-
-    # Tier 1: Groq Dynamic Active Models
+# --- 4. BACKEND AI ENGINE (GROQ + GEMINI + OPENROUTER) ---
+def generate_ai_response(prompt_text, max_toks=1200):
     groq_key = st.secrets.get("GROQ_API_KEY", "").strip()
     if groq_key:
         try:
             m_res = requests.get(
                 "https://api.groq.com/openai/v1/models",
                 headers={"Authorization": f"Bearer {groq_key}"},
-                timeout=4
+                timeout=3
             )
             if m_res.status_code == 200:
-                available_models = [m["id"] for m in m_res.json().get("data", [])]
-                chat_models = [
-                    m for m in available_models 
-                    if not any(x in m for x in ["whisper", "guard", "vision", "embed"])
-                ]
-                for live_model in chat_models[:2]:
+                available = [m["id"] for m in m_res.json().get("data", [])]
+                chat_models = [m for m in available if not any(x in m for x in ["whisper", "guard", "vision", "embed"])]
+                for live_m in chat_models[:2]:
                     try:
                         res = requests.post(
                             "https://api.groq.com/openai/v1/chat/completions",
-                            headers={
-                                "Authorization": f"Bearer {groq_key}",
-                                "Content-Type": "application/json"
-                            },
+                            headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
                             json={
-                                "model": live_model,
+                                "model": live_m,
                                 "messages": [{"role": "user", "content": prompt_text}],
-                                "temperature": 0.4,
-                                "max_tokens": 1200
+                                "temperature": 0.3,
+                                "max_tokens": max_toks
                             },
-                            timeout=12
+                            timeout=14
                         )
                         if res.status_code == 200:
                             return res.json()["choices"][0]["message"]["content"].strip()
                     except Exception:
                         continue
-        except Exception as e:
-            errors.append(f"Groq: {str(e)}")
+        except Exception:
+            pass
 
-    # Tier 2: OpenRouter Direct Fallback
-    openrouter_key = st.secrets.get("OPENROUTER_API_KEY", "").strip()
-    if openrouter_key:
-        for or_m in ["meta-llama/llama-3.1-8b-instruct:free", "google/gemma-2-9b-it:free"]:
+    gemini_key = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
+    if gemini_key:
+        for g_model in ["gemini-1.5-flash", "gemini-pro"]:
             try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={gemini_key}"
                 res = requests.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {openrouter_key}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://toppergpt-live.streamlit.app",
-                        "X-Title": "TopperGPT"
-                    },
-                    json={
-                        "model": or_m,
-                        "messages": [{"role": "user", "content": prompt_text}],
-                        "max_tokens": 1200
-                    },
-                    timeout=12
+                    url,
+                    headers={"Content-Type": "application/json"},
+                    json={"contents": [{"parts": [{"text": prompt_text}]}]},
+                    timeout=14
                 )
                 if res.status_code == 200:
-                    resp_data = res.json()
-                    if "choices" in resp_data and len(resp_data["choices"]) > 0:
-                        return resp_data["choices"][0]["message"]["content"].strip()
+                    return res.json()['candidates'][0]['content']['parts'][0]['text'].strip()
             except Exception:
                 continue
 
-    raise Exception("Network slow hai bhai, ek baar dubara generate click karo.")
+    openrouter_key = st.secrets.get("OPENROUTER_API_KEY", "").strip()
+    if openrouter_key:
+        try:
+            res = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "meta-llama/llama-3.1-8b-instruct:free",
+                    "messages": [{"role": "user", "content": prompt_text}],
+                    "max_tokens": max_toks
+                },
+                timeout=14
+            )
+            if res.status_code == 200:
+                return res.json()["choices"][0]["message"]["content"].strip()
+        except Exception:
+            pass
 
-# --- 5. AUTHENTICATION ---
+    raise Exception("Connection timeout. Please retry your request.")
+
+# --- 5. AUTHENTICATION & ACCESS CONTROL ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
@@ -222,12 +214,11 @@ def clean_email_auth():
     if st.session_state.user_data is None:
         st.markdown("""
             <div style="text-align:center; padding: 40px 0 20px 0;">
-                <span class="badge-pill">AI-POWERED LEARNING PLATFORM</span>
-                <h1 style="color:#ffffff; font-size: 3.2rem; font-weight:800; margin: 10px 0;">
-                    Study Smarter with <span style="color:#4eedd8;">TopperGPT</span>
+                <h1 style="color:#ffffff; font-size: 2.8rem; font-weight:800; margin: 10px 0;">
+                    Topper<span style="color:#f59e0b;">GPT</span>
                 </h1>
-                <p style="color:#8b949e; font-size:16px; margin-top:0;">
-                    The AI intelligence engine built specifically for Mumbai University Engineering students.
+                <p style="color:#94a3b8; font-size:15px; margin-top:0;">
+                    AI Academic Workspace for Mumbai University Engineering.
                 </p>
             </div>
         """, unsafe_allow_html=True)
@@ -239,7 +230,7 @@ def clean_email_auth():
             with auth_tab[0]:
                 with st.form("quick_login"):
                     l_email = st.text_input("Registered Email Address", placeholder="name@domain.com", key="l_email_quick").strip().lower()
-                    if st.form_submit_button("ENTER WORKSPACE 🚀", use_container_width=True):
+                    if st.form_submit_button("ENTER DASHBOARD 🚀", use_container_width=True):
                         if l_email:
                             try:
                                 prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
@@ -247,52 +238,52 @@ def clean_email_auth():
                                     st.session_state.user_data = prof.data[0]
                                     st.rerun()
                                 else:
-                                    st.error("Account nahi mila. New Registration tab use karo.")
+                                    st.error("Account not found. Please register using the New Registration tab.")
                             except Exception as e:
                                 st.error(f"Database error: {e}")
                         else:
-                            st.warning("Email required!")
+                            st.warning("Email is required.")
 
             with auth_tab[1]:
                 with st.form("reg_form_quick"):
-                    st.caption("✨ Create your account to receive 10 complimentary intelligence trials.")
-                    s_name = st.text_input("Full Name", placeholder="Krishna", key="reg_name_quick")
-                    s_email = st.text_input("Email Address", placeholder="krishna@example.com", key="reg_email_quick").strip().lower()
-                    
+                    s_name = st.text_input("Full Name", placeholder="Enter your full name", key="reg_name_quick")
+                    s_email = st.text_input("Email Address", placeholder="name@domain.com", key="reg_email_quick").strip().lower()
                     if st.form_submit_button("CREATE FREE ACCOUNT 🔥", use_container_width=True):
                         if s_name and s_email:
                             try:
                                 check = supabase.table("profiles").select("*").eq("email", s_email).execute()
                                 if check.data:
-                                    st.warning("Account already exists! Use Quick Access.")
+                                    st.warning("Account already exists. Please log in.")
                                 else:
-                                    new_u = {
-                                        "email": s_email, 
-                                        "full_name": s_name, 
-                                        "free_trials_left": 10,
-                                        "is_pro": False
-                                    }
-                                    ins = supabase.table("profiles").insert(new_u).execute()
+                                    new_u = {"email": s_email, "full_name": s_name}
+                                    try:
+                                        new_u["free_trials_left"] = 10
+                                        new_u["is_pro"] = False
+                                        ins = supabase.table("profiles").insert(new_u).execute()
+                                    except Exception:
+                                        new_u.pop("free_trials_left", None)
+                                        new_u.pop("is_pro", None)
+                                        ins = supabase.table("profiles").insert(new_u).execute()
+
                                     if ins.data:
                                         st.session_state.user_data = ins.data[0]
                                         st.rerun()
                             except Exception as e:
                                 st.error(f"Server error: {str(e)}")
                         else:
-                            st.warning("Fill in all details.")
+                            st.warning("Please provide all required fields.")
         st.stop()
 
-# --- 6. ACCESS CHECK ---
 def check_access():
     user = st.session_state.get("user_data", {})
     if user.get("is_pro", False):
         return True
-    return user.get("free_trials_left", 10) > 0
+    return user.get("free_trials_left", user.get("credits", 10)) > 0
 
 def deduct_trial():
     user = st.session_state.get("user_data", {})
     if not user.get("is_pro", False):
-        curr = user.get("free_trials_left", 10)
+        curr = user.get("free_trials_left", user.get("credits", 10))
         new_val = max(0, curr - 1)
         st.session_state.user_data["free_trials_left"] = new_val
         try:
@@ -302,453 +293,396 @@ def deduct_trial():
 
 def show_paywall():
     st.markdown("""
-    <div style="background: #0e1217; border: 1px solid #ef4444; border-radius: 16px; padding: 25px; text-align: center; margin: 20px 0;">
-        <h3 style="color:#ef4444; margin-top:0;">🚨 Free Trials Exhausted</h3>
-        <p style="color:#9ca3af; font-size:14px;">Upgrade to unlock unlimited high-speed predictions, cheat sheets, and step-by-step solutions.</p>
+    <div style="background: #13151f; border: 1px solid #ef4444; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0;">
+        <h3 style="color:#ef4444; margin-top:0;">🚨 Free Academic Credits Depleted</h3>
+        <p style="color:#94a3b8; font-size:14px;">Upgrade to unlock unlimited AI tutor queries, predicted question archives, and complete model solutions.</p>
+        <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background:#f59e0b; color:#000000; padding:10px 24px; border-radius:8px; text-decoration:none; display:inline-block; font-weight:bold; margin-top:8px;">Unlock Unlimited Access (₹49)</a>
     </div>
     """, unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("""
-        <div class="topper-card" style="border: 2px solid #4eedd8; text-align:center;">
-            <span class="badge-pill">MONTHLY PASS</span>
-            <h1 style="color:#ffffff; font-size:36px; margin: 10px 0;">₹49</h1>
-            <p style="color:#8b949e; font-size:13px;">30 Days Unlimited Access Across All Modules</p>
-            <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background:#4eedd8; color:#050608; padding:12px 24px; border-radius:10px; text-decoration:none; display:inline-block; font-weight:bold; margin-top:10px;">Activate Monthly</a>
-        </div>
-        """, unsafe_allow_html=True)
-    with c2:
-        st.markdown("""
-        <div class="topper-card" style="border: 2px solid #22c55e; text-align:center;">
-            <span class="badge-pill" style="border-color:#22c55e; color:#22c55e;">SEMESTER PASS</span>
-            <h1 style="color:#ffffff; font-size:36px; margin: 10px 0;">₹199</h1>
-            <p style="color:#8b949e; font-size:13px;">Full Semester Coverage + Priority Paper Review</p>
-            <a href="https://rzp.io/rzp/hXcR54E" target="_blank" style="background:#22c55e; color:#050608; padding:12px 24px; border-radius:10px; text-decoration:none; display:inline-block; font-weight:bold; margin-top:10px;">Activate Semester</a>
-        </div>
-        """, unsafe_allow_html=True)
 
 clean_email_auth()
 
-# --- 7. SIDEBAR DASHBOARD ---
+# --- 6. SIDEBAR: EXACT SECOND-IMAGE VERTICAL NAVIGATION ---
 with st.sidebar:
     st.markdown("""
-        <div style="padding: 10px 0 20px 0;">
-            <h2 style="color:#ffffff; margin:0; font-weight:800; letter-spacing:-0.5px;">
-                Topper<span style="color:#4eedd8;">GPT</span>
-            </h2>
-            <p style="color:#8b949e; font-size:12px; margin:2px 0 0 0;">Precision Academic Intelligence</p>
+        <div style="display:flex; align-items:center; gap:8px; padding-bottom:15px;">
+            <div style="width:10px; height:10px; background:#f59e0b; border-radius:50%;"></div>
+            <h2 style="color:#ffffff; margin:0; font-size:22px; font-weight:800; letter-spacing:-0.5px;">TopperGPT</h2>
         </div>
     """, unsafe_allow_html=True)
 
+    # Vertical selection matching image 2
+    nav_selection = st.radio(
+        "Navigation",
+        [
+            "💡 AI Tutor",
+            "🎯 Predicted Qs",
+            "📄 Short Notes",
+            "🔍 Topic Research"
+        ],
+        label_visibility="collapsed"
+    )
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
+
+    # User Profile & Credit Status
     user = st.session_state.user_data
     is_pro = user.get("is_pro", False)
-    trials = user.get("free_trials_left", 10)
+    trials = user.get("free_trials_left", user.get("credits", 10))
 
-    if is_pro:
-        st.markdown("""
-            <div class="profile-stat-box" style="border-color:#4eedd8;">
-                <span class="badge-pill">ACCOUNT STATUS</span>
-                <h3 style="margin:8px 0; color:#ffffff;">👑 PRO UNLIMITED</h3>
-                <p style="margin:0; font-size:12px; color:#8b949e;">Full University Engine Unlocked</p>
+    if not is_pro:
+        st.markdown(f"""
+            <div class="unlock-pro-box">
+                <span style="color:#f59e0b; font-size:12px; font-weight:700; text-transform:uppercase;">Student Credits</span>
+                <h2 style="color:#ffffff; margin:4px 0 8px 0; font-size:28px;">{trials}<span style="font-size:14px; color:#64748b;"> / 10 Left</span></h2>
+                <div style="font-size:11px; color:#94a3b8; line-height:1.4;">Unlock unlimited exam packs and complete solutions from ₹49/mo.</div>
+                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background:#f59e0b; color:#000; display:block; text-align:center; padding:8px 0; border-radius:6px; font-weight:700; text-decoration:none; margin-top:10px; font-size:12px;">Upgrade to Pro</a>
             </div>
         """, unsafe_allow_html=True)
     else:
-        st.markdown(f"""
-            <div class="profile-stat-box">
-                <span class="badge-pill">STUDENT ACCESS</span>
-                <h1 style="margin:5px 0; color:#ffffff; font-size:42px; font-weight:800;">{trials}<span style="font-size:20px; color:#8b949e;">/10</span></h1>
-                <p style="margin:0; font-size:12px; color:#8b949e;">Free Intelligence Credits Remaining</p>
+        st.markdown("""
+            <div class="unlock-pro-box" style="border-color:#22c55e;">
+                <span style="color:#22c55e; font-size:12px; font-weight:700;">ACCOUNT STATUS</span>
+                <h4 style="color:#ffffff; margin:4px 0;">👑 PRO ACTIVE</h4>
             </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔓 End Session", use_container_width=True):
+    if st.button("🚪 Logout", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
-# --- 8. HERO GREETING ---
+# --- 7. TOP HEADER & STREAK BAR ---
 student_name = st.session_state.user_data.get("full_name", "Student")
-st.markdown(f"""
-    <div style="padding: 15px 0 25px 0;">
-        <span class="badge-pill">DASHBOARD ACTIVE</span>
-        <h1 style="color:#ffffff; font-size: 2.4rem; font-weight:800; margin: 4px 0;">
-            Hello, {student_name} 👋
-        </h1>
-        <p style="color:#8b949e; font-size:15px; margin:0;">
-            Ready to analyze Mumbai University patterns and generate exam-grade notes?
-        </p>
-    </div>
-""", unsafe_allow_html=True)
+clean_title = nav_selection.split(" ", 1)[1]
 
-# --- 9. CORE APPLICATION SUITE ---
-main_tab0, main_tab1, main_tab2, main_tab3 = st.tabs([
-    "🤖 24/7 AI Academic Tutor",
-    "🎯 Predicted Questions", 
-    "📝 Chapter Short-Notes", 
-    "🔍 Topic Breakdown"
-])
+col_head, col_badge = st.columns([3, 1])
+with col_head:
+    st.markdown(f"<h1 style='color:#ffffff; font-size:32px; font-weight:800; margin:0 0 15px 0;'>{clean_title}</h1>", unsafe_allow_html=True)
+with col_badge:
+    st.markdown("<div class='streak-badge'>🔥 6-day study streak</div>", unsafe_allow_html=True)
+
+# Helper function for Instant Hinglish Translation
+def translate_to_hinglish(text_content):
+    prompt = f"""Translate and simplify the following engineering explanation into clear, friendly Hinglish (Hindi written in English alphabets) so that an Indian student can understand it effortlessly. Keep all equations and mathematical variables intact.\n\nText:\n{text_content}"""
+    return generate_ai_response(prompt, max_toks=1000)
 
 # ==================================================
-# --- TAB 0: 24/7 AI ACADEMIC TUTOR (HERO FEATURE) ---
+# --- 1. FEATURE: AI ACADEMIC TUTOR ---
 # ==================================================
-with main_tab0:
+if nav_selection == "💡 AI Tutor":
     st.markdown("""
-        <div class="topper-card">
-            <h3 style="margin-top:0; color:#4eedd8;">🤖 24/7 Mumbai University Academic Mentor</h3>
-            <p style="color:#8b949e; font-size:14px; margin-bottom:0;">
-                Ask any engineering doubt, derivation step, or numerical. Evaluated with the marking awareness of a senior MU paper checker.
-            </p>
+        <div>
+            <span class="starter-chip">💡 Explain a concept</span>
+            <span class="starter-chip">📄 Summarize a chapter</span>
+            <span class="starter-chip">🎯 Practice questions</span>
         </div>
     """, unsafe_allow_html=True)
 
-    # Initialize chat history
     if "tutor_messages" not in st.session_state:
         st.session_state.tutor_messages = [
             {
                 "role": "assistant",
-                "content": f"Hey {student_name}! Main tera Mumbai University Exam Mentor hoon. Koi bhi doubt, numerical ya derivation poocho, direct answer-sheet marking standard ke hisab se solve karenge!"
+                "content": f"Hello {student_name} 👋 What are we studying today? Ask me anything from your syllabus.",
+                "hinglish": None
             }
         ]
 
-    # Render previous messages
-    for msg in st.session_state.tutor_messages:
+    for idx, msg in enumerate(st.session_state.tutor_messages):
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
+            if msg["role"] == "assistant" and idx > 0:
+                if msg.get("hinglish"):
+                    with st.expander("🗣️ View Hinglish Explanation"):
+                        st.markdown(msg["hinglish"])
+                else:
+                    if st.button("🗣️ Explain in Hinglish", key=f"tr_{idx}"):
+                        with st.spinner("Translating to simple Hinglish..."):
+                            h_res = translate_to_hinglish(msg["content"])
+                            st.session_state.tutor_messages[idx]["hinglish"] = h_res
+                            st.rerun()
 
-    # Chat Input Field
-    user_query = st.chat_input("Poocho koi bhi concept, question ya numerical (e.g. State Thevenin theorem, explain RK4 method)...")
+    user_query = st.chat_input("Ask a doubt, request notes, or get PYQs...")
 
     if user_query:
         if not check_access():
             show_paywall()
         else:
             deduct_trial()
-            
-            # Append student query to history
-            st.session_state.tutor_messages.append({"role": "user", "content": user_query})
+            st.session_state.tutor_messages.append({"role": "user", "content": user_query, "hinglish": None})
             with st.chat_message("user"):
                 st.markdown(user_query)
 
-            # Master Examiner System Prompt
             tutor_prompt = f"""
-You are TopperGPT's 24/7 AI Academic Tutor, operating as a Senior Evaluator, Subject Matter Expert, and Academic Mentor for Mumbai University (MU) Engineering students under the C-Scheme.
-You must answer the student's message below with the judgment, technical precision, and marking awareness of an experienced MU university paper checker.
+            You are TopperGPT's Senior Academic Evaluator for Mumbai University Engineering (C-Scheme).
+            Respond exclusively in professional, clear, exam-oriented English.
 
-Student Query:
-"{user_query}"
+            Student Query: "{user_query}"
 
-1. CORE ROLE & PERSONA
-Act as a Senior MU Engineering Professor and University Examination Evaluator.
-Your tone must be: Highly knowledgeable, encouraging but intellectually honest, direct, practical, academically strict, and focused on what earns marks in an examination paper.
-Do not blindly agree with the student. If the student's method, assumption, formula, calculation, or understanding is wrong, clearly identify the mistake and correct it.
+            1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.
+            2. If academic: Use the strict 3-block structure:
+               ### 📌 1. University Standard Definition (2-Mark Standard)
+               Accurate textbook definition and mandatory examiner keywords.
 
-2. INPUT ROUTING LOGIC
-First, internally classify the query into exactly one route:
+               ### ⚡ 2. Step-by-Step Technical Execution & Derivation
+               Logically organized steps, formulas with Markdown LaTeX ($...$ or $$...$$), and specific 'Exam Diagram Requirement' if applicable.
 
-ROUTE A: CASUAL / CONVERSATIONAL
-Use Route A when the message is casual, social, or non-academic (e.g., 'hi', 'hello', 'hey', 'kaise ho', 'help me', 'bro').
-For Route A:
-- Reply naturally and warmly in 1 to 2 short sentences.
-- Do NOT trigger the 3-block academic architecture. No definitions, no traps, no filler.
-
-ROUTE B: ACADEMIC (Theory, Numericals, Derivations, Coding, Concepts, Past Questions)
-For Route B, produce EXACTLY these 3 blocks in this exact order:
-
-📌 Block 1: University Standard Definition (2-Mark Standard)
-- State the accurate textbook-standard definition, governing law, or core theorem.
-- Clearly highlight mandatory keywords that an MU evaluator checks for.
-
-⚡ Block 2: Step-by-Step Technical Execution & Derivation
-- For numericals: Explicitly state Given Data, Formula, Step-by-Step Substitution, Intermediate Calculations, and Final Boxed Answer with correct SI units.
-- For derivations: State starting equations, clear assumptions, intermediate algebraic transformations, and final boxed expression.
-- For diagrams/schematics: If expected in an exam, write a dedicated sub-block 'Exam Diagram to Draw:' detailing the exact diagram, components, direction arrows, and label names needed.
-- Enforce strict Markdown LaTeX formatting ($inline$ and $$display$$). Never leak raw unformatted LaTeX.
-
-⚠️ Block 3: Examiner Trap Alert
-- State the exact spot where 90% of students lose marks on this specific question (e.g., degree to radian conversion, wrong sign convention, missing boundary conditions, forgotten assumptions).
-- Keep it specific to the problem. No generic advice.
-
-Produce only the designated structure without generic introductory setups or conversational summaries.
-"""
+               ### ⚠️ 3. Examiner Trap Alert
+               Precise calculation error, unit conversion, or assumption where students frequently lose marks.
+            """
 
             with st.chat_message("assistant"):
-                with st.spinner("Analyzing with MU Examiner standards..."):
+                with st.spinner("Analyzing syllabus and evaluation rubrics..."):
                     try:
                         ai_reply = generate_ai_response(tutor_prompt)
                         st.markdown(ai_reply)
-                        st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply})
+                        st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Error: {e}")
 
-    # Reset chat option
-    if len(st.session_state.tutor_messages) > 1:
-        if st.button("🗑️ Clear Chat History"):
-            st.session_state.tutor_messages = [st.session_state.tutor_messages[0]]
-            st.rerun()
-
 # ==================================================
-# --- TAB 1: PREDICTED QUESTIONS ENGINE ---
+# --- 2. FEATURE: PREDICTED QUESTIONS ---
 # ==================================================
-with main_tab1:
+elif nav_selection == "🎯 Predicted Qs":
     st.markdown("""
         <div class="topper-card">
-            <h3 style="margin-top:0; color:#4eedd8;">🎯 MU Exam Sniper: High-Probability Questions</h3>
-            <p style="color:#8b949e; font-size:14px;">Instant prediction of top recurring questions, examiner marking rubrics, and historical variations.</p>
+            <h3 style="margin-top:0; color:#f59e0b;">Target High-Probability Examination Questions</h3>
+            <p style="color:#94a3b8; font-size:14px; margin:0;">
+                Predict recurring Mumbai University questions, examiner marking rubrics, and previous year variations.
+            </p>
         </div>
     """, unsafe_allow_html=True)
 
-    p_topic = st.text_input(
-        "Enter Topic / Module / Concept:", 
-        placeholder="e.g. Runge-Kutta 4th Order, Trees & Graphs, PN Junction, Complex Integration", 
-        key="p_topic_sniper"
-    )
+    p_topic = st.text_input("Enter Topic or Module Name:", placeholder="e.g. Runge-Kutta 4th Order, Virtual Memory, BJT Biasing, Trees", key="pred_topic_input")
 
-    if st.button("⚡ EXTRACT EXAM BLUEPRINT", use_container_width=True):
+    if st.button("Generate Exam Blueprint ⚡", use_container_width=True):
         if not p_topic.strip():
-            st.warning("Pehle koi topic enter karo!")
+            st.warning("Please enter a valid topic or chapter name.")
         elif not check_access():
             show_paywall()
         else:
             deduct_trial()
-            with st.spinner(f"Extracting MU patterns for '{p_topic}'..."):
-                fast_prompt = f"""
-                You are a Senior Mumbai University (MU) Engineering Paper Setter.
+            with st.spinner(f"Extracting examination patterns for '{p_topic}'..."):
+                pred_prompt = f"""
+                You are a Senior Mumbai University Engineering Paper Setter.
                 Target Topic: {p_topic}
+                Language: Strictly Professional English.
 
-                Generate a crisp, high-speed examination blueprint. Do not output conversational filler.
-                Strictly format as:
-
+                Produce:
                 ### SECTION 1: 🎯 Top 5 Most Repeated Exam Questions
-                List 5 high-probability questions (combination of [2M], [6M], and [10M]).
-                For each question use this exact clean format:
-                **Q[Number] ([Marks]M) | [Expected Probability %]**
-                - **Question:** [Exact exam question statement]
-                - **Marking Rubric:** [1-line marks breakup, e.g., Formula: 2M, Calculation: 3M, Final Ans: 1M]
-                - **Examiner Trap:** [1-line common mistake students make]
+                List 5 high-probability questions ([2M], [6M], [10M]).
+                Format each item as:
+                **Q[Number] ([Marks]M) | [Expected Recurrence Probability]**
+                - **Question:** [Authentic examination question statement]
+                - **Marking Rubric:** [Specific score breakdown]
+                - **Examiner Trap:** [Common calculation or conceptual mistake]
 
                 ---
 
-                ### SECTION 2: 📚 Complete PYQ Archive for this Topic
-                Group all other previous years variations into:
-                - **2-Mark Short Questions & Definitions** (List 3-4 questions)
-                - **6-Mark Analytical & Derivations** (List 2-3 questions)
-                - **10-Mark Full Numericals / Long Problems** (List 2-3 questions with given values)
+                ### SECTION 2: 📚 Historical PYQ Archive
+                - **2-Mark Short Concepts & Definitions** (3 items)
+                - **6-Mark Analytical & Derivations** (3 items)
+                - **10-Mark Comprehensive Numericals** (2 items with full parameters)
                 """
                 try:
-                    res_text = generate_ai_response(fast_prompt)
-                    st.session_state.p_clean_out = res_text
-                    st.session_state.p_clean_topic = p_topic
+                    res_text = generate_ai_response(pred_prompt)
+                    st.session_state.pred_result = res_text
+                    st.session_state.pred_topic_name = p_topic
+                    st.session_state.pred_hinglish = None
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Generation error: {e}")
+                    st.error(f"Error: {e}")
 
-    if "p_clean_out" in st.session_state and st.session_state.p_clean_out:
+    if "pred_result" in st.session_state and st.session_state.pred_result:
         st.markdown("---")
-        st.markdown(f"### 📘 Exam Target Sheet: **{st.session_state.get('p_clean_topic', '').upper()}**")
-        st.markdown(st.session_state.p_clean_out)
+        st.markdown(f"### 📘 Exam Blueprint: **{st.session_state.get('pred_topic_name', '').upper()}**")
+        st.markdown(st.session_state.pred_result)
 
-        # Pro Upsell Banner Matching Landing Page Neon Style
-        st.markdown("""
-            <div class="topper-card" style="border: 2px solid #4eedd8; text-align: center; margin-top: 30px;">
-                <h3 style="color: #4eedd8; margin-top: 0;">💡 Need Step-by-Step Model Solved Answers?</h3>
-                <p style="color: #9ca3af; font-size: 14px;">
-                    Unlock Mumbai University standard solutions, step-by-step mathematical proofs, and solved numerical steps with TopperGPT PRO.
-                </p>
-                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background: #4eedd8; color: #050608; padding: 10px 24px; border-radius: 10px; text-decoration: none; font-weight: 700; display: inline-block; margin-top: 8px;">
-                    🔓 Unlock Complete Solutions (₹49)
-                </a>
-            </div>
-        """, unsafe_allow_html=True)
-
-        if st.button("🗑️ Search Another Topic"):
-            del st.session_state.p_clean_out
-            st.rerun()
-
-# ==================================================
-# --- TAB 2: CHAPTER SHORT-NOTES GENERATOR ---
-# ==================================================
-with main_tab2:
-    st.markdown("""
-        <div class="topper-card">
-            <h3 style="margin-top:0; color:#00F2FE;">📝 1-Page Exam Cheat Sheet</h3>
-            <p style="color:#8b949e; font-size:14px;">Generate clean mathematical equations with units, scoring priorities, and rapid keywords.</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    sn_chapter = st.text_input(
-        "Enter Chapter / Module Name:", 
-        placeholder="e.g. Semiconductor Physics, AC Circuits, Interpolation, Trees", 
-        key="sn_chap_input_styled"
-    )
-
-    if st.button("📑 GENERATE REVISION SHEET", use_container_width=True):
-        if not sn_chapter.strip():
-            st.warning("Chapter ka naam enter karo!")
-        elif not check_access():
-            show_paywall()
-        else:
-            deduct_trial()
-            with st.spinner(f"Synthesizing revision sheet for '{sn_chapter}'..."):
-                sn_prompt = f"""
-                Act as a Principal Mumbai University (MU) Engineering Professor.
-                Target Chapter/Module: {sn_chapter}
-                
-                Generate an ultra-clean, high-yield 1-page revision sheet for last-minute exam preparation.
-                
-                CRITICAL FORMATTING INSTRUCTIONS:
-                - DO NOT use markdown tables for formulas because LaTeX breaks inside table cells.
-                - Use clear standalone bullets and clean display equations using $$...$$ or $...$.
-                - Ensure all equations render cleanly without raw LaTeX source tags showing.
-                
-                OUTPUT STRUCTURE:
-                
-                ### 1. 🧮 Core Exam Formulas & Calculation Traps
-                Provide the top 5 to 7 most critical numerical formulas for this chapter.
-                Format each formula as:
-                * **[Formula Name / Purpose]**
-                  $$[Formula in clean LaTeX]$$
-                  - **Variables & Units:** Parameter names with standard SI units.
-                  - **Where to apply:** 1 line stating the exact problem type where this formula is required.
-                
-                ---
-                
-                ### 2. 🎯 High-Weightage Exam Topics (Scoring Priority)
-                List the top 4 must-prepare core topics for this module:
-                * **[Topic Name]** ([Marks]M - e.g., 6M Derivation or 10M Numerical)
-                  - **Expected Question Type:** (e.g. Derive expression with neat diagram, Numerical calculation).
-                  - **Mandatory Keywords:** Words and laws the examiner looks for.
-                
-                ---
-                
-                ### 3. ⚡ 5-Minute Rapid Revision Keywords
-                Provide 5 concise, high-impact technical summary points with textbook-standard terms highlighted in bold.
-                """
-                try:
-                    sn_res = generate_ai_response(sn_prompt)
-                    st.session_state.sn_output_data = sn_res
-                    st.session_state.sn_current_chap = sn_chapter
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Generation error: {e}")
-
-    if "sn_output_data" in st.session_state and st.session_state.sn_output_data:
-        st.markdown("---")
-        st.markdown(f"### 📘 High-Yield Revision Sheet: **{st.session_state.get('sn_current_chap', '').upper()}**")
-        st.markdown(st.session_state.sn_output_data)
-
-        st.markdown("""
-            <div class="topper-card" style="border: 2px solid #22c55e; text-align: center; margin-top: 30px;">
-                <h3 style="color: #22c55e; margin-top: 0;">📚 Need Full Handwritten-Style Solved Proofs?</h3>
-                <p style="color: #9ca3af; font-size: 14px;">
-                    Get access to complete solved derivations and formula proofs formatted for full examiner credit.
-                </p>
-                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background: #22c55e; color: #050608; padding: 10px 24px; border-radius: 10px; text-decoration: none; font-weight: 700; display: inline-block; margin-top: 8px;">
-                    🔓 Unlock Complete Exam Pack (₹49)
-                </a>
-            </div>
-        """, unsafe_allow_html=True)
-
-        c_sn1, c_sn2 = st.columns(2)
-        with c_sn1:
-            if st.button("🗑️ Clear Revision Sheet", use_container_width=True):
-                del st.session_state.sn_output_data
-                st.rerun()
-        with c_sn2:
+        col_act1, col_act2 = st.columns([1, 1])
+        with col_act1:
+            if not st.session_state.get("pred_hinglish"):
+                if st.button("🗣️ Translate to Hinglish", key="trans_pred"):
+                    with st.spinner("Translating blueprint to Hinglish..."):
+                        st.session_state.pred_hinglish = translate_to_hinglish(st.session_state.pred_result)
+                        st.rerun()
+        with col_act2:
             st.download_button(
-                label="📥 Download Markdown Sheet",
-                data=st.session_state.sn_output_data,
-                file_name=f"{st.session_state.get('sn_current_chap', 'Sheet')}_MU_Revision.md",
+                "📥 Download Blueprint",
+                data=st.session_state.pred_result,
+                file_name=f"{st.session_state.get('pred_topic_name', 'Topic')}_MU_Blueprint.md",
                 mime="text/markdown",
                 use_container_width=True
             )
 
+        if st.session_state.get("pred_hinglish"):
+            with st.expander("🗣️ View Hinglish Blueprint Translation", expanded=True):
+                st.markdown(st.session_state.pred_hinglish)
+
 # ==================================================
-# --- TAB 3: STREAMLINED TOPIC BREAKDOWN ---
+# --- 3. FEATURE: CHAPTER SHORT-NOTES ---
 # ==================================================
-with main_tab3:
+elif nav_selection == "📄 Short Notes":
     st.markdown("""
         <div class="topper-card">
-            <h3 style="margin-top:0; color:#facc15;">🔍 Streamlined 3-Card Concept Breakdown</h3>
-            <p style="color:#8b949e; font-size:14px;">Instant precision report covering definition, technical breakdown, and operational principle.</p>
+            <h3 style="margin-top:0; color:#f59e0b;">1-Page Exam Cheat Sheet</h3>
+            <p style="color:#94a3b8; font-size:14px; margin:0;">
+                Synthesize high-yield formulas with proper SI units, high-scoring modules, and rapid revision notes.
+            </p>
         </div>
     """, unsafe_allow_html=True)
 
-    query = st.text_input("Enter Concept to Research:", placeholder="e.g. Transformer on No Load, Virtual Memory, BJT Biasing", key="topic_search_styled")
+    sn_topic = st.text_input("Enter Chapter / Module Name:", placeholder="e.g. Semiconductor Physics, AC Circuits, Interpolation", key="sn_topic_input")
 
-    if st.button("⚡ EXECUTE DEEP RESEARCH", use_container_width=True):
-        if not query.strip():
-            st.warning("Pehle koi topic likho!")
+    if st.button("Generate Revision Sheet 📑", use_container_width=True):
+        if not sn_topic.strip():
+            st.warning("Please enter a chapter name.")
         elif not check_access():
             show_paywall()
         else:
             deduct_trial()
-            with st.spinner(f"Analyzing '{query}'..."):
-                prompt = f"""
-                Act as an Engineering Professor for Mumbai University curriculum.
-                Provide an academically accurate breakdown for: '{query}'.
-                
-                Use these 3 exact tags:
-                [1_DEF]
-                Exact University Standard 2-Mark definition as expected by MU checkers.
-                [2_BRK]
-                Technical Breakdown: Core equations, architecture parameters, and diagram requirements.
-                [3_WRK]
-                Working Principle: Step-by-step operational mechanics.
+            with st.spinner(f"Compiling notes for '{sn_topic}'..."):
+                sn_prompt = f"""
+                Act as a Principal Mumbai University Engineering Professor.
+                Target Chapter: {sn_topic}
+                Language: Strictly Professional English.
+
+                Do not use markdown tables for equations. Use clean Markdown LaTeX ($$ display blocks).
+
+                OUTPUT:
+                ### 1. 🧮 Core Numerical Formulas & Parameters
+                List the 5-7 most essential formulas:
+                * **[Formula Name]**
+                  $$[Formula in LaTeX]$$
+                  - **Variables & SI Units:** Descriptions with standard units.
+                  - **Exam Application:** Where this formula is needed.
+
+                ---
+
+                ### 2. 🎯 High-Weightage Core Topics
+                List top 4 must-prepare topics with expected marks ([6M] or [10M]) and key requirements.
+
+                ---
+
+                ### 3. ⚡ 5-Minute Rapid Revision Keywords
+                5 concise high-yield points with examiner-targeted terminology in bold.
                 """
                 try:
-                    ts_res = generate_ai_response(prompt)
-                    st.session_state.research_data = ts_res
-                    st.session_state.research_query = query
+                    sn_res = generate_ai_response(sn_prompt)
+                    st.session_state.sn_data = sn_res
+                    st.session_state.sn_name = sn_topic
+                    st.session_state.sn_hinglish = None
                     st.rerun()
-                except Exception as e: 
+                except Exception as e:
                     st.error(f"Error: {e}")
 
-    if "research_data" in st.session_state and st.session_state.research_data:
-        out = st.session_state.research_data
-        q_name = st.session_state.research_query
+    if "sn_data" in st.session_state and st.session_state.sn_data:
+        st.markdown("---")
+        st.markdown(f"### 📘 Revision Sheet: **{st.session_state.get('sn_name', '').upper()}**")
+        st.markdown(st.session_state.sn_data)
 
-        def extract_block(start_tag, end_tag=None):
+        col_sn1, col_sn2 = st.columns([1, 1])
+        with col_sn1:
+            if not st.session_state.get("sn_hinglish"):
+                if st.button("🗣️ Translate to Hinglish", key="trans_sn"):
+                    with st.spinner("Translating cheat sheet to Hinglish..."):
+                        st.session_state.sn_hinglish = translate_to_hinglish(st.session_state.sn_data)
+                        st.rerun()
+        with col_sn2:
+            st.download_button(
+                "📥 Download Markdown Sheet",
+                data=st.session_state.sn_data,
+                file_name=f"{st.session_state.get('sn_name', 'Revision')}_CheatSheet.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+
+        if st.session_state.get("sn_hinglish"):
+            with st.expander("🗣️ View Hinglish Cheat Sheet Translation", expanded=True):
+                st.markdown(st.session_state.sn_hinglish)
+
+# ==================================================
+# --- 4. FEATURE: TOPIC RESEARCH ---
+# ==================================================
+elif nav_selection == "🔍 Topic Research":
+    st.markdown("""
+        <div class="topper-card">
+            <h3 style="margin-top:0; color:#f59e0b;">Streamlined Concept Breakdown</h3>
+            <p style="color:#94a3b8; font-size:14px; margin:0;">
+                Get university-standard definitions, technical breakdowns, and working principles in 3 clean cards.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    topic_q = st.text_input("Enter Concept to Research:", placeholder="e.g. Transformer on No Load, BJT Biasing, Process Scheduling", key="res_q_input")
+
+    if st.button("Execute Deep Research ⚡", use_container_width=True):
+        if not topic_q.strip():
+            st.warning("Please enter a concept name.")
+        elif not check_access():
+            show_paywall()
+        else:
+            deduct_trial()
+            with st.spinner(f"Analyzing '{topic_q}'..."):
+                res_prompt = f"""
+                Provide an academically rigorous breakdown for: '{topic_q}'.
+                Language: Strictly Professional English.
+
+                Format with exact tags:
+                [1_DEF]
+                University standard 2-mark definition with textbook keywords.
+                [2_BRK]
+                Technical breakdown: Equations, architecture, circuit or diagram details.
+                [3_WRK]
+                Working principle: Step-by-step operational mechanism.
+                """
+                try:
+                    r_res = generate_ai_response(res_prompt)
+                    st.session_state.topic_res_data = r_res
+                    st.session_state.topic_res_name = topic_q
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+    if "topic_res_data" in st.session_state and st.session_state.topic_res_data:
+        r_out = st.session_state.topic_res_data
+        t_name = st.session_state.topic_res_name
+
+        def extract_chunk(start_tag, end_tag=None):
             try:
-                if start_tag not in out:
-                    return "Details being formulated..."
-                content = out.split(start_tag)[1]
+                if start_tag not in r_out:
+                    return "Details unavailable."
+                content = r_out.split(start_tag)[1]
                 if end_tag and end_tag in content:
                     content = content.split(end_tag)[0]
                 return content.strip()
             except Exception:
-                return "Section parsing error."
+                return "Parsing error."
 
-        def_text = extract_block("[1_DEF]", "[2_BRK]")
-        brk_text = extract_block("[2_BRK]", "[3_WRK]")
-        wrk_text = extract_block("[3_WRK]")
+        d1 = extract_chunk("[1_DEF]", "[2_BRK]")
+        d2 = extract_chunk("[2_BRK]", "[3_WRK]")
+        d3 = extract_chunk("[3_WRK]")
 
-        st.markdown(f"### 📘 Technical Report: **{q_name.upper()}**")
-        
+        st.markdown(f"### 📘 Technical Report: **{t_name.upper()}**")
         c1, c2, c3 = st.columns(3)
         with c1:
             st.markdown(f"""
-            <div class="topper-card" style="border-left: 4px solid #4eedd8;">
-                <h4 style="color:#4eedd8; margin-top:0;">1. University Standard Definition</h4>
-                <p style="font-size:14px; line-height:1.6; color:#d1d5db;">{def_text}</p>
+            <div class="topper-card" style="border-top: 3px solid #f59e0b;">
+                <h4 style="color:#f59e0b; margin-top:0;">1. Official Definition</h4>
+                <p style="font-size:14px; line-height:1.6; color:#d1d5db;">{d1}</p>
             </div>
             """, unsafe_allow_html=True)
-            
         with c2:
             st.markdown(f"""
-            <div class="topper-card" style="border-left: 4px solid #00F2FE;">
+            <div class="topper-card" style="border-top: 3px solid #00F2FE;">
                 <h4 style="color:#00F2FE; margin-top:0;">2. Technical Breakdown</h4>
-                <p style="font-size:14px; line-height:1.6; color:#d1d5db;">{brk_text}</p>
+                <p style="font-size:14px; line-height:1.6; color:#d1d5db;">{d2}</p>
             </div>
             """, unsafe_allow_html=True)
-            
         with c3:
             st.markdown(f"""
-            <div class="topper-card" style="border-left: 4px solid #facc15;">
-                <h4 style="color:#facc15; margin-top:0;">3. Working Principle</h4>
-                <p style="font-size:14px; line-height:1.6; color:#d1d5db;">{wrk_text}</p>
+            <div class="topper-card" style="border-top: 3px solid #22c55e;">
+                <h4 style="color:#22c55e; margin-top:0;">3. Working Principle</h4>
+                <p style="font-size:14px; line-height:1.6; color:#d1d5db;">{d3}</p>
             </div>
             """, unsafe_allow_html=True)
-
-        if st.button("🗑️ Clear Research"):
-            del st.session_state.research_data
-            st.rerun()
