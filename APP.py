@@ -602,7 +602,7 @@ elif nav_selection == "📄 Short Notes":
                 st.markdown(st.session_state.sn_hinglish)
 
 # ==================================================
-# --- 4. FEATURE: TOPIC RESEARCH ---
+# --- 4. FEATURE: TOPIC RESEARCH (CLEAN LATEX RENDER) ---
 # ==================================================
 elif nav_selection == "🔍 Topic Research":
     st.markdown("""
@@ -614,7 +614,7 @@ elif nav_selection == "🔍 Topic Research":
         </div>
     """, unsafe_allow_html=True)
 
-    topic_q = st.text_input("Enter Concept to Research:", placeholder="e.g. Transformer on No Load, BJT Biasing, Process Scheduling", key="res_q_input")
+    topic_q = st.text_input("Enter Concept to Research:", placeholder="e.g. Bipolar Junction Transistor, Transformer on No Load, Process Scheduling", key="res_q_input")
 
     if st.button("Execute Deep Research ⚡", use_container_width=True):
         if not topic_q.strip():
@@ -625,19 +625,28 @@ elif nav_selection == "🔍 Topic Research":
             deduct_trial()
             with st.spinner(f"Analyzing '{topic_q}'..."):
                 res_prompt = f"""
-                Provide an academically rigorous breakdown for: '{topic_q}'.
+                Act as a Senior Mumbai University Engineering Professor.
+                Target Topic: {topic_q}
                 Language: Strictly Professional English.
 
-                Format with exact tags:
-                [1_DEF]
-                University standard 2-mark definition with textbook keywords.
-                [2_BRK]
-                Technical breakdown: Equations, architecture, circuit or diagram details.
-                [3_WRK]
-                Working principle: Step-by-step operational mechanism.
+                CRITICAL LATEX INSTRUCTIONS:
+                - Do not use brackets like [ or ] for math.
+                - Use standard inline math like $V_{{BE}}$ or display math like $$I_C = \\beta I_B$$.
+                - Ensure equations render cleanly.
+
+                Provide content strictly under these exact section headers:
+
+                ## 1. Official Definition
+                Official 2-mark university standard definition with textbook keywords.
+
+                ## 2. Technical Breakdown
+                Architecture, circuit configuration, and key governing formulas. Write each formula on a separate line with $$...$$ delimiters.
+
+                ## 3. Working Principle
+                Step-by-step physical or operational mechanism with clear engineering cause-and-effect flow.
                 """
                 try:
-                    r_res = generate_ai_response(res_prompt)
+                    r_res = generate_ai_response(res_prompt, max_toks=1200)
                     st.session_state.topic_res_data = r_res
                     st.session_state.topic_res_name = topic_q
                     st.rerun()
@@ -648,41 +657,41 @@ elif nav_selection == "🔍 Topic Research":
         r_out = st.session_state.topic_res_data
         t_name = st.session_state.topic_res_name
 
-        def extract_chunk(start_tag, end_tag=None):
+        st.markdown(f"### 📘 Technical Report: **{t_name.upper()}**")
+
+        # Parsing using reliable markdown headings
+        def get_section(title, next_title=None):
             try:
-                if start_tag not in r_out:
-                    return "Details unavailable."
-                content = r_out.split(start_tag)[1]
-                if end_tag and end_tag in content:
-                    content = content.split(end_tag)[0]
-                return content.strip()
+                if title not in r_out:
+                    return "Content processing..."
+                part = r_out.split(title)[1]
+                if next_title and next_title in part:
+                    part = part.split(next_title)[0]
+                return part.strip()
             except Exception:
                 return "Parsing error."
 
-        d1 = extract_chunk("[1_DEF]", "[2_BRK]")
-        d2 = extract_chunk("[2_BRK]", "[3_WRK]")
-        d3 = extract_chunk("[3_WRK]")
+        sec1 = get_section("## 1. Official Definition", "## 2. Technical Breakdown")
+        sec2 = get_section("## 2. Technical Breakdown", "## 3. Working Principle")
+        sec3 = get_section("## 3. Working Principle")
 
-        st.markdown(f"### 📘 Technical Report: **{t_name.upper()}**")
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.markdown(f"""
-            <div class="topper-card" style="border-top: 3px solid #f59e0b;">
-                <h4 style="color:#f59e0b; margin-top:0;">1. Official Definition</h4>
-                <p style="font-size:14px; line-height:1.6; color:#d1d5db;">{d1}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        with c2:
-            st.markdown(f"""
-            <div class="topper-card" style="border-top: 3px solid #00F2FE;">
-                <h4 style="color:#00F2FE; margin-top:0;">2. Technical Breakdown</h4>
-                <p style="font-size:14px; line-height:1.6; color:#d1d5db;">{d2}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        with c3:
-            st.markdown(f"""
-            <div class="topper-card" style="border-top: 3px solid #22c55e;">
-                <h4 style="color:#22c55e; margin-top:0;">3. Working Principle</h4>
-                <p style="font-size:14px; line-height:1.6; color:#d1d5db;">{d3}</p>
-            </div>
-            """, unsafe_allow_html=True)
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            with st.container(border=True):
+                st.markdown("<h4 style='color:#f59e0b; margin-top:0;'>1. Official Definition</h4>", unsafe_allow_html=True)
+                st.markdown(sec1)
+                
+        with col2:
+            with st.container(border=True):
+                st.markdown("<h4 style='color:#00F2FE; margin-top:0;'>2. Technical Breakdown</h4>", unsafe_allow_html=True)
+                st.markdown(sec2)
+                
+        with col3:
+            with st.container(border=True):
+                st.markdown("<h4 style='color:#22c55e; margin-top:0;'>3. Working Principle</h4>", unsafe_allow_html=True)
+                st.markdown(sec3)
+
+        if st.button("🗑️ Clear Research"):
+            del st.session_state.topic_res_data
+            st.rerun()
