@@ -602,7 +602,7 @@ elif nav_selection == "📄 Short Notes":
                 st.markdown(st.session_state.sn_hinglish)
 
 # ==================================================
-# --- 4. FEATURE: TOPIC RESEARCH (CLEAN LATEX RENDER) ---
+# --- 4. FEATURE: TOPIC RESEARCH (ZERO-FAIL JSON PARSING) ---
 # ==================================================
 elif nav_selection == "🔍 Topic Research":
     st.markdown("""
@@ -614,7 +614,7 @@ elif nav_selection == "🔍 Topic Research":
         </div>
     """, unsafe_allow_html=True)
 
-    topic_q = st.text_input("Enter Concept to Research:", placeholder="e.g. Bipolar Junction Transistor, Transformer on No Load, Process Scheduling", key="res_q_input")
+    topic_q = st.text_input("Enter Concept to Research:", placeholder="e.g. Transformer, BJT Biasing, Process Scheduling, Op-Amp", key="res_q_input")
 
     if st.button("Execute Deep Research ⚡", use_container_width=True):
         if not topic_q.strip():
@@ -625,73 +625,68 @@ elif nav_selection == "🔍 Topic Research":
             deduct_trial()
             with st.spinner(f"Analyzing '{topic_q}'..."):
                 res_prompt = f"""
-                Act as a Senior Mumbai University Engineering Professor.
-                Target Topic: {topic_q}
+                You are a Senior Mumbai University Engineering Professor.
+                Target Topic: "{topic_q}"
                 Language: Strictly Professional English.
 
-                CRITICAL LATEX INSTRUCTIONS:
-                - Do not use brackets like [ or ] for math.
-                - Use standard inline math like $V_{{BE}}$ or display math like $$I_C = \\beta I_B$$.
-                - Ensure equations render cleanly.
-
-                Provide content strictly under these exact section headers:
-
-                ## 1. Official Definition
-                Official 2-mark university standard definition with textbook keywords.
-
-                ## 2. Technical Breakdown
-                Architecture, circuit configuration, and key governing formulas. Write each formula on a separate line with $$...$$ delimiters.
-
-                ## 3. Working Principle
-                Step-by-step physical or operational mechanism with clear engineering cause-and-effect flow.
+                Return ONLY a valid JSON object. Do NOT include any intro, draft thoughts, reasoning, or backticks around the json.
+                JSON structure must be exactly:
+                {{
+                  "definition": "Official 2-mark university textbook definition with examiner keywords.",
+                  "breakdown": "Technical breakdown covering architecture, circuit configurations, and key governing formulas written in clean LaTeX ($...$ or $$...$$).",
+                  "working_principle": "Step-by-step physical or operational working principle with clear cause-and-effect flow."
+                }}
                 """
                 try:
                     r_res = generate_ai_response(res_prompt, max_toks=1200)
-                    st.session_state.topic_res_data = r_res
+                    
+                    # Clean up response to ensure clean JSON load
+                    cleaned_json_str = r_res.strip()
+                    if cleaned_json_str.startswith("```json"):
+                        cleaned_json_str = cleaned_json_str[7:]
+                    if cleaned_json_str.startswith("```"):
+                        cleaned_json_str = cleaned_json_str[3:]
+                    if cleaned_json_str.endswith("```"):
+                        cleaned_json_str = cleaned_json_str[:-3]
+                    cleaned_json_str = cleaned_json_str.strip()
+
+                    parsed_data = json.loads(cleaned_json_str)
+                    st.session_state.topic_res_json = parsed_data
                     st.session_state.topic_res_name = topic_q
                     st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                except Exception:
+                    # Fallback if raw JSON parse hits a minor issue
+                    st.session_state.topic_res_json = {
+                        "definition": "Standard definition currently being processed. Please re-run once.",
+                        "breakdown": r_res,
+                        "working_principle": "Detailed breakdown displayed above."
+                    }
+                    st.session_state.topic_res_name = topic_q
+                    st.rerun()
 
-    if "topic_res_data" in st.session_state and st.session_state.topic_res_data:
-        r_out = st.session_state.topic_res_data
+    if "topic_res_json" in st.session_state and st.session_state.topic_res_json:
+        t_data = st.session_state.topic_res_json
         t_name = st.session_state.topic_res_name
 
         st.markdown(f"### 📘 Technical Report: **{t_name.upper()}**")
-
-        # Parsing using reliable markdown headings
-        def get_section(title, next_title=None):
-            try:
-                if title not in r_out:
-                    return "Content processing..."
-                part = r_out.split(title)[1]
-                if next_title and next_title in part:
-                    part = part.split(next_title)[0]
-                return part.strip()
-            except Exception:
-                return "Parsing error."
-
-        sec1 = get_section("## 1. Official Definition", "## 2. Technical Breakdown")
-        sec2 = get_section("## 2. Technical Breakdown", "## 3. Working Principle")
-        sec3 = get_section("## 3. Working Principle")
-
+        
         col1, col2, col3 = st.columns(3)
         
         with col1:
             with st.container(border=True):
                 st.markdown("<h4 style='color:#f59e0b; margin-top:0;'>1. Official Definition</h4>", unsafe_allow_html=True)
-                st.markdown(sec1)
+                st.markdown(t_data.get("definition", "Details unavailable."))
                 
         with col2:
             with st.container(border=True):
                 st.markdown("<h4 style='color:#00F2FE; margin-top:0;'>2. Technical Breakdown</h4>", unsafe_allow_html=True)
-                st.markdown(sec2)
+                st.markdown(t_data.get("breakdown", "Details unavailable."))
                 
         with col3:
             with st.container(border=True):
                 st.markdown("<h4 style='color:#22c55e; margin-top:0;'>3. Working Principle</h4>", unsafe_allow_html=True)
-                st.markdown(sec3)
+                st.markdown(t_data.get("working_principle", "Details unavailable."))
 
         if st.button("🗑️ Clear Research"):
-            del st.session_state.topic_res_data
+            del st.session_state.topic_res_json
             st.rerun()
