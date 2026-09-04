@@ -42,6 +42,78 @@ header[data-testid="stHeader"] {
     background-color: transparent !important;
 }
 
+/* --- SIDEBAR NAVIGATION UPGRADE (BIGGER & PRO PILLS) --- */
+div[data-testid="stSidebar"] div[role="radiogroup"] {
+    gap: 8px !important;
+}
+
+div[data-testid="stSidebar"] div[role="radiogroup"] label {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 10px !important;
+    padding: 12px 14px !important;
+    margin-bottom: 4px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+div[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+    background: rgba(245, 158, 11, 0.08) !important;
+    border-color: rgba(245, 158, 11, 0.3) !important;
+    transform: translateX(3px);
+}
+
+/* Hide default circle radio dots */
+div[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child {
+    display: none !important;
+}
+
+/* Enlarge Navigation Font */
+div[data-testid="stSidebar"] div[role="radiogroup"] label div p {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #cbd5e1 !important;
+    letter-spacing: 0.2px !important;
+}
+
+/* Active Nav State */
+div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
+    background: #1a1610 !important;
+    border: 1px solid #f59e0b !important;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.2) !important;
+}
+
+div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] div p {
+    color: #f59e0b !important;
+    font-weight: 700 !important;
+}
+
+/* --- PREMIUM CREDITS WIDGET --- */
+.credits-card {
+    background: linear-gradient(180deg, #161822 0%, #10121a 100%);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 14px;
+    padding: 18px 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    margin-top: 20px;
+}
+
+.credits-progress-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 10px 0 12px 0;
+}
+
+.credits-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    border-radius: 999px;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
 /* Top Streak Badge */
 .streak-badge {
     background: rgba(251, 146, 60, 0.12);
@@ -115,15 +187,6 @@ header[data-testid="stHeader"] {
 .stButton > button:hover {
     transform: translateY(-1px);
     box-shadow: 0 0 16px rgba(245, 158, 11, 0.4) !important;
-}
-
-/* Unlock Pro Bottom Box */
-.unlock-pro-box {
-    background: #151722;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    border-radius: 12px;
-    padding: 16px;
-    margin-top: 30px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -302,16 +365,16 @@ def show_paywall():
 
 clean_email_auth()
 
-# --- 6. SIDEBAR: EXACT SECOND-IMAGE VERTICAL NAVIGATION ---
+# --- 6. SIDEBAR: REFINED NAVIGATION & PRO CREDITS WIDGET ---
 with st.sidebar:
     st.markdown("""
-        <div style="display:flex; align-items:center; gap:8px; padding-bottom:15px;">
-            <div style="width:10px; height:10px; background:#f59e0b; border-radius:50%;"></div>
-            <h2 style="color:#ffffff; margin:0; font-size:22px; font-weight:800; letter-spacing:-0.5px;">TopperGPT</h2>
+        <div style="display:flex; align-items:center; gap:10px; padding: 5px 0 20px 4px;">
+            <div style="width:12px; height:12px; background:#f59e0b; border-radius:50%; box-shadow: 0 0 10px #f59e0b;"></div>
+            <h2 style="color:#ffffff; margin:0; font-size:24px; font-weight:800; letter-spacing:-0.5px;">TopperGPT</h2>
         </div>
     """, unsafe_allow_html=True)
 
-    # Vertical selection matching image 2
+    # Scaled Navigation Buttons
     nav_selection = st.radio(
         "Navigation",
         [
@@ -323,31 +386,44 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-
-    # User Profile & Credit Status
+    # Dynamic Credits Calculation
     user = st.session_state.user_data
     is_pro = user.get("is_pro", False)
     trials = user.get("free_trials_left", user.get("credits", 10))
+    pct_used = int((trials / 10) * 100)
 
     if not is_pro:
         st.markdown(f"""
-            <div class="unlock-pro-box">
-                <span style="color:#f59e0b; font-size:12px; font-weight:700; text-transform:uppercase;">Student Credits</span>
-                <h2 style="color:#ffffff; margin:4px 0 8px 0; font-size:28px;">{trials}<span style="font-size:14px; color:#64748b;"> / 10 Left</span></h2>
-                <div style="font-size:11px; color:#94a3b8; line-height:1.4;">Unlock unlimited exam packs and complete solutions from ₹49/mo.</div>
-                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background:#f59e0b; color:#000; display:block; text-align:center; padding:8px 0; border-radius:6px; font-weight:700; text-decoration:none; margin-top:10px; font-size:12px;">Upgrade to Pro</a>
+            <div class="credits-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Student Access</span>
+                    <span style="color:#f59e0b; font-size:11px; font-weight:700;">Free Tier</span>
+                </div>
+                <div style="margin-top:8px; display:flex; align-items:baseline; gap:4px;">
+                    <span style="color:#ffffff; font-size:28px; font-weight:800; line-height:1;">{trials}</span>
+                    <span style="color:#64748b; font-size:14px; font-weight:600;">/ 10 credits</span>
+                </div>
+                <div class="credits-progress-track">
+                    <div class="credits-progress-fill" style="width: {pct_used}%;"></div>
+                </div>
+                <p style="font-size:12px; color:#94a3b8; line-height:1.45; margin:0 0 12px 0;">
+                    Get unlimited model solutions and complete exam packs.
+                </p>
+                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background:#f59e0b; color:#000000; display:block; text-align:center; padding:9px 0; border-radius:8px; font-weight:700; text-decoration:none; font-size:13px; box-shadow: 0 0 14px rgba(245, 158, 11, 0.3);">
+                    Upgrade to Pro ⚡
+                </a>
             </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown("""
-            <div class="unlock-pro-box" style="border-color:#22c55e;">
-                <span style="color:#22c55e; font-size:12px; font-weight:700;">ACCOUNT STATUS</span>
-                <h4 style="color:#ffffff; margin:4px 0;">👑 PRO ACTIVE</h4>
+            <div class="credits-card" style="border-color: rgba(34, 197, 94, 0.4);">
+                <span style="color:#22c55e; font-size:11px; font-weight:700; text-transform:uppercase;">Membership</span>
+                <h3 style="color:#ffffff; margin:6px 0 4px 0; font-size:20px; font-weight:800;">👑 Pro Scholar</h3>
+                <p style="color:#94a3b8; font-size:12px; margin:0;">Unlimited university blueprints unlocked.</p>
             </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
     if st.button("🚪 Logout", use_container_width=True):
         st.session_state.clear()
         st.rerun()
@@ -655,7 +731,6 @@ elif nav_selection == "🔍 Topic Research":
                     st.session_state.topic_res_name = topic_q
                     st.rerun()
                 except Exception:
-                    # Fallback if raw JSON parse hits a minor issue
                     st.session_state.topic_res_json = {
                         "definition": "Standard definition currently being processed. Please re-run once.",
                         "breakdown": r_res,
