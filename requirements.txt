@@ -1,27 +1,3 @@
 streamlit
-groq
-razorpay
-openai
-firebase-admin
-pypdf
-fpdf
-gTTS
-llama-index-llms-gemini>=0.3.0
-google-generativeai==0.8.3
-pdfplumber
-youtube-transcript-api
-streamlit-mermaid
-PyMuPDF
 requests
-Pillow
-llama-index
-llama-index-llms-groq
-llama-index-embeddings-huggingface
-llama-index-embeddings-gemini
-google-generativeai
-llama-index-llms-gemini
 supabase
-matplotlib
-# requires to add these into requirements.txt
-playwright
-asyncio
