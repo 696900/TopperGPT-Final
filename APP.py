@@ -2,7 +2,17 @@ import streamlit as st
 import requests
 import json
 import time
+import os
 from supabase import create_client, Client
+
+# Safe Secret Helper for Render & Streamlit Environments
+def get_env_secret(key, default=""):
+    try:
+        if key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+    return os.environ.get(key, default)
 
 # --- 1. CONFIGURATION & PAGE SETUP ---
 st.set_page_config(
@@ -194,15 +204,15 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] d
 # --- 3. SUPABASE CLIENT ---
 @st.cache_resource
 def init_supabase():
-    url = st.secrets["SUPABASE_URL"].strip()
-    key = st.secrets["SUPABASE_KEY"].strip()
+    url = get_env_secret("SUPABASE_URL").strip()
+    key = get_env_secret("SUPABASE_KEY").strip()
     return create_client(url, key)
 
 supabase = init_supabase()
 
 # --- 4. BACKEND AI ENGINE (GROQ + GEMINI + OPENROUTER) ---
 def generate_ai_response(prompt_text, max_toks=1200):
-    groq_key = st.secrets.get("GROQ_API_KEY", "").strip()
+    groq_key = get_env_secret("GROQ_API_KEY").strip()
     if groq_key:
         try:
             m_res = requests.get(
@@ -233,7 +243,7 @@ def generate_ai_response(prompt_text, max_toks=1200):
         except Exception:
             pass
 
-    gemini_key = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")).strip()
+    gemini_key = (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip()
     if gemini_key:
         for g_model in ["gemini-1.5-flash", "gemini-pro"]:
             try:
@@ -249,7 +259,7 @@ def generate_ai_response(prompt_text, max_toks=1200):
             except Exception:
                 continue
 
-    openrouter_key = st.secrets.get("OPENROUTER_API_KEY", "").strip()
+    openrouter_key = get_env_secret("OPENROUTER_API_KEY").strip()
     if openrouter_key:
         try:
             res = requests.post(
