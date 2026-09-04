@@ -52,7 +52,7 @@ header[data-testid="stHeader"] {
     background-color: transparent !important;
 }
 
-/* --- SIDEBAR NAVIGATION UPGRADE (BIGGER & PRO PILLS) --- */
+/* --- SIDEBAR NAVIGATION UPGRADE --- */
 div[data-testid="stSidebar"] div[role="radiogroup"] {
     gap: 8px !important;
 }
@@ -73,12 +73,10 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
     transform: translateX(3px);
 }
 
-/* Hide default circle radio dots */
 div[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child {
     display: none !important;
 }
 
-/* Enlarge Navigation Font */
 div[data-testid="stSidebar"] div[role="radiogroup"] label div p {
     font-size: 15px !important;
     font-weight: 600 !important;
@@ -86,7 +84,6 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label div p {
     letter-spacing: 0.2px !important;
 }
 
-/* Active Nav State */
 div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
     background: #1a1610 !important;
     border: 1px solid #f59e0b !important;
@@ -98,30 +95,14 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] d
     font-weight: 700 !important;
 }
 
-/* --- PREMIUM CREDITS WIDGET --- */
-.credits-card {
+/* --- STATUS WIDGET --- */
+.status-card {
     background: linear-gradient(180deg, #161822 0%, #10121a 100%);
-    border: 1px solid rgba(245, 158, 11, 0.25);
+    border: 1px solid rgba(34, 197, 94, 0.3);
     border-radius: 14px;
-    padding: 18px 16px;
+    padding: 16px 14px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     margin-top: 20px;
-}
-
-.credits-progress-track {
-    width: 100%;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 999px;
-    overflow: hidden;
-    margin: 10px 0 12px 0;
-}
-
-.credits-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #f59e0b, #fbbf24);
-    border-radius: 999px;
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
 }
 
 /* Top Streak Badge */
@@ -279,7 +260,7 @@ def generate_ai_response(prompt_text, max_toks=1200):
 
     raise Exception("Connection timeout. Please retry your request.")
 
-# --- 5. AUTHENTICATION & ACCESS CONTROL ---
+# --- 5. AUTHENTICATION ---
 def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
@@ -321,7 +302,7 @@ def clean_email_auth():
                 with st.form("reg_form_quick"):
                     s_name = st.text_input("Full Name", placeholder="Enter your full name", key="reg_name_quick")
                     s_email = st.text_input("Email Address", placeholder="name@domain.com", key="reg_email_quick").strip().lower()
-                    if st.form_submit_button("CREATE FREE ACCOUNT 🔥", use_container_width=True):
+                    if st.form_submit_button("CREATE ACCOUNT 🔥", use_container_width=True):
                         if s_name and s_email:
                             try:
                                 check = supabase.table("profiles").select("*").eq("email", s_email).execute()
@@ -330,11 +311,9 @@ def clean_email_auth():
                                 else:
                                     new_u = {"email": s_email, "full_name": s_name}
                                     try:
-                                        new_u["free_trials_left"] = 10
-                                        new_u["is_pro"] = False
+                                        new_u["is_pro"] = True
                                         ins = supabase.table("profiles").insert(new_u).execute()
                                     except Exception:
-                                        new_u.pop("free_trials_left", None)
                                         new_u.pop("is_pro", None)
                                         ins = supabase.table("profiles").insert(new_u).execute()
 
@@ -347,35 +326,19 @@ def clean_email_auth():
                             st.warning("Please provide all required fields.")
         st.stop()
 
+# --- 6. UNLIMITED ACCESS OVERRIDE (CREDITS TEMPORARILY DISABLED) ---
 def check_access():
-    user = st.session_state.get("user_data", {})
-    if user.get("is_pro", False):
-        return True
-    return user.get("free_trials_left", user.get("credits", 10)) > 0
+    return True
 
 def deduct_trial():
-    user = st.session_state.get("user_data", {})
-    if not user.get("is_pro", False):
-        curr = user.get("free_trials_left", user.get("credits", 10))
-        new_val = max(0, curr - 1)
-        st.session_state.user_data["free_trials_left"] = new_val
-        try:
-            supabase.table("profiles").update({"free_trials_left": new_val}).eq("email", user["email"]).execute()
-        except Exception:
-            pass
+    pass
 
 def show_paywall():
-    st.markdown("""
-    <div style="background: #13151f; border: 1px solid #ef4444; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0;">
-        <h3 style="color:#ef4444; margin-top:0;">🚨 Free Academic Credits Depleted</h3>
-        <p style="color:#94a3b8; font-size:14px;">Upgrade to unlock unlimited AI tutor queries, predicted question archives, and complete model solutions.</p>
-        <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background:#f59e0b; color:#000000; padding:10px 24px; border-radius:8px; text-decoration:none; display:inline-block; font-weight:bold; margin-top:8px;">Unlock Unlimited Access (₹49)</a>
-    </div>
-    """, unsafe_allow_html=True)
+    pass
 
 clean_email_auth()
 
-# --- 6. SIDEBAR: REFINED NAVIGATION & PRO CREDITS WIDGET ---
+# --- 7. SIDEBAR NAVIGATION ---
 with st.sidebar:
     st.markdown("""
         <div style="display:flex; align-items:center; gap:10px; padding: 5px 0 20px 4px;">
@@ -384,7 +347,6 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # Scaled Navigation Buttons
     nav_selection = st.radio(
         "Navigation",
         [
@@ -396,49 +358,23 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    # Dynamic Credits Calculation
-    user = st.session_state.user_data
-    is_pro = user.get("is_pro", False)
-    trials = user.get("free_trials_left", user.get("credits", 10))
-    pct_used = int((trials / 10) * 100)
-
-    if not is_pro:
-        st.markdown(f"""
-            <div class="credits-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Student Access</span>
-                    <span style="color:#f59e0b; font-size:11px; font-weight:700;">Free Tier</span>
-                </div>
-                <div style="margin-top:8px; display:flex; align-items:baseline; gap:4px;">
-                    <span style="color:#ffffff; font-size:28px; font-weight:800; line-height:1;">{trials}</span>
-                    <span style="color:#64748b; font-size:14px; font-weight:600;">/ 10 credits</span>
-                </div>
-                <div class="credits-progress-track">
-                    <div class="credits-progress-fill" style="width: {pct_used}%;"></div>
-                </div>
-                <p style="font-size:12px; color:#94a3b8; line-height:1.45; margin:0 0 12px 0;">
-                    Get unlimited model solutions and complete exam packs.
-                </p>
-                <a href="https://rzp.io/rzp/AWiyLxEi" target="_blank" style="background:#f59e0b; color:#000000; display:block; text-align:center; padding:9px 0; border-radius:8px; font-weight:700; text-decoration:none; font-size:13px; box-shadow: 0 0 14px rgba(245, 158, 11, 0.3);">
-                    Upgrade to Pro ⚡
-                </a>
+    st.markdown("""
+        <div class="status-card">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="display:inline-block; width:8px; height:8px; background:#22c55e; border-radius:50%;"></span>
+                <span style="color:#22c55e; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">SYSTEM UNLOCKED</span>
             </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <div class="credits-card" style="border-color: rgba(34, 197, 94, 0.4);">
-                <span style="color:#22c55e; font-size:11px; font-weight:700; text-transform:uppercase;">Membership</span>
-                <h3 style="color:#ffffff; margin:6px 0 4px 0; font-size:20px; font-weight:800;">👑 Pro Scholar</h3>
-                <p style="color:#94a3b8; font-size:12px; margin:0;">Unlimited university blueprints unlocked.</p>
-            </div>
-        """, unsafe_allow_html=True)
+            <h4 style="color:#ffffff; margin:4px 0 2px 0; font-size:16px; font-weight:800;">Academic Access</h4>
+            <p style="color:#94a3b8; font-size:12px; margin:0; line-height:1.4;">Unlimited access enabled for all university modules.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
     if st.button("🚪 Logout", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
-# --- 7. TOP HEADER & STREAK BAR ---
+# --- 8. TOP HEADER & STREAK BAR ---
 student_name = st.session_state.user_data.get("full_name", "Student")
 clean_title = nav_selection.split(" ", 1)[1]
 
@@ -491,41 +427,37 @@ if nav_selection == "💡 AI Tutor":
     user_query = st.chat_input("Ask a doubt, request notes, or get PYQs...")
 
     if user_query:
-        if not check_access():
-            show_paywall()
-        else:
-            deduct_trial()
-            st.session_state.tutor_messages.append({"role": "user", "content": user_query, "hinglish": None})
-            with st.chat_message("user"):
-                st.markdown(user_query)
+        st.session_state.tutor_messages.append({"role": "user", "content": user_query, "hinglish": None})
+        with st.chat_message("user"):
+            st.markdown(user_query)
 
-            tutor_prompt = f"""
-            You are TopperGPT's Senior Academic Evaluator for Mumbai University Engineering (C-Scheme).
-            Respond exclusively in professional, clear, exam-oriented English.
+        tutor_prompt = f"""
+        You are TopperGPT's Senior Academic Evaluator for Mumbai University Engineering (C-Scheme).
+        Respond exclusively in professional, clear, exam-oriented English.
 
-            Student Query: "{user_query}"
+        Student Query: "{user_query}"
 
-            1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.
-            2. If academic: Use the strict 3-block structure:
-               ### 📌 1. University Standard Definition (2-Mark Standard)
-               Accurate textbook definition and mandatory examiner keywords.
+        1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.
+        2. If academic: Use the strict 3-block structure:
+           ### 📌 1. University Standard Definition (2-Mark Standard)
+           Accurate textbook definition and mandatory examiner keywords.
 
-               ### ⚡ 2. Step-by-Step Technical Execution & Derivation
-               Logically organized steps, formulas with Markdown LaTeX ($...$ or $$...$$), and specific 'Exam Diagram Requirement' if applicable.
+           ### ⚡ 2. Step-by-Step Technical Execution & Derivation
+           Logically organized steps, formulas with Markdown LaTeX ($...$ or $$...$$), and specific 'Exam Diagram Requirement' if applicable.
 
-               ### ⚠️ 3. Examiner Trap Alert
-               Precise calculation error, unit conversion, or assumption where students frequently lose marks.
-            """
+           ### ⚠️ 3. Examiner Trap Alert
+           Precise calculation error, unit conversion, or assumption where students frequently lose marks.
+        """
 
-            with st.chat_message("assistant"):
-                with st.spinner("Analyzing syllabus and evaluation rubrics..."):
-                    try:
-                        ai_reply = generate_ai_response(tutor_prompt)
-                        st.markdown(ai_reply)
-                        st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+        with st.chat_message("assistant"):
+            with st.spinner("Analyzing syllabus and evaluation rubrics..."):
+                try:
+                    ai_reply = generate_ai_response(tutor_prompt)
+                    st.markdown(ai_reply)
+                    st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
 # ==================================================
 # --- 2. FEATURE: PREDICTED QUESTIONS ---
@@ -545,10 +477,7 @@ elif nav_selection == "🎯 Predicted Qs":
     if st.button("Generate Exam Blueprint ⚡", use_container_width=True):
         if not p_topic.strip():
             st.warning("Please enter a valid topic or chapter name.")
-        elif not check_access():
-            show_paywall()
         else:
-            deduct_trial()
             with st.spinner(f"Extracting examination patterns for '{p_topic}'..."):
                 pred_prompt = f"""
                 You are a Senior Mumbai University Engineering Paper Setter.
@@ -623,10 +552,7 @@ elif nav_selection == "📄 Short Notes":
     if st.button("Generate Revision Sheet 📑", use_container_width=True):
         if not sn_topic.strip():
             st.warning("Please enter a chapter name.")
-        elif not check_access():
-            show_paywall()
         else:
-            deduct_trial()
             with st.spinner(f"Compiling notes for '{sn_topic}'..."):
                 sn_prompt = f"""
                 Act as a Principal Mumbai University Engineering Professor.
@@ -705,10 +631,7 @@ elif nav_selection == "🔍 Topic Research":
     if st.button("Execute Deep Research ⚡", use_container_width=True):
         if not topic_q.strip():
             st.warning("Please enter a concept name.")
-        elif not check_access():
-            show_paywall()
         else:
-            deduct_trial()
             with st.spinner(f"Analyzing '{topic_q}'..."):
                 res_prompt = f"""
                 You are a Senior Mumbai University Engineering Professor.
@@ -726,7 +649,6 @@ elif nav_selection == "🔍 Topic Research":
                 try:
                     r_res = generate_ai_response(res_prompt, max_toks=1200)
                     
-                    # Clean up response to ensure clean JSON load
                     cleaned_json_str = r_res.strip()
                     if cleaned_json_str.startswith("```json"):
                         cleaned_json_str = cleaned_json_str[7:]
