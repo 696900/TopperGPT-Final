@@ -4,6 +4,7 @@ import json
 import time
 import os
 from supabase import create_client, Client
+from landing_page import render_landing_page
 
 # Safe Secret Helper for Render & Streamlit Environments
 def get_env_secret(key, default=""):
@@ -16,11 +17,27 @@ def get_env_secret(key, default=""):
 
 # --- 1. CONFIGURATION & PAGE SETUP ---
 st.set_page_config(
-    page_title="TopperGPT Intelligence",
+    page_title="TopperGPT - AI Academic Workspace",
     layout="wide",
     page_icon="🎓",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed" if (st.session_state.get("user_data") is None and st.query_params.get("page") != "login") else "expanded"
 )
+
+# Route & Query Parameter Handler
+qp_page = st.query_params.get("page", "").strip().lower()
+qp_query = st.query_params.get("query", "").strip()
+qp_feature = st.query_params.get("feature", "").strip().lower()
+
+if qp_query and "pending_query" not in st.session_state:
+    st.session_state.pending_query = qp_query
+
+if qp_feature and "pending_feature" not in st.session_state:
+    st.session_state.pending_feature = qp_feature
+
+# If not logged in and not requesting login page, display Landing Page by default
+if st.session_state.get("user_data") is None and qp_page != "login":
+    render_landing_page()
+    st.stop()
 
 # --- 2. CSS STYLING MATCHING EXACT DASHBOARD LAYOUT ---
 st.markdown("""
@@ -187,7 +204,13 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] d
 def init_supabase():
     url = get_env_secret("SUPABASE_URL").strip()
     key = get_env_secret("SUPABASE_KEY").strip()
-    return create_client(url, key)
+    if not url or not key:
+        return None
+    try:
+        return create_client(url, key)
+    except Exception as e:
+        print(f"Notice: Supabase init skipped or credentials not configured: {e}")
+        return None
 
 supabase = init_supabase()
 
@@ -266,10 +289,16 @@ def clean_email_auth():
         st.session_state.user_data = None
 
     if st.session_state.user_data is None:
+        col_back, _ = st.columns([1, 5])
+        with col_back:
+            if st.button("← Back to Home"):
+                st.query_params.clear()
+                st.rerun()
+
         st.markdown("""
-            <div style="text-align:center; padding: 40px 0 20px 0;">
+            <div style="text-align:center; padding: 20px 0 10px 0;">
                 <h1 style="color:#ffffff; font-size: 2.8rem; font-weight:800; margin: 10px 0;">
-                    Topper<span style="color:#f59e0b;">GPT</span>
+                    Topper<span style="color:#58c1c8;">GPT</span>
                 </h1>
                 <p style="color:#94a3b8; font-size:15px; margin-top:0;">
                     AI Academic Workspace for Mumbai University Engineering.
@@ -277,8 +306,23 @@ def clean_email_auth():
             </div>
         """, unsafe_allow_html=True)
 
+        if "pending_query" in st.session_state and st.session_state.pending_query:
+            st.markdown(f"""
+                <div style="background: rgba(88, 193, 200, 0.1); border: 1px solid rgba(88, 193, 200, 0.35); border-radius: 12px; padding: 12px 18px; margin: 0 auto 20px auto; max-width: 580px; text-align: center;">
+                    <span style="color: #58c1c8; font-weight: 700; font-size: 13px;">✦ QUESTION CAPTURED:</span>
+                    <span style="color: #ffffff; font-weight: 600;"> "{st.session_state.pending_query}"</span>
+                    <p style="font-size: 12px; color: #94a3b8; margin: 4px 0 0 0;">Enter your email to unlock your verified solution in TopperGPT!</p>
+                </div>
+            """, unsafe_allow_html=True)
+
         _, center_col, _ = st.columns([1, 1.8, 1])
         with center_col:
+            if supabase is None:
+                st.info("💡 Supabase credentials not found in secrets. Guest Mode is available for testing.")
+                if st.button("🚀 CONTINUE AS GUEST STUDENT", use_container_width=True):
+                    st.session_state.user_data = {"email": "student@toppergpt.in", "full_name": "Student", "is_pro": True}
+                    st.rerun()
+
             auth_tab = st.tabs(["🔑 Quick Access", "📝 New Registration"])
             
             with auth_tab[0]:
@@ -286,15 +330,19 @@ def clean_email_auth():
                     l_email = st.text_input("Registered Email Address", placeholder="name@domain.com", key="l_email_quick").strip().lower()
                     if st.form_submit_button("ENTER DASHBOARD 🚀", use_container_width=True):
                         if l_email:
-                            try:
-                                prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
-                                if prof.data:
-                                    st.session_state.user_data = prof.data[0]
-                                    st.rerun()
-                                else:
-                                    st.error("Account not found. Please register using the New Registration tab.")
-                            except Exception as e:
-                                st.error(f"Database error: {e}")
+                            if supabase:
+                                try:
+                                    prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
+                                    if prof.data:
+                                        st.session_state.user_data = prof.data[0]
+                                        st.rerun()
+                                    else:
+                                        st.error("Account not found. Please register using the New Registration tab.")
+                                except Exception as e:
+                                    st.error(f"Database error: {e}")
+                            else:
+                                st.session_state.user_data = {"email": l_email, "full_name": l_email.split('@')[0].capitalize(), "is_pro": True}
+                                st.rerun()
                         else:
                             st.warning("Email is required.")
 
@@ -304,24 +352,28 @@ def clean_email_auth():
                     s_email = st.text_input("Email Address", placeholder="name@domain.com", key="reg_email_quick").strip().lower()
                     if st.form_submit_button("CREATE ACCOUNT 🔥", use_container_width=True):
                         if s_name and s_email:
-                            try:
-                                check = supabase.table("profiles").select("*").eq("email", s_email).execute()
-                                if check.data:
-                                    st.warning("Account already exists. Please log in.")
-                                else:
-                                    new_u = {"email": s_email, "full_name": s_name}
-                                    try:
-                                        new_u["is_pro"] = True
-                                        ins = supabase.table("profiles").insert(new_u).execute()
-                                    except Exception:
-                                        new_u.pop("is_pro", None)
-                                        ins = supabase.table("profiles").insert(new_u).execute()
+                            if supabase:
+                                try:
+                                    check = supabase.table("profiles").select("*").eq("email", s_email).execute()
+                                    if check.data:
+                                        st.warning("Account already exists. Please log in.")
+                                    else:
+                                        new_u = {"email": s_email, "full_name": s_name}
+                                        try:
+                                            new_u["is_pro"] = True
+                                            ins = supabase.table("profiles").insert(new_u).execute()
+                                        except Exception:
+                                            new_u.pop("is_pro", None)
+                                            ins = supabase.table("profiles").insert(new_u).execute()
 
-                                    if ins.data:
-                                        st.session_state.user_data = ins.data[0]
-                                        st.rerun()
-                            except Exception as e:
-                                st.error(f"Server error: {str(e)}")
+                                        if ins.data:
+                                            st.session_state.user_data = ins.data[0]
+                                            st.rerun()
+                                except Exception as e:
+                                    st.error(f"Server error: {str(e)}")
+                            else:
+                                st.session_state.user_data = {"email": s_email, "full_name": s_name, "is_pro": True}
+                                st.rerun()
                         else:
                             st.warning("Please provide all required fields.")
         st.stop()
@@ -347,14 +399,27 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
+    nav_options = [
+        "💡 AI Tutor",
+        "🎯 Predicted Qs",
+        "📄 Short Notes",
+        "🔍 Topic Research"
+    ]
+
+    default_nav_idx = 0
+    if "pending_feature" in st.session_state:
+        feat = st.session_state.pop("pending_feature")
+        if "predict" in feat:
+            default_nav_idx = 1
+        elif "note" in feat:
+            default_nav_idx = 2
+        elif any(k in feat for k in ["solver", "research", "analytics", "flashcard"]):
+            default_nav_idx = 3
+
     nav_selection = st.radio(
         "Navigation",
-        [
-            "💡 AI Tutor",
-            "🎯 Predicted Qs",
-            "📄 Short Notes",
-            "🔍 Topic Research"
-        ],
+        nav_options,
+        index=default_nav_idx,
         label_visibility="collapsed"
     )
 
@@ -372,6 +437,7 @@ with st.sidebar:
     st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
     if st.button("🚪 Logout", use_container_width=True):
         st.session_state.clear()
+        st.query_params.clear()
         st.rerun()
 
 # --- 8. TOP HEADER & STREAK BAR ---
@@ -409,6 +475,35 @@ if nav_selection == "💡 AI Tutor":
                 "hinglish": None
             }
         ]
+
+    # Auto-process pending query from Landing Page search
+    if "pending_query" in st.session_state and st.session_state.pending_query:
+        init_q = st.session_state.pop("pending_query")
+        st.session_state.tutor_messages.append({"role": "user", "content": init_q, "hinglish": None})
+        with st.spinner("Analyzing syllabus and generating exam-focused solution..."):
+            tutor_prompt = f"""
+            You are TopperGPT's Senior Academic Evaluator for Mumbai University Engineering (C-Scheme).
+            Respond exclusively in professional, clear, exam-oriented English.
+
+            Student Query: "{init_q}"
+
+            1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.
+            2. If academic: Use the strict 3-block structure:
+               ### 📌 1. University Standard Definition (2-Mark Standard)
+               Accurate textbook definition and mandatory examiner keywords.
+
+               ### ⚡ 2. Step-by-Step Technical Execution & Derivation
+               Logically organized steps, formulas with Markdown LaTeX ($...$ or $$...$$), and specific 'Exam Diagram Requirement' if applicable.
+
+               ### ⚠️ 3. Examiner Trap Alert
+               Precise calculation error, unit conversion, or assumption where students frequently lose marks.
+            """
+            try:
+                ai_reply = generate_ai_response(tutor_prompt)
+                st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
+            except Exception as e:
+                st.session_state.tutor_messages.append({"role": "assistant", "content": f"Error: {e}", "hinglish": None})
+        st.rerun()
 
     for idx, msg in enumerate(st.session_state.tutor_messages):
         with st.chat_message(msg["role"]):
