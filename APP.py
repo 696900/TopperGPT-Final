@@ -19,14 +19,24 @@ def get_env_secret(key, default=""):
 st.set_page_config(
     page_title="TopperGPT - AI Academic Workspace",
     layout="wide",
-    page_icon="🎓",
-    initial_sidebar_state="collapsed" if (st.session_state.get("user_data") is None and st.query_params.get("page") != "login") else "expanded"
+    page_icon="🎓"
 )
 
-# Route & Query Parameter Handler
-qp_page = st.query_params.get("page", "").strip().lower()
-qp_query = st.query_params.get("query", "").strip()
-qp_feature = st.query_params.get("feature", "").strip().lower()
+# Route & Query Parameter Handler (Safe extraction)
+try:
+    qp_page = str(st.query_params.get("page") or "").strip().lower()
+except Exception:
+    qp_page = ""
+
+try:
+    qp_query = str(st.query_params.get("query") or "").strip()
+except Exception:
+    qp_query = ""
+
+try:
+    qp_feature = str(st.query_params.get("feature") or "").strip().lower()
+except Exception:
+    qp_feature = ""
 
 if qp_query and "pending_query" not in st.session_state:
     st.session_state.pending_query = qp_query
@@ -34,7 +44,7 @@ if qp_query and "pending_query" not in st.session_state:
 if qp_feature and "pending_feature" not in st.session_state:
     st.session_state.pending_feature = qp_feature
 
-# If not logged in and not requesting login page, display Landing Page by default
+# Default: If not logged in and not requesting login page, render landing page
 if st.session_state.get("user_data") is None and qp_page != "login":
     render_landing_page()
     st.stop()
