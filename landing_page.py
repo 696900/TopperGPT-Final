@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 
 def render_landing_page():
     # 1. Clean Streamlit Container Overrides
@@ -23,18 +22,12 @@ def render_landing_page():
             background-color: #030303 !important;
         }
 
-        iframe {
-            width: 100% !important;
-            border: none !important;
-            display: block !important;
-        }
+
         </style>
     """, unsafe_allow_html=True)
 
     # 2. Complete HTML Document for IFrame Component (Zero Markdown Parsing Risk)
-    landing_html = """<!DOCTYPE html>
-<html lang="en">
-<head>
+    landing_html = """
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TopperGPT - AI Academic Workspace</title>
@@ -68,7 +61,7 @@ def render_landing_page():
         --font-mono: 'Space Mono', monospace;
     }
 
-    body {
+    .stApp, body {
         background-color: var(--bg-dark);
         color: var(--text-main);
         font-family: var(--font-display);
@@ -80,7 +73,7 @@ def render_landing_page():
     }
 
     /* Grid Background Effect */
-    body::before {
+    .stApp::before, body::before {
         content: '';
         position: fixed;
         top: 0; left: 0; right: 0; bottom: 0;
@@ -963,14 +956,12 @@ def render_landing_page():
         }
     }
   </style>
-</head>
-<body>
 <div class="landing-content">
 
   <!-- Navigation Bar -->
   <header class="navbar">
     <div class="container nav-wrapper">
-      <a href="/?page=home" target="_top" class="brand">
+      <a href="?page=home"  class="brand">
         <div class="brand-icon">🎓</div>
         <div class="brand-title">Topper<span>GPT</span></div>
       </a>
@@ -984,8 +975,8 @@ def render_landing_page():
       </ul>
 
       <div class="nav-actions">
-        <a href="/?page=login" target="_top" class="btn btn-secondary">Login</a>
-        <a href="/?page=login" target="_top" class="btn btn-primary">Explore Tools →</a>
+        <a href="?page=login"  class="btn btn-secondary">Login</a>
+        <a href="?page=login"  class="btn btn-primary">Explore Tools →</a>
       </div>
     </div>
   </header>
@@ -1011,7 +1002,7 @@ def render_landing_page():
         </p>
 
         <div class="hero-actions">
-          <a href="/?page=login" target="_top" class="btn btn-primary">
+          <a href="?page=login"  class="btn btn-primary">
             Start Learning Free →
           </a>
           <a href="#tools" class="btn btn-secondary">
@@ -1092,7 +1083,7 @@ def render_landing_page():
 
           <!-- 4-Tool Quad Grid -->
           <div class="tool-quad-grid">
-            <a href="/?page=login&query=Study+GPT" target="_top" class="quad-item">
+            <a href="?page=login&query=Study+GPT"  class="quad-item">
               <div>
                 <div class="quad-icon">📖</div>
                 <div class="quad-title">Study</div>
@@ -1101,7 +1092,7 @@ def render_landing_page():
               <div class="quad-action">Launch →</div>
             </a>
 
-            <a href="/?page=login&query=Short+Notes" target="_top" class="quad-item">
+            <a href="?page=login&query=Short+Notes"  class="quad-item">
               <div>
                 <div class="quad-icon">📄</div>
                 <div class="quad-title">Notes</div>
@@ -1110,7 +1101,7 @@ def render_landing_page():
               <div class="quad-action">Launch →</div>
             </a>
 
-            <a href="/?page=login&query=Practice+Exam+Questions" target="_top" class="quad-item">
+            <a href="?page=login&query=Practice+Exam+Questions"  class="quad-item">
               <div>
                 <div class="quad-icon">🎯</div>
                 <div class="quad-title">Practice</div>
@@ -1119,7 +1110,7 @@ def render_landing_page():
               <div class="quad-action">Launch →</div>
             </a>
 
-            <a href="/?page=login" target="_top" class="quad-item">
+            <a href="?page=login"  class="quad-item">
               <div>
                 <div class="quad-icon">📈</div>
                 <div class="quad-title">Growth</div>
@@ -1185,7 +1176,7 @@ def render_landing_page():
         Turn complex formulas, thick textbooks, and exam syllabus into bite-sized mastery with interactive quizzes, Cornell notes, and step-by-step solutions.
       </p>
 
-      <form action="/" method="GET" target="_top" class="search-box">
+      <form action="" method="GET"  class="search-box">
         <input type="hidden" name="page" value="login" />
         <input type="text" name="query" placeholder="Ask any physics problem, math theorem, or bio concept..." autocomplete="off" />
         <button type="submit" class="btn btn-primary">Explain</button>
@@ -1202,7 +1193,7 @@ def render_landing_page():
 
     <div class="tools-grid">
       <!-- Card 1 -->
-      <a href="/?page=login&feature=tutor" target="_top" class="tool-card">
+      <a href="?page=login&feature=tutor"  class="tool-card">
         <span class="tool-card-badge">Most Popular</span>
         <div>
           <div class="tool-card-icon">💡</div>
@@ -1216,7 +1207,7 @@ def render_landing_page():
       </a>
 
       <!-- Card 2 -->
-      <a href="/?page=login&feature=notes" target="_top" class="tool-card">
+      <a href="?page=login&feature=notes"  class="tool-card">
         <span class="tool-card-badge">Productivity</span>
         <div>
           <div class="tool-card-icon">📄</div>
@@ -1230,7 +1221,7 @@ def render_landing_page():
       </a>
 
       <!-- Card 3 -->
-      <a href="/?page=login&feature=predict" target="_top" class="tool-card">
+      <a href="?page=login&feature=predict"  class="tool-card">
         <span class="tool-card-badge">Test Prep</span>
         <div>
           <div class="tool-card-icon">🎯</div>
@@ -1244,7 +1235,7 @@ def render_landing_page():
       </a>
 
       <!-- Card 4 -->
-      <a href="/?page=login&feature=solver" target="_top" class="tool-card">
+      <a href="?page=login&feature=solver"  class="tool-card">
         <div>
           <div class="tool-card-icon">⚡</div>
           <h3>Step-by-Step Solver</h3>
@@ -1257,7 +1248,7 @@ def render_landing_page():
       </a>
 
       <!-- Card 5 -->
-      <a href="/?page=login&feature=flashcards" target="_top" class="tool-card">
+      <a href="?page=login&feature=flashcards"  class="tool-card">
         <div>
           <div class="tool-card-icon">🗂️</div>
           <h3>Flashcard Studio</h3>
@@ -1270,7 +1261,7 @@ def render_landing_page():
       </a>
 
       <!-- Card 6 -->
-      <a href="/?page=login&feature=analytics" target="_top" class="tool-card">
+      <a href="?page=login&feature=analytics"  class="tool-card">
         <div>
           <div class="tool-card-icon">📊</div>
           <h3>Performance Tracker</h3>
@@ -1309,9 +1300,9 @@ def render_landing_page():
         <strong style="color: #fff;">© 2024–2026 TopperGPT Inc.</strong> All rights reserved.
       </div>
       <div class="footer-links">
-        <a href="/?page=login" target="_top">Terms of Use</a>
-        <a href="/?page=login" target="_top">Privacy Policy</a>
-        <a href="/?page=login" target="_top">Cookie Policy</a>
+        <a href="?page=login" >Terms of Use</a>
+        <a href="?page=login" >Privacy Policy</a>
+        <a href="?page=login" >Cookie Policy</a>
       </div>
     </div>
   </footer>
@@ -1351,12 +1342,38 @@ def render_landing_page():
     if (responseText) {
       responseText.innerHTML = '<span style="color: rgb(88, 193, 200);">✦ Formulating verified answer for: "<em>' + query + '</em>"...</span><br><br>' +
         '<strong>Key Takeaway:</strong> Concepts are structured into core university definitions, step-by-step mathematical reasoning, and high-frequency exam problems.<br><br>' +
-        '<a href="/?page=login&query=' + encodeURIComponent(query) + '" target="_top" style="display:inline-block; margin-top:8px; background:rgb(88, 193, 200); color:#000; padding:8px 16px; border-radius:9999px; font-weight:700; text-decoration:none; font-size:12px; box-shadow:0 0 15px rgba(88,193,200,0.4);">👉 Unlock Full Verified Solution in TopperGPT →</a>';
+        '<a href="?page=login&query=' + encodeURIComponent(query) + '"  style="display:inline-block; margin-top:8px; background:rgb(88, 193, 200); color:#000; padding:8px 16px; border-radius:9999px; font-weight:700; text-decoration:none; font-size:12px; box-shadow:0 0 15px rgba(88,193,200,0.4);">👉 Unlock Full Verified Solution in TopperGPT →</a>';
     }
   }
+
+  // Form submit handler for landing search box
+  document.addEventListener('submit', function(e) {
+    const form = e.target.closest('form.search-box');
+    if (form) {
+      e.preventDefault();
+      const qInput = form.querySelector('input[name="query"]');
+      const qVal = qInput ? qInput.value.trim() : '';
+      if (qVal) {
+        window.location.href = window.location.pathname + '?page=login&query=' + encodeURIComponent(qVal);
+      } else {
+        window.location.href = window.location.pathname + '?page=login';
+      }
+    }
+  });
+
+  // Global click listener for fast, reliable navigation
+  document.addEventListener('click', function(e) {
+    const link = e.target.closest('a');
+    if (link) {
+      const href = link.getAttribute('href');
+      if (href && (href.startsWith('?page=') || href.startsWith('/?page='))) {
+        e.preventDefault();
+        const clean = href.startsWith('/') ? href.substring(1) : href;
+        window.location.href = window.location.pathname + clean;
+      }
+    }
+  });
 </script>
-</body>
-</html>
 """
     # 3. Render directly via Streamlit HTML Component
-    components.html(landing_html, height=2950, scrolling=True)
+    st.html(landing_html, unsafe_allow_javascript=True)

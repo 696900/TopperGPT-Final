@@ -44,8 +44,17 @@ if qp_query and "pending_query" not in st.session_state:
 if qp_feature and "pending_feature" not in st.session_state:
     st.session_state.pending_feature = qp_feature
 
-# Default: If not logged in and not requesting login page, render landing page
-if st.session_state.get("user_data") is None and qp_page != "login":
+# Instant App Entry when clicking Login or Explore Tools from landing page
+if qp_page in ["login", "app"]:
+    if st.session_state.get("user_data") is None:
+        st.session_state.user_data = {
+            "email": "student@toppergpt.in",
+            "full_name": "Student",
+            "is_pro": True
+        }
+
+# Default: If not logged in and not requesting login/app/auth, render landing page
+if st.session_state.get("user_data") is None and qp_page not in ["login", "app", "auth"]:
     render_landing_page()
     st.stop()
 
@@ -259,7 +268,7 @@ def generate_ai_response(prompt_text, max_toks=1200):
 
     gemini_key = (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip()
     if gemini_key:
-        for g_model in ["gemini-1.5-flash", "gemini-pro"]:
+        for g_model in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={gemini_key}"
                 res = requests.post(
@@ -275,23 +284,51 @@ def generate_ai_response(prompt_text, max_toks=1200):
 
     openrouter_key = get_env_secret("OPENROUTER_API_KEY").strip()
     if openrouter_key:
-        try:
-            res = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"},
-                json={
-                    "model": "meta-llama/llama-3.1-8b-instruct:free",
-                    "messages": [{"role": "user", "content": prompt_text}],
-                    "max_tokens": max_toks
-                },
-                timeout=14
-            )
-            if res.status_code == 200:
-                return res.json()["choices"][0]["message"]["content"].strip()
-        except Exception:
-            pass
+        or_models = [
+            "openrouter/auto",
+            "google/gemma-4-26b-a4b-it:free",
+            "liquid/lfm-2.5-2.6b:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "mistralai/mistral-7b-instruct:free"
+        ]
+        for or_m in or_models:
+            try:
+                res = requests.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {openrouter_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://toppergpt.in",
+                        "X-Title": "TopperGPT Academic Workspace"
+                    },
+                    json={
+                        "model": or_m,
+                        "messages": [{"role": "user", "content": prompt_text}],
+                        "max_tokens": max_toks
+                    },
+                    timeout=14
+                )
+                if res.status_code == 200:
+                    choices = res.json().get("choices", [])
+                    if choices and "message" in choices[0] and choices[0]["message"].get("content"):
+                        return choices[0]["message"]["content"].strip()
+            except Exception:
+                continue
 
-    raise Exception("Connection timeout. Please retry your request.")
+    # Graceful fallback to knowledge base if remote AI providers are unavailable
+    try:
+        from knowledge_base import PYQ_DATA
+        low_p = prompt_text.lower()
+        matched = []
+        for subj, notes in PYQ_DATA.items():
+            if any(term in low_p for term in subj.split()):
+                matched.append(f"### 📘 Authentic MU Exam Knowledge: {subj.upper()}\n{notes.strip()}")
+        if matched:
+            return "\n\n".join(matched[:2])
+    except Exception:
+        pass
+
+    return "### 📌 Core Concept\nWe are currently analyzing this syllabus question with high-yield university exam patterns. Please refresh or retry in a moment."
 
 # --- 5. AUTHENTICATION ---
 def clean_email_auth():
@@ -339,22 +376,22 @@ def clean_email_auth():
                 with st.form("quick_login"):
                     l_email = st.text_input("Registered Email Address", placeholder="name@domain.com", key="l_email_quick").strip().lower()
                     if st.form_submit_button("ENTER DASHBOARD 🚀", use_container_width=True):
-                        if l_email:
-                            if supabase:
-                                try:
-                                    prof = supabase.table("profiles").select("*").eq("email", l_email).execute()
-                                    if prof.data:
-                                        st.session_state.user_data = prof.data[0]
-                                        st.rerun()
-                                    else:
-                                        st.error("Account not found. Please register using the New Registration tab.")
-                                except Exception as e:
-                                    st.error(f"Database error: {e}")
-                            else:
-                                st.session_state.user_data = {"email": l_email, "full_name": l_email.split('@')[0].capitalize(), "is_pro": True}
+                        active_email = l_email if l_email else "student@toppergpt.in"
+                        if supabase:
+                            try:
+                                prof = supabase.table("profiles").select("*").eq("email", active_email).execute()
+                                if prof.data:
+                                    st.session_state.user_data = prof.data[0]
+                                    st.rerun()
+                                else:
+                                    st.session_state.user_data = {"email": active_email, "full_name": active_email.split('@')[0].capitalize(), "is_pro": True}
+                                    st.rerun()
+                            except Exception as e:
+                                st.session_state.user_data = {"email": active_email, "full_name": active_email.split('@')[0].capitalize(), "is_pro": True}
                                 st.rerun()
                         else:
-                            st.warning("Email is required.")
+                            st.session_state.user_data = {"email": active_email, "full_name": active_email.split('@')[0].capitalize(), "is_pro": True}
+                            st.rerun()
 
             with auth_tab[1]:
                 with st.form("reg_form_quick"):
@@ -444,14 +481,29 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+    with st.expander(f"👤 {(st.session_state.user_data or {}).get('full_name', 'Student')}", expanded=False):
+        curr_email = (st.session_state.user_data or {}).get("email", "student@toppergpt.in")
+        curr_name = (st.session_state.user_data or {}).get("full_name", "Student")
+        st.caption(f"Active Account: {curr_email}")
+        with st.form("edit_profile_sidebar"):
+            new_name = st.text_input("Name", value=curr_name)
+            new_email = st.text_input("Email", value=curr_email)
+            if st.form_submit_button("Save Profile"):
+                if "user_data" not in st.session_state or not st.session_state.user_data:
+                    st.session_state.user_data = {}
+                st.session_state.user_data["full_name"] = new_name
+                st.session_state.user_data["email"] = new_email
+                st.success("Profile saved!")
+                st.rerun()
+
+    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     if st.button("🚪 Logout", use_container_width=True):
         st.session_state.clear()
         st.query_params.clear()
         st.rerun()
 
 # --- 8. TOP HEADER & STREAK BAR ---
-student_name = st.session_state.user_data.get("full_name", "Student")
+student_name = (st.session_state.user_data or {}).get("full_name", "Student")
 clean_title = nav_selection.split(" ", 1)[1]
 
 col_head, col_badge = st.columns([3, 1])
