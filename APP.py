@@ -44,43 +44,35 @@ if qp_query and "pending_query" not in st.session_state:
 if qp_feature and "pending_feature" not in st.session_state:
     st.session_state.pending_feature = qp_feature
 
-# Instant App Entry when clicking Login or Explore Tools from landing page
-if qp_page in ["login", "app"]:
-    if st.session_state.get("user_data") is None:
-        st.session_state.user_data = {
-            "email": "student@toppergpt.in",
-            "full_name": "Student",
-            "is_pro": True
-        }
-
-# Default: If not logged in and not requesting login/app/auth, render landing page
-if st.session_state.get("user_data") is None and qp_page not in ["login", "app", "auth"]:
+# Default: If not logged in and not requesting login page, render landing page
+if st.session_state.get("user_data") is None and qp_page != "login":
     render_landing_page()
     st.stop()
 
 # --- 2. CSS STYLING MATCHING EXACT DASHBOARD LAYOUT ---
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 
 html, body, [class*="css"] {
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'Space Grotesk', 'Plus Jakarta Sans', -apple-system, sans-serif !important;
 }
 
-/* Background grid styling */
+/* Background grid styling matching cyber-cyan landing page */
 .stApp {
-    background-color: #0c0d12 !important;
+    background-color: #030303 !important;
     background-image: 
+        radial-gradient(circle at 50% 8%, rgba(88, 193, 200, 0.12) 0%, transparent 60%),
         linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
         linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px) !important;
-    background-size: 36px 36px !important;
+    background-size: 100% 100%, 36px 36px, 36px 36px !important;
     color: #f3f4f6 !important;
 }
 
 /* Sidebar Customization */
 [data-testid="stSidebar"] {
-    background-color: #0e0f15 !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background-color: #060709 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     padding-top: 15px !important;
 }
 
@@ -95,7 +87,7 @@ div[data-testid="stSidebar"] div[role="radiogroup"] {
 
 div[data-testid="stSidebar"] div[role="radiogroup"] label {
     background: rgba(255, 255, 255, 0.02) !important;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
     border-radius: 10px !important;
     padding: 12px 14px !important;
     margin-bottom: 4px !important;
@@ -104,8 +96,8 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label {
 }
 
 div[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
-    background: rgba(245, 158, 11, 0.08) !important;
-    border-color: rgba(245, 158, 11, 0.3) !important;
+    background: rgba(88, 193, 200, 0.06) !important;
+    border-color: rgba(88, 193, 200, 0.35) !important;
     transform: translateX(3px);
 }
 
@@ -121,31 +113,31 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label div p {
 }
 
 div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
-    background: #1a1610 !important;
-    border: 1px solid #f59e0b !important;
-    box-shadow: 0 0 14px rgba(245, 158, 11, 0.2) !important;
+    background: rgba(88, 193, 200, 0.09) !important;
+    border: 1px solid #58c1c8 !important;
+    box-shadow: 0 0 16px rgba(88, 193, 200, 0.25) !important;
 }
 
 div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] div p {
-    color: #f59e0b !important;
+    color: #58c1c8 !important;
     font-weight: 700 !important;
 }
 
 /* --- STATUS WIDGET --- */
 .status-card {
-    background: linear-gradient(180deg, #161822 0%, #10121a 100%);
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: #08090d;
+    border: 1px solid rgba(88, 193, 200, 0.3);
     border-radius: 14px;
     padding: 16px 14px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     margin-top: 20px;
 }
 
 /* Top Streak Badge */
 .streak-badge {
-    background: rgba(251, 146, 60, 0.12);
-    border: 1px solid rgba(251, 146, 60, 0.4);
-    color: #fb923c;
+    background: rgba(88, 193, 200, 0.12);
+    border: 1px solid rgba(88, 193, 200, 0.4);
+    color: #58c1c8;
     padding: 6px 14px;
     border-radius: 9999px;
     font-size: 13px;
@@ -154,12 +146,13 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] d
     align-items: center;
     gap: 6px;
     float: right;
+    box-shadow: 0 0 12px rgba(88, 193, 200, 0.2);
 }
 
 /* Prompt Starter Quick Pills */
 .starter-chip {
     display: inline-block;
-    background: #151722;
+    background: #08090d;
     border: 1px solid rgba(255, 255, 255, 0.08);
     color: #cbd5e1;
     font-size: 13px;
@@ -168,52 +161,86 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] d
     border-radius: 9999px;
     margin-right: 8px;
     margin-bottom: 12px;
+    transition: all 0.2s ease;
+}
+.starter-chip:hover {
+    border-color: #58c1c8;
+    color: #58c1c8;
+    box-shadow: 0 0 12px rgba(88, 193, 200, 0.25);
 }
 
 /* Glassmorphic Dark Cards */
 .topper-card {
-    background: #13151f;
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: #08090d;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 14px;
     padding: 22px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 /* Chat Bubble Customization */
 [data-testid="stChatMessage"] {
-    background-color: #13151f !important;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background-color: #08090d !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 12px !important;
     margin-bottom: 12px !important;
 }
 
 /* Text Inputs */
 .stTextInput > div > div > input {
-    background-color: #151722 !important;
+    background-color: #08090d !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     color: #ffffff !important;
     border-radius: 10px !important;
     padding: 12px 16px !important;
 }
 .stTextInput > div > div > input:focus {
-    border-color: #f59e0b !important;
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.2) !important;
+    border-color: #58c1c8 !important;
+    box-shadow: 0 0 14px rgba(88, 193, 200, 0.25) !important;
 }
 
-/* Accent Buttons */
-.stButton > button {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+/* Chat Input */
+[data-testid="stChatInput"] textarea {
+    background-color: #08090d !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    border-radius: 10px !important;
+}
+[data-testid="stChatInput"] textarea:focus {
+    border-color: #58c1c8 !important;
+    box-shadow: 0 0 14px rgba(88, 193, 200, 0.25) !important;
+}
+
+/* Cyber-Cyan Accent Buttons */
+.stButton > button, div[data-testid="stFormSubmitButton"] > button {
+    background: linear-gradient(135deg, rgb(88, 193, 200) 0%, rgb(40, 155, 165) 100%) !important;
     color: #000000 !important;
     font-weight: 700 !important;
     border: none !important;
     border-radius: 10px !important;
-    padding: 8px 20px !important;
+    padding: 10px 20px !important;
     transition: all 0.2s ease !important;
 }
-.stButton > button:hover {
+.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
     transform: translateY(-1px);
-    box-shadow: 0 0 16px rgba(245, 158, 11, 0.4) !important;
+    box-shadow: 0 0 18px rgba(88, 193, 200, 0.45) !important;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background-color: #08090d;
+    border-radius: 10px;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.stTabs [data-baseweb="tab"] {
+    color: #94a3b8;
+    font-weight: 600;
+}
+.stTabs [aria-selected="true"] {
+    color: #58c1c8 !important;
+    border-bottom-color: #58c1c8 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -364,11 +391,17 @@ def clean_email_auth():
 
         _, center_col, _ = st.columns([1, 1.8, 1])
         with center_col:
-            if supabase is None:
-                st.info("💡 Supabase credentials not found in secrets. Guest Mode is available for testing.")
-                if st.button("🚀 CONTINUE AS GUEST STUDENT", use_container_width=True):
-                    st.session_state.user_data = {"email": "student@toppergpt.in", "full_name": "Student", "is_pro": True}
-                    st.rerun()
+            st.markdown("""
+                <div style="background: rgba(88, 193, 200, 0.06); border: 1px solid rgba(88, 193, 200, 0.25); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; text-align: center;">
+                    <span style="color: #58c1c8; font-weight: 700; font-size: 13px;">✦ INSTANT ACADEMIC ACCESS</span>
+                    <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Enter your academic email below or continue as Guest Student.</p>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("🚀 CONTINUE AS GUEST STUDENT", use_container_width=True):
+                st.session_state.user_data = {"email": "student@toppergpt.in", "full_name": "Student", "is_pro": True}
+                st.rerun()
+
+            st.markdown("<div style='text-align: center; margin: 12px 0; color: #64748b; font-size: 12px;'>─── OR SIGN IN WITH EMAIL ───</div>", unsafe_allow_html=True)
 
             auth_tab = st.tabs(["🔑 Quick Access", "📝 New Registration"])
             
@@ -441,8 +474,8 @@ clean_email_auth()
 with st.sidebar:
     st.markdown("""
         <div style="display:flex; align-items:center; gap:10px; padding: 5px 0 20px 4px;">
-            <div style="width:12px; height:12px; background:#f59e0b; border-radius:50%; box-shadow: 0 0 10px #f59e0b;"></div>
-            <h2 style="color:#ffffff; margin:0; font-size:24px; font-weight:800; letter-spacing:-0.5px;">TopperGPT</h2>
+            <div style="width:12px; height:12px; background:#58c1c8; border-radius:50%; box-shadow: 0 0 12px #58c1c8;"></div>
+            <h2 style="color:#ffffff; margin:0; font-size:24px; font-weight:800; letter-spacing:-0.5px;">Topper<span style="color:#58c1c8;">GPT</span></h2>
         </div>
     """, unsafe_allow_html=True)
 
@@ -622,7 +655,7 @@ if nav_selection == "💡 AI Tutor":
 elif nav_selection == "🎯 Predicted Qs":
     st.markdown("""
         <div class="topper-card">
-            <h3 style="margin-top:0; color:#f59e0b;">Target High-Probability Examination Questions</h3>
+            <h3 style="margin-top:0; color:#58c1c8;">Target High-Probability Examination Questions</h3>
             <p style="color:#94a3b8; font-size:14px; margin:0;">
                 Predict recurring Mumbai University questions, examiner marking rubrics, and previous year variations.
             </p>
@@ -697,7 +730,7 @@ elif nav_selection == "🎯 Predicted Qs":
 elif nav_selection == "📄 Short Notes":
     st.markdown("""
         <div class="topper-card">
-            <h3 style="margin-top:0; color:#f59e0b;">1-Page Exam Cheat Sheet</h3>
+            <h3 style="margin-top:0; color:#58c1c8;">1-Page Exam Cheat Sheet</h3>
             <p style="color:#94a3b8; font-size:14px; margin:0;">
                 Synthesize high-yield formulas with proper SI units, high-scoring modules, and rapid revision notes.
             </p>
@@ -776,7 +809,7 @@ elif nav_selection == "📄 Short Notes":
 elif nav_selection == "🔍 Topic Research":
     st.markdown("""
         <div class="topper-card">
-            <h3 style="margin-top:0; color:#f59e0b;">Streamlined Concept Breakdown</h3>
+            <h3 style="margin-top:0; color:#58c1c8;">Streamlined Concept Breakdown</h3>
             <p style="color:#94a3b8; font-size:14px; margin:0;">
                 Get university-standard definitions, technical breakdowns, and working principles in 3 clean cards.
             </p>
@@ -838,7 +871,7 @@ elif nav_selection == "🔍 Topic Research":
         
         with col1:
             with st.container(border=True):
-                st.markdown("<h4 style='color:#f59e0b; margin-top:0;'>1. Official Definition</h4>", unsafe_allow_html=True)
+                st.markdown("<h4 style='color:#58c1c8; margin-top:0;'>1. Official Definition</h4>", unsafe_allow_html=True)
                 st.markdown(t_data.get("definition", "Details unavailable."))
                 
         with col2:
