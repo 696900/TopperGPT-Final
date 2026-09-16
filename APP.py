@@ -58,6 +58,27 @@ html, body, [class*="css"] {
     font-family: 'Space Grotesk', 'Plus Jakarta Sans', -apple-system, sans-serif !important;
 }
 
+/* Custom sleek scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #030303;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(88, 193, 200, 0.25);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(88, 193, 200, 0.55);
+}
+
+::selection {
+    background: rgba(88, 193, 200, 0.3) !important;
+    color: #ffffff !important;
+}
+
 /* Background grid styling matching cyber-cyan landing page */
 .stApp {
     background-color: #030303 !important;
@@ -69,61 +90,90 @@ html, body, [class*="css"] {
     color: #f3f4f6 !important;
 }
 
-/* Sidebar Customization */
-[data-testid="stSidebar"] {
-    background-color: #060709 !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-    padding-top: 15px !important;
+/* Main block container max-width & padding for optimal reading ergonomics */
+.main .block-container, div[data-testid="stMainBlockContainer"] {
+    max-width: 1000px !important;
+    padding-top: 2rem !important;
+    padding-bottom: 110px !important;
 }
 
+/* Header customization */
 header[data-testid="stHeader"] {
     background-color: transparent !important;
 }
 
-/* --- SIDEBAR NAVIGATION UPGRADE --- */
-div[data-testid="stSidebar"] div[role="radiogroup"] {
-    gap: 8px !important;
+/* ================================================================ */
+/* 1. SIDEBAR SCALING & PROPORTIONS (DESKTOP)                      */
+/* ================================================================ */
+[data-testid="stSidebar"] {
+    background-color: #060709 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding-top: 15px !important;
+    min-width: 280px !important;
 }
 
+/* Radio Navigation Group Container */
+div[data-testid="stSidebar"] div[role="radiogroup"] {
+    gap: 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Individual Sidebar Item (Scaled 15-20%) */
 div[data-testid="stSidebar"] div[role="radiogroup"] label {
-    background: rgba(255, 255, 255, 0.02) !important;
+    background: rgba(255, 255, 255, 0.025) !important;
     border: 1px solid rgba(255, 255, 255, 0.07) !important;
-    border-radius: 10px !important;
-    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    padding: 14px 18px !important;
     margin-bottom: 4px !important;
     cursor: pointer !important;
-    transition: all 0.2s ease-in-out !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    display: flex !important;
+    align-items: center !important;
 }
 
 div[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
-    background: rgba(88, 193, 200, 0.06) !important;
+    background: rgba(88, 193, 200, 0.07) !important;
     border-color: rgba(88, 193, 200, 0.35) !important;
-    transform: translateX(3px);
+    transform: translateX(4px) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
 }
 
+/* Hide Streamlit default circular radio button */
 div[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child {
     display: none !important;
 }
 
+/* Sidebar Item Text (Scaled Font Size 17.5px) */
 div[data-testid="stSidebar"] div[role="radiogroup"] label div p {
-    font-size: 15px !important;
+    font-size: 17.5px !important;
     font-weight: 600 !important;
     color: #cbd5e1 !important;
-    letter-spacing: 0.2px !important;
+    letter-spacing: 0.3px !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    transition: color 0.2s ease !important;
 }
 
+/* Active State Tab: Glassmorphism, Modern Glow, Left Accent Bar */
 div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
-    background: rgba(88, 193, 200, 0.09) !important;
-    border: 1px solid #58c1c8 !important;
-    box-shadow: 0 0 16px rgba(88, 193, 200, 0.25) !important;
+    background: linear-gradient(135deg, rgba(88, 193, 200, 0.16) 0%, rgba(88, 193, 200, 0.04) 100%) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border: 1px solid rgba(88, 193, 200, 0.55) !important;
+    border-left: 4px solid #58c1c8 !important;
+    box-shadow: 0 0 20px rgba(88, 193, 200, 0.22), inset 0 0 14px rgba(88, 193, 200, 0.08) !important;
+    transform: translateX(2px) !important;
 }
 
 div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] div p {
     color: #58c1c8 !important;
     font-weight: 700 !important;
+    font-size: 17.5px !important;
+    text-shadow: 0 0 12px rgba(88, 193, 200, 0.4) !important;
 }
 
-/* --- STATUS WIDGET --- */
+/* Status Card in Sidebar */
 .status-card {
     background: #08090d;
     border: 1px solid rgba(88, 193, 200, 0.3);
@@ -183,8 +233,13 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] d
 [data-testid="stChatMessage"] {
     background-color: #08090d !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 12px !important;
-    margin-bottom: 12px !important;
+    border-radius: 14px !important;
+    margin-bottom: 14px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+    transition: border-color 0.2s ease !important;
+}
+[data-testid="stChatMessage"]:hover {
+    border-color: rgba(88, 193, 200, 0.2) !important;
 }
 
 /* Text Inputs */
@@ -200,20 +255,110 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] d
     box-shadow: 0 0 14px rgba(88, 193, 200, 0.25) !important;
 }
 
-/* Chat Input */
-[data-testid="stChatInput"] textarea {
-    background-color: #08090d !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #ffffff !important;
-    border-radius: 10px !important;
+/* ================================================================ */
+/* 2. CHAT INPUT BAR REDESIGN (FLOATING DARK-MODE THEME)           */
+/* ================================================================ */
+/* Clear default Streamlit bottom bar gradient */
+div[data-testid="stBottom"], .stBottom {
+    background: transparent !important;
+    background-color: transparent !important;
 }
-[data-testid="stChatInput"] textarea:focus {
-    border-color: #58c1c8 !important;
-    box-shadow: 0 0 14px rgba(88, 193, 200, 0.25) !important;
+
+div[data-testid="stBottomBlockContainer"] {
+    background: transparent !important;
+    padding-bottom: 24px !important;
+    padding-top: 10px !important;
+    max-width: 1000px !important;
+    margin: 0 auto !important;
+}
+
+div[data-testid="stChatInput"] {
+    background-color: transparent !important;
+}
+
+/* Floating Sleek Dark Box */
+div[data-testid="stChatInput"] > div {
+    background: rgba(8, 9, 13, 0.92) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(88, 193, 200, 0.22) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.65), 0 0 16px rgba(88, 193, 200, 0.08) !important;
+    padding: 6px 12px !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+div[data-testid="stChatInput"] > div:focus-within {
+    border-color: rgba(88, 193, 200, 0.65) !important;
+    box-shadow: 0 12px 38px rgba(0, 0, 0, 0.75), 0 0 24px rgba(88, 193, 200, 0.3) !important;
+    transform: translateY(-1px);
+}
+
+/* Textarea inside Floating Chat Input */
+div[data-testid="stChatInput"] textarea {
+    background-color: transparent !important;
+    color: #f1f5f9 !important;
+    font-family: inherit !important;
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    padding: 8px 10px !important;
+}
+
+div[data-testid="stChatInput"] textarea::placeholder {
+    color: #64748b !important;
+    font-size: 14.5px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.2px !important;
+}
+
+/* Sharp, Centered Send Button with Cyber-Cyan Accent */
+div[data-testid="stChatInput"] button {
+    background: linear-gradient(135deg, rgb(88, 193, 200) 0%, rgb(40, 155, 165) 100%) !important;
+    color: #000000 !important;
+    border: none !important;
+    border-radius: 12px !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: auto 2px !important;
+    padding: 0 !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 0 14px rgba(88, 193, 200, 0.35) !important;
+}
+
+div[data-testid="stChatInput"] button:hover:not(:disabled) {
+    transform: scale(1.06) translateY(-1px) !important;
+    box-shadow: 0 0 22px rgba(88, 193, 200, 0.6) !important;
+}
+
+div[data-testid="stChatInput"] button:active:not(:disabled) {
+    transform: scale(0.96) !important;
+}
+
+div[data-testid="stChatInput"] button:disabled {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #475569 !important;
+    opacity: 0.45 !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+}
+
+div[data-testid="stChatInput"] button svg {
+    fill: currentColor !important;
+    width: 18px !important;
+    height: 18px !important;
 }
 
 /* Cyber-Cyan Accent Buttons */
-.stButton > button, div[data-testid="stFormSubmitButton"] > button {
+.stButton > button, div[data-testid="stFormSubmitButton"] > button, .stDownloadButton > button {
     background: linear-gradient(135deg, rgb(88, 193, 200) 0%, rgb(40, 155, 165) 100%) !important;
     color: #000000 !important;
     font-weight: 700 !important;
@@ -241,6 +386,138 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] d
 .stTabs [aria-selected="true"] {
     color: #58c1c8 !important;
     border-bottom-color: #58c1c8 !important;
+}
+
+/* ================================================================ */
+/* 3. COMPLETE MOBILE RESPONSIVENESS (@media max-width: 768px)      */
+/* ================================================================ */
+/* Sleek Hamburger Drawer Button */
+[data-testid="collapsedControl"] {
+    color: #58c1c8 !important;
+    background: rgba(8, 9, 13, 0.88) !important;
+    border: 1px solid rgba(88, 193, 200, 0.35) !important;
+    border-radius: 10px !important;
+    padding: 6px 8px !important;
+    top: 14px !important;
+    left: 14px !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(88, 193, 200, 0.2) !important;
+    z-index: 999999 !important;
+    transition: all 0.2s ease !important;
+}
+[data-testid="collapsedControl"]:hover {
+    border-color: #58c1c8 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 18px rgba(88, 193, 200, 0.45) !important;
+}
+[data-testid="collapsedControl"] svg {
+    stroke: #58c1c8 !important;
+    fill: #58c1c8 !important;
+}
+
+@media (max-width: 768px) {
+    /* Mobile Sidebar Overlay Drawer */
+    [data-testid="stSidebar"] {
+        width: 84vw !important;
+        max-width: 320px !important;
+        background-color: rgba(6, 7, 9, 0.98) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        box-shadow: 4px 0 30px rgba(0, 0, 0, 0.85) !important;
+        z-index: 1000000 !important;
+    }
+
+    /* Main Container Padding on Mobile */
+    .main .block-container, div[data-testid="stMainBlockContainer"] {
+        padding-top: 3.5rem !important; /* clear space for hamburger icon */
+        padding-left: 0.9rem !important;
+        padding-right: 0.9rem !important;
+        padding-bottom: 120px !important; /* ensures last message scrolls fully above pinned bottom input */
+        max-width: 100% !important;
+    }
+
+    /* Responsive Typography */
+    h1 {
+        font-size: 24px !important;
+        line-height: 1.25 !important;
+        margin: 0 0 10px 0 !important;
+    }
+
+    /* Streak Badge & Status Stacking */
+    .streak-badge {
+        float: none !important;
+        display: inline-flex !important;
+        font-size: 12px !important;
+        padding: 4px 10px !important;
+        margin-top: 4px !important;
+        margin-bottom: 14px !important;
+    }
+
+    /* Prompt Starter Quick Pills */
+    .starter-chip {
+        font-size: 12px !important;
+        padding: 6px 12px !important;
+        margin-right: 6px !important;
+        margin-bottom: 8px !important;
+        display: inline-block !important;
+    }
+
+    /* Cards & Containers on Small Screens */
+    .topper-card {
+        padding: 16px 14px !important;
+        margin-bottom: 14px !important;
+        border-radius: 12px !important;
+    }
+    .topper-card h3 {
+        font-size: 17px !important;
+    }
+
+    /* Chat Messages on Mobile */
+    [data-testid="stChatMessage"] {
+        padding: 12px 14px !important;
+        margin-bottom: 10px !important;
+        border-radius: 12px !important;
+    }
+
+    /* Pinned Bottom Chat Bar Container for Mobile Viewports */
+    div[data-testid="stBottom"], .stBottom {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        background: linear-gradient(180deg, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.94) 30%, #030303 100%) !important;
+        padding: 8px 10px 14px 10px !important;
+        z-index: 9999 !important;
+    }
+
+    div[data-testid="stBottomBlockContainer"] {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+
+    div[data-testid="stChatInput"] {
+        width: 100% !important;
+    }
+
+    div[data-testid="stChatInput"] > div {
+        border-radius: 14px !important;
+        padding: 4px 8px !important;
+        background: rgba(8, 9, 13, 0.96) !important;
+    }
+
+    div[data-testid="stChatInput"] textarea {
+        font-size: 14px !important;
+        padding: 6px 8px !important;
+    }
+
+    div[data-testid="stChatInput"] button {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+        border-radius: 10px !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
