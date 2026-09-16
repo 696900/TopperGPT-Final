@@ -3,6 +3,7 @@ import requests
 import json
 import time
 import os
+import re
 from supabase import create_client, Client
 from landing_page import render_landing_page
 
@@ -666,7 +667,107 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# --- 4. BACKEND AI ENGINE (GROQ + GEMINI + OPENROUTER) ---
+# --- 4. LATEX & MATHEMATICAL FORMULA SANITIZER ---
+def clean_latex_math(text: str) -> str:
+    """
+    Standardizes and sanitizes LaTeX math equations for clean Streamlit KaTeX rendering.
+    - Replaces double-escaped backslashes (\\\\frac -> \\frac)
+    - Removes raw \\displaystyle and converts {\\displaystyle ...} to $$...$$
+    - Converts \\[ ... \\] to $$ ... $$
+    - Converts \\( ... \\) to $ ... $
+    - Wraps raw unrendered expressions (like (R_{eq}), R_{eq}) in $...$
+    - Wraps raw un-delimited LaTeX formulas (like \\frac{a}{b}) in $...$
+    - Ensures proper dollar-sign boundaries for KaTeX parsing in Streamlit markdown
+    """
+    if not text or not isinstance(text, str):
+        return text
+
+    # 1. Normalize double-escaped backslashes before LaTeX commands:
+    # e.g. \\frac -> \frac, \\sum -> \sum, \\sqrt -> \sqrt, etc.
+    text = re.sub(r'\\\\([a-zA-Z]+)', r'\\\1', text)
+
+    # 2. Convert {\displaystyle ...} blocks using balanced brace matching
+    def replace_displaystyle_blocks(s):
+        result = []
+        i = 0
+        n = len(s)
+        while i < n:
+            match = re.search(r'\{\s*\\displaystyle\b', s[i:])
+            if not match:
+                result.append(s[i:])
+                break
+            
+            start_pos = i + match.start()
+            result.append(s[i:start_pos])
+            
+            open_brace_idx = start_pos + s[start_pos:start_pos + match.end()].find('{')
+            brace_count = 1
+            j = open_brace_idx + 1
+            while j < n:
+                if s[j] == '{':
+                    brace_count += 1
+                elif s[j] == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        break
+                j += 1
+            
+            if j < n and brace_count == 0:
+                inner_content = s[open_brace_idx + 1:j].strip()
+                inner_content = re.sub(r'\\displaystyle\s*', '', inner_content).strip()
+                result.append(f"\n$$\n{inner_content}\n$$\n")
+                i = j + 1
+            else:
+                result.append(s[start_pos:])
+                break
+        return "".join(result)
+
+    text = replace_displaystyle_blocks(text)
+
+    # 3. Convert LaTeX display brackets \[ ... \] to $$ ... $$
+    text = re.sub(r'\\\[\s*(.*?)\s*\\\]', r'\n$$\n\1\n$$\n', text, flags=re.DOTALL)
+
+    # 4. Convert LaTeX inline parens \( ... \) to $ ... $
+    text = re.sub(r'\\\(\s*(.*?)\s*\\\)', r' $\1$ ', text, flags=re.DOTALL)
+
+    # 5. Clean any remaining raw \displaystyle inside existing equations
+    text = re.sub(r'\\displaystyle\s*', '', text)
+
+    # 6. Process text outside of math blocks ($...$ and $$...$$)
+    math_pattern = r'(\$\$.*?\$\$|\$.*?\$)'
+    parts = re.split(math_pattern, text, flags=re.DOTALL)
+    cleaned_parts = []
+    for part in parts:
+        if part.startswith('$'):
+            # Math block (either $$...$$ or $...$)
+            # Ensure no nested dollar signs inside $$...$$
+            if part.startswith('$$') and part.endswith('$$') and len(part) >= 4:
+                inner = part[2:-2]
+                inner = re.sub(r'(?<!\\)\$', '', inner)  # remove any rogue $ inside $$
+                cleaned_parts.append(f"$${inner}$$")
+            else:
+                cleaned_parts.append(part)
+        else:
+            # Non-math text:
+            p = part
+            # Check for unwrapped \frac or \sqrt equations in non-math text
+            frac_pattern = r'((?:[a-zA-Z0-9_]+\s*=\s*)?\\frac\{[^{}]+\}\{[^{}]+\}(?:\s*[\=\+\-\*\/]\s*(?:\\frac\{[^{}]+\}\{[^{}]+\}|[a-zA-Z0-9_{}\^]+))*)'
+            p = re.sub(frac_pattern, r'$\1$', p)
+
+            # Convert (R_{eq}) to ($R_{eq}$)
+            p = re.sub(r'\(([A-Za-z]+_\{[A-Za-z0-9+-]+\})\)', r'($\1$)', p)
+            # Convert standalone variable with subscript like R_{eq}, V_{p}, N_{s}
+            p = re.sub(r'(?<![\$\\a-zA-Z0-9])([A-Za-z]{1,4}_\{[A-Za-z0-9+-]+\})(?![\$\\a-zA-Z0-9])', r'$\1$', p)
+            cleaned_parts.append(p)
+    text = "".join(cleaned_parts)
+
+    # 7. Clean up extra blank lines around $$
+    text = re.sub(r'\n{3,}\$\$', '\n\n$$', text)
+    text = re.sub(r'\$\$\n{3,}', '$$\n\n', text)
+
+    return text
+
+# --- 5. BACKEND AI ENGINE (GROQ + GEMINI + OPENROUTER) ---
 def generate_ai_response(prompt_text, max_toks=1200):
     groq_key = get_env_secret("GROQ_API_KEY").strip()
     if groq_key:
@@ -693,7 +794,7 @@ def generate_ai_response(prompt_text, max_toks=1200):
                             timeout=14
                         )
                         if res.status_code == 200:
-                            return res.json()["choices"][0]["message"]["content"].strip()
+                            return clean_latex_math(res.json()["choices"][0]["message"]["content"].strip())
                     except Exception:
                         continue
         except Exception:
@@ -711,7 +812,7 @@ def generate_ai_response(prompt_text, max_toks=1200):
                     timeout=14
                 )
                 if res.status_code == 200:
-                    return res.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+                    return clean_latex_math(res.json()['candidates'][0]['content']['parts'][0]['text'].strip())
             except Exception:
                 continue
 
@@ -744,7 +845,7 @@ def generate_ai_response(prompt_text, max_toks=1200):
                 if res.status_code == 200:
                     choices = res.json().get("choices", [])
                     if choices and "message" in choices[0] and choices[0]["message"].get("content"):
-                        return choices[0]["message"]["content"].strip()
+                        return clean_latex_math(choices[0]["message"]["content"].strip())
             except Exception:
                 continue
 
@@ -757,11 +858,11 @@ def generate_ai_response(prompt_text, max_toks=1200):
             if any(term in low_p for term in subj.split()):
                 matched.append(f"### 📘 Authentic MU Exam Knowledge: {subj.upper()}\n{notes.strip()}")
         if matched:
-            return "\n\n".join(matched[:2])
+            return clean_latex_math("\n\n".join(matched[:2]))
     except Exception:
         pass
 
-    return "### 📌 Core Concept\nWe are currently analyzing this syllabus question with high-yield university exam patterns. Please refresh or retry in a moment."
+    return clean_latex_math("### 📌 Core Concept\nWe are currently analyzing this syllabus question with high-yield university exam patterns. Please refresh or retry in a moment.")
 
 # --- 5. AUTHENTICATION ---
 def clean_email_auth():
@@ -953,7 +1054,15 @@ with col_badge:
 
 # Helper function for Instant Hinglish Translation
 def translate_to_hinglish(text_content):
-    prompt = f"""Translate and simplify the following engineering explanation into clear, friendly Hinglish (Hindi written in English alphabets) so that an Indian student can understand it effortlessly. Keep all equations and mathematical variables intact.\n\nText:\n{text_content}"""
+    prompt = f"""Translate and simplify the following engineering explanation into clear, friendly Hinglish (Hindi written in English alphabets) so that an Indian student can understand it effortlessly. Keep all equations and mathematical variables intact.
+
+    MATHEMATICAL NOTATION INSTRUCTIONS:
+    - Wrap ALL inline math variables/formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$).
+    - Wrap ALL standalone or display equations in double dollar signs ($$...$$).
+    - Never use \\displaystyle or wrap equations in raw curly braces {{...}} without dollar signs.
+
+    Text:
+    {text_content}"""
     return generate_ai_response(prompt, max_toks=1000)
 
 # ==================================================
@@ -988,6 +1097,11 @@ if nav_selection == "💡 AI Tutor":
 
             Student Query: "{init_q}"
 
+            MATHEMATICAL NOTATION RULES:
+            - Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
+            - Wrap ALL standalone or block equations in double dollar signs ($$...$$).
+            - NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
+
             1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.
             2. If academic: Use the strict 3-block structure:
                ### 📌 1. University Standard Definition (2-Mark Standard)
@@ -1008,11 +1122,11 @@ if nav_selection == "💡 AI Tutor":
 
     for idx, msg in enumerate(st.session_state.tutor_messages):
         with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+            st.markdown(clean_latex_math(msg["content"]))
             if msg["role"] == "assistant" and idx > 0:
                 if msg.get("hinglish"):
                     with st.expander("🗣️ View Hinglish Explanation"):
-                        st.markdown(msg["hinglish"])
+                        st.markdown(clean_latex_math(msg["hinglish"]))
                 else:
                     if st.button("🗣️ Explain in Hinglish", key=f"tr_{idx}"):
                         with st.spinner("Translating to simple Hinglish..."):
@@ -1025,13 +1139,18 @@ if nav_selection == "💡 AI Tutor":
     if user_query:
         st.session_state.tutor_messages.append({"role": "user", "content": user_query, "hinglish": None})
         with st.chat_message("user"):
-            st.markdown(user_query)
+            st.markdown(clean_latex_math(user_query))
 
         tutor_prompt = f"""
         You are TopperGPT's Senior Academic Evaluator for Mumbai University Engineering (C-Scheme).
         Respond exclusively in professional, clear, exam-oriented English.
 
         Student Query: "{user_query}"
+
+        MATHEMATICAL NOTATION RULES:
+        - Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
+        - Wrap ALL standalone or block equations in double dollar signs ($$...$$).
+        - NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
 
         1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.
         2. If academic: Use the strict 3-block structure:
@@ -1049,7 +1168,7 @@ if nav_selection == "💡 AI Tutor":
             with st.spinner("Analyzing syllabus and evaluation rubrics..."):
                 try:
                     ai_reply = generate_ai_response(tutor_prompt)
-                    st.markdown(ai_reply)
+                    st.markdown(clean_latex_math(ai_reply))
                     st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
                     st.rerun()
                 except Exception as e:
@@ -1080,6 +1199,11 @@ elif nav_selection == "🎯 Predicted Qs":
                 Target Topic: {p_topic}
                 Language: Strictly Professional English.
 
+                MATHEMATICAL NOTATION RULES:
+                - Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
+                - Wrap ALL standalone or block equations in double dollar signs ($$...$$).
+                - NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
+
                 Produce:
                 ### SECTION 1: 🎯 Top 5 Most Repeated Exam Questions
                 List 5 high-probability questions ([2M], [6M], [10M]).
@@ -1108,7 +1232,7 @@ elif nav_selection == "🎯 Predicted Qs":
     if "pred_result" in st.session_state and st.session_state.pred_result:
         st.markdown("---")
         st.markdown(f"### 📘 Exam Blueprint: **{st.session_state.get('pred_topic_name', '').upper()}**")
-        st.markdown(st.session_state.pred_result)
+        st.markdown(clean_latex_math(st.session_state.pred_result))
 
         col_act1, col_act2 = st.columns([1, 1])
         with col_act1:
@@ -1128,7 +1252,7 @@ elif nav_selection == "🎯 Predicted Qs":
 
         if st.session_state.get("pred_hinglish"):
             with st.expander("🗣️ View Hinglish Blueprint Translation", expanded=True):
-                st.markdown(st.session_state.pred_hinglish)
+                st.markdown(clean_latex_math(st.session_state.pred_hinglish))
 
 # ==================================================
 # --- 3. FEATURE: CHAPTER SHORT-NOTES ---
@@ -1155,7 +1279,11 @@ elif nav_selection == "📄 Short Notes":
                 Target Chapter: {sn_topic}
                 Language: Strictly Professional English.
 
-                Do not use markdown tables for equations. Use clean Markdown LaTeX ($$ display blocks).
+                MATHEMATICAL NOTATION RULES:
+                - Do not use markdown tables for equations. Use clean Markdown LaTeX ($$ display blocks).
+                - Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
+                - Wrap ALL standalone or block equations in double dollar signs ($$...$$).
+                - NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
 
                 OUTPUT:
                 ### 1. 🧮 Core Numerical Formulas & Parameters
@@ -1187,7 +1315,7 @@ elif nav_selection == "📄 Short Notes":
     if "sn_data" in st.session_state and st.session_state.sn_data:
         st.markdown("---")
         st.markdown(f"### 📘 Revision Sheet: **{st.session_state.get('sn_name', '').upper()}**")
-        st.markdown(st.session_state.sn_data)
+        st.markdown(clean_latex_math(st.session_state.sn_data))
 
         col_sn1, col_sn2 = st.columns([1, 1])
         with col_sn1:
@@ -1207,7 +1335,7 @@ elif nav_selection == "📄 Short Notes":
 
         if st.session_state.get("sn_hinglish"):
             with st.expander("🗣️ View Hinglish Cheat Sheet Translation", expanded=True):
-                st.markdown(st.session_state.sn_hinglish)
+                st.markdown(clean_latex_math(st.session_state.sn_hinglish))
 
 # ==================================================
 # --- 4. FEATURE: TOPIC RESEARCH (ZERO-FAIL JSON PARSING) ---
@@ -1233,6 +1361,11 @@ elif nav_selection == "🔍 Topic Research":
                 You are a Senior Mumbai University Engineering Professor.
                 Target Topic: "{topic_q}"
                 Language: Strictly Professional English.
+
+                MATHEMATICAL NOTATION RULES:
+                - Wrap ALL inline variables/formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
+                - Wrap ALL block equations in double dollar signs ($$...$$).
+                - NEVER use \\displaystyle or bare curly braces {{...}} without dollar signs.
 
                 Return ONLY a valid JSON object. Do NOT include any intro, draft thoughts, reasoning, or backticks around the json.
                 JSON structure must be exactly:
@@ -1278,17 +1411,17 @@ elif nav_selection == "🔍 Topic Research":
         with col1:
             with st.container(border=True):
                 st.markdown("<h4 style='color:#58c1c8; margin-top:0;'>1. Official Definition</h4>", unsafe_allow_html=True)
-                st.markdown(t_data.get("definition", "Details unavailable."))
+                st.markdown(clean_latex_math(t_data.get("definition", "Details unavailable.")))
                 
         with col2:
             with st.container(border=True):
                 st.markdown("<h4 style='color:#00F2FE; margin-top:0;'>2. Technical Breakdown</h4>", unsafe_allow_html=True)
-                st.markdown(t_data.get("breakdown", "Details unavailable."))
+                st.markdown(clean_latex_math(t_data.get("breakdown", "Details unavailable.")))
                 
         with col3:
             with st.container(border=True):
                 st.markdown("<h4 style='color:#22c55e; margin-top:0;'>3. Working Principle</h4>", unsafe_allow_html=True)
-                st.markdown(t_data.get("working_principle", "Details unavailable."))
+                st.markdown(clean_latex_math(t_data.get("working_principle", "Details unavailable.")))
 
         if st.button("🗑️ Clear Research"):
             del st.session_state.topic_res_json
