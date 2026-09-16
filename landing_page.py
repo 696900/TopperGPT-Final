@@ -222,6 +222,46 @@ def render_landing_page():
         box-shadow: 0 0 25px rgb(88, 193, 200);
     }
 
+    /* Responsive Mobile Navbar Flex */
+    @media (max-width: 768px) {
+        .navbar {
+            padding: 0.6rem 0;
+        }
+        .nav-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            width: 100%;
+        }
+        .nav-links {
+            display: none !important;
+        }
+        .brand {
+            gap: 0.5rem;
+        }
+        .brand-title {
+            font-size: 1.15rem;
+        }
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            font-size: 16px;
+        }
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: nowrap;
+        }
+        .nav-actions .btn {
+            padding: 0.45rem 0.85rem;
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+    }
+
     /* Hero Section 1 */
     .hero-grid {
         display: grid;
