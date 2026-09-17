@@ -3,78 +3,74 @@
 
 PYQ_DATA = {
     "applied physics": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     Dec 2024 (QP: 10070779):
-    - Metastable state & role in LASER (3M) [cite: 23]
-    - Acceptance angle (30°) & Core RI (1.5) -> Find Cladding RI (3M) [cite: 24, 27]
-    - Thin film black in reflected light explanation (3M) [cite: 25]
-    - Divergence of curl of a vector is zero (Proof) (3M) [cite: 30]
-    - Properties of matter waves (3M) [cite: 32]
-    - ID potential well (2A°) -> Energy ground/excited state (5M) [cite: 36, 37]
-    - Fermi Dirac distribution function explanation (5M) [cite: 38]
-    - He-Ne Gas laser construction & working (Energy level diagram) (5M) [cite: 41]
-        - Numerical aperture derivation for step index fiber (5M) [cite: 42]
-    - Newton's rings (RI 1.33, 9th dark ring 0.58cm, 6000A°) -> Radius of curvature (5M) [cite: 43, 44, 45]
-    - Gradient of phi=3(x2y-y2x) at (1,-2,-1) (5M) [cite: 48]
-    - Proof: Electron cannot reside inside nucleus (5M) [cite: 49]
-    - Silicon doping (Indium) -> Electrical properties effect (5M) [cite: 54, 55]
-    - Fermi level lies midway for intrinsic semiconductor (5M) [cite: 76]
-    - Newton's rings: Determination of RI of liquid (5M) [cite: 76]
-    - Compare Step Index vs Graded Index Fiber (5M) [cite: 76]
-    - State & explain Maxwell's fourth equation (5M) [cite: 76]
-    - Lidar technology construction/working (5M) [cite: 76]
+    - Metastable state & role in LASER (3M) 
+    - Acceptance angle (30°) & Core RI (1.5) -> Find Cladding RI (3M) 
+    - Thin film black in reflected light explanation (3M) 
+    - Divergence of curl of a vector is zero (Proof) (3M) 
+    - Properties of matter waves (3M) 
+    - ID potential well (2A°) -> Energy ground/excited state (5M) 
+    - Fermi Dirac distribution function explanation (5M) 
+    - He-Ne Gas laser construction & working (Energy level diagram) (5M) 
+        - Numerical aperture derivation for step index fiber (5M) 
+    - Newton's rings (RI 1.33, 9th dark ring 0.58cm, 6000A°) -> Radius of curvature (5M) 
+    - Gradient of phi=3(x2y-y2x) at (1,-2,-1) (5M) 
+    - Proof: Electron cannot reside inside nucleus (5M) 
+    - Silicon doping (Indium) -> Electrical properties effect (5M) 
+    - Fermi level lies midway for intrinsic semiconductor (5M) 
+    - Newton's rings: Determination of RI of liquid (5M) 
+    - Compare Step Index vs Graded Index Fiber (5M) 
+    - State & explain Maxwell's fourth equation (5M) 
+    - Lidar technology construction/working (5M) 
 
     May 2025 (QP: 10082947):
-    - Define: Critical angle, Acceptance angle, Attenuation (3M) [cite: 127]
-    - Antireflection coating RI & thickness (3M) [cite: 128]
-    - de-Broglie wavelength (1kg mass, 10^3 m/s) (3M) [cite: 132]
-    - Resonant cavity use in Laser generation (5M) [cite: 137]
-    - Schrodinger's Time Independent wave equation derivation (5M) [cite: 149]
-    - Condition for maxima/minima for thin transparent film (5M) [cite: 153]
+    - Define: Critical angle, Acceptance angle, Attenuation (3M) 
+    - Antireflection coating RI & thickness (3M) 
+    - de-Broglie wavelength (1kg mass, 10^3 m/s) (3M) 
+    - Resonant cavity use in Laser generation (5M) 
+    - Schrodinger's Time Independent wave equation derivation (5M) 
+    - Condition for maxima/minima for thin transparent film (5M) 
     """,
 
     "applied mathematics 1": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     Dec 2024 (QP: 10070769):
-    - Find all values of (1+i)^(1/3) (3M) [cite: 274]
-    - Prove tanh(log sqrt 3) = 0.5 (3M) [cite: 274]
-    - nth derivative of y = e^ax sin^2 x (3M) [cite: 274]
-    - Show matrix A is unitary and find A-1 (Matrix provided) (3M) [cite: 274]
-    - Newton Raphson: Formula for cube root of 150 (3M) [cite: 274]
-    - Maxima/Minima of (x2+y2+8x+6y+6) (4M) [cite: 274]
-    - Solve x4+x3+x2+x+1 = 0 (5M) [cite: 274]
-    - Euler's theorem on homogeneous functions (State & Prove) (6M) [cite: 274]
-    - Gauss Jacobi method (3 iterations) (6M) [cite: 274, 286]
+    - Find all values of (1+i)^(1/3) (3M) 
+    - Prove tanh(log sqrt 3) = 0.5 (3M) 
+    - nth derivative of y = e^ax sin^2 x (3M) 
+    - Show matrix A is unitary and find A-1 (Matrix provided) (3M) 
+    - Newton Raphson: Formula for cube root of 150 (3M) 
+    - Maxima/Minima of (x2+y2+8x+6y+6) (4M) 
+    - Solve x4+x3+x2+x+1 = 0 (5M) 
+    - Euler's theorem on homogeneous functions (State & Prove) (6M) 
+    - Gauss Jacobi method (3 iterations) (6M) 
 
     May 2025 (QP: 10091911):
-    - nth derivative of 2 / (x-1)(x-2)(x-3) (3M) [cite: 422]
-    - If 5sinhx - coshx = 5, find tanhx (3M) [cite: 424]
-    - Reduce matrix to normal form and find rank (Matrix provided) (4M) [cite: 450]
-    - Solve x6+1=0 (5M) [cite: 455]
-    - Expand sin^5 theta cos^3 theta in sines of multiples (6M) [cite: 459]
+    - nth derivative of 2 / (x-1)(x-2)(x-3) (3M) 
+    - If 5sinhx - coshx = 5, find tanhx (3M) 
+    - Reduce matrix to normal form and find rank (Matrix provided) (4M) 
+    - Solve x6+1=0 (5M) 
+    - Expand sin^5 theta cos^3 theta in sines of multiples (6M) 
     """,
 
     "applied chemistry": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     Dec 2024 (QP: 10070837):
-    - Characteristics of good fuel (3M) [cite: 509]
-    - Define corrosion & joining metals to prevent it (3M) [cite: 509]
-    - Purposes of making an alloy (3M) [cite: 509]
-    - Principles of Green Chemistry (3M) [cite: 509]
-    - Sacrificial anode cathodic protection method (5M) [cite: 509]
-    - Determination of C & H by ultimate analysis (5M) [cite: 509]
-    - Condensed phase rule equation & Pb-Ag system (5M) [cite: 509]
-    - HCV & LCV calculation (C=80, O=8, H=6, S=1.5, N=1) (4M) [cite: 509]
+    - Characteristics of good fuel (3M) 
+    - Define corrosion & joining metals to prevent it (3M) 
+    - Purposes of making an alloy (3M) 
+    - Principles of Green Chemistry (3M) 
+    - Sacrificial anode cathodic protection method (5M) 
+    - Determination of C & H by ultimate analysis (5M) 
+    - Condensed phase rule equation & Pb-Ag system (5M) 
+    - HCV & LCV calculation (C=80, O=8, H=6, S=1.5, N=1) (4M) 
 
     May 2025 (QP: 10082409):
-    - Distinguish between galvanizing and tinning (3M) [cite: 604]
-    - Viscoelasticity property of polymer (3M) [cite: 614]
-    - Synthesis of Adipic acid (Traditional vs Green pathway) (5M) [cite: 641]
-    - Material selection & equipment design to prevent corrosion (6M) [cite: 648]
+    - Distinguish between galvanizing and tinning (3M) 
+    - Viscoelasticity property of polymer (3M) 
+    - Synthesis of Adipic acid (Traditional vs Green pathway) (5M) 
+    - Material selection & equipment design to prevent corrosion (6M) 
     """,
 
     "engineering mechanics": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     DEC 2024 (QP: 10071925):
     - Cylinder mass 25kg suspended tension and reaction (3M)
     - Three forces resultant to be vertical find alpha and magnitude (3M)
@@ -93,34 +89,32 @@ PYQ_DATA = {
     """, 
 
     "basic electrical electronics": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     Dec 2024 (QP: 10071082):
-    - Delta to Star & Star to Delta formulas (3M) [cite: 2658]
-    - Efficiency of transformer definition (3M) [cite: 2663]
-    - Working principle of 3-phase induction motor (5M) [cite: 2686]
-    - Maximum power transfer theorem (State & Prove) (5M) [cite: 2700]
-    - Single phase transformer transformation ratio (5M) [cite: 2720]
+    - Delta to Star & Star to Delta formulas (3M) 
+    - Efficiency of transformer definition (3M) 
+    - Working principle of 3-phase induction motor (5M) 
+    - Maximum power transfer theorem (State & Prove) (5M) 
+    - Single phase transformer transformation ratio (5M) 
 
     May 2025 (QP: 10083051):
-    - Concept of back emf in a DC motor (3M) [cite: 2882]
-    - Norton's theorem current calculation (10M) [cite: 2887]
-    - BJT as a switch (Circuit diagram & working) (5M) [cite: 2961]
-    - Brushless DC Motor working principle (5M) [cite: 2964]
+    - Concept of back emf in a DC motor (3M) 
+    - Norton's theorem current calculation (10M) 
+    - BJT as a switch (Circuit diagram & working) (5M) 
+    - Brushless DC Motor working principle (5M) 
     """,
 
     "professional and communication ethics": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     Dec 2024 (QP: 10071711):
-    - Define Plagiarism & Direct Plagiarism (3M) [cite: 3172]
-    - Define Intensive and Extensive reading (2M) [cite: 3019]
-    - Steps in writing user instruction (5M) [cite: 3017]
-    - Self-plagiarism and Mosaic plagiarism (3M) [cite: 3174]
+    - Define Plagiarism & Direct Plagiarism (3M) 
+    - Define Intensive and Extensive reading (2M) 
+    - Steps in writing user instruction (5M) 
+    - Self-plagiarism and Mosaic plagiarism (3M) 
 
     May 2025 (QP: 10082643):
-    - Explain Verbal Communication Method (5M) [cite: 3381]
-    - Set of instructions for UPI payment (5M) [cite: 3394]
-    - SMART goal setting components (5M) [cite: 3133]
-    - Structural parts of a formal letter (5M) [cite: 3482]
+    - Explain Verbal Communication Method (5M) 
+    - Set of instructions for UPI payment (5M) 
+    - SMART goal setting components (5M) 
+    - Structural parts of a formal letter (5M) 
     """
 }
 
@@ -129,7 +123,6 @@ PYQ_DATA = {
 
 PYQ_DATA_SEM2 = {
     "elements of telecommunication": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     MAY 2025 (QP: 10085375):
     - Frequency Modulation (FM) definition and waveform (3M)
     - Sampling theorem significance in digital communication (3M)
@@ -158,7 +151,6 @@ PYQ_DATA_SEM2 = {
     """,
 
     "data structure": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     DEC 2025 (QP: 96052):
     - Explain ADT and list linear/non-linear data structures (5M)
     - Expression tree with example (5M)
@@ -181,7 +173,6 @@ PYQ_DATA_SEM2 = {
     """,
     
     "elements of mechanical engineering": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     DEC 2025 (QP: 94138):
     - Role of Mechanical Engineer in Automobile sector (3M)
     - Arrangement of driver/driven pulleys in belt drive diagram (3M)
@@ -201,7 +192,6 @@ PYQ_DATA_SEM2 = {
     """,
 
     "elements of electrical systems": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     DEC 2025 (QP: 94138):
     - Importance of battery management system (3M)
     - Advantages of Thermal power plant (3M)
@@ -216,7 +206,6 @@ PYQ_DATA_SEM2 = {
     """,
 
     "environmental chemistry": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     DEC 2025 (QP: 97447):
     - Temporary vs Permanent hardness differentiation (3M)
     - Need for non-conventional energy sources (3M)
@@ -237,7 +226,6 @@ PYQ_DATA_SEM2 = {
     """,
 
     "introduction to chemical engineering": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     MAY 2025 (QP: 10085958):
     - Scope of Chemical Engineering note (3M)
     - Size reduction and Blacke Jaw Crusher sketch (3M)
@@ -252,7 +240,6 @@ PYQ_DATA_SEM2 = {
     - Modes of heat transfer with example (5M)
     """,
     "applied mathematics 2": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     DEC 2025 (QP: 99765):
     - Solve (x-2e^y)dy + (y+x sin x)dx = 0 (6M)
     - Euler's method for dy/dx = x+y, y(0)=1 at x=0.6, h=0.2 (6M)
@@ -302,7 +289,6 @@ PYQ_DATA_SEM2 = {
     """,
 
     "semiconductor physics": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     DEC 2025 (QP: 99069):
     - State three parameters of JFET (3M)
     - Construction and working of Photodiode (3M)
@@ -320,7 +306,6 @@ PYQ_DATA_SEM2 = {
     """,
 
     "engineering materials": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     DEC 2025 (QP: 98332):
     - Tensile strength calculation for polymer sample (3M)
     - Carbon nanotubes (SWCNTS) properties and uses (5M)
@@ -336,7 +321,6 @@ PYQ_DATA_SEM2 = {
     """,
 
     "physics of measurements and sensors": """
-    --- ASALI MU PAPERS DATA (NEP 2020) ---
     MAY 2025 (QP: 10085097):
     - Define Calibration and its significance (3M)
     - Linear Variable Differential Transformer (LVDT) principle (3M)

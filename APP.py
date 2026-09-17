@@ -4,6 +4,11 @@ import json
 import time
 import os
 import re
+from datetime import datetime
+try:
+    from fpdf import FPDF
+except ImportError:
+    FPDF = None
 from supabase import create_client, Client
 from landing_page import render_landing_page
 
@@ -89,6 +94,8 @@ html, body, [class*="css"] {
 /* Main block container max-width & padding for optimal reading ergonomics */
 .main .block-container, div[data-testid="stMainBlockContainer"] {
     max-width: 1000px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
     padding-top: 2rem !important;
     padding-bottom: 110px !important;
 }
@@ -140,32 +147,30 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
 /* Completely Hide Streamlit default radio-button circles (input[type="radio"]) */
 div[data-testid="stSidebar"] input[type="radio"],
 div[role="radiogroup"] input[type="radio"],
-div[data-baseweb="radio"] input {
-    display: none !important;
-    visibility: hidden !important;
-    position: absolute !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    pointer-events: none !important;
-}
-
+div[data-baseweb="radio"] input,
+div[data-testid="stSidebar"] [data-baseweb="radio"] input,
+div[data-testid="stSidebar"] [data-baseweb="radio"] > div:first-child,
+div[data-testid="stSidebar"] [data-baseweb="radio"] > div:first-of-type,
 div[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-of-type,
 div[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child,
 div[data-testid="stSidebar"] div[role="radiogroup"] label input + div,
 div[data-testid="stSidebar"] div[data-baseweb="radio"] > div:first-of-type,
 div[data-testid="stSidebar"] div[role="radiogroup"] [data-testid="stWidgetSelectionIndicator"],
 div[data-testid="stSidebar"] div[role="radiogroup"] div[aria-hidden="true"],
-div[data-testid="stSidebar"] div[role="radiogroup"] [class*="RadioMark"] {
+div[data-testid="stSidebar"] div[role="radiogroup"] svg,
+div[data-testid="stSidebar"] [class*="RadioMark"],
+div[data-testid="stSidebar"] [class*="radioMark"],
+div[data-testid="stSidebar"] [class*="SelectionIndicator"] {
     display: none !important;
     visibility: hidden !important;
+    position: absolute !important;
+    opacity: 0 !important;
     width: 0 !important;
     height: 0 !important;
+    min-width: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 /* Sidebar Item Text: 1.1rem, bold and clean */
@@ -184,7 +189,8 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label span {
 }
 
 /* Active State: Glowing Accent Outline (#58C1C8) & Dark Glassmorphism */
-div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
+div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"],
+div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
     background: linear-gradient(135deg, rgba(88, 193, 200, 0.18) 0%, rgba(8, 9, 13, 0.88) 100%) !important;
     backdrop-filter: blur(14px) !important;
     -webkit-backdrop-filter: blur(14px) !important;
@@ -196,7 +202,10 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
 
 div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] div p,
 div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] p,
-div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] span {
+div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] span,
+div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) div p,
+div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) p,
+div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) span {
     color: #58C1C8 !important;
     font-weight: 700 !important;
     font-size: 1.1rem !important;
@@ -249,7 +258,7 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] s
     box-shadow: 0 0 12px rgba(88, 193, 200, 0.25);
 }
 
-/* Glassmorphic Dark Cards */
+/* Glassmorphic Dark Cards & Topic Research UI Cards */
 .topper-card {
     background: #08090d;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -257,6 +266,31 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] s
     padding: 22px;
     margin-bottom: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.research-card-tag {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-block;
+}
+.research-tag-def {
+    background: rgba(88, 193, 200, 0.12);
+    color: #58c1c8;
+    border: 1px solid rgba(88, 193, 200, 0.3);
+}
+.research-tag-tech {
+    background: rgba(0, 242, 254, 0.12);
+    color: #00f2fe;
+    border: 1px solid rgba(0, 242, 254, 0.3);
+}
+.research-tag-work {
+    background: rgba(34, 197, 94, 0.12);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 /* Chat Bubble Customization */
@@ -767,7 +801,147 @@ def clean_latex_math(text: str) -> str:
 
     return text
 
-# --- 5. BACKEND AI ENGINE (GROQ + GEMINI + OPENROUTER) ---
+# --- 5. BACKEND OUTPUT & REGEX STRING CLEANER ---
+def clean_output_text(text: str) -> str:
+    """
+    Sanitizes raw backend and LLM output strings before rendering:
+    - Strips citation tags like [cite: 23], [cite: 24, 27], [cite], etc.
+    - Strips raw section headers like --- ASALI MU PAPERS DATA ... ---
+    - Applies LaTeX math standardization via clean_latex_math()
+    - Cleans up excessive newlines and whitespace
+    """
+    if not text or not isinstance(text, str):
+        return "" if text is None else text
+
+    # 1. Strip raw section headers like "--- ASALI MU PAPERS DATA (NEP 2020) ---" or "--- ASALI ... ---"
+    text = re.sub(r'(?i)^\s*[-=*]{2,}\s*ASALI\b[^\n]*[-=*]{2,}\s*$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'(?i)^\s*[-=*]{2,}\s*ASALI\b[^\n]*$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'(?i)[-=*]{2,}\s*ASALI\s+MU\s+PAPERS[^\n]*?[-=*]{2,}', '', text)
+    text = re.sub(r'(?i)[-=*]{2,}\s*ASALI\b[^\n]*?[-=*]{2,}', '', text)
+
+    # 2. Strip citation tags like [cite: 23], [cite: 24, 27], [cite: ...], [cite], 【cite: ...】
+    text = re.sub(r'\[\s*cite:?[^\]]*\]', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'【[^】]*】', '', text)
+    text = re.sub(r'<\s*cite[^>]*>.*?<\s*/\s*cite\s*>', '', text, flags=re.IGNORECASE | re.DOTALL)
+
+    # 3. Clean and standardize LaTeX math
+    text = clean_latex_math(text)
+
+    # 4. Normalize multiple blank lines and whitespace
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
+def parse_topic_research_json(raw_text: str) -> dict:
+    """
+    Safely parses backend response for Topic Research into a structured dict with:
+    - 'definition'
+    - 'breakdown'
+    - 'working_principle'
+    Guarantees no raw JSON strings, markdown code fences, or unparsed JSON scaffolds leak into the UI.
+    """
+    if not raw_text or not isinstance(raw_text, str):
+        return {
+            "definition": "Official definition unavailable.",
+            "breakdown": "Technical breakdown unavailable.",
+            "working_principle": "Working principle unavailable."
+        }
+
+    cleaned_text = clean_output_text(raw_text)
+
+    def validate_and_clean(d: dict) -> dict:
+        def_val = clean_output_text(str(d.get("definition", "") or "").strip())
+        bkd_val = clean_output_text(str(d.get("breakdown", "") or "").strip())
+        wp_val = clean_output_text(str(d.get("working_principle", "") or "").strip())
+
+        if not def_val:
+            def_val = "Key textbook definition and core university terminology."
+        if not bkd_val:
+            bkd_val = "Technical specifications, governing equations, and architectural breakdown."
+        if not wp_val:
+            wp_val = "Operational working principle and physical mechanics flow."
+
+        return {
+            "definition": def_val,
+            "breakdown": bkd_val,
+            "working_principle": wp_val
+        }
+
+    # Attempt 1: Direct JSON parsing (stripping code fences)
+    s = cleaned_text.strip()
+    if s.startswith("```json"):
+        s = s[7:]
+    elif s.startswith("```"):
+        s = s[3:]
+    if s.endswith("```"):
+        s = s[:-3]
+    s = s.strip()
+
+    try:
+        data = json.loads(s)
+        if isinstance(data, dict):
+            return validate_and_clean(data)
+    except Exception:
+        pass
+
+    # Attempt 2: Extract JSON object substring
+    m = re.search(r'(\{[\s\S]*\})', cleaned_text)
+    if m:
+        candidate = m.group(1)
+        fixed_candidate = re.sub(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', candidate)
+        fixed_candidate = re.sub(r',\s*([}\]])', r'\1', fixed_candidate)
+        try:
+            data = json.loads(fixed_candidate, strict=False)
+            if isinstance(data, dict):
+                return validate_and_clean(data)
+        except Exception:
+            pass
+
+    # Attempt 3: Regex key extraction for "definition", "breakdown", "working_principle"
+    def extract_field(key_name: str, src: str) -> str:
+        p1 = rf'"{key_name}"\s*:\s*"((?:\\.|[^"\\])*)"'
+        match1 = re.search(p1, src, re.DOTALL)
+        if match1:
+            val = match1.group(1).replace('\\"', '"').replace('\\n', '\n').replace('\\t', '\t')
+            return val.strip()
+        p2 = rf'"{key_name}"\s*:\s*"(.*?)(?=",\s*"\w+"|\s*"\s*}}|\s*}}\s*\Z|\Z)'
+        match2 = re.search(p2, src, re.DOTALL)
+        if match2:
+            return match2.group(1).replace('\\"', '"').replace('\\n', '\n').strip()
+        return ""
+
+    def_field = extract_field("definition", cleaned_text)
+    bkd_field = extract_field("breakdown", cleaned_text)
+    wp_field = extract_field("working_principle", cleaned_text)
+
+    if def_field or bkd_field or wp_field:
+        return validate_and_clean({
+            "definition": def_field,
+            "breakdown": bkd_field,
+            "working_principle": wp_field
+        })
+
+    # Attempt 4: If backend returned markdown sections
+    def_match = re.search(r'(?:###?\s*(?:1[.\s]*)?(?:Official\s+)?Definition[^\n]*\n)([\s\S]*?)(?=###?\s*(?:2[.\s]*)?Technical|###?\s*(?:3[.\s]*)?Working|\Z)', cleaned_text, re.IGNORECASE)
+    bkd_match = re.search(r'(?:###?\s*(?:2[.\s]*)?Technical\s+Breakdown[^\n]*\n)([\s\S]*?)(?=###?\s*(?:3[.\s]*)?Working|\Z)', cleaned_text, re.IGNORECASE)
+    wp_match = re.search(r'(?:###?\s*(?:3[.\s]*)?Working\s+Principle[^\n]*\n)([\s\S]*?)$', cleaned_text, re.IGNORECASE)
+
+    if def_match or bkd_match or wp_match:
+        return validate_and_clean({
+            "definition": def_match.group(1).strip() if def_match else "",
+            "breakdown": bkd_match.group(1).strip() if bkd_match else "",
+            "working_principle": wp_match.group(1).strip() if wp_match else ""
+        })
+
+    # Fallback: Strip raw JSON delimiters so plain text displays without JSON noise
+    clean_raw = re.sub(r'[{}"`]|(?i)definition:|breakdown:|working_principle:', '', cleaned_text).strip()
+    return validate_and_clean({
+        "definition": "Syllabus Concept Overview",
+        "breakdown": clean_raw,
+        "working_principle": "Operational details and examination steps."
+    })
+
+# --- 6. BACKEND AI ENGINE (GROQ + GEMINI + OPENROUTER) ---
 def generate_ai_response(prompt_text, max_toks=1200):
     groq_key = get_env_secret("GROQ_API_KEY").strip()
     if groq_key:
@@ -794,7 +968,7 @@ def generate_ai_response(prompt_text, max_toks=1200):
                             timeout=14
                         )
                         if res.status_code == 200:
-                            return clean_latex_math(res.json()["choices"][0]["message"]["content"].strip())
+                            return clean_output_text(res.json()["choices"][0]["message"]["content"].strip())
                     except Exception:
                         continue
         except Exception:
@@ -812,7 +986,7 @@ def generate_ai_response(prompt_text, max_toks=1200):
                     timeout=14
                 )
                 if res.status_code == 200:
-                    return clean_latex_math(res.json()['candidates'][0]['content']['parts'][0]['text'].strip())
+                    return clean_output_text(res.json()['candidates'][0]['content']['parts'][0]['text'].strip())
             except Exception:
                 continue
 
@@ -845,7 +1019,7 @@ def generate_ai_response(prompt_text, max_toks=1200):
                 if res.status_code == 200:
                     choices = res.json().get("choices", [])
                     if choices and "message" in choices[0] and choices[0]["message"].get("content"):
-                        return clean_latex_math(choices[0]["message"]["content"].strip())
+                        return clean_output_text(choices[0]["message"]["content"].strip())
             except Exception:
                 continue
 
@@ -858,11 +1032,11 @@ def generate_ai_response(prompt_text, max_toks=1200):
             if any(term in low_p for term in subj.split()):
                 matched.append(f"### 📘 Authentic MU Exam Knowledge: {subj.upper()}\n{notes.strip()}")
         if matched:
-            return clean_latex_math("\n\n".join(matched[:2]))
+            return clean_output_text("\n\n".join(matched[:2]))
     except Exception:
         pass
 
-    return clean_latex_math("### 📌 Core Concept\nWe are currently analyzing this syllabus question with high-yield university exam patterns. Please refresh or retry in a moment.")
+    return clean_output_text("### 📌 Core Concept\nWe are currently analyzing this syllabus question with high-yield university exam patterns. Please refresh or retry in a moment.")
 
 # --- 5. AUTHENTICATION ---
 def clean_email_auth():
@@ -1122,11 +1296,11 @@ if nav_selection == "💡 AI Tutor":
 
     for idx, msg in enumerate(st.session_state.tutor_messages):
         with st.chat_message(msg["role"]):
-            st.markdown(clean_latex_math(msg["content"]))
+            st.markdown(clean_output_text(msg["content"]))
             if msg["role"] == "assistant" and idx > 0:
                 if msg.get("hinglish"):
                     with st.expander("🗣️ View Hinglish Explanation"):
-                        st.markdown(clean_latex_math(msg["hinglish"]))
+                        st.markdown(clean_output_text(msg["hinglish"]))
                 else:
                     if st.button("🗣️ Explain in Hinglish", key=f"tr_{idx}"):
                         with st.spinner("Translating to simple Hinglish..."):
@@ -1139,7 +1313,7 @@ if nav_selection == "💡 AI Tutor":
     if user_query:
         st.session_state.tutor_messages.append({"role": "user", "content": user_query, "hinglish": None})
         with st.chat_message("user"):
-            st.markdown(clean_latex_math(user_query))
+            st.markdown(clean_output_text(user_query))
 
         tutor_prompt = f"""
         You are TopperGPT's Senior Academic Evaluator for Mumbai University Engineering (C-Scheme).
@@ -1168,7 +1342,7 @@ if nav_selection == "💡 AI Tutor":
             with st.spinner("Analyzing syllabus and evaluation rubrics..."):
                 try:
                     ai_reply = generate_ai_response(tutor_prompt)
-                    st.markdown(clean_latex_math(ai_reply))
+                    st.markdown(clean_output_text(ai_reply))
                     st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
                     st.rerun()
                 except Exception as e:
@@ -1232,7 +1406,7 @@ elif nav_selection == "🎯 Predicted Qs":
     if "pred_result" in st.session_state and st.session_state.pred_result:
         st.markdown("---")
         st.markdown(f"### 📘 Exam Blueprint: **{st.session_state.get('pred_topic_name', '').upper()}**")
-        st.markdown(clean_latex_math(st.session_state.pred_result))
+        st.markdown(clean_output_text(st.session_state.pred_result))
 
         col_act1, col_act2 = st.columns([1, 1])
         with col_act1:
@@ -1252,7 +1426,7 @@ elif nav_selection == "🎯 Predicted Qs":
 
         if st.session_state.get("pred_hinglish"):
             with st.expander("🗣️ View Hinglish Blueprint Translation", expanded=True):
-                st.markdown(clean_latex_math(st.session_state.pred_hinglish))
+                st.markdown(clean_output_text(st.session_state.pred_hinglish))
 
 # ==================================================
 # --- 3. FEATURE: CHAPTER SHORT-NOTES ---
@@ -1315,7 +1489,7 @@ elif nav_selection == "📄 Short Notes":
     if "sn_data" in st.session_state and st.session_state.sn_data:
         st.markdown("---")
         st.markdown(f"### 📘 Revision Sheet: **{st.session_state.get('sn_name', '').upper()}**")
-        st.markdown(clean_latex_math(st.session_state.sn_data))
+        st.markdown(clean_output_text(st.session_state.sn_data))
 
         col_sn1, col_sn2 = st.columns([1, 1])
         with col_sn1:
@@ -1335,7 +1509,7 @@ elif nav_selection == "📄 Short Notes":
 
         if st.session_state.get("sn_hinglish"):
             with st.expander("🗣️ View Hinglish Cheat Sheet Translation", expanded=True):
-                st.markdown(clean_latex_math(st.session_state.sn_hinglish))
+                st.markdown(clean_output_text(st.session_state.sn_hinglish))
 
 # ==================================================
 # --- 4. FEATURE: TOPIC RESEARCH (ZERO-FAIL JSON PARSING) ---
@@ -1377,26 +1551,12 @@ elif nav_selection == "🔍 Topic Research":
                 """
                 try:
                     r_res = generate_ai_response(res_prompt, max_toks=1200)
-                    
-                    cleaned_json_str = r_res.strip()
-                    if cleaned_json_str.startswith("```json"):
-                        cleaned_json_str = cleaned_json_str[7:]
-                    if cleaned_json_str.startswith("```"):
-                        cleaned_json_str = cleaned_json_str[3:]
-                    if cleaned_json_str.endswith("```"):
-                        cleaned_json_str = cleaned_json_str[:-3]
-                    cleaned_json_str = cleaned_json_str.strip()
-
-                    parsed_data = json.loads(cleaned_json_str)
+                    parsed_data = parse_topic_research_json(r_res)
                     st.session_state.topic_res_json = parsed_data
                     st.session_state.topic_res_name = topic_q
                     st.rerun()
-                except Exception:
-                    st.session_state.topic_res_json = {
-                        "definition": "Standard definition currently being processed. Please re-run once.",
-                        "breakdown": r_res,
-                        "working_principle": "Detailed breakdown displayed above."
-                    }
+                except Exception as e:
+                    st.session_state.topic_res_json = parse_topic_research_json(str(e))
                     st.session_state.topic_res_name = topic_q
                     st.rerun()
 
@@ -1410,18 +1570,33 @@ elif nav_selection == "🔍 Topic Research":
         
         with col1:
             with st.container(border=True):
-                st.markdown("<h4 style='color:#58c1c8; margin-top:0;'>1. Official Definition</h4>", unsafe_allow_html=True)
-                st.markdown(clean_latex_math(t_data.get("definition", "Details unavailable.")))
+                st.markdown("""
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <h4 style="color:#58c1c8; margin:0; font-size:16px; font-weight:700;">1. Official Definition</h4>
+                        <span class="research-card-tag research-tag-def">2-MARK STANDARD</span>
+                    </div>
+                """, unsafe_allow_html=True)
+                st.markdown(clean_output_text(t_data.get("definition", "Details unavailable.")))
                 
         with col2:
             with st.container(border=True):
-                st.markdown("<h4 style='color:#00F2FE; margin-top:0;'>2. Technical Breakdown</h4>", unsafe_allow_html=True)
-                st.markdown(clean_latex_math(t_data.get("breakdown", "Details unavailable.")))
+                st.markdown("""
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <h4 style="color:#00F2FE; margin:0; font-size:16px; font-weight:700;">2. Technical Breakdown</h4>
+                        <span class="research-card-tag research-tag-tech">ARCHITECTURE & FORMULAS</span>
+                    </div>
+                """, unsafe_allow_html=True)
+                st.markdown(clean_output_text(t_data.get("breakdown", "Details unavailable.")))
                 
         with col3:
             with st.container(border=True):
-                st.markdown("<h4 style='color:#22c55e; margin-top:0;'>3. Working Principle</h4>", unsafe_allow_html=True)
-                st.markdown(clean_latex_math(t_data.get("working_principle", "Details unavailable.")))
+                st.markdown("""
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <h4 style="color:#22c55e; margin:0; font-size:16px; font-weight:700;">3. Working Principle</h4>
+                        <span class="research-card-tag research-tag-work">OPERATIONAL FLOW</span>
+                    </div>
+                """, unsafe_allow_html=True)
+                st.markdown(clean_output_text(t_data.get("working_principle", "Details unavailable.")))
 
         if st.button("🗑️ Clear Research"):
             del st.session_state.topic_res_json
