@@ -942,10 +942,135 @@ def parse_topic_research_json(raw_text: str) -> dict:
     })
 
 # --- 6. ACADEMIC PDF EXPORT ENGINE (FPDF2) ---
-def sanitize_pdf_text(text: str) -> str:
+def replace_frac(text: str) -> str:
+    """Replaces \\frac{A}{B} with (A / B) handling nested curly braces."""
+    max_loops = 10
+    while r"\frac" in text and max_loops > 0:
+        max_loops -= 1
+        idx = text.find(r"\frac")
+        if idx == -1:
+            break
+        open1 = text.find("{", idx)
+        if open1 == -1:
+            break
+        depth = 1
+        pos1 = open1 + 1
+        n = len(text)
+        while pos1 < n and depth > 0:
+            if text[pos1] == "{":
+                depth += 1
+            elif text[pos1] == "}":
+                depth -= 1
+            pos1 += 1
+        if depth != 0:
+            break
+        num = text[open1 + 1 : pos1 - 1]
+
+        open2 = text.find("{", pos1 - 1)
+        if open2 == -1:
+            break
+        depth = 1
+        pos2 = open2 + 1
+        while pos2 < n and depth > 0:
+            if text[pos2] == "{":
+                depth += 1
+            elif text[pos2] == "}":
+                depth -= 1
+            pos2 += 1
+        if depth != 0:
+            break
+        den = text[open2 + 1 : pos2 - 1]
+
+        text = text[:idx] + f"({num} / {den})" + text[pos2:]
+    return text
+
+
+def format_math_for_pdf(text: str) -> str:
     """
-    Sanitizes markdown and unicode characters for safe Latin-1 FPDF rendering.
+    Cleans LaTeX math formulas, delimiters, and notation for clean text/unicode rendering in PDF.
+    - Removes LaTeX delimiters ($$, $)
+    - Replaces \\frac{A}{B} -> (A / B)
+    - Replaces \\sum -> Σ, \\cdot -> *, \\dots -> ..., \\text{...} -> ...
+    - Preserves subscripts like _k and simplifies _{...} -> _...
+    - Cleans double backslashes
+    """
+    if not text or not isinstance(text, str):
+        return "" if text is None else text
+
+    # 1. Clean double backslashes before LaTeX commands and line breaks
+    text = re.sub(r'\\\\([a-zA-Z]+)', r'\\\1', text)
+    text = re.sub(r'\\\\\s*', '\n', text)
+
+    # 2. Convert \frac{A}{B} to (A / B) handling nested braces
+    text = replace_frac(text)
+
+    # 3. Replace common LaTeX math commands with standard Unicode/text math
+    replacements = [
+        (r'\\sum(?![a-zA-Z])', 'Σ'),
+        (r'\\prod(?![a-zA-Z])', 'Π'),
+        (r'\\cdot(?![a-zA-Z])', '*'),
+        (r'\\times(?![a-zA-Z])', '×'),
+        (r'\\div(?![a-zA-Z])', '÷'),
+        (r'\\(dots|ldots|cdots|ddots)(?![a-zA-Z])', '...'),
+        (r'\\sqrt\{([^{}]+)\}', r'sqrt(\1)'),
+        (r'\\text\{([^{}]+)\}', r'\1'),
+        (r'\\mathrm\{([^{}]+)\}', r'\1'),
+        (r'\\mathbf\{([^{}]+)\}', r'\1'),
+        (r'\\mathit\{([^{}]+)\}', r'\1'),
+        (r'\\pm(?![a-zA-Z])', '±'),
+        (r'\\neq(?![a-zA-Z])', '≠'),
+        (r'\\leq(?![a-zA-Z])', '≤'),
+        (r'\\geq(?![a-zA-Z])', '≥'),
+        (r'\\approx(?![a-zA-Z])', '≈'),
+        (r'\\infty(?![a-zA-Z])', '∞'),
+        (r'\\alpha(?![a-zA-Z])', 'α'),
+        (r'\\beta(?![a-zA-Z])', 'β'),
+        (r'\\gamma(?![a-zA-Z])', 'γ'),
+        (r'\\delta(?![a-zA-Z])', 'δ'),
+        (r'\\theta(?![a-zA-Z])', 'θ'),
+        (r'\\lambda(?![a-zA-Z])', 'λ'),
+        (r'\\mu(?![a-zA-Z])', 'μ'),
+        (r'\\pi(?![a-zA-Z])', 'π'),
+        (r'\\sigma(?![a-zA-Z])', 'σ'),
+        (r'\\omega(?![a-zA-Z])', 'ω'),
+        (r'\\Omega(?![a-zA-Z])', 'Ω'),
+        (r'\\Delta(?![a-zA-Z])', 'Δ'),
+        (r'\\rightarrow(?![a-zA-Z])', '->'),
+        (r'\\leftarrow(?![a-zA-Z])', '<-'),
+        (r'\\Rightarrow(?![a-zA-Z])', '=>'),
+        (r'\\Leftarrow(?![a-zA-Z])', '<='),
+        (r'\\leftrightarrow(?![a-zA-Z])', '<->'),
+        (r'\\int(?![a-zA-Z])', '∫'),
+        (r'\\partial(?![a-zA-Z])', '∂'),
+        (r'\\nabla(?![a-zA-Z])', '∇'),
+        (r'\\displaystyle(?![a-zA-Z])', ''),
+    ]
+    for pattern, repl in replacements:
+        text = re.sub(pattern, repl, text)
+
+    # 4. Subscripts & superscripts: preserve _k, simplify _{eq} -> _eq
+    text = re.sub(r'_\{([^{}]+)\}', r'_\1', text)
+    text = re.sub(r'\^\{([^{}]+)\}', r'^\1', text)
+
+    # 5. Clean trailing backslashes before $$ or end-of-line
+    text = re.sub(r'\\+\s*(?=\$\$|\$)', '', text)
+    text = re.sub(r'\\+\s*$', '', text, flags=re.MULTILINE)
+
+    # 6. Remove LaTeX delimiters: $$ and $
+    text = text.replace("$$", "").replace("$", "")
+
+    # 7. Clean any remaining lone backslash commands
+    text = re.sub(r'\\([a-zA-Z]+)\{([^{}]+)\}', r'\2', text)
+    text = re.sub(r'\\([a-zA-Z]+)', r'\1', text)
+
+    return text
+
+
+def sanitize_pdf_text(text: str, is_unicode: bool = True) -> str:
+    """
+    Sanitizes markdown and unicode characters for safe PDF rendering.
     Maps common academic emojis and punctuation to clean readable text.
+    If is_unicode is False (Helvetica fallback), maps Greek/math characters to Latin-1 safe strings.
     """
     if not text:
         return ""
@@ -964,14 +1089,28 @@ def sanitize_pdf_text(text: str) -> str:
     for k, v in replacements.items():
         text = text.replace(k, v)
 
-    safe_chars = []
-    for ch in text:
-        try:
-            ch.encode("latin-1")
-            safe_chars.append(ch)
-        except UnicodeEncodeError:
-            safe_chars.append(" ")
-    return "".join(safe_chars)
+    if not is_unicode:
+        math_fallbacks = {
+            "Σ": "Sigma ", "Π": "Pi ", "α": "alpha", "β": "beta",
+            "γ": "gamma", "δ": "delta", "θ": "theta", "λ": "lambda",
+            "μ": "mu", "π": "pi", "σ": "sigma", "ω": "omega",
+            "Ω": "Ohm", "Δ": "Delta", "∞": "inf", "≠": "!=",
+            "≤": "<=", "≥": ">=", "≈": "~=", "±": "+/-",
+            "×": "*", "÷": "/", "∫": "int", "∂": "d"
+        }
+        for k, v in math_fallbacks.items():
+            text = text.replace(k, v)
+
+        safe_chars = []
+        for ch in text:
+            try:
+                ch.encode("latin-1")
+                safe_chars.append(ch)
+            except UnicodeEncodeError:
+                safe_chars.append(" ")
+        return "".join(safe_chars)
+
+    return text
 
 
 if FPDF is not None:
@@ -979,124 +1118,168 @@ if FPDF is not None:
         def __init__(self, title_text="Academic Document"):
             super().__init__(orientation="P", unit="mm", format="A4")
             self.doc_title = title_text
-            self.set_auto_page_break(auto=True, margin=15)
-            self.set_margins(15, 15, 15)
+            self.is_unicode = False
+
+            # Attempt to load Arial TrueType font for native math & Unicode glyph support
+            win_font = r"C:\Windows\Fonts\arial.ttf"
+            win_font_b = r"C:\Windows\Fonts\arialbd.ttf"
+            win_font_i = r"C:\Windows\Fonts\ariali.ttf"
+            if os.path.exists(win_font):
+                try:
+                    self.add_font("TopperFont", "", win_font)
+                    if os.path.exists(win_font_b):
+                        self.add_font("TopperFont", "B", win_font_b)
+                    if os.path.exists(win_font_i):
+                        self.add_font("TopperFont", "I", win_font_i)
+                    self.font_family_name = "TopperFont"
+                    self.is_unicode = True
+                except Exception:
+                    self.font_family_name = "Helvetica"
+            else:
+                self.font_family_name = "Helvetica"
+
+            self.set_auto_page_break(auto=True, margin=18)
+            self.set_margins(15, 30, 15)
+            self.alias_nb_pages()
 
         def header(self):
-            # 1. Subtle diagonal background watermark text: "TOPPERGPT - ACADEMIC AI"
+            # 1. Subtle diagonal watermark text: "TOPPERGPT - ACADEMIC AI" in exact center
+            # Rendered BEFORE header banner or body text so it stays strictly in the background
             try:
-                self.set_font("Helvetica", style="B", size=30)
-                self.set_text_color(240, 243, 246)
+                self.set_font(self.font_family_name, style="B", size=32)
+                self.set_text_color(240, 240, 240)
+                w_text = "TOPPERGPT - ACADEMIC AI"
+                str_w = self.get_string_width(w_text)
                 if hasattr(self, "rotation"):
-                    with self.rotation(angle=45, x=105, y=148):
-                        self.text(x=35, y=148, text="TOPPERGPT - ACADEMIC AI")
-                elif hasattr(self, "rotate"):
-                    self.rotate(45, 105, 148)
-                    self.text(35, 148, "TOPPERGPT - ACADEMIC AI")
-                    self.rotate(0)
+                    with self.rotation(angle=45, x=105, y=148.5):
+                        self.text(105 - (str_w / 2), 148.5, w_text)
                 else:
-                    self.text(35, 148, "TOPPERGPT - ACADEMIC AI")
+                    self.text(105 - (str_w / 2), 148.5, w_text)
             except Exception:
                 pass
 
-            # 2. TopperGPT Header Logo & Title
+            # 2. Top bar branded header banner with dark background #0B0F19 (RGB: 11, 15, 25)
+            self.set_fill_color(11, 15, 25)
+            self.rect(0, 0, 210, 22, style="F")
+
+            # Header Logo if available
             logo_path = os.path.join(os.path.dirname(__file__), "images", "logo.png")
             if os.path.exists(logo_path):
                 try:
-                    self.image(logo_path, x=15, y=10, w=15)
+                    self.image(logo_path, x=15, y=4, w=14)
+                    text_x = 33
                 except Exception:
-                    pass
+                    text_x = 15
+            else:
+                text_x = 15
 
-            # Header Title & Subtitle
-            self.set_xy(33, 10)
-            self.set_font("Helvetica", style="B", size=13)
-            self.set_text_color(15, 23, 42)
-            self.cell(0, 5, "TopperGPT", ln=False)
-            
-            self.set_font("Helvetica", style="", size=10)
-            self.set_text_color(88, 193, 200)
-            self.cell(0, 5, "  |  Academic AI Workspace", ln=True)
+            # Cyan Brand Title: "TopperGPT | Academic AI"
+            self.set_xy(text_x, 5)
+            self.set_font(self.font_family_name, style="B", size=13)
+            self.set_text_color(88, 193, 200)  # Brand Cyan #58C1C8
+            self.cell(0, 6, "TopperGPT | Academic AI", new_x="LMARGIN", new_y="NEXT")
 
-            self.set_xy(33, 16)
-            self.set_font("Helvetica", style="I", size=8)
-            self.set_text_color(100, 116, 139)
-            self.cell(0, 5, sanitize_pdf_text(self.doc_title[:65]), ln=True)
+            # Subtle document subtitle
+            self.set_xy(text_x, 12)
+            self.set_font(self.font_family_name, style="I", size=8.5)
+            self.set_text_color(160, 175, 195)
+            sub_title = self.doc_title if self.doc_title else "University Examination & Academic Resource"
+            clean_sub = sanitize_pdf_text(sub_title[:75], is_unicode=self.is_unicode)
+            self.cell(0, 5, clean_sub, new_x="LMARGIN", new_y="NEXT")
 
-            # Divider line
-            self.set_draw_color(226, 232, 240)
-            self.set_line_width(0.3)
-            self.line(15, 24, 195, 24)
-            self.ln(10)
+            # Reset Y position below header banner
+            self.set_y(30)
 
         def footer(self):
-            self.set_y(-15)
-            self.set_draw_color(226, 232, 240)
-            self.set_line_width(0.2)
-            self.line(15, 282, 195, 282)
-
-            self.set_font("Helvetica", size=8)
-            self.set_text_color(148, 163, 184)
-            self.cell(0, 10, "Generated via TopperGPT  -  University Academic Workspace", align="L")
-            self.cell(0, 10, f"Page {self.page_no()}", align="R")
+            # Centered page numbers: "Page X of Y"
+            self.set_y(-14)
+            self.set_font(self.font_family_name, style="", size=8.5)
+            self.set_text_color(140, 150, 165)
+            self.cell(0, 10, f"Page {self.page_no()} of {{nb}}", align="C")
 
         def add_markdown_content(self, md_text: str):
             md_text = clean_output_text(md_text)
-            md_text = sanitize_pdf_text(md_text)
+            md_text = format_math_for_pdf(md_text)
+            md_text = sanitize_pdf_text(md_text, is_unicode=self.is_unicode)
 
             lines = md_text.split("\n")
-            for line in lines:
+            in_code_block = False
+
+            for raw_line in lines:
+                line = raw_line.rstrip()
                 trimmed = line.strip()
+
                 if not trimmed:
                     self.ln(2)
                     continue
 
+                if trimmed.startswith("```"):
+                    in_code_block = not in_code_block
+                    continue
+
+                # Section Headings
                 if trimmed.startswith("###"):
                     heading = trimmed.lstrip("#").strip()
+                    heading = re.sub(r'[*_`]', '', heading)
                     self.ln(3)
-                    self.set_font("Helvetica", style="B", size=11)
-                    self.set_text_color(30, 41, 59)
-                    self.multi_cell(0, 5, heading)
+                    self.set_x(self.l_margin)
+                    self.set_font(self.font_family_name, style="B", size=11)
+                    self.set_text_color(15, 23, 42)
+                    self.multi_cell(0, 8, heading, new_x="LMARGIN", new_y="NEXT")
                     self.ln(1)
                 elif trimmed.startswith("##"):
                     heading = trimmed.lstrip("#").strip()
+                    heading = re.sub(r'[*_`]', '', heading)
                     self.ln(4)
-                    self.set_font("Helvetica", style="B", size=12)
-                    self.set_text_color(15, 23, 42)
-                    self.multi_cell(0, 6, heading)
+                    self.set_x(self.l_margin)
+                    self.set_font(self.font_family_name, style="B", size=12.5)
+                    self.set_text_color(11, 15, 25)
+                    self.multi_cell(0, 8, heading, new_x="LMARGIN", new_y="NEXT")
                     self.ln(1)
                 elif trimmed.startswith("#"):
                     heading = trimmed.lstrip("#").strip()
+                    heading = re.sub(r'[*_`]', '', heading)
                     self.ln(5)
-                    self.set_font("Helvetica", style="B", size=14)
-                    self.set_text_color(15, 23, 42)
-                    self.multi_cell(0, 7, heading)
+                    self.set_x(self.l_margin)
+                    self.set_font(self.font_family_name, style="B", size=14)
+                    self.set_text_color(11, 15, 25)
+                    self.multi_cell(0, 8, heading, new_x="LMARGIN", new_y="NEXT")
                     self.ln(2)
                 elif trimmed.startswith("---") or trimmed.startswith("==="):
                     self.ln(2)
                     self.set_draw_color(226, 232, 240)
-                    self.set_line_width(0.2)
+                    self.set_line_width(0.3)
                     curr_y = self.get_y()
-                    self.line(15, curr_y, 195, curr_y)
-                    self.ln(2)
+                    self.line(self.l_margin, curr_y, self.w - self.r_margin, curr_y)
+                    self.ln(3)
                 elif trimmed.startswith("- ") or trimmed.startswith("* "):
-                    bullet_text = trimmed[2:].strip()
-                    clean_b = re.sub(r'\*\*(.*?)\*\*', r'\1', bullet_text)
-                    self.set_font("Helvetica", style="", size=9.5)
+                    bullet_body = trimmed[2:].strip()
+                    # Strip markdown bold/italic tags while preserving subscripts like _k, V_p
+                    bullet_clean = re.sub(r'\*\*(.*?)\*\*', r'\1', bullet_body)
+                    bullet_clean = re.sub(r'(?<![a-zA-Z0-9])\*(.*?)\*(?![a-zA-Z0-9])', r'\1', bullet_clean)
+                    bullet_clean = re.sub(r'(?<=\s)_(?!\s)(.*?)(?<!\s)_(?=\s|[.,;:!?]|$)', r'\1', bullet_clean)
+                    bullet_clean = re.sub(r'[`#]', '', bullet_clean)
+                    self.set_font(self.font_family_name, style="", size=9.5)
                     self.set_text_color(51, 65, 85)
-                    self.set_x(18)
-                    self.multi_cell(177, 5, f"- {clean_b}")
+                    self.set_x(self.l_margin + 3)
+                    self.multi_cell(self.epw - 3, 8, f"-  {bullet_clean}", new_x="LMARGIN", new_y="NEXT")
                 else:
+                    # Paragraph body text: multi_cell(0, 8, text) ensures clean word wrapping
                     clean_p = re.sub(r'\*\*(.*?)\*\*', r'\1', trimmed)
-                    self.set_font("Helvetica", style="", size=9.5)
+                    clean_p = re.sub(r'(?<![a-zA-Z0-9])\*(.*?)\*(?![a-zA-Z0-9])', r'\1', clean_p)
+                    clean_p = re.sub(r'(?<=\s)_(?!\s)(.*?)(?<!\s)_(?=\s|[.,;:!?]|$)', r'\1', clean_p)
+                    clean_p = re.sub(r'[`#]', '', clean_p)
+                    self.set_x(self.l_margin)
+                    self.set_font(self.font_family_name, style="", size=9.5)
                     self.set_text_color(51, 65, 85)
-                    self.multi_cell(0, 5, clean_p)
+                    self.multi_cell(0, 8, clean_p, new_x="LMARGIN", new_y="NEXT")
 else:
     TopperPDF = None
 
 
-def generate_fallback_pdf(title: str, content: str, feature_name: str) -> bytes:
+def generate_fallback_pdf(title: str, content: str, feature_name: str = "Academic Report") -> bytes:
     """Pure-Python fallback PDF generator if FPDF library is unavailable in environment."""
-    clean_text = sanitize_pdf_text(clean_output_text(content))
+    clean_text = sanitize_pdf_text(format_math_for_pdf(clean_output_text(content)), is_unicode=False)
     lines = [
         "TopperGPT | Academic AI Workspace",
         f"Feature: {feature_name}",
@@ -1115,7 +1298,7 @@ def generate_fallback_pdf(title: str, content: str, feature_name: str) -> bytes:
     text_ops = [
         "BT /F1 28 Tf 50 400 Td (TOPPERGPT - ACADEMIC AI) Tj ET",
         "BT /F1 14 Tf 40 800 Td (TopperGPT | Academic AI Workspace) Tj ET",
-        "BT /F2 11 Tf 40 782 Td (" + sanitize_pdf_text(title[:60]).replace("(", "\\(").replace(")", "\\)") + ") Tj ET"
+        "BT /F2 11 Tf 40 782 Td (" + sanitize_pdf_text(title[:60], is_unicode=False).replace("(", "\\(").replace(")", "\\)") + ") Tj ET"
     ]
     y = 750
     for l in lines[:55]:
@@ -1146,9 +1329,9 @@ def generate_fallback_pdf(title: str, content: str, feature_name: str) -> bytes:
 def generate_topper_pdf(title: str, content: str, feature_name: str = "Academic Report") -> bytes:
     """
     Generates a professional TopperGPT academic PDF with:
-    - TopperGPT Header Logo & Title
-    - Subtle diagonal background watermark text: 'TOPPERGPT - ACADEMIC AI'
-    - Clean margins, formatted typography, and page numbers
+    - Top bar header banner with dark background #0B0F19, cyan title 'TopperGPT | Academic AI' (#58C1C8), and subtitle.
+    - Subtle diagonal background watermark text: 'TOPPERGPT - ACADEMIC AI' (RGB: 240, 240, 240) in exact center.
+    - Clean margins, multi_cell(0, 8, text) paragraph word wrapping, and centered 'Page X of Y' footer.
     Returns PDF bytes for st.download_button.
     """
     if FPDF is not None and TopperPDF is not None:
@@ -1157,13 +1340,17 @@ def generate_topper_pdf(title: str, content: str, feature_name: str = "Academic 
             pdf.add_page()
 
             # Main Title Header
-            pdf.set_font("Helvetica", style="B", size=14)
-            pdf.set_text_color(15, 23, 42)
-            pdf.multi_cell(0, 7, sanitize_pdf_text(title.upper()))
+            pdf.set_x(pdf.l_margin)
+            pdf.set_font(pdf.font_family_name, style="B", size=15)
+            pdf.set_text_color(11, 15, 25)
+            clean_title = sanitize_pdf_text(title.upper(), is_unicode=pdf.is_unicode)
+            pdf.multi_cell(0, 8, clean_title, new_x="LMARGIN", new_y="NEXT")
 
-            pdf.set_font("Helvetica", style="I", size=8.5)
+            pdf.set_x(pdf.l_margin)
+            pdf.set_font(pdf.font_family_name, style="I", size=8.5)
             pdf.set_text_color(100, 116, 139)
-            pdf.cell(0, 5, f"Category: {feature_name}   |   Date: {datetime.now().strftime('%d %B %Y, %I:%M %p')}", ln=True)
+            meta_text = f"Category: {feature_name}   |   Date: {datetime.now().strftime('%d %B %Y, %I:%M %p')}"
+            pdf.cell(0, 6, sanitize_pdf_text(meta_text, is_unicode=pdf.is_unicode), new_x="LMARGIN", new_y="NEXT")
             pdf.ln(3)
 
             pdf.add_markdown_content(content)
