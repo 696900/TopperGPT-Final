@@ -7,8 +7,10 @@ import re
 from datetime import datetime
 try:
     from fpdf import FPDF
+    from fpdf.fonts import FontFace
 except ImportError:
     FPDF = None
+    FontFace = None
 from supabase import create_client, Client
 from landing_page import render_landing_page
 
@@ -1113,6 +1115,106 @@ def sanitize_pdf_text(text: str, is_unicode: bool = True) -> str:
     return text
 
 
+TABLE_REGEX = re.compile(
+    r'(?:^[ \t]*\|?[^\n|]+\|.*?\n)'
+    r'(?:^[ \t]*\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)+\|?[ \t]*(?:\n|\Z))'
+    r'(?:^[ \t]*\|?[^\n|]+\|.*?(?:\n|\Z))*',
+    re.MULTILINE
+)
+
+
+def is_markdown_table_separator(line_str: str) -> bool:
+    """Checks if a string is a markdown table separator row (|---|---| or |:---:|)."""
+    if not line_str or "|" not in line_str:
+        return False
+    raw = line_str.strip()
+    if raw.startswith("|"):
+        raw = raw[1:]
+    if raw.endswith("|"):
+        raw = raw[:-1]
+    cells = [c.strip() for c in raw.split("|")]
+    return len(cells) > 0 and all(re.match(r"^:?-+:?$", c) for c in cells if c)
+
+
+def parse_markdown_table(text: str) -> list:
+    """
+    Regex and parsing utility to detect and extract Markdown tables (| ... |).
+    Parses headers, separators (|---|), and data rows into structured Python lists:
+    [headers, [row1_data], [row2_data], ...]
+    """
+    if not text or not isinstance(text, str) or "|" not in text:
+        return []
+
+    match = TABLE_REGEX.search(text)
+    table_block = match.group(0) if match else text
+
+    lines = [l.strip() for l in table_block.strip().split("\n") if l.strip()]
+    if len(lines) < 2:
+        return []
+
+    def split_cells(line: str):
+        raw = line.strip()
+        if raw.startswith("|"):
+            raw = raw[1:]
+        if raw.endswith("|"):
+            raw = raw[:-1]
+        return [c.strip() for c in raw.split("|")]
+
+    table_data = []
+    header_found = False
+    sep_found = False
+
+    for i, line in enumerate(lines):
+        if "|" not in line:
+            if header_found and sep_found:
+                break
+            continue
+        cells = split_cells(line)
+        if not cells or not any(cells):
+            continue
+
+        if not header_found:
+            if i + 1 < len(lines) and is_markdown_table_separator(lines[i + 1]):
+                header_found = True
+                table_data.append(cells)
+        elif header_found and not sep_found:
+            if is_markdown_table_separator(line):
+                sep_found = True
+        elif header_found and sep_found:
+            if is_markdown_table_separator(line):
+                continue
+            headers = table_data[0]
+            if len(cells) < len(headers):
+                cells = cells + [""] * (len(headers) - len(cells))
+            elif len(cells) > len(headers):
+                cells = cells[:len(headers)]
+            table_data.append(cells)
+
+    if header_found and sep_found and len(table_data) >= 2:
+        return table_data
+    return []
+
+
+def get_proportional_col_widths(num_cols: int) -> list:
+    """
+    Returns explicit proportional column widths to prevent horizontal overflow.
+    e.g., [35, 15, 50] for 3-column layouts.
+    """
+    if num_cols <= 1:
+        return [100]
+    elif num_cols == 2:
+        return [35, 65]
+    elif num_cols == 3:
+        return [35, 15, 50]
+    elif num_cols == 4:
+        return [25, 20, 25, 30]
+    elif num_cols == 5:
+        return [20, 15, 20, 20, 25]
+    else:
+        eq = round(100.0 / num_cols, 2)
+        return [eq] * num_cols
+
+
 if FPDF is not None:
     class TopperPDF(FPDF):
         def __init__(self, title_text="Academic Document"):
@@ -1204,46 +1306,114 @@ if FPDF is not None:
 
             lines = md_text.split("\n")
             in_code_block = False
+            i = 0
+            n = len(lines)
 
-            for raw_line in lines:
+            while i < n:
+                raw_line = lines[i]
                 line = raw_line.rstrip()
                 trimmed = line.strip()
 
                 if not trimmed:
                     self.ln(2)
+                    i += 1
                     continue
 
                 if trimmed.startswith("```"):
                     in_code_block = not in_code_block
+                    i += 1
                     continue
 
-                # Section Headings
+                # 1. Native FPDF Table Rendering for Markdown Tables
+                if not in_code_block and "|" in trimmed and i + 1 < n and is_markdown_table_separator(lines[i + 1]):
+                    table_lines = [trimmed, lines[i + 1].strip()]
+                    i += 2
+                    while i < n and "|" in lines[i] and lines[i].strip():
+                        table_lines.append(lines[i].strip())
+                        i += 1
+
+                    parsed_table = parse_markdown_table("\n".join(table_lines))
+                    if parsed_table and len(parsed_table) >= 2:
+                        self.ln(2)
+                        self.set_x(self.l_margin)
+                        col_count = len(parsed_table[0])
+                        col_widths = get_proportional_col_widths(col_count)
+
+                        headings_style = None
+                        if FontFace is not None:
+                            try:
+                                headings_style = FontFace(
+                                    family=self.font_family_name,
+                                    emphasis="B",
+                                    color=(255, 255, 255),
+                                    fill_color=(11, 15, 25)  # #0B0F19
+                                )
+                            except Exception:
+                                headings_style = None
+
+                        self.set_font(self.font_family_name, size=8.5)
+                        self.set_text_color(30, 41, 59)
+
+                        try:
+                            with self.table(
+                                borders_layout="ALL",
+                                cell_fill_color=(245, 247, 250),
+                                cell_fill_mode="EVEN_ROWS",
+                                line_height=7,
+                                col_widths=col_widths,
+                                headings_style=headings_style,
+                                first_row_as_headings=True
+                            ) as table:
+                                for row in parsed_table:
+                                    clean_row = []
+                                    for cell in row:
+                                        c = str(cell).strip()
+                                        c = format_math_for_pdf(c)
+                                        c = sanitize_pdf_text(c, is_unicode=self.is_unicode)
+                                        c = re.sub(r'\*\*(.*?)\*\*', r'\1', c)
+                                        c = re.sub(r'(?<![a-zA-Z0-9])\*(.*?)\*(?![a-zA-Z0-9])', r'\1', c)
+                                        c = re.sub(r'[`#]', '', c).strip()
+                                        clean_row.append(c)
+                                    table.row(clean_row)
+                            self.ln(3)
+                            self.set_x(self.l_margin)
+                            continue
+                        except Exception as e:
+                            # Graceful fallback for unexpected table render issues
+                            for t_line in table_lines:
+                                clean_t = re.sub(r'\|', '  ', t_line).strip()
+                                if clean_t and not is_markdown_table_separator(t_line):
+                                    self.multi_cell(0, 7, clean_t, new_x="LMARGIN", new_y="NEXT")
+                            self.ln(2)
+                            continue
+
+                # 2. Section Headings
                 if trimmed.startswith("###"):
                     heading = trimmed.lstrip("#").strip()
-                    heading = re.sub(r'[*_`]', '', heading)
+                    heading = re.sub(r'[*_`|]', '', heading)
                     self.ln(3)
                     self.set_x(self.l_margin)
                     self.set_font(self.font_family_name, style="B", size=11)
                     self.set_text_color(15, 23, 42)
-                    self.multi_cell(0, 8, heading, new_x="LMARGIN", new_y="NEXT")
+                    self.multi_cell(0, 7, heading, new_x="LMARGIN", new_y="NEXT")
                     self.ln(1)
                 elif trimmed.startswith("##"):
                     heading = trimmed.lstrip("#").strip()
-                    heading = re.sub(r'[*_`]', '', heading)
+                    heading = re.sub(r'[*_`|]', '', heading)
                     self.ln(4)
                     self.set_x(self.l_margin)
                     self.set_font(self.font_family_name, style="B", size=12.5)
                     self.set_text_color(11, 15, 25)
-                    self.multi_cell(0, 8, heading, new_x="LMARGIN", new_y="NEXT")
+                    self.multi_cell(0, 7, heading, new_x="LMARGIN", new_y="NEXT")
                     self.ln(1)
                 elif trimmed.startswith("#"):
                     heading = trimmed.lstrip("#").strip()
-                    heading = re.sub(r'[*_`]', '', heading)
+                    heading = re.sub(r'[*_`|]', '', heading)
                     self.ln(5)
                     self.set_x(self.l_margin)
                     self.set_font(self.font_family_name, style="B", size=14)
                     self.set_text_color(11, 15, 25)
-                    self.multi_cell(0, 8, heading, new_x="LMARGIN", new_y="NEXT")
+                    self.multi_cell(0, 7, heading, new_x="LMARGIN", new_y="NEXT")
                     self.ln(2)
                 elif trimmed.startswith("---") or trimmed.startswith("==="):
                     self.ln(2)
@@ -1258,21 +1428,30 @@ if FPDF is not None:
                     bullet_clean = re.sub(r'\*\*(.*?)\*\*', r'\1', bullet_body)
                     bullet_clean = re.sub(r'(?<![a-zA-Z0-9])\*(.*?)\*(?![a-zA-Z0-9])', r'\1', bullet_clean)
                     bullet_clean = re.sub(r'(?<=\s)_(?!\s)(.*?)(?<!\s)_(?=\s|[.,;:!?]|$)', r'\1', bullet_clean)
-                    bullet_clean = re.sub(r'[`#]', '', bullet_clean)
+                    bullet_clean = re.sub(r'[`#|]', '', bullet_clean).strip()
                     self.set_font(self.font_family_name, style="", size=9.5)
                     self.set_text_color(51, 65, 85)
                     self.set_x(self.l_margin + 3)
-                    self.multi_cell(self.epw - 3, 8, f"-  {bullet_clean}", new_x="LMARGIN", new_y="NEXT")
+                    self.multi_cell(self.epw - 3, 7, f"-  {bullet_clean}", new_x="LMARGIN", new_y="NEXT")
                 else:
-                    # Paragraph body text: multi_cell(0, 8, text) ensures clean word wrapping
+                    # 3. Standard Paragraphs (line_height=7, clean dangling markdown symbols)
                     clean_p = re.sub(r'\*\*(.*?)\*\*', r'\1', trimmed)
                     clean_p = re.sub(r'(?<![a-zA-Z0-9])\*(.*?)\*(?![a-zA-Z0-9])', r'\1', clean_p)
                     clean_p = re.sub(r'(?<=\s)_(?!\s)(.*?)(?<!\s)_(?=\s|[.,;:!?]|$)', r'\1', clean_p)
                     clean_p = re.sub(r'[`#]', '', clean_p)
-                    self.set_x(self.l_margin)
-                    self.set_font(self.font_family_name, style="", size=9.5)
-                    self.set_text_color(51, 65, 85)
-                    self.multi_cell(0, 8, clean_p, new_x="LMARGIN", new_y="NEXT")
+                    # Clean lingering markdown pipes and dashed lines outside tables
+                    clean_p = re.sub(r'(?<!\S)\|(?!\S)', ' ', clean_p)
+                    clean_p = re.sub(r'^\s*\|\s*', '', clean_p)
+                    clean_p = re.sub(r'\s*\|\s*$', '', clean_p)
+                    clean_p = re.sub(r'\s*\|\s*', '  ', clean_p)
+                    clean_p = re.sub(r'---+', '', clean_p).strip()
+                    if clean_p:
+                        self.set_x(self.l_margin)
+                        self.set_font(self.font_family_name, style="", size=9.5)
+                        self.set_text_color(51, 65, 85)
+                        self.multi_cell(0, 7, clean_p, new_x="LMARGIN", new_y="NEXT")
+
+                i += 1
 else:
     TopperPDF = None
 
