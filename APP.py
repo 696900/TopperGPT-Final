@@ -941,7 +941,265 @@ def parse_topic_research_json(raw_text: str) -> dict:
         "working_principle": "Operational details and examination steps."
     })
 
-# --- 6. BACKEND AI ENGINE (GROQ + GEMINI + OPENROUTER) ---
+# --- 6. ACADEMIC PDF EXPORT ENGINE (FPDF2) ---
+def sanitize_pdf_text(text: str) -> str:
+    """
+    Sanitizes markdown and unicode characters for safe Latin-1 FPDF rendering.
+    Maps common academic emojis and punctuation to clean readable text.
+    """
+    if not text:
+        return ""
+    replacements = {
+        "\u2018": "'", "\u2019": "'",
+        "\u201c": '"', "\u201d": '"',
+        "\u2014": "--", "\u2013": "-",
+        "\u2022": "*", "\u2026": "...",
+        "\u00b0": " deg",
+        "💡": "[Tip] ", "🎯": "[Target] ", "⚡": "[Fast] ",
+        "📘": "[Exam] ", "📑": "[Notes] ", "🧮": "[Formula] ",
+        "⚠️": "[Alert] ", "📌": "[Key] ", "🔥": "[Streak] ",
+        "🔍": "[Search] ", "✦": "* ", "✓": "[OK] ", "❌": "[X] ",
+        "📥": "", "🚪": "", "👤": "", "🚀": "", "🔑": "", "📝": ""
+    }
+    for k, v in replacements.items():
+        text = text.replace(k, v)
+
+    safe_chars = []
+    for ch in text:
+        try:
+            ch.encode("latin-1")
+            safe_chars.append(ch)
+        except UnicodeEncodeError:
+            safe_chars.append(" ")
+    return "".join(safe_chars)
+
+
+if FPDF is not None:
+    class TopperPDF(FPDF):
+        def __init__(self, title_text="Academic Document"):
+            super().__init__(orientation="P", unit="mm", format="A4")
+            self.doc_title = title_text
+            self.set_auto_page_break(auto=True, margin=15)
+            self.set_margins(15, 15, 15)
+
+        def header(self):
+            # 1. Subtle diagonal background watermark text: "TOPPERGPT - ACADEMIC AI"
+            try:
+                self.set_font("Helvetica", style="B", size=30)
+                self.set_text_color(240, 243, 246)
+                if hasattr(self, "rotation"):
+                    with self.rotation(angle=45, x=105, y=148):
+                        self.text(x=35, y=148, text="TOPPERGPT - ACADEMIC AI")
+                elif hasattr(self, "rotate"):
+                    self.rotate(45, 105, 148)
+                    self.text(35, 148, "TOPPERGPT - ACADEMIC AI")
+                    self.rotate(0)
+                else:
+                    self.text(35, 148, "TOPPERGPT - ACADEMIC AI")
+            except Exception:
+                pass
+
+            # 2. TopperGPT Header Logo & Title
+            logo_path = os.path.join(os.path.dirname(__file__), "images", "logo.png")
+            if os.path.exists(logo_path):
+                try:
+                    self.image(logo_path, x=15, y=10, w=15)
+                except Exception:
+                    pass
+
+            # Header Title & Subtitle
+            self.set_xy(33, 10)
+            self.set_font("Helvetica", style="B", size=13)
+            self.set_text_color(15, 23, 42)
+            self.cell(0, 5, "TopperGPT", ln=False)
+            
+            self.set_font("Helvetica", style="", size=10)
+            self.set_text_color(88, 193, 200)
+            self.cell(0, 5, "  |  Academic AI Workspace", ln=True)
+
+            self.set_xy(33, 16)
+            self.set_font("Helvetica", style="I", size=8)
+            self.set_text_color(100, 116, 139)
+            self.cell(0, 5, sanitize_pdf_text(self.doc_title[:65]), ln=True)
+
+            # Divider line
+            self.set_draw_color(226, 232, 240)
+            self.set_line_width(0.3)
+            self.line(15, 24, 195, 24)
+            self.ln(10)
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_draw_color(226, 232, 240)
+            self.set_line_width(0.2)
+            self.line(15, 282, 195, 282)
+
+            self.set_font("Helvetica", size=8)
+            self.set_text_color(148, 163, 184)
+            self.cell(0, 10, "Generated via TopperGPT  -  University Academic Workspace", align="L")
+            self.cell(0, 10, f"Page {self.page_no()}", align="R")
+
+        def add_markdown_content(self, md_text: str):
+            md_text = clean_output_text(md_text)
+            md_text = sanitize_pdf_text(md_text)
+
+            lines = md_text.split("\n")
+            for line in lines:
+                trimmed = line.strip()
+                if not trimmed:
+                    self.ln(2)
+                    continue
+
+                if trimmed.startswith("###"):
+                    heading = trimmed.lstrip("#").strip()
+                    self.ln(3)
+                    self.set_font("Helvetica", style="B", size=11)
+                    self.set_text_color(30, 41, 59)
+                    self.multi_cell(0, 5, heading)
+                    self.ln(1)
+                elif trimmed.startswith("##"):
+                    heading = trimmed.lstrip("#").strip()
+                    self.ln(4)
+                    self.set_font("Helvetica", style="B", size=12)
+                    self.set_text_color(15, 23, 42)
+                    self.multi_cell(0, 6, heading)
+                    self.ln(1)
+                elif trimmed.startswith("#"):
+                    heading = trimmed.lstrip("#").strip()
+                    self.ln(5)
+                    self.set_font("Helvetica", style="B", size=14)
+                    self.set_text_color(15, 23, 42)
+                    self.multi_cell(0, 7, heading)
+                    self.ln(2)
+                elif trimmed.startswith("---") or trimmed.startswith("==="):
+                    self.ln(2)
+                    self.set_draw_color(226, 232, 240)
+                    self.set_line_width(0.2)
+                    curr_y = self.get_y()
+                    self.line(15, curr_y, 195, curr_y)
+                    self.ln(2)
+                elif trimmed.startswith("- ") or trimmed.startswith("* "):
+                    bullet_text = trimmed[2:].strip()
+                    clean_b = re.sub(r'\*\*(.*?)\*\*', r'\1', bullet_text)
+                    self.set_font("Helvetica", style="", size=9.5)
+                    self.set_text_color(51, 65, 85)
+                    self.set_x(18)
+                    self.multi_cell(177, 5, f"- {clean_b}")
+                else:
+                    clean_p = re.sub(r'\*\*(.*?)\*\*', r'\1', trimmed)
+                    self.set_font("Helvetica", style="", size=9.5)
+                    self.set_text_color(51, 65, 85)
+                    self.multi_cell(0, 5, clean_p)
+else:
+    TopperPDF = None
+
+
+def generate_fallback_pdf(title: str, content: str, feature_name: str) -> bytes:
+    """Pure-Python fallback PDF generator if FPDF library is unavailable in environment."""
+    clean_text = sanitize_pdf_text(clean_output_text(content))
+    lines = [
+        "TopperGPT | Academic AI Workspace",
+        f"Feature: {feature_name}",
+        f"Title: {title}",
+        f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "--------------------------------------------------",
+        ""
+    ]
+    for raw_line in clean_text.split("\n"):
+        line = raw_line.strip()
+        while len(line) > 75:
+            lines.append(line[:75])
+            line = line[75:]
+        lines.append(line)
+
+    text_ops = [
+        "BT /F1 28 Tf 50 400 Td (TOPPERGPT - ACADEMIC AI) Tj ET",
+        "BT /F1 14 Tf 40 800 Td (TopperGPT | Academic AI Workspace) Tj ET",
+        "BT /F2 11 Tf 40 782 Td (" + sanitize_pdf_text(title[:60]).replace("(", "\\(").replace(")", "\\)") + ") Tj ET"
+    ]
+    y = 750
+    for l in lines[:55]:
+        safe_l = l.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        text_ops.append(f"BT /F3 9.5 Tf 40 {y} Td ({safe_l}) Tj ET")
+        y -= 12
+        if y < 45:
+            break
+
+    stream_content = "\n".join(text_ops).encode("latin-1", "ignore")
+    stream_len = len(stream_content)
+    return (
+        f"%PDF-1.4\n"
+        f"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
+        f"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n"
+        f"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 7 0 R >> endobj\n"
+        f"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> endobj\n"
+        f"5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> endobj\n"
+        f"6 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n"
+        f"7 0 obj << /Length {stream_len} >> stream\n"
+    ).encode("latin-1") + stream_content + (
+        f"\nendstream\nendobj\n"
+        f"xref\n0 8\n0000000000 65535 f \n"
+        f"trailer << /Size 8 /Root 1 0 R >>\nstartxref\n50\n%%EOF"
+    ).encode("latin-1")
+
+
+def generate_topper_pdf(title: str, content: str, feature_name: str = "Academic Report") -> bytes:
+    """
+    Generates a professional TopperGPT academic PDF with:
+    - TopperGPT Header Logo & Title
+    - Subtle diagonal background watermark text: 'TOPPERGPT - ACADEMIC AI'
+    - Clean margins, formatted typography, and page numbers
+    Returns PDF bytes for st.download_button.
+    """
+    if FPDF is not None and TopperPDF is not None:
+        try:
+            pdf = TopperPDF(title_text=f"{feature_name} - {title}")
+            pdf.add_page()
+
+            # Main Title Header
+            pdf.set_font("Helvetica", style="B", size=14)
+            pdf.set_text_color(15, 23, 42)
+            pdf.multi_cell(0, 7, sanitize_pdf_text(title.upper()))
+
+            pdf.set_font("Helvetica", style="I", size=8.5)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(0, 5, f"Category: {feature_name}   |   Date: {datetime.now().strftime('%d %B %Y, %I:%M %p')}", ln=True)
+            pdf.ln(3)
+
+            pdf.add_markdown_content(content)
+
+            out = pdf.output()
+            if isinstance(out, (bytes, bytearray)):
+                return bytes(out)
+            elif isinstance(out, str):
+                return out.encode("latin-1")
+        except Exception as e:
+            print(f"FPDF Generation Notice: {e}")
+
+    return generate_fallback_pdf(title, content, feature_name)
+
+
+def format_topic_research_for_pdf(topic_name: str, topic_dict: dict) -> str:
+    """Formats Topic Research 3-card dictionary into markdown for PDF generation."""
+    definition = topic_dict.get("definition", "Details unavailable.")
+    breakdown = topic_dict.get("breakdown", "Details unavailable.")
+    working_principle = topic_dict.get("working_principle", "Details unavailable.")
+
+    return f"""### 1. Official Definition (2-Mark University Standard)
+{definition}
+
+---
+
+### 2. Technical Breakdown & Architecture
+{breakdown}
+
+---
+
+### 3. Working Principle & Operational Mechanics
+{working_principle}
+"""
+
+# --- 7. BACKEND AI ENGINE (GROQ + GEMINI + OPENROUTER) ---
 def generate_ai_response(prompt_text, max_toks=1200):
     groq_key = get_env_secret("GROQ_API_KEY").strip()
     if groq_key:
@@ -1411,16 +1669,22 @@ elif nav_selection == "🎯 Predicted Qs":
         col_act1, col_act2 = st.columns([1, 1])
         with col_act1:
             if not st.session_state.get("pred_hinglish"):
-                if st.button("🗣️ Translate to Hinglish", key="trans_pred"):
+                if st.button("🗣️ Translate to Hinglish", key="trans_pred", use_container_width=True):
                     with st.spinner("Translating blueprint to Hinglish..."):
                         st.session_state.pred_hinglish = translate_to_hinglish(st.session_state.pred_result)
                         st.rerun()
         with col_act2:
+            pred_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            pred_pdf = generate_topper_pdf(
+                title=f"Exam Blueprint: {st.session_state.get('pred_topic_name', 'Topic')}",
+                content=st.session_state.pred_result,
+                feature_name="Predicted Questions"
+            )
             st.download_button(
-                "📥 Download Blueprint",
-                data=st.session_state.pred_result,
-                file_name=f"{st.session_state.get('pred_topic_name', 'Topic')}_MU_Blueprint.md",
-                mime="text/markdown",
+                "📥 Download PDF",
+                data=pred_pdf,
+                file_name=f"TopperGPT_PredictedQuestions_{pred_ts}.pdf",
+                mime="application/pdf",
                 use_container_width=True
             )
 
@@ -1494,16 +1758,22 @@ elif nav_selection == "📄 Short Notes":
         col_sn1, col_sn2 = st.columns([1, 1])
         with col_sn1:
             if not st.session_state.get("sn_hinglish"):
-                if st.button("🗣️ Translate to Hinglish", key="trans_sn"):
+                if st.button("🗣️ Translate to Hinglish", key="trans_sn", use_container_width=True):
                     with st.spinner("Translating cheat sheet to Hinglish..."):
                         st.session_state.sn_hinglish = translate_to_hinglish(st.session_state.sn_data)
                         st.rerun()
         with col_sn2:
+            sn_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            sn_pdf = generate_topper_pdf(
+                title=f"Revision Sheet: {st.session_state.get('sn_name', 'Revision')}",
+                content=st.session_state.sn_data,
+                feature_name="Short Notes"
+            )
             st.download_button(
-                "📥 Download Markdown Sheet",
-                data=st.session_state.sn_data,
-                file_name=f"{st.session_state.get('sn_name', 'Revision')}_CheatSheet.md",
-                mime="text/markdown",
+                "📥 Download PDF",
+                data=sn_pdf,
+                file_name=f"TopperGPT_ShortNotes_{sn_ts}.pdf",
+                mime="application/pdf",
                 use_container_width=True
             )
 
@@ -1598,6 +1868,24 @@ elif nav_selection == "🔍 Topic Research":
                 """, unsafe_allow_html=True)
                 st.markdown(clean_output_text(t_data.get("working_principle", "Details unavailable.")))
 
-        if st.button("🗑️ Clear Research"):
-            del st.session_state.topic_res_json
-            st.rerun()
+        st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+        col_res1, col_res2 = st.columns([1, 1])
+        with col_res1:
+            res_content = format_topic_research_for_pdf(t_name, t_data)
+            res_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            res_pdf = generate_topper_pdf(
+                title=f"Technical Report: {t_name}",
+                content=res_content,
+                feature_name="Topic Research"
+            )
+            st.download_button(
+                "📥 Download PDF",
+                data=res_pdf,
+                file_name=f"TopperGPT_TopicResearch_{res_ts}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        with col_res2:
+            if st.button("🗑️ Clear Research", use_container_width=True):
+                del st.session_state.topic_res_json
+                st.rerun()
