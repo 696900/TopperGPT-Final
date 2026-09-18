@@ -1123,17 +1123,24 @@ TABLE_REGEX = re.compile(
 )
 
 
-def is_markdown_table_separator(line_str: str) -> bool:
-    """Checks if a string is a markdown table separator row (|---|---| or |:---:|)."""
-    if not line_str or "|" not in line_str:
-        return False
-    raw = line_str.strip()
+def clean_split_pipe_line(line: str) -> list:
+    """Splits a line by pipe |, ignoring leading/trailing whitespace and empty outer split segments."""
+    raw = line.strip()
     if raw.startswith("|"):
         raw = raw[1:]
     if raw.endswith("|"):
         raw = raw[:-1]
-    cells = [c.strip() for c in raw.split("|")]
-    return len(cells) > 0 and all(re.match(r"^:?-+:?$", c) for c in cells if c)
+    return [seg.strip() for seg in raw.split("|")]
+
+
+def is_markdown_table_separator(line_str: str) -> bool:
+    """Checks if a string is a markdown table separator row (|---|---| or |:---:|)."""
+    if not line_str or "|" not in line_str:
+        return False
+    cells = clean_split_pipe_line(line_str)
+    if not cells:
+        return False
+    return all(bool(re.match(r"^[:\-=\s]+$", c)) for c in cells if c) and any("-" in c or "=" in c for c in cells)
 
 
 def parse_markdown_table(text: str) -> list:
@@ -1141,6 +1148,9 @@ def parse_markdown_table(text: str) -> list:
     Regex and parsing utility to detect and extract Markdown tables (| ... |).
     Parses headers, separators (|---|), and data rows into structured Python lists:
     [headers, [row1_data], [row2_data], ...]
+    - Ignores trailing/leading whitespace and empty split segments.
+    - Never renders markdown table separator lines (|---|---|) as data rows.
+    - Stitches unescaped line breaks and auto-pads / merges mismatched columns to ensure uniform column widths.
     """
     if not text or not isinstance(text, str) or "|" not in text:
         return []
@@ -1148,50 +1158,65 @@ def parse_markdown_table(text: str) -> list:
     match = TABLE_REGEX.search(text)
     table_block = match.group(0) if match else text
 
-    lines = [l.strip() for l in table_block.strip().split("\n") if l.strip()]
-    if len(lines) < 2:
+    raw_lines = [l.strip() for l in table_block.strip().split("\n") if l.strip()]
+    if len(raw_lines) < 2:
         return []
 
-    def split_cells(line: str):
-        raw = line.strip()
-        if raw.startswith("|"):
-            raw = raw[1:]
-        if raw.endswith("|"):
-            raw = raw[:-1]
-        return [c.strip() for c in raw.split("|")]
+    # Locate the header row and its separator
+    header_idx = -1
+    for i in range(len(raw_lines) - 1):
+        if "|" in raw_lines[i] and is_markdown_table_separator(raw_lines[i + 1]):
+            header_idx = i
+            break
 
-    table_data = []
-    header_found = False
-    sep_found = False
+    if header_idx == -1:
+        return []
 
-    for i, line in enumerate(lines):
-        if "|" not in line:
-            if header_found and sep_found:
-                break
+    raw_headers = clean_split_pipe_line(raw_lines[header_idx])
+    headers = [h for h in raw_headers if h] or raw_headers
+    target_cols = len(headers)
+    if target_cols == 0:
+        return []
+
+    # Process data lines after the separator
+    data_lines = raw_lines[header_idx + 2:]
+    stitched_lines = []
+    curr = ""
+
+    for dl in data_lines:
+        if is_markdown_table_separator(dl):
             continue
-        cells = split_cells(line)
+        if not curr:
+            curr = dl
+        else:
+            cells = clean_split_pipe_line(curr)
+            # If current line already has target_cols and next line starts a new row, finish current
+            if len(cells) >= target_cols and (curr.endswith("|") or dl.startswith("|")):
+                stitched_lines.append(curr)
+                curr = dl
+            else:
+                # Merge unescaped line break into current row
+                curr += " " + dl
+    if curr and not is_markdown_table_separator(curr):
+        stitched_lines.append(curr)
+
+    parsed_rows = [headers]
+    for sl in stitched_lines:
+        if is_markdown_table_separator(sl):
+            continue
+        cells = clean_split_pipe_line(sl)
         if not cells or not any(cells):
             continue
 
-        if not header_found:
-            if i + 1 < len(lines) and is_markdown_table_separator(lines[i + 1]):
-                header_found = True
-                table_data.append(cells)
-        elif header_found and not sep_found:
-            if is_markdown_table_separator(line):
-                sep_found = True
-        elif header_found and sep_found:
-            if is_markdown_table_separator(line):
-                continue
-            headers = table_data[0]
-            if len(cells) < len(headers):
-                cells = cells + [""] * (len(headers) - len(cells))
-            elif len(cells) > len(headers):
-                cells = cells[:len(headers)]
-            table_data.append(cells)
+        # Merge or auto-pad so every row has exact target_cols
+        if len(cells) < target_cols:
+            cells = cells + [""] * (target_cols - len(cells))
+        elif len(cells) > target_cols:
+            cells = cells[:target_cols - 1] + [" | ".join(cells[target_cols - 1:])]
+        parsed_rows.append(cells)
 
-    if header_found and sep_found and len(table_data) >= 2:
-        return table_data
+    if len(parsed_rows) >= 2:
+        return parsed_rows
     return []
 
 
@@ -1365,6 +1390,16 @@ if FPDF is not None:
                                 first_row_as_headings=True
                             ) as table:
                                 for row in parsed_table:
+                                    # Never render separator lines as data rows
+                                    if is_markdown_table_separator(" | ".join(str(c) for c in row)):
+                                        continue
+
+                                    # Auto-pad or merge to guarantee exact uniform column count matching col_widths
+                                    if len(row) < col_count:
+                                        row = list(row) + [""] * (col_count - len(row))
+                                    elif len(row) > col_count:
+                                        row = list(row[:col_count - 1]) + [" | ".join(str(x) for x in row[col_count - 1:])]
+
                                     clean_row = []
                                     for cell in row:
                                         c = str(cell).strip()
@@ -2109,30 +2144,47 @@ elif nav_selection == "📄 Short Notes":
                 """
                 try:
                     sn_res = generate_ai_response(sn_prompt)
-                    st.session_state.sn_data = sn_res
-                    st.session_state.sn_name = sn_topic
-                    st.session_state.sn_hinglish = None
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                    sn_res_clean = (sn_res or "").strip()
+                    # Validate: non-empty string, minimum length, not rate limit or timeout notice
+                    is_valid = (
+                        bool(sn_res_clean)
+                        and len(sn_res_clean) >= 50
+                        and "Please refresh or retry" not in sn_res_clean
+                        and "rate limit" not in sn_res_clean.lower()
+                    )
+                    if not is_valid:
+                        st.error("Generation failed due to API timeout or rate limit. Please retry.")
+                    else:
+                        st.session_state.short_notes_data = sn_res_clean
+                        st.session_state.sn_data = sn_res_clean
+                        st.session_state.sn_name = sn_topic
+                        st.session_state.sn_hinglish = None
+                        st.rerun()
+                except Exception:
+                    st.error("Generation failed due to API timeout or rate limit. Please retry.")
 
-    if "sn_data" in st.session_state and st.session_state.sn_data:
+    short_notes_content = st.session_state.get("short_notes_data") or st.session_state.get("sn_data")
+    if short_notes_content and str(short_notes_content).strip():
         st.markdown("---")
         st.markdown(f"### 📘 Revision Sheet: **{st.session_state.get('sn_name', '').upper()}**")
-        st.markdown(clean_output_text(st.session_state.sn_data))
+        st.markdown(clean_output_text(short_notes_content))
 
         col_sn1, col_sn2 = st.columns([1, 1])
         with col_sn1:
             if not st.session_state.get("sn_hinglish"):
                 if st.button("🗣️ Translate to Hinglish", key="trans_sn", use_container_width=True):
                     with st.spinner("Translating cheat sheet to Hinglish..."):
-                        st.session_state.sn_hinglish = translate_to_hinglish(st.session_state.sn_data)
-                        st.rerun()
+                        translated = translate_to_hinglish(short_notes_content)
+                        if translated and translated.strip():
+                            st.session_state.sn_hinglish = translated
+                            st.rerun()
+                        else:
+                            st.error("Generation failed due to API timeout or rate limit. Please retry.")
         with col_sn2:
             sn_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             sn_pdf = generate_topper_pdf(
                 title=f"Revision Sheet: {st.session_state.get('sn_name', 'Revision')}",
-                content=st.session_state.sn_data,
+                content=short_notes_content,
                 feature_name="Short Notes"
             )
             st.download_button(
