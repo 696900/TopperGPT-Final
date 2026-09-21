@@ -1186,17 +1186,15 @@ def parse_markdown_table(text: str) -> list:
     for dl in data_lines:
         if is_markdown_table_separator(dl):
             continue
-        if not curr:
+        if "|" in dl:
+            if curr:
+                stitched_lines.append(curr)
             curr = dl
         else:
-            cells = clean_split_pipe_line(curr)
-            # If current line already has target_cols and next line starts a new row, finish current
-            if len(cells) >= target_cols and (curr.endswith("|") or dl.startswith("|")):
-                stitched_lines.append(curr)
-                curr = dl
-            else:
-                # Merge unescaped line break into current row
+            if curr:
                 curr += " " + dl
+            else:
+                curr = dl
     if curr and not is_markdown_table_separator(curr):
         stitched_lines.append(curr)
 
@@ -1238,6 +1236,131 @@ def get_proportional_col_widths(num_cols: int) -> list:
     else:
         eq = round(100.0 / num_cols, 2)
         return [eq] * num_cols
+
+
+def render_markdown_table_to_fpdf(pdf, markdown_table_text: str) -> bool:
+    """
+    Renders a Markdown table string directly to FPDF using native pdf.table grid:
+    - Parses Markdown table string line-by-line.
+    - Ignores separator lines containing dashes (e.g., |---|---|).
+    - Extracts cell values by splitting on pipe (|) and stripping whitespace.
+    - Ensures header row is extracted separately from body rows.
+    - Header Row: Dark background fill (RGB: 15, 23, 42), bold white text, center-aligned.
+    - Data Rows: Alternating zebra background colors (RGB: 255, 255, 255 and RGB: 248, 250, 252).
+    - Uses with pdf.table(col_widths=(30, 20, 50), borders_layout="ALL", line_height=6) as table.
+    """
+    if not markdown_table_text or not isinstance(markdown_table_text, str):
+        return False
+
+    raw_lines = [l.strip() for l in markdown_table_text.strip().split("\n") if l.strip()]
+    if not raw_lines:
+        return False
+
+    header_row = None
+    body_rows = []
+
+    # First pass: stitch unescaped line breaks and filter out separator rows
+    stitched_lines = []
+    curr = ""
+    for l in raw_lines:
+        if is_markdown_table_separator(l):
+            if curr:
+                stitched_lines.append(curr)
+                curr = ""
+            continue
+        if "|" in l:
+            if curr:
+                stitched_lines.append(curr)
+            curr = l
+        else:
+            if curr:
+                curr += " " + l
+            else:
+                curr = l
+    if curr:
+        stitched_lines.append(curr)
+
+    for l in stitched_lines:
+        if is_markdown_table_separator(l):
+            continue
+        cells = clean_split_pipe_line(l)
+        if not cells or not any(cells):
+            continue
+        if header_row is None:
+            header_row = cells
+        else:
+            target_cols = len(header_row)
+            if len(cells) < target_cols:
+                cells = cells + [""] * (target_cols - len(cells))
+            elif len(cells) > target_cols:
+                cells = cells[:target_cols - 1] + [" | ".join(cells[target_cols - 1:])]
+            body_rows.append(cells)
+
+    if not header_row:
+        return False
+
+    num_cols = len(header_row)
+    if num_cols == 3:
+        col_widths = (30, 20, 50)
+    elif num_cols == 2:
+        col_widths = (35, 65)
+    elif num_cols == 4:
+        col_widths = (25, 20, 25, 30)
+    else:
+        col_widths = tuple(round(100.0 / num_cols, 1) for _ in range(num_cols))
+
+    font_family = getattr(pdf, "font_family_name", "Helvetica")
+    h_style = None
+    if FontFace is not None:
+        try:
+            h_style = FontFace(
+                family=font_family,
+                emphasis="B",
+                color=(255, 255, 255),
+                fill_color=(15, 23, 42)
+            )
+        except Exception:
+            h_style = None
+
+    try:
+        pdf.ln(2)
+        pdf.set_x(pdf.l_margin)
+        pdf.set_font(font_family, size=8.5)
+        pdf.set_text_color(30, 41, 59)
+
+        with pdf.table(
+            col_widths=col_widths,
+            borders_layout="ALL",
+            line_height=6,
+            cell_fill_color=(248, 250, 252),
+            cell_fill_mode="EVEN_ROWS",
+            headings_style=h_style,
+            first_row_as_headings=True,
+            padding=(1.5, 2, 1.5, 2)
+        ) as table:
+            # Header Row: Dark background fill (15, 23, 42), bold white text, center-aligned
+            h_row = table.row()
+            for h in header_row:
+                clean_h = sanitize_pdf_text(format_math_for_pdf(h), is_unicode=getattr(pdf, "is_unicode", False))
+                clean_h = re.sub(r'[*_`#]', '', clean_h).strip()
+                h_row.cell(clean_h, align="CENTER")
+
+            # Data Rows: Alternating zebra background colors
+            for r in body_rows:
+                d_row = table.row()
+                for c in r:
+                    clean_c = sanitize_pdf_text(format_math_for_pdf(c), is_unicode=getattr(pdf, "is_unicode", False))
+                    clean_c = re.sub(r'\*\*(.*?)\*\*', r'\1', clean_c)
+                    clean_c = re.sub(r'(?<![a-zA-Z0-9])\*(.*?)\*(?![a-zA-Z0-9])', r'\1', clean_c)
+                    clean_c = re.sub(r'[`#]', '', clean_c).strip()
+                    d_row.cell(clean_c)
+
+        pdf.ln(3)
+        pdf.set_x(pdf.l_margin)
+        return True
+    except Exception as e:
+        print(f"Table rendering fallback notice: {e}")
+        return False
 
 
 if FPDF is not None:
@@ -1349,78 +1472,40 @@ if FPDF is not None:
                     i += 1
                     continue
 
-                # 1. Native FPDF Table Rendering for Markdown Tables
-                if not in_code_block and "|" in trimmed and i + 1 < n and is_markdown_table_separator(lines[i + 1]):
-                    table_lines = [trimmed, lines[i + 1].strip()]
-                    i += 2
-                    while i < n and "|" in lines[i] and lines[i].strip():
-                        table_lines.append(lines[i].strip())
-                        i += 1
+                # 1. Section Detector: Native FPDF Table Rendering
+                if not in_code_block and (trimmed.startswith("|") or is_markdown_table_separator(trimmed) or ("|" in trimmed and i + 1 < n and ("|" in lines[i + 1] or is_markdown_table_separator(lines[i + 1])))):
+                    table_lines = [trimmed]
+                    i += 1
+                    while i < n:
+                        next_line = lines[i].strip()
+                        if not next_line:
+                            if i + 1 < n and ("|" in lines[i + 1] or is_markdown_table_separator(lines[i + 1])):
+                                i += 1
+                                continue
+                            else:
+                                break
+                        if next_line.startswith("#") or (not is_markdown_table_separator(next_line) and (next_line.startswith("---") or next_line.startswith("==="))):
+                            break
+                        if "|" in next_line or is_markdown_table_separator(next_line):
+                            table_lines.append(next_line)
+                            i += 1
+                        elif not next_line.startswith(("- ", "* ", "1.", "2.", "3.", "4.", "5.")):
+                            table_lines.append(next_line)
+                            i += 1
+                        else:
+                            break
 
-                    parsed_table = parse_markdown_table("\n".join(table_lines))
-                    if parsed_table and len(parsed_table) >= 2:
+                    table_text = "\n".join(table_lines)
+                    rendered = render_markdown_table_to_fpdf(self, table_text)
+                    if rendered:
+                        continue
+                    else:
+                        for t_line in table_lines:
+                            clean_t = re.sub(r'\|', '  ', t_line).strip()
+                            if clean_t and not is_markdown_table_separator(t_line):
+                                self.multi_cell(0, 7, clean_t, new_x="LMARGIN", new_y="NEXT")
                         self.ln(2)
-                        self.set_x(self.l_margin)
-                        col_count = len(parsed_table[0])
-                        col_widths = get_proportional_col_widths(col_count)
-
-                        headings_style = None
-                        if FontFace is not None:
-                            try:
-                                headings_style = FontFace(
-                                    family=self.font_family_name,
-                                    emphasis="B",
-                                    color=(255, 255, 255),
-                                    fill_color=(11, 15, 25)  # #0B0F19
-                                )
-                            except Exception:
-                                headings_style = None
-
-                        self.set_font(self.font_family_name, size=8.5)
-                        self.set_text_color(30, 41, 59)
-
-                        try:
-                            with self.table(
-                                borders_layout="ALL",
-                                cell_fill_color=(245, 247, 250),
-                                cell_fill_mode="EVEN_ROWS",
-                                line_height=7,
-                                col_widths=col_widths,
-                                headings_style=headings_style,
-                                first_row_as_headings=True
-                            ) as table:
-                                for row in parsed_table:
-                                    # Never render separator lines as data rows
-                                    if is_markdown_table_separator(" | ".join(str(c) for c in row)):
-                                        continue
-
-                                    # Auto-pad or merge to guarantee exact uniform column count matching col_widths
-                                    if len(row) < col_count:
-                                        row = list(row) + [""] * (col_count - len(row))
-                                    elif len(row) > col_count:
-                                        row = list(row[:col_count - 1]) + [" | ".join(str(x) for x in row[col_count - 1:])]
-
-                                    clean_row = []
-                                    for cell in row:
-                                        c = str(cell).strip()
-                                        c = format_math_for_pdf(c)
-                                        c = sanitize_pdf_text(c, is_unicode=self.is_unicode)
-                                        c = re.sub(r'\*\*(.*?)\*\*', r'\1', c)
-                                        c = re.sub(r'(?<![a-zA-Z0-9])\*(.*?)\*(?![a-zA-Z0-9])', r'\1', c)
-                                        c = re.sub(r'[`#]', '', c).strip()
-                                        clean_row.append(c)
-                                    table.row(clean_row)
-                            self.ln(3)
-                            self.set_x(self.l_margin)
-                            continue
-                        except Exception as e:
-                            # Graceful fallback for unexpected table render issues
-                            for t_line in table_lines:
-                                clean_t = re.sub(r'\|', '  ', t_line).strip()
-                                if clean_t and not is_markdown_table_separator(t_line):
-                                    self.multi_cell(0, 7, clean_t, new_x="LMARGIN", new_y="NEXT")
-                            self.ln(2)
-                            continue
+                        continue
 
                 # 2. Section Headings
                 if trimmed.startswith("###"):
