@@ -1722,16 +1722,22 @@ def format_topic_research_for_pdf(topic_name: str, topic_dict: dict) -> str:
 """
 
 # --- 7. BACKEND AI ENGINE (GROQ P1 + GEMINI P2 + OPENROUTER P3) ---
-def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None, temperature=0.2):
+def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None, temperature=0.2, max_tokens=None):
     """
     Automatic 3-Tier Multi-Model AI Engine for Ultra-Fast Execution:
     - Accepts either a single string prompt OR a list of chat message dicts:
       [{"role": "system"/"user"/"assistant", "content": ...}]
-    - Priority 1: Groq llama-3.1-8b-instant or llama3-8b-8192 (Timeout: 12s)
-    - Priority 2: Gemini 1.5 Flash via direct HTTP REST (Timeout: 15s)
-    - Priority 3: OpenRouter meta-llama/llama-3.1-8b-instruct:free (Timeout: 12s)
+    - Priority 1: Groq llama-3.1-8b-instant or llama3-8b-8192
+    - Priority 2: Gemini 1.5 Flash via direct HTTP REST
+    - Priority 3: OpenRouter meta-llama/llama-3.1-8b-instruct:free
     - Silent failover across tiers without throwing st.error until all 3 tiers fail.
     """
+    if max_tokens is not None:
+        max_toks = max_tokens
+
+    tier_timeout = 25 if max_toks > 1000 else 12
+    gemini_timeout = 25 if max_toks > 1000 else 15
+
     # -------------------------------------------------------------------------
     # 0. NORMALIZE & SANITIZE MESSAGES ARRAY
     # -------------------------------------------------------------------------
@@ -1757,7 +1763,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
         messages_array = [{"role": "user", "content": "Hello"}]
 
     # -------------------------------------------------------------------------
-    # PRIORITY 1: Groq llama-3.1-8b-instant or llama3-8b-8192 (Timeout: 12s)
+    # PRIORITY 1: Groq llama-3.1-8b-instant or llama3-8b-8192
     # -------------------------------------------------------------------------
     groq_key = (get_env_secret("GROQ_API_KEY") or get_env_secret("GROQ_API_KEY_2", "")).strip()
     if groq_key:
@@ -1773,7 +1779,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                         "temperature": temperature,
                         "max_tokens": max_toks
                     },
-                    timeout=12
+                    timeout=tier_timeout
                 )
                 if res.status_code == 200:
                     choices = res.json().get("choices", [])
@@ -1785,7 +1791,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                 continue
 
     # -------------------------------------------------------------------------
-    # PRIORITY 2: Gemini 1.5 Flash via direct HTTP REST (Timeout: 15s)
+    # PRIORITY 2: Gemini 1.5 Flash via direct HTTP REST
     # -------------------------------------------------------------------------
     gemini_key = (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip()
     if gemini_key:
@@ -1826,7 +1832,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                 url,
                 headers={"Content-Type": "application/json"},
                 json=gemini_payload,
-                timeout=15
+                timeout=gemini_timeout
             )
             if res.status_code == 200:
                 cand = res.json().get('candidates', [])
@@ -1847,7 +1853,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                             "maxOutputTokens": max_toks
                         }
                     },
-                    timeout=15
+                    timeout=gemini_timeout
                 )
                 if res2.status_code == 200:
                     cand = res2.json().get('candidates', [])
@@ -1872,7 +1878,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                 url,
                 headers={"Content-Type": "application/json"},
                 json=gemini_payload,
-                timeout=15
+                timeout=gemini_timeout
             )
             if res.status_code == 200:
                 cand = res.json().get('candidates', [])
@@ -1884,7 +1890,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
             pass
 
     # -------------------------------------------------------------------------
-    # PRIORITY 3: OpenRouter (meta-llama/llama-3.1-8b-instruct:free) (Timeout: 12s)
+    # PRIORITY 3: OpenRouter (meta-llama/llama-3.1-8b-instruct:free)
     # -------------------------------------------------------------------------
     openrouter_key = get_env_secret("OPENROUTER_API_KEY").strip()
     if openrouter_key:
@@ -1915,7 +1921,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                         "temperature": temperature,
                         "include_reasoning": False
                     },
-                    timeout=12
+                    timeout=tier_timeout
                 )
                 if res.status_code == 200:
                     choices = res.json().get("choices", [])
@@ -2360,31 +2366,33 @@ elif nav_selection == "📄 Short Notes":
             user_topic = sn_topic.strip()
             with st.spinner(f"⚡ Generating high-yield revision sheet for '{user_topic}'..."):
                 sn_prompt = f"""Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.
-Generate a structured 1-page MU exam revision sheet for topic: {user_topic}. Include 3 sections: 1. Core Numerical Formulas & Parameters, 2. High Weightage Core Topics, 3. 5 Minute Rapid Revision Keywords.
+Generate a comprehensive, structured 1-page Mumbai University (MU) exam revision sheet for topic: {user_topic}. Include 3 sections: 1. Core Numerical Formulas & Parameters, 2. High-Weightage Core Topics, 3. 5-Minute Rapid Revision Keywords.
 
 CRITICAL INSTRUCTIONS:
-- You are TopperGPT. Output strictly exam-oriented, high-yield revision notes.
+- You are TopperGPT, Senior Academic Evaluator for Mumbai University.
+- Provide comprehensive coverage of core formulas (at least 5 to 7 essential equations) so the student has complete coverage for numericals and derivations.
+- STRICT PROHIBITION: Do NOT use markdown tables (|---|---|) anywhere in your response. Instead, use clean, organized bullet points with bold sub-headers so equations, parameters, and notes never break or wrap awkwardly.
 - Use direct bullet points and clean markdown formatting without any conversational introductory fluff, greetings, apologies, or preamble (e.g., absolutely NO 'Sure, here are your notes...', 'Certainly! Here is...').
 - Start IMMEDIATELY with the heading '### 1. 🧮 Core Numerical Formulas & Parameters'.
 - Do NOT output conversational sign-offs or outro text.
 - Strictly adhere to the EXACT 3-block structure below:
 
 ### 1. 🧮 Core Numerical Formulas & Parameters
-- [Formula Name]: [Equation]
-  - Variables & SI Units: [Brief list]
-  - Exam Application: [1 line usage]
+- **[Formula Name]**: [Equation]
+  - **Variables & SI Units**: [List each variable and its SI unit]
+  - **Exam Application**: [1 line where and how it is applied in MU numericals]
 
 ### 2. 🎯 High-Weightage Core Topics
-Render strictly as a clean Markdown Table:
-| Topic | Expected Marks | Key Requirements |
-|---|---|---|
-| [Topic Name] | [2M/6M/10M] | [Key points needed for full marks] |
+List 4 to 5 high-yield exam topics with expected marks ([2M], [6M], or [10M]). Do NOT use tables:
+- **[Topic Name]** ([2M/6M/10M]):
+  - **Key Requirements**: [Key definitions, derivations, circuit diagrams, or working points required by Mumbai University paper setters for full marks]
+  - **Examiner Focus**: [Common pitfalls, examiner expectations, and must-include keywords]
 
 ### 3. ⚡ 5-Minute Rapid Revision Keywords
-- [Term/Keyword]: [Direct 1-line definition with exam keywords]
+- **[Term/Keyword]**: [Direct 1-line definition with key exam buzzwords]
 """
                 try:
-                    sn_res = generate_ai_response(sn_prompt, max_toks=650, temperature=0.2)
+                    sn_res = generate_ai_response(sn_prompt, max_tokens=1500, temperature=0.3)
                     sn_res_clean = (sn_res or "").strip()
                     if not sn_res_clean or len(sn_res_clean) < 50:
                         st.error("Generation failed due to API timeout or rate limit. Please retry.")
