@@ -1821,11 +1821,11 @@ def generate_ai_response(prompt_text, max_toks=1200, messages_context=None):
     openrouter_key = get_env_secret("OPENROUTER_API_KEY").strip()
     if openrouter_key:
         or_models = [
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "google/gemma-4-26b-a4b-it:free",
-            "mistralai/mistral-7b-instruct:free",
+            "openrouter/auto",
+            "qwen/qwen3.8-27b:free",
             "liquid/lfm-2.5-2.6b:free",
-            "openrouter/auto"
+            "nvidia/nemotron-3.5-lightning:free",
+            "nex-agi/nex-n2.5-mini:free"
         ]
         or_messages = []
         if messages_context:
@@ -1849,34 +1849,24 @@ def generate_ai_response(prompt_text, max_toks=1200, messages_context=None):
                     json={
                         "model": or_m,
                         "messages": or_messages,
-                        "max_tokens": max_toks
+                        "max_tokens": max_toks,
+                        "include_reasoning": False
                     },
-                    timeout=15
+                    timeout=20
                 )
                 if res.status_code == 200:
                     choices = res.json().get("choices", [])
-                    if choices and "message" in choices[0] and choices[0]["message"].get("content"):
-                        out_text = choices[0]["message"]["content"].strip()
+                    if choices and "message" in choices[0]:
+                        msg = choices[0]["message"]
+                        out_text = str(msg.get("content") or msg.get("reasoning") or "").strip()
                         if out_text:
                             return clean_output_text(out_text)
             except Exception:
                 continue
 
     # -------------------------------------------------------------------------
-    # ALL 3 TIERS FAILED: Authentic Knowledge Base or Raise Exception
+    # ALL 3 TIERS FAILED: Raise Exception (No hardcoded mock dumps)
     # -------------------------------------------------------------------------
-    try:
-        from knowledge_base import PYQ_DATA
-        low_p = prompt_text.lower()
-        matched = []
-        for subj, notes in PYQ_DATA.items():
-            if any(term in low_p for term in subj.split()):
-                matched.append(f"### 📘 Authentic MU Exam Knowledge: {subj.upper()}\n{notes.strip()}")
-        if matched:
-            return clean_output_text("\n\n".join(matched[:2]))
-    except Exception:
-        pass
-
     raise RuntimeError("All AI generation tiers (Gemini, Groq, OpenRouter) failed due to API timeout or rate limit. Please retry.")
 
 # --- 5. AUTHENTICATION ---
@@ -2312,52 +2302,45 @@ elif nav_selection == "📄 Short Notes":
         if not sn_topic.strip():
             st.warning("Please enter a chapter name.")
         else:
-            with st.spinner(f"Compiling notes for '{sn_topic}'..."):
-                sn_prompt = f"""
-                Act as a Principal Mumbai University Engineering Professor.
-                Target Chapter: {sn_topic}
-                Language: Strictly Professional English.
+            user_topic = sn_topic.strip()
+            with st.spinner(f"Compiling notes for '{user_topic}'..."):
+                sn_prompt = f"""Generate a structured 1-page MU exam revision sheet for topic: {user_topic}. Include 3 sections: 1. Core Numerical Formulas & Parameters, 2. High Weightage Core Topics, 3. 5 Minute Rapid Revision Keywords.
 
-                MATHEMATICAL NOTATION RULES:
-                - Do not use markdown tables for equations. Use clean Markdown LaTeX ($$ display blocks).
-                - Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
-                - Wrap ALL standalone or block equations in double dollar signs ($$...$$).
-                - NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
+Respond exclusively in professional, clear, exam-oriented English for Mumbai University Engineering (C-Scheme).
 
-                OUTPUT:
-                ### 1. 🧮 Core Numerical Formulas & Parameters
-                List the 5-7 most essential formulas:
-                * **[Formula Name]**
-                  $$[Formula in LaTeX]$$
-                  - **Variables & SI Units:** Descriptions with standard units.
-                  - **Exam Application:** Where this formula is needed.
+MATHEMATICAL NOTATION RULES:
+- Do not use markdown tables for equations. Use clean Markdown LaTeX ($$ display blocks).
+- Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
+- Wrap ALL standalone or block equations in double dollar signs ($$...$$).
+- NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
 
-                ---
+OUTPUT:
+### 1. 🧮 Core Numerical Formulas & Parameters
+List the 5-7 most essential formulas for {user_topic}:
+* **[Formula Name]**
+  $$[Formula in LaTeX]$$
+  - **Variables & SI Units:** Descriptions with standard units.
+  - **Exam Application:** Where this formula is needed.
 
-                ### 2. 🎯 High-Weightage Core Topics
-                List top 4 must-prepare topics with expected marks ([6M] or [10M]) and key requirements.
+---
 
-                ---
+### 2. 🎯 High-Weightage Core Topics
+List top 4 must-prepare topics with expected marks ([6M] or [10M]) and key requirements for {user_topic}.
 
-                ### 3. ⚡ 5-Minute Rapid Revision Keywords
-                5 concise high-yield points with examiner-targeted terminology in bold.
-                """
+---
+
+### 3. ⚡ 5-Minute Rapid Revision Keywords
+5 concise high-yield points with examiner-targeted terminology in bold for {user_topic}.
+"""
                 try:
                     sn_res = generate_ai_response(sn_prompt)
                     sn_res_clean = (sn_res or "").strip()
-                    # Validate: non-empty string, minimum length, not rate limit or timeout notice
-                    is_valid = (
-                        bool(sn_res_clean)
-                        and len(sn_res_clean) >= 50
-                        and "Please refresh or retry" not in sn_res_clean
-                        and "rate limit" not in sn_res_clean.lower()
-                    )
-                    if not is_valid:
+                    if not sn_res_clean or len(sn_res_clean) < 50:
                         st.error("Generation failed due to API timeout or rate limit. Please retry.")
                     else:
                         st.session_state.short_notes_data = sn_res_clean
                         st.session_state.sn_data = sn_res_clean
-                        st.session_state.sn_name = sn_topic
+                        st.session_state.sn_name = user_topic
                         st.session_state.sn_hinglish = None
                         st.rerun()
                 except Exception:
