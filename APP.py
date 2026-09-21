@@ -1722,29 +1722,46 @@ def format_topic_research_for_pdf(topic_name: str, topic_dict: dict) -> str:
 """
 
 # --- 7. BACKEND AI ENGINE (GROQ P1 + GEMINI P2 + OPENROUTER P3) ---
-def generate_ai_response(prompt_text, max_toks=700, messages_context=None, temperature=0.2):
+def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None, temperature=0.2):
     """
     Automatic 3-Tier Multi-Model AI Engine for Ultra-Fast Execution:
-    - Priority 1: Groq llama-3.1-8b-instant or llama3-8b-8192 (Timeout: 12s, temp: 0.2, max_tokens: 700)
+    - Accepts either a single string prompt OR a list of chat message dicts:
+      [{"role": "system"/"user"/"assistant", "content": ...}]
+    - Priority 1: Groq llama-3.1-8b-instant or llama3-8b-8192 (Timeout: 12s)
     - Priority 2: Gemini 1.5 Flash via direct HTTP REST (Timeout: 15s)
     - Priority 3: OpenRouter meta-llama/llama-3.1-8b-instruct:free (Timeout: 12s)
     - Silent failover across tiers without throwing st.error until all 3 tiers fail.
     """
+    # -------------------------------------------------------------------------
+    # 0. NORMALIZE & SANITIZE MESSAGES ARRAY
+    # -------------------------------------------------------------------------
+    if isinstance(prompt_or_messages, list):
+        raw_messages = prompt_or_messages
+    else:
+        p_text = str(prompt_or_messages or "").strip()
+        raw_messages = []
+        if messages_context:
+            raw_messages.extend(messages_context)
+        raw_messages.append({"role": "user", "content": p_text})
+
+    messages_array = []
+    for m in raw_messages:
+        r = str(m.get("role", "user")).lower().strip()
+        if r not in ("system", "user", "assistant"):
+            r = "user"
+        c = str(m.get("content", "")).strip()
+        if c:
+            messages_array.append({"role": r, "content": c})
+
+    if not messages_array:
+        messages_array = [{"role": "user", "content": "Hello"}]
+
     # -------------------------------------------------------------------------
     # PRIORITY 1: Groq llama-3.1-8b-instant or llama3-8b-8192 (Timeout: 12s)
     # -------------------------------------------------------------------------
     groq_key = (get_env_secret("GROQ_API_KEY") or get_env_secret("GROQ_API_KEY_2", "")).strip()
     if groq_key:
         groq_models = ["llama-3.1-8b-instant", "llama3-8b-8192"]
-        groq_messages = []
-        if messages_context:
-            for m in messages_context:
-                role = "assistant" if m.get("role") == "assistant" else "user"
-                content = str(m.get("content", "")).strip()
-                if content:
-                    groq_messages.append({"role": role, "content": content})
-        groq_messages.append({"role": "user", "content": prompt_text})
-
         for g_model in groq_models:
             try:
                 res = requests.post(
@@ -1752,7 +1769,7 @@ def generate_ai_response(prompt_text, max_toks=700, messages_context=None, tempe
                     headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
                     json={
                         "model": g_model,
-                        "messages": groq_messages,
+                        "messages": messages_array,
                         "temperature": temperature,
                         "max_tokens": max_toks
                     },
@@ -1774,32 +1791,41 @@ def generate_ai_response(prompt_text, max_toks=700, messages_context=None, tempe
     if gemini_key:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-            gemini_contents = []
-            if messages_context:
-                for m in messages_context:
-                    role = "model" if m.get("role") == "assistant" else "user"
-                    text_val = str(m.get("content", "")).strip()
-                    if text_val:
-                        if gemini_contents and gemini_contents[-1]["role"] == role:
-                            gemini_contents[-1]["parts"][0]["text"] += "\n" + text_val
-                        else:
-                            gemini_contents.append({"role": role, "parts": [{"text": text_val}]})
+            
+            # Format history array into Gemini contents
+            sys_parts = [m["content"] for m in messages_array if m["role"] == "system"]
+            sys_text = "\n\n".join(sys_parts).strip()
 
-            if gemini_contents and gemini_contents[-1]["role"] == "user":
-                gemini_contents[-1]["parts"][0]["text"] += "\n\n" + prompt_text
-            else:
-                gemini_contents.append({"role": "user", "parts": [{"text": prompt_text}]})
+            gemini_contents = []
+            for m in messages_array:
+                if m["role"] == "system":
+                    continue
+                g_role = "model" if m["role"] == "assistant" else "user"
+                text_val = m["content"]
+                if gemini_contents and gemini_contents[-1]["role"] == g_role:
+                    gemini_contents[-1]["parts"][0]["text"] += "\n\n" + text_val
+                else:
+                    gemini_contents.append({"role": g_role, "parts": [{"text": text_val}]})
+
+            if not gemini_contents:
+                gemini_contents = [{"role": "user", "parts": [{"text": sys_text or "Hello"}]}]
+            elif gemini_contents[0]["role"] == "model":
+                gemini_contents.insert(0, {"role": "user", "parts": [{"text": "Hello"}]})
+
+            gemini_payload = {
+                "contents": gemini_contents,
+                "generationConfig": {
+                    "temperature": temperature,
+                    "maxOutputTokens": max_toks
+                }
+            }
+            if sys_text:
+                gemini_payload["system_instruction"] = {"parts": [{"text": sys_text}]}
 
             res = requests.post(
                 url,
                 headers={"Content-Type": "application/json"},
-                json={
-                    "contents": gemini_contents,
-                    "generationConfig": {
-                        "temperature": temperature,
-                        "maxOutputTokens": max_toks
-                    }
-                },
+                json=gemini_payload,
                 timeout=15
             )
             if res.status_code == 200:
@@ -1808,6 +1834,27 @@ def generate_ai_response(prompt_text, max_toks=700, messages_context=None, tempe
                     out_text = cand[0]['content']['parts'][0].get('text', '').strip()
                     if out_text:
                         return clean_output_text(out_text)
+            elif sys_text:
+                # Retry by prepending system text to first user message if system_instruction is not supported
+                gemini_contents[0]["parts"][0]["text"] = sys_text + "\n\n" + gemini_contents[0]["parts"][0]["text"]
+                res2 = requests.post(
+                    url,
+                    headers={"Content-Type": "application/json"},
+                    json={
+                        "contents": gemini_contents,
+                        "generationConfig": {
+                            "temperature": temperature,
+                            "maxOutputTokens": max_toks
+                        }
+                    },
+                    timeout=15
+                )
+                if res2.status_code == 200:
+                    cand = res2.json().get('candidates', [])
+                    if cand and cand[0].get('content', {}).get('parts'):
+                        out_text = cand[0]['content']['parts'][0].get('text', '').strip()
+                        if out_text:
+                            return clean_output_text(out_text)
         except Exception:
             pass
 
@@ -1824,13 +1871,7 @@ def generate_ai_response(prompt_text, max_toks=700, messages_context=None, tempe
             res = requests.post(
                 url,
                 headers={"Content-Type": "application/json"},
-                json={
-                    "contents": [{"parts": [{"text": prompt_text}]}],
-                    "generationConfig": {
-                        "temperature": temperature,
-                        "maxOutputTokens": max_toks
-                    }
-                },
+                json=gemini_payload,
                 timeout=15
             )
             if res.status_code == 200:
@@ -1857,15 +1898,6 @@ def generate_ai_response(prompt_text, max_toks=700, messages_context=None, tempe
             "nvidia/nemotron-3.5-lightning:free",
             "nex-agi/nex-n2.5-mini:free"
         ]
-        or_messages = []
-        if messages_context:
-            for m in messages_context:
-                role = "assistant" if m.get("role") == "assistant" else "user"
-                content = str(m.get("content", "")).strip()
-                if content:
-                    or_messages.append({"role": role, "content": content})
-        or_messages.append({"role": "user", "content": prompt_text})
-
         for or_m in or_models:
             try:
                 res = requests.post(
@@ -1878,7 +1910,7 @@ def generate_ai_response(prompt_text, max_toks=700, messages_context=None, tempe
                     },
                     json={
                         "model": or_m,
-                        "messages": or_messages,
+                        "messages": messages_array,
                         "max_tokens": max_toks,
                         "temperature": temperature,
                         "include_reasoning": False
@@ -1899,6 +1931,16 @@ def generate_ai_response(prompt_text, max_toks=700, messages_context=None, tempe
     # ALL 3 TIERS FAILED: Raise Exception (Silent failover until all 3 tiers fail)
     # -------------------------------------------------------------------------
     raise RuntimeError("All AI generation tiers (Groq, Gemini, OpenRouter) failed due to API timeout or rate limit. Please retry.")
+
+
+def generate_chat_response(messages, max_toks=1000, temperature=0.3):
+    """
+    Dedicated Multi-Turn Chat Response Engine:
+    Accepts a list of message dicts [{"role": "system"/"user"/"assistant", "content": ...}]
+    and routes through the multi-tier AI engine with temperature=0.3 and max_tokens=1000.
+    """
+    return generate_ai_response(messages, max_toks=max_toks, temperature=temperature)
+
 
 
 # --- 5. AUTHENTICATION ---
@@ -2125,37 +2167,43 @@ if nav_selection == "💡 AI Tutor":
             }
         ]
 
+    AI_TUTOR_SYSTEM_INSTRUCTION = (
+        "You are TopperGPT's 24/7 AI Academic Tutor, operating as a Senior Evaluator, Subject Matter Expert, and Academic Mentor "
+        "for Mumbai University (MU) Engineering students under the C-Scheme. Maintain full context of the ongoing conversation history. "
+        "If the student asks follow-up requests such as 'explain in simple english', 'give an example', 'summarize this', or 'explain again', "
+        "apply the request directly to the previous AI response in the conversation history without asking what topic they are referring to.\n\n"
+        "Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.\n"
+        "Respond exclusively in professional, clear, exam-oriented English for Mumbai University Engineering (C-Scheme).\n\n"
+        "MATHEMATICAL NOTATION RULES:\n"
+        "- Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{eq}$, $I_1$).\n"
+        "- Wrap ALL standalone or block equations in double dollar signs ($$...$$).\n"
+        "- NEVER use \\displaystyle or wrap formulas in bare curly braces {...} without dollar signs.\n\n"
+        "RESPONSE GUIDELINES:\n"
+        "1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.\n"
+        "2. If follow-up request (e.g., 'explain in simple english', 'give an example', 'summarize this', 'explain again', 'simplify'): "
+        "Apply the request directly to the previous AI response in the conversation history without asking what topic they are referring to.\n"
+        "3. If academic topic/question: Use the strict 3-block structure:\n"
+        "   ### 📌 1. University Standard Definition (2-Mark Standard)\n"
+        "   Accurate textbook definition and mandatory examiner keywords.\n\n"
+        "   ### ⚡ 2. Step-by-Step Technical Execution & Derivation\n"
+        "   Logically organized steps, formulas with Markdown LaTeX ($...$ or $$...$$), and specific 'Exam Diagram Requirement' if applicable.\n\n"
+        "   ### ⚠️ 3. Examiner Trap Alert\n"
+        "   Precise calculation error, unit conversion, or assumption where students frequently lose marks."
+    )
+
     # Auto-process pending query from Landing Page search
     if "pending_query" in st.session_state and st.session_state.pending_query:
         init_q = st.session_state.pop("pending_query")
         st.session_state.tutor_messages.append({"role": "user", "content": init_q, "hinglish": None})
         with st.spinner("⚡ Consulting AI Tutor..."):
-            context_array = st.session_state.tutor_messages[-8:]
-            tutor_prompt = f"""Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.
-You are TopperGPT. Maintain full context of the ongoing conversation history. If the student asks follow-up requests like 'explain in simple english', apply it directly to the previous AI response without asking what topic they are referring to.
-You are TopperGPT's Senior Academic Evaluator for Mumbai University Engineering (C-Scheme).
-Respond exclusively in professional, clear, exam-oriented English.
-
-Student Query: "{init_q}"
-
-MATHEMATICAL NOTATION RULES:
-- Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
-- Wrap ALL standalone or block equations in double dollar signs ($$...$$).
-- NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
-
-1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.
-2. If academic: Use the strict 3-block structure:
-   ### 📌 1. University Standard Definition (2-Mark Standard)
-   Accurate textbook definition and mandatory examiner keywords.
-
-   ### ⚡ 2. Step-by-Step Technical Execution & Derivation
-   Logically organized steps, formulas with Markdown LaTeX ($...$ or $$...$$), and specific 'Exam Diagram Requirement' if applicable.
-
-   ### ⚠️ 3. Examiner Trap Alert
-   Precise calculation error, unit conversion, or assumption where students frequently lose marks.
-"""
+            messages_payload = [{"role": "system", "content": AI_TUTOR_SYSTEM_INSTRUCTION}]
+            for m in st.session_state.tutor_messages[-6:]:
+                messages_payload.append({
+                    "role": "assistant" if m.get("role") == "assistant" else "user",
+                    "content": str(m.get("content", "")).strip()
+                })
             try:
-                ai_reply = generate_ai_response(tutor_prompt, max_toks=700, messages_context=context_array, temperature=0.2)
+                ai_reply = generate_chat_response(messages_payload, max_toks=1000, temperature=0.3)
                 st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
             except Exception:
                 st.session_state.tutor_messages.append({
@@ -2186,47 +2234,18 @@ MATHEMATICAL NOTATION RULES:
         with st.chat_message("user"):
             st.markdown(clean_output_text(user_query))
 
-        # Pass the last 8 messages context array in every request
-        context_array = st.session_state.tutor_messages[-8:]
-
-        # Format past turns into prompt text to guarantee context retention across all providers
-        history_str = ""
-        past_msgs = st.session_state.tutor_messages[:-1][-8:]
-        if past_msgs:
-            history_str = "--- ONGOING CONVERSATION HISTORY ---\n"
-            for m in past_msgs:
-                role_label = "Student" if m.get("role") == "user" else "TopperGPT"
-                history_str += f"{role_label}: {m.get('content', '').strip()}\n\n"
-            history_str += "--- END CONVERSATION HISTORY ---\n\n"
-
-        tutor_prompt = f"""Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.
-You are TopperGPT. Maintain full context of the ongoing conversation history. If the student asks follow-up requests like 'explain in simple english', apply it directly to the previous AI response without asking what topic they are referring to.
-Respond exclusively in professional, clear, exam-oriented English for Mumbai University Engineering (C-Scheme).
-
-{history_str}Student Query: "{user_query}"
-
-MATHEMATICAL NOTATION RULES:
-- Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
-- Wrap ALL standalone or block equations in double dollar signs ($$...$$).
-- NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
-
-1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.
-2. If follow-up request (e.g., 'explain in simple english', 'simplify', 'explain step 2 in detail', 'give numericals'): Apply it directly to the previous AI response from the ongoing conversation history above without asking what topic they are referring to.
-3. If academic topic/question: Use the strict 3-block structure:
-   ### 📌 1. University Standard Definition (2-Mark Standard)
-   Accurate textbook definition and mandatory examiner keywords.
-
-   ### ⚡ 2. Step-by-Step Technical Execution & Derivation
-   Logically organized steps, formulas with Markdown LaTeX ($...$ or $$...$$), and specific 'Exam Diagram Requirement' if applicable.
-
-   ### ⚠️ 3. Examiner Trap Alert
-   Precise calculation error, unit conversion, or assumption where students frequently lose marks.
-"""
+        # Dynamic messages payload with system instruction and the last 6 messages
+        messages_payload = [{"role": "system", "content": AI_TUTOR_SYSTEM_INSTRUCTION}]
+        for m in st.session_state.tutor_messages[-6:]:
+            messages_payload.append({
+                "role": "assistant" if m.get("role") == "assistant" else "user",
+                "content": str(m.get("content", "")).strip()
+            })
 
         with st.chat_message("assistant"):
             with st.spinner("⚡ Consulting AI Tutor..."):
                 try:
-                    ai_reply = generate_ai_response(tutor_prompt, max_toks=700, messages_context=context_array, temperature=0.2)
+                    ai_reply = generate_chat_response(messages_payload, max_toks=1000, temperature=0.3)
                     st.markdown(clean_output_text(ai_reply))
                     st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
                     st.rerun()
