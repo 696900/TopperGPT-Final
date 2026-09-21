@@ -21,7 +21,23 @@ def get_env_secret(key, default=""):
             return st.secrets[key]
     except Exception:
         pass
-    return os.environ.get(key, default)
+    val = os.environ.get(key)
+    if val:
+        return val
+    try:
+        sec_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", "secrets.toml")
+        if os.path.exists(sec_path):
+            try:
+                import tomllib
+            except ImportError:
+                import tomli as tomllib
+            with open(sec_path, "rb") as f:
+                sec_dict = tomllib.load(f)
+                if key in sec_dict:
+                    return sec_dict[key]
+    except Exception:
+        pass
+    return default
 
 # --- 1. CONFIGURATION & PAGE SETUP ---
 st.set_page_config(
@@ -829,9 +845,13 @@ def clean_output_text(text: str) -> str:
     # 3. Clean and standardize LaTeX math
     text = clean_latex_math(text)
 
-    # 4. Normalize multiple blank lines and whitespace
+    # 4. Strip conversational introductory fluff at the very beginning (e.g. "Sure, here are...", "Here is...", "Certainly!...")
+    text = re.sub(r'^(?:(?:Certainly|Sure|Here(?:\s+is|\s+are)?|Of course|Alright|Below(?:\s+is|\s+are)?)[^\n]*?\n+)+(?=###|\*\*|#)', '', text, flags=re.IGNORECASE)
+
+    # 5. Normalize multiple blank lines and whitespace
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
+
 
 
 def parse_topic_research_json(raw_text: str) -> dict:
@@ -1701,65 +1721,21 @@ def format_topic_research_for_pdf(topic_name: str, topic_dict: dict) -> str:
 {working_principle}
 """
 
-# --- 7. BACKEND AI ENGINE (GEMINI TIER 1 + GROQ TIER 2 + OPENROUTER/SECONDARY TIER 3) ---
-def generate_ai_response(prompt_text, max_toks=1200, messages_context=None):
+# --- 7. BACKEND AI ENGINE (GROQ P1 + GEMINI P2 + OPENROUTER P3) ---
+def generate_ai_response(prompt_text, max_toks=700, messages_context=None, temperature=0.2):
     """
-    Automatic 3-Tier Multi-Model AI Engine:
-    - Tier 1: Try Gemini 1.5 Flash (Timeout: 15s). If failed or rate-limited, retry once after a 2-second sleep.
-    - Tier 2: Fallback to Groq llama-3.3-70b-versatile or llama-3.1-8b-instant (Timeout: 15s).
-    - Tier 3: Secondary fallback to secondary Gemini API Key or OpenRouter models (Timeout: 15s).
-    - If all 3 tiers fail: Checks authentic MU knowledge base, or raises RuntimeError so callers only display
-      st.error() if every retry tier fails.
+    Automatic 3-Tier Multi-Model AI Engine for Ultra-Fast Execution:
+    - Priority 1: Groq llama-3.1-8b-instant or llama3-8b-8192 (Timeout: 12s, temp: 0.2, max_tokens: 700)
+    - Priority 2: Gemini 1.5 Flash via direct HTTP REST (Timeout: 15s)
+    - Priority 3: OpenRouter meta-llama/llama-3.1-8b-instruct:free (Timeout: 12s)
+    - Silent failover across tiers without throwing st.error until all 3 tiers fail.
     """
     # -------------------------------------------------------------------------
-    # TIER 1: Gemini 1.5 Flash (Timeout: 15s with 1 automatic retry after 2s sleep)
-    # -------------------------------------------------------------------------
-    gemini_key = (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip()
-    if gemini_key:
-        for attempt in range(2):
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-                gemini_contents = []
-                if messages_context:
-                    for m in messages_context:
-                        role = "model" if m.get("role") == "assistant" else "user"
-                        text_val = str(m.get("content", "")).strip()
-                        if text_val:
-                            if gemini_contents and gemini_contents[-1]["role"] == role:
-                                gemini_contents[-1]["parts"][0]["text"] += "\n" + text_val
-                            else:
-                                gemini_contents.append({"role": role, "parts": [{"text": text_val}]})
-
-                if gemini_contents and gemini_contents[-1]["role"] == "user":
-                    gemini_contents[-1]["parts"][0]["text"] += "\n\n" + prompt_text
-                else:
-                    gemini_contents.append({"role": "user", "parts": [{"text": prompt_text}]})
-
-                res = requests.post(
-                    url,
-                    headers={"Content-Type": "application/json"},
-                    json={"contents": gemini_contents},
-                    timeout=15
-                )
-                if res.status_code == 200:
-                    cand = res.json().get('candidates', [])
-                    if cand and 'content' in cand[0] and 'parts' in cand[0]['content'] and cand[0]['content']['parts']:
-                        out_text = cand[0]['content']['parts'][0].get('text', '').strip()
-                        if out_text:
-                            return clean_output_text(out_text)
-                # If rate-limited or transient failure, retry once after 2-second sleep
-                if attempt == 0:
-                    time.sleep(2)
-            except Exception:
-                if attempt == 0:
-                    time.sleep(2)
-
-    # -------------------------------------------------------------------------
-    # TIER 2: Fallback to Groq llama-3.3-70b-versatile or llama-3.1-8b-instant
+    # PRIORITY 1: Groq llama-3.1-8b-instant or llama3-8b-8192 (Timeout: 12s)
     # -------------------------------------------------------------------------
     groq_key = (get_env_secret("GROQ_API_KEY") or get_env_secret("GROQ_API_KEY_2", "")).strip()
     if groq_key:
-        groq_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+        groq_models = ["llama-3.1-8b-instant", "llama3-8b-8192"]
         groq_messages = []
         if messages_context:
             for m in messages_context:
@@ -1777,10 +1753,10 @@ def generate_ai_response(prompt_text, max_toks=1200, messages_context=None):
                     json={
                         "model": g_model,
                         "messages": groq_messages,
-                        "temperature": 0.3,
+                        "temperature": temperature,
                         "max_tokens": max_toks
                     },
-                    timeout=15
+                    timeout=12
                 )
                 if res.status_code == 200:
                     choices = res.json().get("choices", [])
@@ -1792,8 +1768,50 @@ def generate_ai_response(prompt_text, max_toks=1200, messages_context=None):
                 continue
 
     # -------------------------------------------------------------------------
-    # TIER 3: Secondary fallback to secondary Gemini API Key or OpenRouter
+    # PRIORITY 2: Gemini 1.5 Flash via direct HTTP REST (Timeout: 15s)
     # -------------------------------------------------------------------------
+    gemini_key = (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip()
+    if gemini_key:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+            gemini_contents = []
+            if messages_context:
+                for m in messages_context:
+                    role = "model" if m.get("role") == "assistant" else "user"
+                    text_val = str(m.get("content", "")).strip()
+                    if text_val:
+                        if gemini_contents and gemini_contents[-1]["role"] == role:
+                            gemini_contents[-1]["parts"][0]["text"] += "\n" + text_val
+                        else:
+                            gemini_contents.append({"role": role, "parts": [{"text": text_val}]})
+
+            if gemini_contents and gemini_contents[-1]["role"] == "user":
+                gemini_contents[-1]["parts"][0]["text"] += "\n\n" + prompt_text
+            else:
+                gemini_contents.append({"role": "user", "parts": [{"text": prompt_text}]})
+
+            res = requests.post(
+                url,
+                headers={"Content-Type": "application/json"},
+                json={
+                    "contents": gemini_contents,
+                    "generationConfig": {
+                        "temperature": temperature,
+                        "maxOutputTokens": max_toks
+                    }
+                },
+                timeout=15
+            )
+            if res.status_code == 200:
+                cand = res.json().get('candidates', [])
+                if cand and 'content' in cand[0] and 'parts' in cand[0]['content'] and cand[0]['content']['parts']:
+                    out_text = cand[0]['content']['parts'][0].get('text', '').strip()
+                    if out_text:
+                        return clean_output_text(out_text)
+        except Exception:
+            pass
+
+    # Secondary Gemini API Key fallback if provided
     sec_gemini_key = (
         get_env_secret("GEMINI_API_KEY_2")
         or get_env_secret("GOOGLE_API_KEY_2")
@@ -1806,7 +1824,13 @@ def generate_ai_response(prompt_text, max_toks=1200, messages_context=None):
             res = requests.post(
                 url,
                 headers={"Content-Type": "application/json"},
-                json={"contents": [{"parts": [{"text": prompt_text}]}]},
+                json={
+                    "contents": [{"parts": [{"text": prompt_text}]}],
+                    "generationConfig": {
+                        "temperature": temperature,
+                        "maxOutputTokens": max_toks
+                    }
+                },
                 timeout=15
             )
             if res.status_code == 200:
@@ -1818,9 +1842,15 @@ def generate_ai_response(prompt_text, max_toks=1200, messages_context=None):
         except Exception:
             pass
 
+    # -------------------------------------------------------------------------
+    # PRIORITY 3: OpenRouter (meta-llama/llama-3.1-8b-instruct:free) (Timeout: 12s)
+    # -------------------------------------------------------------------------
     openrouter_key = get_env_secret("OPENROUTER_API_KEY").strip()
     if openrouter_key:
         or_models = [
+            "meta-llama/llama-3.1-8b-instruct:free",
+            "meta-llama/llama-3.2-3b-instruct",
+            "meta-llama/llama-3.1-8b-instruct",
             "openrouter/auto",
             "qwen/qwen3.8-27b:free",
             "liquid/lfm-2.5-2.6b:free",
@@ -1850,9 +1880,10 @@ def generate_ai_response(prompt_text, max_toks=1200, messages_context=None):
                         "model": or_m,
                         "messages": or_messages,
                         "max_tokens": max_toks,
+                        "temperature": temperature,
                         "include_reasoning": False
                     },
-                    timeout=20
+                    timeout=12
                 )
                 if res.status_code == 200:
                     choices = res.json().get("choices", [])
@@ -1865,9 +1896,10 @@ def generate_ai_response(prompt_text, max_toks=1200, messages_context=None):
                 continue
 
     # -------------------------------------------------------------------------
-    # ALL 3 TIERS FAILED: Raise Exception (No hardcoded mock dumps)
+    # ALL 3 TIERS FAILED: Raise Exception (Silent failover until all 3 tiers fail)
     # -------------------------------------------------------------------------
-    raise RuntimeError("All AI generation tiers (Gemini, Groq, OpenRouter) failed due to API timeout or rate limit. Please retry.")
+    raise RuntimeError("All AI generation tiers (Groq, Gemini, OpenRouter) failed due to API timeout or rate limit. Please retry.")
+
 
 # --- 5. AUTHENTICATION ---
 def clean_email_auth():
@@ -2059,7 +2091,8 @@ with col_badge:
 
 # Helper function for Instant Hinglish Translation
 def translate_to_hinglish(text_content):
-    prompt = f"""Translate and simplify the following engineering explanation into clear, friendly Hinglish (Hindi written in English alphabets) so that an Indian student can understand it effortlessly. Keep all equations and mathematical variables intact.
+    prompt = f"""Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.
+Translate and simplify the following engineering explanation into clear, friendly Hinglish (Hindi written in English alphabets) so that an Indian student can understand it effortlessly. Keep all equations and mathematical variables intact.
 
     MATHEMATICAL NOTATION INSTRUCTIONS:
     - Wrap ALL inline math variables/formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$).
@@ -2068,7 +2101,8 @@ def translate_to_hinglish(text_content):
 
     Text:
     {text_content}"""
-    return generate_ai_response(prompt, max_toks=1000)
+    return generate_ai_response(prompt, max_toks=700, temperature=0.2)
+
 
 # ==================================================
 # --- 1. FEATURE: AI ACADEMIC TUTOR ---
@@ -2095,32 +2129,33 @@ if nav_selection == "💡 AI Tutor":
     if "pending_query" in st.session_state and st.session_state.pending_query:
         init_q = st.session_state.pop("pending_query")
         st.session_state.tutor_messages.append({"role": "user", "content": init_q, "hinglish": None})
-        with st.spinner("Analyzing syllabus and generating exam-focused solution..."):
+        with st.spinner("⚡ Consulting AI Tutor..."):
             context_array = st.session_state.tutor_messages[-8:]
-            tutor_prompt = f"""You are TopperGPT. Maintain full context of the ongoing conversation history. If the student asks follow-up requests like 'explain in simple english', apply it directly to the previous AI response without asking what topic they are referring to.
-            You are TopperGPT's Senior Academic Evaluator for Mumbai University Engineering (C-Scheme).
-            Respond exclusively in professional, clear, exam-oriented English.
+            tutor_prompt = f"""Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.
+You are TopperGPT. Maintain full context of the ongoing conversation history. If the student asks follow-up requests like 'explain in simple english', apply it directly to the previous AI response without asking what topic they are referring to.
+You are TopperGPT's Senior Academic Evaluator for Mumbai University Engineering (C-Scheme).
+Respond exclusively in professional, clear, exam-oriented English.
 
-            Student Query: "{init_q}"
+Student Query: "{init_q}"
 
-            MATHEMATICAL NOTATION RULES:
-            - Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
-            - Wrap ALL standalone or block equations in double dollar signs ($$...$$).
-            - NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
+MATHEMATICAL NOTATION RULES:
+- Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
+- Wrap ALL standalone or block equations in double dollar signs ($$...$$).
+- NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
 
-            1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.
-            2. If academic: Use the strict 3-block structure:
-               ### 📌 1. University Standard Definition (2-Mark Standard)
-               Accurate textbook definition and mandatory examiner keywords.
+1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.
+2. If academic: Use the strict 3-block structure:
+   ### 📌 1. University Standard Definition (2-Mark Standard)
+   Accurate textbook definition and mandatory examiner keywords.
 
-               ### ⚡ 2. Step-by-Step Technical Execution & Derivation
-               Logically organized steps, formulas with Markdown LaTeX ($...$ or $$...$$), and specific 'Exam Diagram Requirement' if applicable.
+   ### ⚡ 2. Step-by-Step Technical Execution & Derivation
+   Logically organized steps, formulas with Markdown LaTeX ($...$ or $$...$$), and specific 'Exam Diagram Requirement' if applicable.
 
-               ### ⚠️ 3. Examiner Trap Alert
-               Precise calculation error, unit conversion, or assumption where students frequently lose marks.
-            """
+   ### ⚠️ 3. Examiner Trap Alert
+   Precise calculation error, unit conversion, or assumption where students frequently lose marks.
+"""
             try:
-                ai_reply = generate_ai_response(tutor_prompt, messages_context=context_array)
+                ai_reply = generate_ai_response(tutor_prompt, max_toks=700, messages_context=context_array, temperature=0.2)
                 st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
             except Exception:
                 st.session_state.tutor_messages.append({
@@ -2139,7 +2174,7 @@ if nav_selection == "💡 AI Tutor":
                         st.markdown(clean_output_text(msg["hinglish"]))
                 else:
                     if st.button("🗣️ Explain in Hinglish", key=f"tr_{idx}"):
-                        with st.spinner("Translating to simple Hinglish..."):
+                        with st.spinner("⚡ Translating to simple Hinglish..."):
                             h_res = translate_to_hinglish(msg["content"])
                             st.session_state.tutor_messages[idx]["hinglish"] = h_res
                             st.rerun()
@@ -2164,7 +2199,8 @@ if nav_selection == "💡 AI Tutor":
                 history_str += f"{role_label}: {m.get('content', '').strip()}\n\n"
             history_str += "--- END CONVERSATION HISTORY ---\n\n"
 
-        tutor_prompt = f"""You are TopperGPT. Maintain full context of the ongoing conversation history. If the student asks follow-up requests like 'explain in simple english', apply it directly to the previous AI response without asking what topic they are referring to.
+        tutor_prompt = f"""Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.
+You are TopperGPT. Maintain full context of the ongoing conversation history. If the student asks follow-up requests like 'explain in simple english', apply it directly to the previous AI response without asking what topic they are referring to.
 Respond exclusively in professional, clear, exam-oriented English for Mumbai University Engineering (C-Scheme).
 
 {history_str}Student Query: "{user_query}"
@@ -2188,9 +2224,9 @@ MATHEMATICAL NOTATION RULES:
 """
 
         with st.chat_message("assistant"):
-            with st.spinner("Analyzing syllabus and evaluation rubrics..."):
+            with st.spinner("⚡ Consulting AI Tutor..."):
                 try:
-                    ai_reply = generate_ai_response(tutor_prompt, messages_context=context_array)
+                    ai_reply = generate_ai_response(tutor_prompt, max_toks=700, messages_context=context_array, temperature=0.2)
                     st.markdown(clean_output_text(ai_reply))
                     st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
                     st.rerun()
@@ -2216,35 +2252,35 @@ elif nav_selection == "🎯 Predicted Qs":
         if not p_topic.strip():
             st.warning("Please enter a valid topic or chapter name.")
         else:
-            with st.spinner(f"Extracting examination patterns for '{p_topic}'..."):
-                pred_prompt = f"""
-                You are a Senior Mumbai University Engineering Paper Setter.
-                Target Topic: {p_topic}
-                Language: Strictly Professional English.
+            with st.spinner(f"⚡ Predicting high-yield MU exam questions for '{p_topic}'..."):
+                pred_prompt = f"""Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.
+You are a Senior Mumbai University Engineering Paper Setter.
+Target Topic: {p_topic}
+Language: Strictly Professional English.
 
-                MATHEMATICAL NOTATION RULES:
-                - Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
-                - Wrap ALL standalone or block equations in double dollar signs ($$...$$).
-                - NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
+MATHEMATICAL NOTATION RULES:
+- Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
+- Wrap ALL standalone or block equations in double dollar signs ($$...$$).
+- NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
 
-                Produce:
-                ### SECTION 1: 🎯 Top 5 Most Repeated Exam Questions
-                List 5 high-probability questions ([2M], [6M], [10M]).
-                Format each item as:
-                **Q[Number] ([Marks]M) | [Expected Recurrence Probability]**
-                - **Question:** [Authentic examination question statement]
-                - **Marking Rubric:** [Specific score breakdown]
-                - **Examiner Trap:** [Common calculation or conceptual mistake]
+Produce:
+### SECTION 1: 🎯 Top 5 Most Repeated Exam Questions
+List 5 high-probability questions ([2M], [6M], [10M]).
+Format each item as:
+**Q[Number] ([Marks]M) | [Expected Recurrence Probability]**
+- **Question:** [Authentic examination question statement]
+- **Marking Rubric:** [Specific score breakdown]
+- **Examiner Trap:** [Common calculation or conceptual mistake]
 
-                ---
+---
 
-                ### SECTION 2: 📚 Historical PYQ Archive
-                - **2-Mark Short Concepts & Definitions** (3 items)
-                - **6-Mark Analytical & Derivations** (3 items)
-                - **10-Mark Comprehensive Numericals** (2 items with full parameters)
-                """
+### SECTION 2: 📚 Historical PYQ Archive
+- **2-Mark Short Concepts & Definitions** (3 items)
+- **6-Mark Analytical & Derivations** (3 items)
+- **10-Mark Comprehensive Numericals** (2 items with full parameters)
+"""
                 try:
-                    res_text = generate_ai_response(pred_prompt)
+                    res_text = generate_ai_response(pred_prompt, max_toks=700, temperature=0.2)
                     st.session_state.pred_result = res_text
                     st.session_state.pred_topic_name = p_topic
                     st.session_state.pred_hinglish = None
@@ -2261,7 +2297,7 @@ elif nav_selection == "🎯 Predicted Qs":
         with col_act1:
             if not st.session_state.get("pred_hinglish"):
                 if st.button("🗣️ Translate to Hinglish", key="trans_pred", use_container_width=True):
-                    with st.spinner("Translating blueprint to Hinglish..."):
+                    with st.spinner("⚡ Translating blueprint to Hinglish..."):
                         st.session_state.pred_hinglish = translate_to_hinglish(st.session_state.pred_result)
                         st.rerun()
         with col_act2:
@@ -2303,37 +2339,33 @@ elif nav_selection == "📄 Short Notes":
             st.warning("Please enter a chapter name.")
         else:
             user_topic = sn_topic.strip()
-            with st.spinner(f"Compiling notes for '{user_topic}'..."):
-                sn_prompt = f"""Generate a structured 1-page MU exam revision sheet for topic: {user_topic}. Include 3 sections: 1. Core Numerical Formulas & Parameters, 2. High Weightage Core Topics, 3. 5 Minute Rapid Revision Keywords.
+            with st.spinner(f"⚡ Generating high-yield revision sheet for '{user_topic}'..."):
+                sn_prompt = f"""Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.
+Generate a structured 1-page MU exam revision sheet for topic: {user_topic}. Include 3 sections: 1. Core Numerical Formulas & Parameters, 2. High Weightage Core Topics, 3. 5 Minute Rapid Revision Keywords.
 
-Respond exclusively in professional, clear, exam-oriented English for Mumbai University Engineering (C-Scheme).
+CRITICAL INSTRUCTIONS:
+- You are TopperGPT. Output strictly exam-oriented, high-yield revision notes.
+- Use direct bullet points and clean markdown formatting without any conversational introductory fluff, greetings, apologies, or preamble (e.g., absolutely NO 'Sure, here are your notes...', 'Certainly! Here is...').
+- Start IMMEDIATELY with the heading '### 1. 🧮 Core Numerical Formulas & Parameters'.
+- Do NOT output conversational sign-offs or outro text.
+- Strictly adhere to the EXACT 3-block structure below:
 
-MATHEMATICAL NOTATION RULES:
-- Do not use markdown tables for equations. Use clean Markdown LaTeX ($$ display blocks).
-- Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
-- Wrap ALL standalone or block equations in double dollar signs ($$...$$).
-- NEVER use \\displaystyle or wrap formulas in bare curly braces {{...}} without dollar signs.
-
-OUTPUT:
 ### 1. 🧮 Core Numerical Formulas & Parameters
-List the 5-7 most essential formulas for {user_topic}:
-* **[Formula Name]**
-  $$[Formula in LaTeX]$$
-  - **Variables & SI Units:** Descriptions with standard units.
-  - **Exam Application:** Where this formula is needed.
-
----
+- [Formula Name]: [Equation]
+  - Variables & SI Units: [Brief list]
+  - Exam Application: [1 line usage]
 
 ### 2. 🎯 High-Weightage Core Topics
-List top 4 must-prepare topics with expected marks ([6M] or [10M]) and key requirements for {user_topic}.
-
----
+Render strictly as a clean Markdown Table:
+| Topic | Expected Marks | Key Requirements |
+|---|---|---|
+| [Topic Name] | [2M/6M/10M] | [Key points needed for full marks] |
 
 ### 3. ⚡ 5-Minute Rapid Revision Keywords
-5 concise high-yield points with examiner-targeted terminology in bold for {user_topic}.
+- [Term/Keyword]: [Direct 1-line definition with exam keywords]
 """
                 try:
-                    sn_res = generate_ai_response(sn_prompt)
+                    sn_res = generate_ai_response(sn_prompt, max_toks=650, temperature=0.2)
                     sn_res_clean = (sn_res or "").strip()
                     if not sn_res_clean or len(sn_res_clean) < 50:
                         st.error("Generation failed due to API timeout or rate limit. Please retry.")
@@ -2356,7 +2388,7 @@ List top 4 must-prepare topics with expected marks ([6M] or [10M]) and key requi
         with col_sn1:
             if not st.session_state.get("sn_hinglish"):
                 if st.button("🗣️ Translate to Hinglish", key="trans_sn", use_container_width=True):
-                    with st.spinner("Translating cheat sheet to Hinglish..."):
+                    with st.spinner("⚡ Translating cheat sheet to Hinglish..."):
                         translated = translate_to_hinglish(short_notes_content)
                         if translated and translated.strip():
                             st.session_state.sn_hinglish = translated
@@ -2401,27 +2433,27 @@ elif nav_selection == "🔍 Topic Research":
         if not topic_q.strip():
             st.warning("Please enter a concept name.")
         else:
-            with st.spinner(f"Analyzing '{topic_q}'..."):
-                res_prompt = f"""
-                You are a Senior Mumbai University Engineering Professor.
-                Target Topic: "{topic_q}"
-                Language: Strictly Professional English.
+            with st.spinner(f"⚡ Conducting deep topic research on '{topic_q}'..."):
+                res_prompt = f"""Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.
+You are a Senior Mumbai University Engineering Professor.
+Target Topic: "{topic_q}"
+Language: Strictly Professional English.
 
-                MATHEMATICAL NOTATION RULES:
-                - Wrap ALL inline variables/formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
-                - Wrap ALL block equations in double dollar signs ($$...$$).
-                - NEVER use \\displaystyle or bare curly braces {{...}} without dollar signs.
+MATHEMATICAL NOTATION RULES:
+- Wrap ALL inline variables/formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$, $I_1$).
+- Wrap ALL block equations in double dollar signs ($$...$$).
+- NEVER use \\displaystyle or bare curly braces {{...}} without dollar signs.
 
-                Return ONLY a valid JSON object. Do NOT include any intro, draft thoughts, reasoning, or backticks around the json.
-                JSON structure must be exactly:
-                {{
-                  "definition": "Official 2-mark university textbook definition with examiner keywords.",
-                  "breakdown": "Technical breakdown covering architecture, circuit configurations, and key governing formulas written in clean LaTeX ($...$ or $$...$$).",
-                  "working_principle": "Step-by-step physical or operational working principle with clear cause-and-effect flow."
-                }}
-                """
+Return ONLY a valid JSON object. Do NOT include any intro, draft thoughts, reasoning, or backticks around the json.
+JSON structure must be exactly:
+{{
+  "definition": "Official 2-mark university textbook definition with examiner keywords.",
+  "breakdown": "Technical breakdown covering architecture, circuit configurations, and key governing formulas written in clean LaTeX ($...$ or $$...$$).",
+  "working_principle": "Step-by-step physical or operational working principle with clear cause-and-effect flow."
+}}
+"""
                 try:
-                    r_res = generate_ai_response(res_prompt, max_toks=1200)
+                    r_res = generate_ai_response(res_prompt, max_toks=700, temperature=0.2)
                     parsed_data = parse_topic_research_json(r_res)
                     st.session_state.topic_res_json = parsed_data
                     st.session_state.topic_res_name = topic_q
