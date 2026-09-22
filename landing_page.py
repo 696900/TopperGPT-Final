@@ -21,6 +21,11 @@ def render_landing_page():
         .stApp {
             background-color: #030303 !important;
         }
+        @media (prefers-color-scheme: light) {
+            .stApp {
+                background-color: #f8fafc !important;
+            }
+        }
 
 
         </style>
@@ -59,6 +64,18 @@ def render_landing_page():
         --border-highlight: rgba(88, 193, 200, 0.3);
         --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
         --font-mono: 'Space Mono', monospace;
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --bg-dark: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --bg-input: #ffffff;
+            --text-main: #090d16;
+            --text-muted: #475569;
+            --text-dim: #64748b;
+        }
     }
 
     .stApp, body {
@@ -222,7 +239,7 @@ def render_landing_page():
         box-shadow: 0 0 25px rgb(88, 193, 200);
     }
 
-    /* Responsive Mobile Navbar Flex */
+    /* Responsive Mobile Navbar & Layout Flex */
     @media (max-width: 768px) {
         .navbar {
             padding: 0.6rem 0;
@@ -259,6 +276,57 @@ def render_landing_page():
             padding: 0.45rem 0.85rem;
             font-size: 0.78rem;
             white-space: nowrap;
+        }
+        .container {
+            padding: 0 1rem;
+        }
+        .features-row {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+        }
+        .quick-chips {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.4rem !important;
+        }
+        .tool-quad-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.5rem !important;
+        }
+        .tools-grid {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+            margin-bottom: 3rem !important;
+        }
+        .search-box input {
+            font-size: 16px !important;
+        }
+        .search-box input::placeholder {
+            opacity: 1 !important;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        .navbar {
+            background: rgba(248, 250, 252, 0.92);
+        }
+        .brand-title {
+            color: #090d16;
+        }
+        .feature-text h4, .quad-title, .section-title, .hero-title, .founder-title, .tool-card h3 {
+            color: #090d16;
+        }
+        .search-box input {
+            color: #090d16;
+        }
+        .search-box input::placeholder {
+            color: #64748b;
+            opacity: 1;
+        }
+        .btn-secondary {
+            color: #090d16;
+        }
+        .footer strong {
+            color: #090d16 !important;
         }
     }
 

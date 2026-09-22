@@ -68,13 +68,94 @@ if qp_query and "pending_query" not in st.session_state:
 if qp_feature and "pending_feature" not in st.session_state:
     st.session_state.pending_feature = qp_feature
 
-# --- 2. CSS STYLING OVERHAUL (DESKTOP & MOBILE RESPONSIVE) ---
+# --- 2. CSS STYLING OVERHAUL (DYNAMIC THEME & MULTI-DEVICE RESPONSIVE) ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 
+/* ================================================================ */
+/* 0. DYNAMIC THEME SYSTEM (DARK & LIGHT MODE ADAPTATION)            */
+/* ================================================================ */
+:root {
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --text-placeholder: #94a3b8;
+    --bg-primary: #030303;
+    --bg-surface: #08090d;
+    --bg-sidebar: #060709;
+    --bg-input: #08090d;
+    --bg-chat-bar: rgba(8, 9, 13, 0.94);
+    --bg-pinned-bar: linear-gradient(180deg, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.96) 30%, #030303 100%);
+    --bg-hover: rgba(88, 193, 200, 0.08);
+    --grid-line: rgba(255, 255, 255, 0.02);
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --text-primary: #090d16;
+        --text-secondary: #1e293b;
+        --text-muted: #475569;
+        --text-dim: #64748b;
+        --text-placeholder: #64748b;
+        --bg-primary: #f8fafc;
+        --bg-surface: #ffffff;
+        --bg-sidebar: #f8fafc;
+        --bg-input: #ffffff;
+        --bg-chat-bar: rgba(255, 255, 255, 0.96);
+        --bg-pinned-bar: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.96) 30%, #f8fafc 100%);
+        --bg-hover: rgba(88, 193, 200, 0.12);
+        --grid-line: rgba(0, 0, 0, 0.03);
+    }
+}
+
+[data-theme="light"],
+[data-base-theme="light"],
+.stApp[data-theme="light"],
+.stApp[data-base-theme="light"],
+html[data-theme="light"],
+body[data-theme="light"] {
+    --text-primary: #090d16 !important;
+    --text-secondary: #1e293b !important;
+    --text-muted: #475569 !important;
+    --text-dim: #64748b !important;
+    --text-placeholder: #64748b !important;
+    --bg-primary: #f8fafc !important;
+    --bg-surface: #ffffff !important;
+    --bg-sidebar: #f8fafc !important;
+    --bg-input: #ffffff !important;
+    --bg-chat-bar: rgba(255, 255, 255, 0.96) !important;
+    --bg-pinned-bar: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.96) 30%, #f8fafc 100%) !important;
+    --bg-hover: rgba(88, 193, 200, 0.12) !important;
+    --grid-line: rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-theme="dark"],
+[data-base-theme="dark"],
+.stApp[data-theme="dark"],
+.stApp[data-base-theme="dark"],
+html[data-theme="dark"],
+body[data-theme="dark"] {
+    --text-primary: #f8fafc !important;
+    --text-secondary: #cbd5e1 !important;
+    --text-muted: #94a3b8 !important;
+    --text-dim: #64748b !important;
+    --text-placeholder: #94a3b8 !important;
+    --bg-primary: #030303 !important;
+    --bg-surface: #08090d !important;
+    --bg-sidebar: #060709 !important;
+    --bg-input: #08090d !important;
+    --bg-chat-bar: rgba(8, 9, 13, 0.94) !important;
+    --bg-pinned-bar: linear-gradient(180deg, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.96) 30%, #030303 100%) !important;
+    --bg-hover: rgba(88, 193, 200, 0.08) !important;
+    --grid-line: rgba(255, 255, 255, 0.02) !important;
+}
+
 html, body, [class*="css"] {
     font-family: 'Space Grotesk', 'Plus Jakarta Sans', -apple-system, sans-serif !important;
+    color: var(--text-primary) !important;
+    -webkit-font-smoothing: antialiased;
 }
 
 /* Custom sleek scrollbar */
@@ -83,7 +164,7 @@ html, body, [class*="css"] {
     height: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: #030303;
+    background: var(--bg-primary);
 }
 ::-webkit-scrollbar-thumb {
     background: rgba(88, 193, 200, 0.25);
@@ -95,27 +176,18 @@ html, body, [class*="css"] {
 
 ::selection {
     background: rgba(88, 193, 200, 0.3) !important;
-    color: #ffffff !important;
+    color: var(--text-primary) !important;
 }
 
-/* Background grid styling matching cyber-cyan landing page */
+/* Background grid styling matching cyber-cyan aesthetic */
 .stApp {
-    background-color: #030303 !important;
+    background-color: var(--bg-primary) !important;
     background-image: 
         radial-gradient(circle at 50% 8%, rgba(88, 193, 200, 0.12) 0%, transparent 60%),
-        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px) !important;
+        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px) !important;
     background-size: 100% 100%, 36px 36px, 36px 36px !important;
-    color: #f3f4f6 !important;
-}
-
-/* Main block container max-width & padding for optimal reading ergonomics */
-.main .block-container, div[data-testid="stMainBlockContainer"] {
-    max-width: 1000px !important;
-    width: 100% !important;
-    margin: 0 auto !important;
-    padding-top: 2rem !important;
-    padding-bottom: 110px !important;
+    color: var(--text-primary) !important;
 }
 
 /* Header customization */
@@ -123,11 +195,43 @@ header[data-testid="stHeader"] {
     background-color: transparent !important;
 }
 
+/* Typography & Headings */
+h1, h2, h3, h4, h5, h6,
+.stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6,
+div[data-testid="stMarkdownContainer"] h1,
+div[data-testid="stMarkdownContainer"] h2,
+div[data-testid="stMarkdownContainer"] h3,
+div[data-testid="stMarkdownContainer"] h4 {
+    color: var(--text-primary) !important;
+    letter-spacing: -0.02em;
+}
+
+p, span, li, label,
+div[data-testid="stMarkdownContainer"] p,
+div[data-testid="stMarkdownContainer"] li,
+div[data-testid="stMarkdownContainer"] span {
+    color: var(--text-primary);
+}
+
+div[data-testid="stMarkdownContainer"] strong, strong {
+    color: var(--text-primary) !important;
+    font-weight: 700;
+}
+
+div[data-testid="stMarkdownContainer"] code {
+    color: #58C1C8 !important;
+    background: rgba(88, 193, 200, 0.08) !important;
+    border: 1px solid rgba(88, 193, 200, 0.25) !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    font-size: 0.88em !important;
+}
+
 /* ================================================================ */
 /* 1. SIDEBAR & FEATURE NAVIGATION (DESKTOP & MOBILE)               */
 /* ================================================================ */
 [data-testid="stSidebar"] {
-    background-color: #060709 !important;
+    background-color: var(--bg-sidebar) !important;
     border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     padding-top: 15px !important;
 }
@@ -146,7 +250,7 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label {
     display: flex !important;
     align-items: center !important;
     box-sizing: border-box !important;
-    background: rgba(255, 255, 255, 0.03) !important;
+    background: var(--bg-surface) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 12px !important;
     padding: 12px 16px !important;
@@ -156,13 +260,13 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label {
 }
 
 div[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
-    background: rgba(88, 193, 200, 0.08) !important;
+    background: var(--bg-hover) !important;
     border-color: rgba(88, 193, 200, 0.4) !important;
     transform: translateY(-1px) translateX(3px) !important;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 12px rgba(88, 193, 200, 0.15) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3), 0 0 12px rgba(88, 193, 200, 0.15) !important;
 }
 
-/* Completely Hide Streamlit default radio-button circles (input[type="radio"]) */
+/* Completely Hide Streamlit default radio-button circles */
 div[data-testid="stSidebar"] input[type="radio"],
 div[role="radiogroup"] input[type="radio"],
 div[data-baseweb="radio"] input,
@@ -191,13 +295,13 @@ div[data-testid="stSidebar"] [class*="SelectionIndicator"] {
     pointer-events: none !important;
 }
 
-/* Sidebar Item Text: 1.1rem, bold and clean */
+/* Sidebar Item Text */
 div[data-testid="stSidebar"] div[role="radiogroup"] label div p,
 div[data-testid="stSidebar"] div[role="radiogroup"] label p,
 div[data-testid="stSidebar"] div[role="radiogroup"] label span {
-    font-size: 1.1rem !important;
+    font-size: 1.05rem !important;
     font-weight: 600 !important;
-    color: #cbd5e1 !important;
+    color: var(--text-secondary) !important;
     letter-spacing: 0.2px !important;
     line-height: 1.4 !important;
     margin: 0 !important;
@@ -206,7 +310,7 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label span {
     width: 100% !important;
 }
 
-/* Active State: Glowing Accent Outline (#58C1C8) & Dark Glassmorphism */
+/* Active State: Glowing Accent Outline (#58C1C8) & Glassmorphism */
 div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"],
 div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
     background: linear-gradient(135deg, rgba(88, 193, 200, 0.18) 0%, rgba(8, 9, 13, 0.88) 100%) !important;
@@ -226,18 +330,25 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) p,
 div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) span {
     color: #58C1C8 !important;
     font-weight: 700 !important;
-    font-size: 1.1rem !important;
+    font-size: 1.05rem !important;
     text-shadow: 0 0 12px rgba(88, 193, 200, 0.5) !important;
 }
 
 /* Status Card in Sidebar */
 .status-card {
-    background: #08090d;
+    background: var(--bg-surface);
     border: 1px solid rgba(88, 193, 200, 0.3);
     border-radius: 14px;
     padding: 16px 14px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     margin-top: 20px;
+    color: var(--text-primary);
+}
+.status-card h4 {
+    color: var(--text-primary) !important;
+}
+.status-card p {
+    color: var(--text-muted) !important;
 }
 
 /* Top Streak Badge */
@@ -252,16 +363,24 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) spa
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    float: right;
     box-shadow: 0 0 12px rgba(88, 193, 200, 0.2);
+    white-space: nowrap;
 }
 
 /* Prompt Starter Quick Pills */
+.starter-chip-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 12px;
+}
+
 .starter-chip {
     display: inline-block;
-    background: #08090d;
+    background: var(--bg-surface);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #cbd5e1;
+    color: var(--text-secondary);
     font-size: 13px;
     font-weight: 600;
     padding: 6px 14px;
@@ -269,6 +388,7 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) spa
     margin-right: 8px;
     margin-bottom: 12px;
     transition: all 0.2s ease;
+    cursor: pointer;
 }
 .starter-chip:hover {
     border-color: #58c1c8;
@@ -276,14 +396,18 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) spa
     box-shadow: 0 0 12px rgba(88, 193, 200, 0.25);
 }
 
-/* Glassmorphic Dark Cards & Topic Research UI Cards */
+/* Cards & Topic Research UI Cards */
 .topper-card {
-    background: #08090d;
+    background: var(--bg-surface);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 14px;
     padding: 22px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    color: var(--text-primary);
+}
+.topper-card p {
+    color: var(--text-muted) !important;
 }
 
 .research-card-tag {
@@ -313,69 +437,51 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) spa
 
 /* Chat Bubble Customization */
 [data-testid="stChatMessage"] {
-    background-color: #08090d !important;
+    background-color: var(--bg-surface) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 14px !important;
     margin-bottom: 14px !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+    padding: 16px 20px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+    color: var(--text-primary) !important;
     transition: border-color 0.2s ease !important;
 }
 [data-testid="stChatMessage"]:hover {
     border-color: rgba(88, 193, 200, 0.2) !important;
 }
+[data-testid="stChatMessage"] p,
+[data-testid="stChatMessage"] span,
+[data-testid="stChatMessage"] div {
+    color: var(--text-primary) !important;
+}
 
-/* Text Inputs */
+/* Text Inputs with 100% Placeholder Visibility */
 .stTextInput > div > div > input {
-    background-color: #08090d !important;
+    background-color: var(--bg-input) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #ffffff !important;
+    color: var(--text-primary) !important;
     border-radius: 10px !important;
     padding: 12px 16px !important;
+    font-size: 15px !important;
 }
 .stTextInput > div > div > input:focus {
     border-color: #58c1c8 !important;
     box-shadow: 0 0 14px rgba(88, 193, 200, 0.25) !important;
 }
-
-/* ================================================================ */
-/* 2. OPTIMIZE DESKTOP WORKSPACE (@media min-width: 769px)          */
-/* ================================================================ */
-@media (min-width: 769px) {
-    /* Sidebar structural width 300px minimum */
-    [data-testid="stSidebar"],
-    section[data-testid="stSidebar"] {
-        min-width: 300px !important;
-        width: 300px !important;
-        max-width: 340px !important;
-    }
-
-    /* Central chat workspace: center-aligned, 85% width, max-width 1000px */
-    .main .block-container,
-    div[data-testid="stMainBlockContainer"] {
-        width: 85% !important;
-        max-width: 1000px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-top: 2rem !important;
-        padding-bottom: 120px !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
-    }
-
-    /* Bottom input container centered to 85% (max-width 1000px) */
-    div[data-testid="stBottomBlockContainer"] {
-        width: 85% !important;
-        max-width: 1000px !important;
-        margin: 0 auto !important;
-        padding-bottom: 22px !important;
-        padding-top: 8px !important;
-    }
+.stTextInput input::placeholder,
+input::placeholder,
+textarea::placeholder,
+div[data-testid="stChatInput"] textarea::placeholder {
+    color: var(--text-placeholder) !important;
+    -webkit-text-fill-color: var(--text-placeholder) !important;
+    opacity: 1 !important;
+    font-size: 14.5px !important;
+    font-weight: 500 !important;
 }
 
 /* ================================================================ */
-/* 3. CHAT INPUT BAR (SLEEK 1PX GLOW BORDER & FLOATING THEME)       */
+/* 2. CHAT INPUT BAR (SLEEK GLOW BORDER & FLOATING THEME)           */
 /* ================================================================ */
-/* Clear default Streamlit bottom bar gradient */
 div[data-testid="stBottom"], .stBottom {
     background: transparent !important;
     background-color: transparent !important;
@@ -393,28 +499,26 @@ div[data-testid="stChatInput"] {
     margin: 8px 0 12px 0 !important;
 }
 
-/* Floating Sleek Dark Box with 1px glow border rgba(88, 193, 200, 0.4) and 16px radius */
 div[data-testid="stChatInput"] > div {
-    background: rgba(8, 9, 13, 0.94) !important;
+    background: var(--bg-chat-bar) !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
     border: 1px solid rgba(88, 193, 200, 0.4) !important;
     border-radius: 16px !important;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7), 0 0 16px rgba(88, 193, 200, 0.12) !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), 0 0 16px rgba(88, 193, 200, 0.12) !important;
     padding: 6px 12px !important;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 div[data-testid="stChatInput"] > div:focus-within {
     border-color: #58C1C8 !important;
-    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.8), 0 0 24px rgba(88, 193, 200, 0.45) !important;
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6), 0 0 24px rgba(88, 193, 200, 0.45) !important;
     transform: translateY(-1px);
 }
 
-/* Textarea inside Floating Chat Input */
 div[data-testid="stChatInput"] textarea {
     background-color: transparent !important;
-    color: #f1f5f9 !important;
+    color: var(--text-primary) !important;
     font-family: inherit !important;
     font-size: 15px !important;
     line-height: 1.5 !important;
@@ -424,14 +528,7 @@ div[data-testid="stChatInput"] textarea {
     padding: 8px 10px !important;
 }
 
-div[data-testid="stChatInput"] textarea::placeholder {
-    color: #64748b !important;
-    font-size: 14.5px !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.2px !important;
-}
-
-/* Sharp, Centered Send Button with Cyber-Cyan Accent */
+/* Send Button with Cyber-Cyan Accent */
 div[data-testid="stChatInput"] button {
     background: linear-gradient(135deg, rgb(88, 193, 200) 0%, rgb(40, 155, 165) 100%) !important;
     color: #000000 !important;
@@ -462,7 +559,7 @@ div[data-testid="stChatInput"] button:active:not(:disabled) {
 
 div[data-testid="stChatInput"] button:disabled {
     background: rgba(255, 255, 255, 0.06) !important;
-    color: #475569 !important;
+    color: var(--text-dim) !important;
     opacity: 0.45 !important;
     box-shadow: none !important;
     cursor: not-allowed !important;
@@ -484,20 +581,20 @@ div[data-testid="stChatInput"] button svg {
     padding: 10px 20px !important;
     transition: all 0.2s ease !important;
 }
-.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
+.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover, .stDownloadButton > button:hover {
     transform: translateY(-1px);
     box-shadow: 0 0 18px rgba(88, 193, 200, 0.45) !important;
 }
 
 /* Tabs */
 .stTabs [data-baseweb="tab-list"] {
-    background-color: #08090d;
+    background-color: var(--bg-surface);
     border-radius: 10px;
     padding: 4px;
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .stTabs [data-baseweb="tab"] {
-    color: #94a3b8;
+    color: var(--text-muted);
     font-weight: 600;
 }
 .stTabs [aria-selected="true"] {
@@ -505,13 +602,10 @@ div[data-testid="stChatInput"] button svg {
     border-bottom-color: #58c1c8 !important;
 }
 
-/* ================================================================ */
-/* 4. COMPLETE MOBILE RESPONSIVENESS (@media max-width: 768px)      */
-/* ================================================================ */
 /* Sleek Hamburger Drawer Button */
 [data-testid="collapsedControl"] {
     color: #58c1c8 !important;
-    background: rgba(8, 9, 13, 0.92) !important;
+    background: var(--bg-chat-bar) !important;
     border: 1.5px solid rgba(88, 193, 200, 0.4) !important;
     border-radius: 10px !important;
     padding: 7px 9px !important;
@@ -519,72 +613,118 @@ div[data-testid="stChatInput"] button svg {
     left: 12px !important;
     backdrop-filter: blur(12px) !important;
     -webkit-backdrop-filter: blur(12px) !important;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6), 0 0 12px rgba(88, 193, 200, 0.25) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 12px rgba(88, 193, 200, 0.25) !important;
     z-index: 999999 !important;
     transition: all 0.2s ease !important;
 }
 [data-testid="collapsedControl"]:hover {
     border-color: #58C1C8 !important;
-    box-shadow: 0 4px 22px rgba(0, 0, 0, 0.7), 0 0 18px rgba(88, 193, 200, 0.5) !important;
+    box-shadow: 0 4px 22px rgba(0, 0, 0, 0.5), 0 0 18px rgba(88, 193, 200, 0.5) !important;
 }
 [data-testid="collapsedControl"] svg {
     stroke: #58C1C8 !important;
     fill: #58C1C8 !important;
 }
 
-@media (max-width: 768px) {
-    /* Top Header Navbar Flex & Clean Stacking on Mobile */
-    .navbar {
-        padding: 0.65rem 0 !important;
-    }
-    .nav-wrapper {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        flex-wrap: wrap !important;
-        gap: 0.5rem !important;
-        width: 100% !important;
-    }
-    .nav-links {
-        display: none !important;
-    }
-    .brand {
-        gap: 0.5rem !important;
-    }
-    .brand-title {
-        font-size: 1.15rem !important;
-    }
-    .brand-icon {
-        width: 32px !important;
-        height: 32px !important;
-        font-size: 16px !important;
-    }
-    .nav-actions {
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.4rem !important;
-        flex-wrap: nowrap !important;
-    }
-    .nav-actions .btn {
-        padding: 0.45rem 0.85rem !important;
-        font-size: 0.78rem !important;
-        white-space: nowrap !important;
+/* ================================================================ */
+/* 3. DESKTOP / LAPTOPS (@media min-width: 1025px)                  */
+/* ================================================================ */
+@media (min-width: 1025px) {
+    [data-testid="stSidebar"],
+    section[data-testid="stSidebar"] {
+        min-width: 290px !important;
+        width: 290px !important;
+        max-width: 330px !important;
     }
 
-    /* Mobile Sidebar Slide-Over Drawer */
+    .main .block-container,
+    div[data-testid="stMainBlockContainer"] {
+        width: 85% !important;
+        max-width: 1000px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-top: 2rem !important;
+        padding-bottom: 120px !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
+
+    div[data-testid="stBottomBlockContainer"] {
+        width: 85% !important;
+        max-width: 1000px !important;
+        margin: 0 auto !important;
+        padding-bottom: 22px !important;
+        padding-top: 8px !important;
+    }
+
+    .page-main-title {
+        font-size: 32px !important;
+    }
+}
+
+/* ================================================================ */
+/* 4. TABLETS (@media min-width: 769px and max-width: 1024px)       */
+/* ================================================================ */
+@media (min-width: 769px) and (max-width: 1024px) {
+    [data-testid="stSidebar"],
+    section[data-testid="stSidebar"] {
+        min-width: 240px !important;
+        width: 240px !important;
+        max-width: 260px !important;
+    }
+
+    .main .block-container,
+    div[data-testid="stMainBlockContainer"] {
+        width: 94% !important;
+        max-width: 100% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-top: 2rem !important;
+        padding-bottom: 125px !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    div[data-testid="stBottomBlockContainer"] {
+        width: 94% !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        padding-bottom: 18px !important;
+        padding-top: 6px !important;
+    }
+
+    div[data-testid="stSidebar"] div[role="radiogroup"] label {
+        padding: 10px 12px !important;
+    }
+
+    div[data-testid="stSidebar"] div[role="radiogroup"] label div p,
+    div[data-testid="stSidebar"] div[role="radiogroup"] label p,
+    div[data-testid="stSidebar"] div[role="radiogroup"] label span {
+        font-size: 0.98rem !important;
+    }
+
+    .page-main-title {
+        font-size: 28px !important;
+    }
+}
+
+/* ================================================================ */
+/* 5. MOBILE PHONES (@media max-width: 768px)                       */
+/* ================================================================ */
+@media (max-width: 768px) {
     [data-testid="stSidebar"] {
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
         height: 100vh !important;
-        width: 84vw !important;
+        width: 85vw !important;
         max-width: 320px !important;
         min-width: unset !important;
-        background-color: rgba(6, 7, 9, 0.98) !important;
+        background-color: var(--bg-sidebar) !important;
         backdrop-filter: blur(24px) !important;
         -webkit-backdrop-filter: blur(24px) !important;
         border-right: 1px solid rgba(88, 193, 200, 0.25) !important;
-        box-shadow: 8px 0 36px rgba(0, 0, 0, 0.9) !important;
+        box-shadow: 8px 0 36px rgba(0, 0, 0, 0.8) !important;
         z-index: 1000000 !important;
         overflow-y: auto !important;
         transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
@@ -594,35 +734,43 @@ div[data-testid="stChatInput"] button svg {
         box-shadow: none !important;
     }
 
-    /* Main Container: Full Width, Responsive Padding */
     .main .block-container,
     div[data-testid="stMainBlockContainer"] {
         width: 100% !important;
         max-width: 100% !important;
-        padding-top: 4rem !important; /* space for fixed hamburger button */
+        padding-top: 3.8rem !important;
         padding-left: 0.85rem !important;
         padding-right: 0.85rem !important;
-        padding-bottom: 120px !important; /* ensures messages scroll cleanly above input */
+        padding-bottom: 140px !important;
         box-sizing: border-box !important;
     }
 
-    /* Responsive Header & Streak Badge */
-    h1 {
-        font-size: 22px !important;
+    /* Prevent Header/Streak Badge Overlap on Small Screens */
+    div[data-testid="stHorizontalBlock"]:has(.streak-badge) {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 2px !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.streak-badge) > div {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    .page-main-title {
+        font-size: 24px !important;
         line-height: 1.25 !important;
-        margin: 0 0 10px 0 !important;
+        margin: 0 0 6px 0 !important;
     }
 
     .streak-badge {
         float: none !important;
-        display: inline-flex !important;
+        margin: 2px 0 12px 0 !important;
         font-size: 12px !important;
         padding: 4px 10px !important;
-        margin-top: 4px !important;
-        margin-bottom: 14px !important;
     }
 
-    /* Prompt Starter Quick Pills: wrap cleanly horizontally */
+    /* Starter Quick Chips */
     .starter-chip-container {
         display: flex !important;
         flex-wrap: wrap !important;
@@ -633,11 +781,12 @@ div[data-testid="stChatInput"] button svg {
     .starter-chip {
         font-size: 12px !important;
         padding: 6px 12px !important;
-        white-space: nowrap !important;
+        margin-right: 0 !important;
+        margin-bottom: 0 !important;
         flex-shrink: 0 !important;
     }
 
-    /* Cards & Containers on Small Screens */
+    /* Cards on Mobile */
     .topper-card {
         padding: 16px 14px !important;
         margin-bottom: 14px !important;
@@ -646,23 +795,49 @@ div[data-testid="stChatInput"] button svg {
     .topper-card h3 {
         font-size: 17px !important;
     }
-
-    /* Chat Messages on Mobile */
-    [data-testid="stChatMessage"] {
-        padding: 12px 14px !important;
-        margin-bottom: 10px !important;
-        border-radius: 12px !important;
+    .topper-card p {
+        font-size: 13px !important;
+        line-height: 1.45 !important;
     }
 
-    /* Pinned Bottom Chat Bar Container for Mobile */
+    /* Stack 3-column Topic Research Cards on Mobile */
+    div[data-testid="stHorizontalBlock"]:has(.research-card-tag) {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.research-card-tag) > div {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    /* Prevent Button Clipping on Mobile */
+    .stButton > button,
+    div[data-testid="stFormSubmitButton"] > button,
+    .stDownloadButton > button {
+        font-size: 13px !important;
+        padding: 10px 14px !important;
+        white-space: nowrap !important;
+        text-overflow: ellipsis !important;
+        overflow: hidden !important;
+        width: 100% !important;
+    }
+
+    /* Inputs: 16px font-size prevents iOS Safari auto-zoom */
+    .stTextInput > div > div > input {
+        font-size: 16px !important;
+        padding: 10px 14px !important;
+    }
+
+    /* Pinned Bottom Chat Bar Container for Mobile with Safe Area Inset */
     div[data-testid="stBottom"], .stBottom {
         position: fixed !important;
         bottom: 0 !important;
         left: 0 !important;
         right: 0 !important;
         width: 100% !important;
-        background: linear-gradient(180deg, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.94) 30%, #030303 100%) !important;
-        padding: 8px 10px 14px 10px !important;
+        background: var(--bg-pinned-bar) !important;
+        padding: 8px 10px max(14px, env(safe-area-inset-bottom, 14px)) 10px !important;
         z-index: 9999 !important;
     }
 
@@ -680,19 +855,18 @@ div[data-testid="stChatInput"] button svg {
     div[data-testid="stChatInput"] > div {
         border-radius: 14px !important;
         padding: 4px 8px !important;
-        background: rgba(8, 9, 13, 0.96) !important;
     }
 
     div[data-testid="stChatInput"] textarea {
-        font-size: 14px !important;
+        font-size: 16px !important;
         padding: 6px 8px !important;
     }
 
     div[data-testid="stChatInput"] button {
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
-        min-height: 34px !important;
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
         border-radius: 10px !important;
     }
 }
@@ -1963,10 +2137,10 @@ def clean_email_auth():
 
         st.markdown("""
             <div style="text-align:center; padding: 20px 0 10px 0;">
-                <h1 style="color:#ffffff; font-size: 2.8rem; font-weight:800; margin: 10px 0;">
+                <h1 style="color:var(--text-primary, #ffffff); font-size: 2.8rem; font-weight:800; margin: 10px 0;">
                     Topper<span style="color:#58c1c8;">GPT</span>
                 </h1>
-                <p style="color:#94a3b8; font-size:15px; margin-top:0;">
+                <p style="color:var(--text-muted, #94a3b8); font-size:15px; margin-top:0;">
                     AI Academic Workspace for Mumbai University Engineering.
                 </p>
             </div>
@@ -1976,8 +2150,8 @@ def clean_email_auth():
             st.markdown(f"""
                 <div style="background: rgba(88, 193, 200, 0.1); border: 1px solid rgba(88, 193, 200, 0.35); border-radius: 12px; padding: 12px 18px; margin: 0 auto 20px auto; max-width: 580px; text-align: center;">
                     <span style="color: #58c1c8; font-weight: 700; font-size: 13px;">✦ QUESTION CAPTURED:</span>
-                    <span style="color: #ffffff; font-weight: 600;"> "{st.session_state.pending_query}"</span>
-                    <p style="font-size: 12px; color: #94a3b8; margin: 4px 0 0 0;">Enter your email to unlock your verified solution in TopperGPT!</p>
+                    <span style="color: var(--text-primary, #ffffff); font-weight: 600;"> "{st.session_state.pending_query}"</span>
+                    <p style="font-size: 12px; color: var(--text-muted, #94a3b8); margin: 4px 0 0 0;">Enter your email to unlock your verified solution in TopperGPT!</p>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -1986,14 +2160,14 @@ def clean_email_auth():
             st.markdown("""
                 <div style="background: rgba(88, 193, 200, 0.06); border: 1px solid rgba(88, 193, 200, 0.25); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; text-align: center;">
                     <span style="color: #58c1c8; font-weight: 700; font-size: 13px;">✦ INSTANT ACADEMIC ACCESS</span>
-                    <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Enter your academic email below or continue as Guest Student.</p>
+                    <p style="color: var(--text-muted, #94a3b8); font-size: 12px; margin: 4px 0 0 0;">Enter your academic email below or continue as Guest Student.</p>
                 </div>
             """, unsafe_allow_html=True)
             if st.button("🚀 CONTINUE AS GUEST STUDENT", use_container_width=True):
                 st.session_state.user_data = {"email": "student@toppergpt.in", "full_name": "Student", "is_pro": True}
                 st.rerun()
 
-            st.markdown("<div style='text-align: center; margin: 12px 0; color: #64748b; font-size: 12px;'>─── OR SIGN IN WITH EMAIL ───</div>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align: center; margin: 12px 0; color: var(--text-dim, #64748b); font-size: 12px;'>─── OR SIGN IN WITH EMAIL ───</div>", unsafe_allow_html=True)
 
             auth_tab = st.tabs(["🔑 Quick Access", "📝 New Registration"])
             
@@ -2067,7 +2241,7 @@ with st.sidebar:
     st.markdown("""
         <div style="display:flex; align-items:center; gap:10px; padding: 5px 0 20px 4px;">
             <div style="width:12px; height:12px; background:#58c1c8; border-radius:50%; box-shadow: 0 0 12px #58c1c8;"></div>
-            <h2 style="color:#ffffff; margin:0; font-size:24px; font-weight:800; letter-spacing:-0.5px;">Topper<span style="color:#58c1c8;">GPT</span></h2>
+            <h2 style="color:var(--text-primary, #ffffff); margin:0; font-size:24px; font-weight:800; letter-spacing:-0.5px;">Topper<span style="color:#58c1c8;">GPT</span></h2>
         </div>
     """, unsafe_allow_html=True)
 
@@ -2101,8 +2275,8 @@ with st.sidebar:
                 <span style="display:inline-block; width:8px; height:8px; background:#22c55e; border-radius:50%;"></span>
                 <span style="color:#22c55e; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">SYSTEM UNLOCKED</span>
             </div>
-            <h4 style="color:#ffffff; margin:4px 0 2px 0; font-size:16px; font-weight:800;">Academic Access</h4>
-            <p style="color:#94a3b8; font-size:12px; margin:0; line-height:1.4;">Unlimited access enabled for all university modules.</p>
+            <h4 style="color:var(--text-primary, #ffffff); margin:4px 0 2px 0; font-size:16px; font-weight:800;">Academic Access</h4>
+            <p style="color:var(--text-muted, #94a3b8); font-size:12px; margin:0; line-height:1.4;">Unlimited access enabled for all university modules.</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -2133,7 +2307,9 @@ clean_title = nav_selection.split(" ", 1)[1]
 
 col_head, col_badge = st.columns([3, 1])
 with col_head:
-    st.markdown(f"<h1 style='color:#ffffff; font-size:32px; font-weight:800; margin:0 0 15px 0;'>{clean_title}</h1>", unsafe_allow_html=True)
+    st.markdown(f"<h1 class='page-main-title' style='color:var(--text-primary, #ffffff); margin:0 0 15px 0;'>{clean_title}</h1>", unsafe_allow_html=True)
+with col_badge:
+    st.markdown("<div class='streak-badge'>🔥 6-day study streak</div>", unsafe_allow_html=True)
 with col_badge:
     st.markdown("<div class='streak-badge'>🔥 6-day study streak</div>", unsafe_allow_html=True)
 
@@ -2265,7 +2441,7 @@ elif nav_selection == "🎯 Predicted Qs":
     st.markdown("""
         <div class="topper-card">
             <h3 style="margin-top:0; color:#58c1c8;">Target High-Probability Examination Questions</h3>
-            <p style="color:#94a3b8; font-size:14px; margin:0;">
+            <p style="color:var(--text-muted, #94a3b8); font-size:14px; margin:0;">
                 Predict recurring Mumbai University questions, examiner marking rubrics, and previous year variations.
             </p>
         </div>
@@ -2351,7 +2527,7 @@ elif nav_selection == "📄 Short Notes":
     st.markdown("""
         <div class="topper-card">
             <h3 style="margin-top:0; color:#58c1c8;">1-Page Exam Cheat Sheet</h3>
-            <p style="color:#94a3b8; font-size:14px; margin:0;">
+            <p style="color:var(--text-muted, #94a3b8); font-size:14px; margin:0;">
                 Synthesize high-yield formulas with proper SI units, high-scoring modules, and rapid revision notes.
             </p>
         </div>
@@ -2448,7 +2624,7 @@ elif nav_selection == "🔍 Topic Research":
     st.markdown("""
         <div class="topper-card">
             <h3 style="margin-top:0; color:#58c1c8;">Streamlined Concept Breakdown</h3>
-            <p style="color:#94a3b8; font-size:14px; margin:0;">
+            <p style="color:var(--text-muted, #94a3b8); font-size:14px; margin:0;">
                 Get university-standard definitions, technical breakdowns, and working principles in 3 clean cards.
             </p>
         </div>
