@@ -39,11 +39,39 @@ def get_env_secret(key, default=""):
         pass
     return default
 
+def is_valid_email(email_str: str) -> bool:
+    """Rigorous email validator ensuring proper RFC structure with '@' and valid domain extensions (e.g., .com, .in, .edu)."""
+    if not email_str or not isinstance(email_str, str):
+        return False
+    email_clean = email_str.strip().lower()
+    pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+    if not re.match(pattern, email_clean):
+        return False
+    if ".." in email_clean:
+        return False
+    parts = email_clean.split("@")
+    if len(parts) != 2:
+        return False
+    local_part, domain_part = parts
+    if not local_part or not domain_part:
+        return False
+    domain_sections = domain_part.split(".")
+    tld = domain_sections[-1]
+    if len(tld) < 2 or not tld.isalpha():
+        return False
+    if local_part.startswith(".") or local_part.endswith("."):
+        return False
+    for sec in domain_sections:
+        if not sec or sec.startswith("-") or sec.endswith("-"):
+            return False
+    return True
+
 # --- 1. CONFIGURATION & PAGE SETUP ---
 st.set_page_config(
     page_title="TopperGPT - AI Academic Workspace",
     layout="wide",
-    page_icon="🎓"
+    page_icon="🎓",
+    initial_sidebar_state="expanded"
 )
 
 # Route & Query Parameter Handler (Safe extraction)
@@ -107,6 +135,20 @@ div[data-testid="stStatusWidget"] {
 .stDeployButton {
     display: none !important;
     visibility: hidden !important;
+}
+[data-testid="stSidebarCollapseButton"],
+button[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"],
+section[data-testid="stSidebar"] button[kind="header"],
+button[data-testid="baseButton-headerNoPadding"],
+button[aria-label="Close sidebar"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
 }
 
 /* ================================================================ */
@@ -207,9 +249,17 @@ div[data-testid="stMarkdownContainer"] code {
 }
 
 /* ================================================================ */
-/* 1. SIDEBAR & FEATURE NAVIGATION (DESKTOP & MOBILE)               */
+/* 1. SIDEBAR & FEATURE NAVIGATION (PERMANENT STICKY / FIXED)       */
 /* ================================================================ */
-[data-testid="stSidebar"] {
+[data-testid="stSidebar"],
+section[data-testid="stSidebar"],
+[data-testid="stSidebar"][aria-expanded="false"],
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: none !important;
+    margin-left: 0 !important;
     background-color: var(--bg-sidebar) !important;
     border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     padding-top: 15px !important;
@@ -434,19 +484,45 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) spa
     color: var(--text-primary) !important;
 }
 
-/* Text Inputs with 100% Placeholder Visibility */
-.stTextInput > div > div > input {
-    background-color: var(--bg-input) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: var(--text-primary) !important;
+/* Standard Text Inputs and Text Areas */
+.stTextInput > div,
+div[data-baseweb="input"],
+div[data-baseweb="base-input"] {
+    background-color: #0c0d12 !important;
+    border: 1px solid rgba(88, 193, 200, 0.2) !important;
     border-radius: 10px !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+div[data-baseweb="input"]:focus-within,
+div[data-baseweb="base-input"]:focus-within {
+    background-color: #13151f !important;
+    border-color: rgba(88, 193, 200, 0.6) !important;
+    box-shadow: 0 0 14px rgba(88, 193, 200, 0.25) !important;
+    outline: none !important;
+}
+
+.stTextInput input,
+.stTextInput > div > div > input,
+div[data-baseweb="input"] input {
+    background-color: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: var(--text-primary) !important;
     padding: 12px 16px !important;
     font-size: 15px !important;
 }
-.stTextInput > div > div > input:focus {
-    border-color: #58c1c8 !important;
-    box-shadow: 0 0 14px rgba(88, 193, 200, 0.25) !important;
+
+.stTextInput input:focus,
+.stTextInput > div > div > input:focus,
+div[data-baseweb="input"] input:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
+
 .stTextInput input::placeholder,
 input::placeholder,
 textarea::placeholder,
@@ -459,39 +535,52 @@ div[data-testid="stChatInput"] textarea::placeholder {
 }
 
 /* ================================================================ */
-/* 2. CHAT INPUT BAR (SLEEK GLOW BORDER & FLOATING THEME)           */
+/* 2. CHAT INPUT BAR (NO WHITE BORDER / OUTLINE, DARK BACKDROP)     */
 /* ================================================================ */
 div[data-testid="stBottom"], .stBottom {
     background: transparent !important;
     background-color: transparent !important;
+    border-top: none !important;
+    border: none !important;
+    box-shadow: none !important;
     z-index: 999 !important;
 }
 
 div[data-testid="stBottomBlockContainer"] {
     background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
     padding-bottom: 22px !important;
     padding-top: 8px !important;
 }
 
 div[data-testid="stChatInput"] {
+    background: transparent !important;
     background-color: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
     margin: 8px 0 12px 0 !important;
 }
 
 div[data-testid="stChatInput"] > div {
-    background: var(--bg-chat-bar) !important;
+    background: #0c0d12 !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(88, 193, 200, 0.4) !important;
+    border: 1px solid rgba(88, 193, 200, 0.3) !important;
     border-radius: 16px !important;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), 0 0 16px rgba(88, 193, 200, 0.12) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7) !important;
+    outline: none !important;
     padding: 6px 12px !important;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 div[data-testid="stChatInput"] > div:focus-within {
-    border-color: #58C1C8 !important;
-    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6), 0 0 24px rgba(88, 193, 200, 0.45) !important;
+    background: #13151f !important;
+    border-color: rgba(88, 193, 200, 0.65) !important;
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.85), 0 0 16px rgba(88, 193, 200, 0.25) !important;
+    outline: none !important;
     transform: translateY(-1px);
 }
 
@@ -640,10 +729,29 @@ div[data-baseweb="menu"] li {
 /* ================================================================ */
 @media (min-width: 1025px) {
     [data-testid="stSidebar"],
-    section[data-testid="stSidebar"] {
+    section[data-testid="stSidebar"],
+    [data-testid="stSidebar"][aria-expanded="false"],
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        height: 100vh !important;
         min-width: 290px !important;
         width: 290px !important;
-        max-width: 330px !important;
+        max-width: 320px !important;
+        transform: none !important;
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin-left: 0 !important;
+        z-index: 100 !important;
+    }
+
+    section.main,
+    .stMain {
+        margin-left: 290px !important;
+        width: calc(100% - 290px) !important;
     }
 
     .main .block-container,
@@ -676,10 +784,29 @@ div[data-baseweb="menu"] li {
 /* ================================================================ */
 @media (min-width: 769px) and (max-width: 1024px) {
     [data-testid="stSidebar"],
-    section[data-testid="stSidebar"] {
-        min-width: 240px !important;
-        width: 240px !important;
+    section[data-testid="stSidebar"],
+    [data-testid="stSidebar"][aria-expanded="false"],
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        height: 100vh !important;
+        min-width: 250px !important;
+        width: 250px !important;
         max-width: 260px !important;
+        transform: none !important;
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin-left: 0 !important;
+        z-index: 100 !important;
+    }
+
+    section.main,
+    .stMain {
+        margin-left: 250px !important;
+        width: calc(100% - 250px) !important;
     }
 
     .main .block-container,
@@ -721,33 +848,66 @@ div[data-baseweb="menu"] li {
 /* 5. MOBILE PHONES (@media max-width: 768px)                       */
 /* ================================================================ */
 @media (max-width: 768px) {
-    [data-testid="stSidebar"] {
-        position: fixed !important;
+    .stApp {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    [data-testid="stSidebar"],
+    section[data-testid="stSidebar"],
+    [data-testid="stSidebar"][aria-expanded="false"],
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        position: sticky !important;
         top: 0 !important;
         left: 0 !important;
-        height: 100vh !important;
-        width: 85vw !important;
-        max-width: 320px !important;
-        min-width: unset !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        height: auto !important;
+        max-height: 48vh !important;
         background-color: var(--bg-sidebar) !important;
-        backdrop-filter: blur(24px) !important;
-        -webkit-backdrop-filter: blur(24px) !important;
-        border-right: 1px solid rgba(88, 193, 200, 0.25) !important;
-        box-shadow: 8px 0 36px rgba(0, 0, 0, 0.8) !important;
-        z-index: 1000000 !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(88, 193, 200, 0.25) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7) !important;
+        z-index: 99999 !important;
         overflow-y: auto !important;
-        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        transform: none !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin-left: 0 !important;
+        padding: 8px 12px !important;
     }
-    [data-testid="stSidebar"][aria-expanded="false"] {
-        transform: translateX(-100%) !important;
-        box-shadow: none !important;
+
+    section.main,
+    .stMain {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    div[data-testid="stSidebar"] div[role="radiogroup"] {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+        margin-bottom: 6px !important;
+    }
+
+    div[data-testid="stSidebar"] div[role="radiogroup"] label {
+        padding: 8px 10px !important;
+        margin: 0 !important;
+    }
+
+    div[data-testid="stSidebar"] div[role="radiogroup"] label div p,
+    div[data-testid="stSidebar"] div[role="radiogroup"] label p,
+    div[data-testid="stSidebar"] div[role="radiogroup"] label span {
+        font-size: 13px !important;
     }
 
     .main .block-container,
     div[data-testid="stMainBlockContainer"] {
         width: 100% !important;
         max-width: 100% !important;
-        padding-top: 3.8rem !important;
+        padding-top: 1.2rem !important;
         padding-left: 0.85rem !important;
         padding-right: 0.85rem !important;
         padding-bottom: 140px !important;
@@ -861,16 +1021,27 @@ div[data-baseweb="menu"] li {
     div[data-testid="stChatInput"] {
         width: 100% !important;
         margin: 4px 0 !important;
+        background: transparent !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
     }
 
     div[data-testid="stChatInput"] > div {
+        background: #0c0d12 !important;
+        border: 1px solid rgba(88, 193, 200, 0.3) !important;
         border-radius: 14px !important;
         padding: 4px 8px !important;
+        outline: none !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
     }
 
     div[data-testid="stChatInput"] textarea {
         font-size: 16px !important;
         padding: 6px 8px !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
     }
 
     div[data-testid="stChatInput"] button {
@@ -2221,6 +2392,8 @@ def clean_email_auth():
                     if st.form_submit_button("ENTER DASHBOARD 🚀", use_container_width=True):
                         if not l_email:
                             st.error("⚠️ Please enter your registered email address!")
+                        elif not is_valid_email(l_email):
+                            st.error("⚠️ Please enter a valid email address with a proper domain (e.g. name@domain.com)!")
                         else:
                             active_email = l_email
                             if supabase:
@@ -2241,15 +2414,21 @@ def clean_email_auth():
 
             with auth_tab[1]:
                 with st.form("reg_form_quick"):
-                    s_name = st.text_input("Full Name", placeholder="Enter your full name", key="reg_name_quick")
+                    s_name = st.text_input("Full Name", placeholder="Enter your full name", key="reg_name_quick").strip()
                     s_email = st.text_input("Email Address", placeholder="name@domain.com", key="reg_email_quick").strip().lower()
                     if st.form_submit_button("CREATE ACCOUNT 🔥", use_container_width=True):
-                        if s_name and s_email:
+                        if not s_name:
+                            st.warning("⚠️ Please provide your full name.")
+                        elif not s_email:
+                            st.error("⚠️ Please enter your email address!")
+                        elif not is_valid_email(s_email):
+                            st.error("⚠️ Please enter a valid email address with a proper domain (e.g. name@domain.com)!")
+                        else:
                             if supabase:
                                 try:
                                     check = supabase.table("profiles").select("*").eq("email", s_email).execute()
                                     if check.data:
-                                        st.warning("Account already exists. Please log in.")
+                                        st.warning("Account already exists with this email. Please log in.")
                                     else:
                                         new_u = {"email": s_email, "full_name": s_name}
                                         try:
@@ -2267,8 +2446,6 @@ def clean_email_auth():
                             else:
                                 st.session_state.user_data = {"email": s_email, "full_name": s_name, "is_pro": True}
                                 st.rerun()
-                        else:
-                            st.warning("Please provide all required fields.")
         st.stop()
 
 # --- 6. UNLIMITED ACCESS OVERRIDE (CREDITS TEMPORARILY DISABLED) ---
@@ -2333,15 +2510,21 @@ with st.sidebar:
         curr_name = (st.session_state.user_data or {}).get("full_name", "Student")
         st.caption(f"Active Account: {curr_email}")
         with st.form("edit_profile_sidebar"):
-            new_name = st.text_input("Name", value=curr_name)
-            new_email = st.text_input("Email", value=curr_email)
+            new_name = st.text_input("Name", value=curr_name).strip()
+            new_email = st.text_input("Email", value=curr_email).strip().lower()
             if st.form_submit_button("Save Profile"):
-                if "user_data" not in st.session_state or not st.session_state.user_data:
-                    st.session_state.user_data = {}
-                st.session_state.user_data["full_name"] = new_name
-                st.session_state.user_data["email"] = new_email
-                st.success("Profile saved!")
-                st.rerun()
+                if not new_name:
+                    st.warning("⚠️ Name cannot be empty.")
+                elif new_email and not is_valid_email(new_email):
+                    st.error("⚠️ Please enter a valid email address (e.g. name@domain.com)!")
+                else:
+                    if "user_data" not in st.session_state or not st.session_state.user_data:
+                        st.session_state.user_data = {}
+                    st.session_state.user_data["full_name"] = new_name
+                    if new_email:
+                        st.session_state.user_data["email"] = new_email
+                    st.success("Profile saved!")
+                    st.rerun()
 
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     if st.button("🚪 Logout", use_container_width=True):
