@@ -1,33 +1,51 @@
 import streamlit as st
 
-def render_landing_page():
+def render_landing_page(initial_theme=None):
+    # Determine initial theme and background
+    try:
+        qp_theme = str(st.query_params.get("theme") or "").strip().lower()
+    except Exception:
+        qp_theme = ""
+    
+    if qp_theme in ["light", "dark"]:
+        chosen_theme = qp_theme
+    elif initial_theme in ["light", "dark"]:
+        chosen_theme = initial_theme
+    else:
+        chosen_theme = "dark"
+
+    initial_bg = "#f8fafc" if chosen_theme == "light" else "#030303"
+
     # 1. Clean Streamlit Container Overrides
-    st.markdown("""
+    st.markdown(f"""
         <style>
-        header[data-testid="stHeader"] { display: none !important; }
-        [data-testid="stSidebar"], section[data-testid="stSidebar"] { display: none !important; }
-        footer { display: none !important; }
-        #MainMenu { display: none !important; }
-        .stDeployButton { display: none !important; }
+        header[data-testid="stHeader"] {{ display: none !important; }}
+        [data-testid="stSidebar"], section[data-testid="stSidebar"] {{ display: none !important; }}
+        footer {{ display: none !important; }}
+        #MainMenu {{ display: none !important; }}
+        .stDeployButton {{ display: none !important; }}
 
         .main .block-container,
-        [data-testid="stMainBlockContainer"] {
+        [data-testid="stMainBlockContainer"] {{
             padding: 0 !important;
             max-width: 100% !important;
             margin: 0 !important;
             width: 100% !important;
-        }
+        }}
 
-        .stApp {
-            background-color: #030303 !important;
-        }
-        @media (prefers-color-scheme: light) {
-            .stApp {
+        .stApp {{
+            background-color: {initial_bg} !important;
+        }}
+        @media (max-width: 768px) {{
+            .stApp {{
                 background-color: #f8fafc !important;
-            }
-        }
-
-
+            }}
+        }}
+        @media (prefers-color-scheme: light) {{
+            .stApp {{
+                background-color: #f8fafc !important;
+            }}
+        }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -66,6 +84,19 @@ def render_landing_page():
         --font-mono: 'Space Mono', monospace;
     }
 
+    /* Requirement 1: Mobile default must be strictly WHITE (light theme) */
+    @media (max-width: 768px) {
+        :root:not([data-theme="dark"]) {
+            --bg-dark: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --bg-input: #ffffff;
+            --text-main: #090d16;
+            --text-muted: #475569;
+            --text-dim: #64748b;
+        }
+    }
+
     @media (prefers-color-scheme: light) {
         :root {
             --bg-dark: #f8fafc;
@@ -76,6 +107,30 @@ def render_landing_page():
             --text-muted: #475569;
             --text-dim: #64748b;
         }
+    }
+
+    [data-theme="light"],
+    .light-theme,
+    #landingWrapper[data-theme="light"] {
+        --bg-dark: #f8fafc !important;
+        --bg-card: #ffffff !important;
+        --bg-card-hover: #f1f5f9 !important;
+        --bg-input: #ffffff !important;
+        --text-main: #090d16 !important;
+        --text-muted: #475569 !important;
+        --text-dim: #64748b !important;
+    }
+
+    [data-theme="dark"],
+    .dark-theme,
+    #landingWrapper[data-theme="dark"] {
+        --bg-dark: #030303 !important;
+        --bg-card: #080808 !important;
+        --bg-card-hover: #0d0d0d !important;
+        --bg-input: #0a0a0a !important;
+        --text-main: #ffffff !important;
+        --text-muted: #888888 !important;
+        --text-dim: #555555 !important;
     }
 
     .stApp, body {
@@ -198,6 +253,30 @@ def render_landing_page():
         gap: 0.75rem;
     }
 
+    .theme-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.55rem 0.95rem;
+        border-radius: 9999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        background: var(--bg-card);
+        color: var(--text-main);
+        border: 1px solid var(--border-subtle);
+        font-family: var(--font-display);
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .theme-toggle-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(88, 193, 200, 0.08);
+    }
+
     .btn {
         display: inline-flex;
         align-items: center;
@@ -277,6 +356,11 @@ def render_landing_page():
             font-size: 0.78rem;
             white-space: nowrap;
         }
+        .nav-actions .theme-toggle-btn {
+            padding: 0.42rem 0.65rem;
+            font-size: 0.76rem;
+            white-space: nowrap;
+        }
         .container {
             padding: 0 1rem;
         }
@@ -305,27 +389,97 @@ def render_landing_page():
         }
     }
 
-    @media (prefers-color-scheme: light) {
+    @media (prefers-color-scheme: light), [data-theme="light"], .light-theme, #landingWrapper[data-theme="light"] {
         .navbar {
-            background: rgba(248, 250, 252, 0.92);
+            background: rgba(248, 250, 252, 0.92) !important;
         }
         .brand-title {
-            color: #090d16;
+            color: #090d16 !important;
         }
-        .feature-text h4, .quad-title, .section-title, .hero-title, .founder-title, .tool-card h3 {
-            color: #090d16;
+        .feature-text h4, .quad-title, .section-title, .hero-title, .hero-center-title, .founder-title, .tool-card h3 {
+            color: #090d16 !important;
         }
-        .search-box input {
-            color: #090d16;
+        .dash-brand, .dash-greeting h3 {
+            color: #090d16 !important;
         }
-        .search-box input::placeholder {
-            color: #64748b;
-            opacity: 1;
+        .dashboard-card {
+            background: #ffffff !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 0 20px rgba(88, 193, 200, 0.15) !important;
+        }
+        .dash-input, .search-box input {
+            color: #090d16 !important;
+        }
+        .dash-input::placeholder, .search-box input::placeholder {
+            color: #64748b !important;
+            opacity: 1 !important;
+        }
+        .chip-btn, .quad-item {
+            background: #ffffff !important;
+            color: #1e293b !important;
         }
         .btn-secondary {
-            color: #090d16;
+            color: #090d16 !important;
+            background: rgba(0, 0, 0, 0.04) !important;
+        }
+        .footer {
+            background: #f8fafc !important;
         }
         .footer strong {
+            color: #090d16 !important;
+        }
+    }
+
+    /* Mobile screens default strictly to light theme styling if dark is not explicitly forced */
+    @media (max-width: 768px) {
+        :root:not([data-theme="dark"]) .navbar,
+        #landingWrapper:not([data-theme="dark"]) .navbar {
+            background: rgba(248, 250, 252, 0.92) !important;
+        }
+        :root:not([data-theme="dark"]) .brand-title,
+        #landingWrapper:not([data-theme="dark"]) .brand-title,
+        :root:not([data-theme="dark"]) .feature-text h4,
+        #landingWrapper:not([data-theme="dark"]) .feature-text h4,
+        :root:not([data-theme="dark"]) .quad-title,
+        #landingWrapper:not([data-theme="dark"]) .quad-title,
+        :root:not([data-theme="dark"]) .section-title,
+        #landingWrapper:not([data-theme="dark"]) .section-title,
+        :root:not([data-theme="dark"]) .hero-title,
+        #landingWrapper:not([data-theme="dark"]) .hero-title,
+        :root:not([data-theme="dark"]) .hero-center-title,
+        #landingWrapper:not([data-theme="dark"]) .hero-center-title,
+        :root:not([data-theme="dark"]) .founder-title,
+        #landingWrapper:not([data-theme="dark"]) .founder-title,
+        :root:not([data-theme="dark"]) .tool-card h3,
+        #landingWrapper:not([data-theme="dark"]) .tool-card h3,
+        :root:not([data-theme="dark"]) .dash-brand,
+        #landingWrapper:not([data-theme="dark"]) .dash-brand,
+        :root:not([data-theme="dark"]) .dash-greeting h3,
+        #landingWrapper:not([data-theme="dark"]) .dash-greeting h3 {
+            color: #090d16 !important;
+        }
+        :root:not([data-theme="dark"]) .dashboard-card,
+        #landingWrapper:not([data-theme="dark"]) .dashboard-card {
+            background: #ffffff !important;
+        }
+        :root:not([data-theme="dark"]) .dash-input,
+        #landingWrapper:not([data-theme="dark"]) .dash-input,
+        :root:not([data-theme="dark"]) .search-box input,
+        #landingWrapper:not([data-theme="dark"]) .search-box input {
+            color: #090d16 !important;
+        }
+        :root:not([data-theme="dark"]) .chip-btn,
+        #landingWrapper:not([data-theme="dark"]) .chip-btn,
+        :root:not([data-theme="dark"]) .quad-item,
+        #landingWrapper:not([data-theme="dark"]) .quad-item {
+            background: #ffffff !important;
+            color: #1e293b !important;
+        }
+        :root:not([data-theme="dark"]) .footer,
+        #landingWrapper:not([data-theme="dark"]) .footer {
+            background: #f8fafc !important;
+        }
+        :root:not([data-theme="dark"]) .footer strong,
+        #landingWrapper:not([data-theme="dark"]) .footer strong {
             color: #090d16 !important;
         }
     }
@@ -1064,12 +1218,12 @@ def render_landing_page():
         }
     }
   </style>
-<div class="landing-content">
+<div class="landing-content" id="landingWrapper">
 
   <!-- Navigation Bar -->
   <header class="navbar">
     <div class="container nav-wrapper">
-      <a href="?page=home"  class="brand">
+      <a href="?page=home" class="brand">
         <div class="brand-icon">🎓</div>
         <div class="brand-title">Topper<span>GPT</span></div>
       </a>
@@ -1083,8 +1237,11 @@ def render_landing_page():
       </ul>
 
       <div class="nav-actions">
-        <a href="?page=login"  class="btn btn-secondary">Login</a>
-        <a href="?page=login"  class="btn btn-primary">Explore Tools →</a>
+        <button id="landingThemeBtn" onclick="toggleLandingTheme()" class="theme-toggle-btn" title="Toggle Theme" aria-label="Toggle Theme">
+          <span id="themeBtnIcon">☀️</span> <span id="themeBtnText">Light</span>
+        </button>
+        <a href="?page=login" class="btn btn-secondary">Login</a>
+        <a href="?page=login" class="btn btn-primary">Explore Tools →</a>
       </div>
     </div>
   </header>
@@ -1468,6 +1625,73 @@ def render_landing_page():
       }
     }
   });
+
+  // Dynamic Theme Controller
+  function applyLandingTheme(theme) {
+    const root = document.getElementById('landingWrapper') || document.body;
+    root.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+    const icon = document.getElementById('themeBtnIcon');
+    const text = document.getElementById('themeBtnText');
+    if (theme === 'light') {
+      root.classList.add('light-theme');
+      root.classList.remove('dark-theme');
+      document.body.classList.add('light-theme');
+      document.body.classList.remove('dark-theme');
+      if (icon) icon.innerText = '🌙';
+      if (text) text.innerText = 'Dark';
+    } else {
+      root.classList.add('dark-theme');
+      root.classList.remove('light-theme');
+      document.body.classList.add('dark-theme');
+      document.body.classList.remove('light-theme');
+      if (icon) icon.innerText = '☀️';
+      if (text) text.innerText = 'Light';
+    }
+    try {
+      localStorage.setItem('toppergpt_theme', theme);
+    } catch(e) {}
+    // Update internal links to retain active theme
+    document.querySelectorAll('a').forEach(function(a) {
+      var href = a.getAttribute('href');
+      if (href && (href.startsWith('?page=') || href.startsWith('/?page='))) {
+        var base = href.split('?')[0] || '';
+        var search = href.includes('?') ? href.substring(href.indexOf('?') + 1) : '';
+        var params = new URLSearchParams(search);
+        params.set('theme', theme);
+        a.setAttribute('href', (base || '') + '?' + params.toString());
+      }
+    });
+  }
+
+  function toggleLandingTheme() {
+    const root = document.getElementById('landingWrapper') || document.body;
+    const current = root.getAttribute('data-theme') || (window.innerWidth <= 768 ? 'light' : 'dark');
+    const next = current === 'light' ? 'dark' : 'light';
+    applyLandingTheme(next);
+  }
+
+  // Initialize theme according to device specification:
+  // Mobile devices -> strictly WHITE (light theme)
+  // Laptop / PC devices -> strictly BLACK (dark theme)
+  (function initTheme() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var qpTheme = urlParams.get('theme');
+    var savedTheme = null;
+    try { savedTheme = localStorage.getItem('toppergpt_theme'); } catch(e) {}
+
+    var active = 'dark';
+    if (qpTheme === 'light' || qpTheme === 'dark') {
+      active = qpTheme;
+    } else if (savedTheme === 'light' || savedTheme === 'dark') {
+      active = savedTheme;
+    } else {
+      var isMobile = (window.innerWidth <= 768) || /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      active = isMobile ? 'light' : 'dark';
+    }
+    applyLandingTheme(active);
+  })();
 
   // Global click listener for fast, reliable navigation
   document.addEventListener('click', function(e) {
