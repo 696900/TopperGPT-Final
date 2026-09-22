@@ -136,13 +136,9 @@ div[data-testid="stStatusWidget"] {
     display: none !important;
     visibility: hidden !important;
 }
-[data-testid="stSidebarCollapseButton"],
-button[data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarCollapsedControl"],
-[data-testid="collapsedControl"],
+/* Toolbar and header action cleanup (sidebar toggle buttons are handled per-device in media queries) */
 section[data-testid="stSidebar"] button[kind="header"],
-button[data-testid="baseButton-headerNoPadding"],
-button[aria-label="Close sidebar"] {
+button[data-testid="baseButton-headerNoPadding"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
@@ -249,17 +245,10 @@ div[data-testid="stMarkdownContainer"] code {
 }
 
 /* ================================================================ */
-/* 1. SIDEBAR & FEATURE NAVIGATION (PERMANENT STICKY / FIXED)       */
+/* 1. SIDEBAR & FEATURE NAVIGATION BASE STYLING                      */
 /* ================================================================ */
 [data-testid="stSidebar"],
-section[data-testid="stSidebar"],
-[data-testid="stSidebar"][aria-expanded="false"],
-section[data-testid="stSidebar"][aria-expanded="false"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    transform: none !important;
-    margin-left: 0 !important;
+section[data-testid="stSidebar"] {
     background-color: var(--bg-sidebar) !important;
     border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     padding-top: 15px !important;
@@ -748,6 +737,22 @@ div[data-baseweb="menu"] li {
         z-index: 100 !important;
     }
 
+    /* Hide collapse controls and mobile navigation pill bar on desktop */
+    [data-testid="stSidebarCollapseButton"],
+    button[data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="collapsedControl"],
+    button[aria-label="Close sidebar"],
+    div:has(#mobile-nav-anchor) + div[data-testid="stHorizontalBlock"],
+    div:has(#mobile-nav-anchor) {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
     section.main,
     .stMain {
         margin-left: 290px !important;
@@ -803,6 +808,22 @@ div[data-baseweb="menu"] li {
         z-index: 100 !important;
     }
 
+    /* Hide collapse controls and mobile navigation pill bar on tablet */
+    [data-testid="stSidebarCollapseButton"],
+    button[data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="collapsedControl"],
+    button[aria-label="Close sidebar"],
+    div:has(#mobile-nav-anchor) + div[data-testid="stHorizontalBlock"],
+    div:has(#mobile-nav-anchor) {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
     section.main,
     .stMain {
         margin-left: 250px !important;
@@ -845,62 +866,23 @@ div[data-baseweb="menu"] li {
 }
 
 /* ================================================================ */
-/* 5. MOBILE PHONES (@media max-width: 768px)                       */
+/* 5. MOBILE PHONES & SMALL SCREENS (@media max-width: 768px)       */
 /* ================================================================ */
 @media (max-width: 768px) {
-    .stApp {
-        display: flex !important;
-        flex-direction: column !important;
-    }
-
-    [data-testid="stSidebar"],
-    section[data-testid="stSidebar"],
-    [data-testid="stSidebar"][aria-expanded="false"],
-    section[data-testid="stSidebar"][aria-expanded="false"] {
-        position: sticky !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-        height: auto !important;
-        max-height: 48vh !important;
-        background-color: var(--bg-sidebar) !important;
-        border-right: none !important;
-        border-bottom: 1px solid rgba(88, 193, 200, 0.25) !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7) !important;
-        z-index: 99999 !important;
-        overflow-y: auto !important;
-        transform: none !important;
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        margin-left: 0 !important;
-        padding: 8px 12px !important;
+    /* Critical layout overflow fix: Prevent horizontal body scrolling */
+    html, body, .stApp {
+        overflow-x: hidden !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
     }
 
     section.main,
     .stMain {
         margin-left: 0 !important;
         width: 100% !important;
-    }
-
-    div[data-testid="stSidebar"] div[role="radiogroup"] {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 6px !important;
-        margin-bottom: 6px !important;
-    }
-
-    div[data-testid="stSidebar"] div[role="radiogroup"] label {
-        padding: 8px 10px !important;
-        margin: 0 !important;
-    }
-
-    div[data-testid="stSidebar"] div[role="radiogroup"] label div p,
-    div[data-testid="stSidebar"] div[role="radiogroup"] label p,
-    div[data-testid="stSidebar"] div[role="radiogroup"] label span {
-        font-size: 13px !important;
+        max-width: 100vw !important;
+        padding-top: 6px !important;
+        overflow-x: hidden !important;
     }
 
     .main .block-container,
@@ -908,13 +890,82 @@ div[data-baseweb="menu"] li {
         width: 100% !important;
         max-width: 100% !important;
         padding-top: 1.2rem !important;
-        padding-left: 0.85rem !important;
-        padding-right: 0.85rem !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
         padding-bottom: 140px !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+    }
+
+    /* Mobile Sidebar Drawer Styling */
+    [data-testid="stSidebar"],
+    section[data-testid="stSidebar"] {
+        background-color: #0c0d12 !important;
+        border-right: 1px solid rgba(88, 193, 200, 0.25) !important;
+        box-shadow: 4px 0 30px rgba(0, 0, 0, 0.85) !important;
+        z-index: 99999 !important;
+        width: 82vw !important;
+        max-width: 320px !important;
+    }
+
+    /* Mobile Floating Hamburger Icon */
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="collapsedControl"] {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        position: fixed !important;
+        top: 12px !important;
+        left: 12px !important;
+        z-index: 99998 !important;
+        background: #13151f !important;
+        border: 1px solid rgba(88, 193, 200, 0.4) !important;
+        border-radius: 8px !important;
+        padding: 5px 8px !important;
+        color: #58c1c8 !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+    }
+
+    [data-testid="stSidebarCollapseButton"],
+    button[data-testid="stSidebarCollapseButton"],
+    button[aria-label="Close sidebar"] {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    /* Mobile Top Horizontal Navigation Pill-Menu */
+    div:has(#mobile-nav-anchor) + div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 6px !important;
+        margin-top: 2px !important;
+        margin-bottom: 14px !important;
+        width: 100% !important;
         box-sizing: border-box !important;
     }
 
-    /* Prevent Header/Streak Badge Overlap on Small Screens */
+    div:has(#mobile-nav-anchor) + div[data-testid="stHorizontalBlock"] > div {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+    }
+
+    div:has(#mobile-nav-anchor) + div[data-testid="stHorizontalBlock"] button {
+        padding: 8px 2px !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        min-height: 38px !important;
+        width: 100% !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        letter-spacing: -0.2px !important;
+    }
+
     /* Header & Streak Badge Layout on Mobile */
     div[data-testid="stHorizontalBlock"]:has(.streak-badge) {
         display: flex !important;
@@ -928,16 +979,16 @@ div[data-baseweb="menu"] li {
     }
 
     .page-main-title {
-        font-size: 24px !important;
+        font-size: 22px !important;
         line-height: 1.25 !important;
         margin: 0 0 6px 0 !important;
     }
 
     .streak-badge {
         float: none !important;
-        margin: 2px 0 12px 0 !important;
-        font-size: 12px !important;
-        padding: 5px 12px !important;
+        margin: 2px 0 10px 0 !important;
+        font-size: 11px !important;
+        padding: 4px 10px !important;
         display: inline-flex !important;
     }
 
@@ -945,13 +996,13 @@ div[data-baseweb="menu"] li {
     .starter-chip-container {
         display: flex !important;
         flex-wrap: wrap !important;
-        gap: 8px !important;
+        gap: 6px !important;
         width: 100% !important;
-        margin-bottom: 12px !important;
+        margin-bottom: 10px !important;
     }
     .starter-chip {
-        font-size: 12px !important;
-        padding: 6px 12px !important;
+        font-size: 11px !important;
+        padding: 5px 10px !important;
         margin-right: 0 !important;
         margin-bottom: 0 !important;
         flex-shrink: 0 !important;
@@ -959,23 +1010,25 @@ div[data-baseweb="menu"] li {
 
     /* Cards on Mobile */
     .topper-card {
-        padding: 16px 14px !important;
-        margin-bottom: 14px !important;
+        padding: 14px 12px !important;
+        margin-bottom: 12px !important;
         border-radius: 12px !important;
+        box-sizing: border-box !important;
+        word-break: break-word !important;
     }
     .topper-card h3 {
-        font-size: 17px !important;
+        font-size: 16px !important;
     }
     .topper-card p {
-        font-size: 13px !important;
+        font-size: 12.5px !important;
         line-height: 1.45 !important;
     }
 
-    /* Stack 3-column Topic Research Cards on Mobile */
+    /* Stack Multi-column Cards on Mobile */
     div[data-testid="stHorizontalBlock"]:has(.research-card-tag) {
         display: flex !important;
         flex-direction: column !important;
-        gap: 12px !important;
+        gap: 10px !important;
     }
     div[data-testid="stHorizontalBlock"]:has(.research-card-tag) > div {
         width: 100% !important;
@@ -987,17 +1040,29 @@ div[data-baseweb="menu"] li {
     div[data-testid="stFormSubmitButton"] > button,
     .stDownloadButton > button {
         font-size: 13px !important;
-        padding: 10px 14px !important;
-        white-space: nowrap !important;
-        text-overflow: ellipsis !important;
-        overflow: hidden !important;
+        padding: 9px 12px !important;
         width: 100% !important;
+        min-height: 38px !important;
     }
 
     /* Inputs: 16px font-size prevents iOS Safari auto-zoom */
     .stTextInput > div > div > input {
         font-size: 16px !important;
-        padding: 10px 14px !important;
+        padding: 10px 12px !important;
+    }
+
+    /* Mathematical Equations and Code Overflow on Mobile */
+    .katex-display {
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding: 4px 0 !important;
+        max-width: 100% !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    pre, code {
+        max-width: 100% !important;
+        white-space: pre-wrap !important;
+        word-break: break-all !important;
     }
 
     /* Pinned Bottom Chat Bar Container for Mobile with Safe Area Inset */
@@ -1007,20 +1072,30 @@ div[data-baseweb="menu"] li {
         left: 0 !important;
         right: 0 !important;
         width: 100% !important;
-        background: var(--bg-pinned-bar) !important;
-        padding: 8px 10px max(14px, env(safe-area-inset-bottom, 14px)) 10px !important;
+        max-width: 100vw !important;
+        background: #0c0d12 !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        padding: 6px 10px max(14px, env(safe-area-inset-bottom, 14px)) 10px !important;
         z-index: 9999 !important;
+        box-sizing: border-box !important;
     }
 
     div[data-testid="stBottomBlockContainer"] {
         padding: 0 !important;
         max-width: 100% !important;
         width: 100% !important;
+        margin: 0 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
     }
 
     div[data-testid="stChatInput"] {
         width: 100% !important;
-        margin: 4px 0 !important;
+        margin: 2px 0 !important;
         background: transparent !important;
         border: none !important;
         outline: none !important;
@@ -1028,8 +1103,8 @@ div[data-baseweb="menu"] li {
     }
 
     div[data-testid="stChatInput"] > div {
-        background: #0c0d12 !important;
-        border: 1px solid rgba(88, 193, 200, 0.3) !important;
+        background: #13151f !important;
+        border: 1px solid rgba(88, 193, 200, 0.35) !important;
         border-radius: 14px !important;
         padding: 4px 8px !important;
         outline: none !important;
@@ -1042,6 +1117,8 @@ div[data-baseweb="menu"] li {
         border: none !important;
         outline: none !important;
         box-shadow: none !important;
+        color: #f8fafc !important;
+        background: transparent !important;
     }
 
     div[data-testid="stChatInput"] button {
@@ -1074,6 +1151,19 @@ def init_supabase():
         return None
 
 supabase = init_supabase()
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_cached_profile(email_addr: str):
+    """Bypasses database lookup delays for returning students by caching user profile data in memory."""
+    if not supabase or not email_addr:
+        return None
+    try:
+        prof = supabase.table("profiles").select("*").eq("email", email_addr.strip().lower()).execute()
+        if prof.data:
+            return prof.data[0]
+    except Exception:
+        pass
+    return None
 
 # --- 4. LATEX & MATHEMATICAL FORMULA SANITIZER ---
 def clean_latex_math(text: str) -> str:
@@ -2310,143 +2400,128 @@ def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    if st.session_state.user_data is None:
-        col_back, _ = st.columns([1, 5])
-        with col_back:
-            if st.button("← Back to Home"):
-                st.query_params.clear()
-                st.rerun()
+    # Instant session persistence: if already authenticated, bypass login screen immediately
+    if st.session_state.user_data is not None:
+        return
 
-        st.markdown("""
-            <div style="text-align:center; padding: 20px 0 10px 0;">
-                <h1 style="color:var(--text-primary, #ffffff); font-size: 2.8rem; font-weight:800; margin: 10px 0;">
-                    Topper<span style="color:#58c1c8;">GPT</span>
-                </h1>
-                <p style="color:var(--text-muted, #94a3b8); font-size:15px; margin-top:0;">
-                    AI Academic Workspace for Mumbai University Engineering.
-                </p>
+    col_back, _ = st.columns([1, 5])
+    with col_back:
+        if st.button("← Back to Home"):
+            st.query_params.clear()
+            st.rerun()
+
+    st.markdown("""
+        <div style="text-align:center; padding: 20px 0 10px 0;">
+            <h1 style="color:var(--text-primary, #ffffff); font-size: 2.8rem; font-weight:800; margin: 10px 0;">
+                Topper<span style="color:#58c1c8;">GPT</span>
+            </h1>
+            <p style="color:var(--text-muted, #94a3b8); font-size:15px; margin-top:0;">
+                AI Academic Workspace for Mumbai University Engineering.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    if "pending_query" in st.session_state and st.session_state.pending_query:
+        st.markdown(f"""
+            <div style="background: rgba(88, 193, 200, 0.1); border: 1px solid rgba(88, 193, 200, 0.35); border-radius: 12px; padding: 12px 18px; margin: 0 auto 20px auto; max-width: 580px; text-align: center;">
+                <span style="color: #58c1c8; font-weight: 700; font-size: 13px;">✦ QUESTION CAPTURED:</span>
+                <span style="color: var(--text-primary, #ffffff); font-weight: 600;"> "{st.session_state.pending_query}"</span>
+                <p style="font-size: 12px; color: var(--text-muted, #94a3b8); margin: 4px 0 0 0;">Enter your email to unlock your verified solution in TopperGPT!</p>
             </div>
         """, unsafe_allow_html=True)
 
-        if "pending_query" in st.session_state and st.session_state.pending_query:
-            st.markdown(f"""
-                <div style="background: rgba(88, 193, 200, 0.1); border: 1px solid rgba(88, 193, 200, 0.35); border-radius: 12px; padding: 12px 18px; margin: 0 auto 20px auto; max-width: 580px; text-align: center;">
-                    <span style="color: #58c1c8; font-weight: 700; font-size: 13px;">✦ QUESTION CAPTURED:</span>
-                    <span style="color: var(--text-primary, #ffffff); font-weight: 600;"> "{st.session_state.pending_query}"</span>
-                    <p style="font-size: 12px; color: var(--text-muted, #94a3b8); margin: 4px 0 0 0;">Enter your email to unlock your verified solution in TopperGPT!</p>
-                </div>
-            """, unsafe_allow_html=True)
+    _, center_col, _ = st.columns([1, 1.8, 1])
+    with center_col:
+        st.markdown("""
+            <div style="background: rgba(88, 193, 200, 0.06); border: 1px solid rgba(88, 193, 200, 0.25); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; text-align: center;">
+                <span style="color: #58c1c8; font-weight: 700; font-size: 13px;">✦ INSTANT ACADEMIC ACCESS</span>
+                <p style="color: var(--text-muted, #94a3b8); font-size: 12px; margin: 4px 0 0 0;">Enter your academic email below or continue as Guest Student.</p>
+            </div>
+        """, unsafe_allow_html=True)
 
-        _, center_col, _ = st.columns([1, 1.8, 1])
-        with center_col:
+        if not st.session_state.get("guest_prompt_open", False):
+            if st.button("🚀 CONTINUE AS GUEST STUDENT", use_container_width=True):
+                st.session_state.guest_prompt_open = True
+                st.rerun()
+        else:
             st.markdown("""
-                <div style="background: rgba(88, 193, 200, 0.06); border: 1px solid rgba(88, 193, 200, 0.25); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; text-align: center;">
-                    <span style="color: #58c1c8; font-weight: 700; font-size: 13px;">✦ INSTANT ACADEMIC ACCESS</span>
-                    <p style="color: var(--text-muted, #94a3b8); font-size: 12px; margin: 4px 0 0 0;">Enter your academic email below or continue as Guest Student.</p>
+                <div style="background: rgba(88, 193, 200, 0.08); border: 1px solid rgba(88, 193, 200, 0.3); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;">
+                    <div style="color: #58c1c8; font-weight: 700; font-size: 13px; margin-bottom: 4px;">✦ GUEST STUDENT ONBOARDING</div>
+                    <p style="color: var(--text-muted, #94a3b8); font-size: 12px; margin: 0 0 10px 0;">Please enter your name below to initialize your free guest session with trial limits.</p>
                 </div>
             """, unsafe_allow_html=True)
+            with st.form("guest_name_form"):
+                g_name = st.text_input("Your Full Name", placeholder="e.g. Rahul Sharma", key="guest_name_field").strip()
+                col_g1, col_g2 = st.columns([2, 1])
+                with col_g1:
+                    g_submit = st.form_submit_button("ENTER WORKSPACE 🚀", use_container_width=True)
+                with col_g2:
+                    g_cancel = st.form_submit_button("Cancel", use_container_width=True)
 
-            if not st.session_state.get("guest_prompt_open", False):
-                if st.button("🚀 CONTINUE AS GUEST STUDENT", use_container_width=True):
-                    st.session_state.guest_prompt_open = True
-                    st.rerun()
-            else:
-                st.markdown("""
-                    <div style="background: rgba(88, 193, 200, 0.08); border: 1px solid rgba(88, 193, 200, 0.3); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;">
-                        <div style="color: #58c1c8; font-weight: 700; font-size: 13px; margin-bottom: 4px;">✦ GUEST STUDENT ONBOARDING</div>
-                        <p style="color: var(--text-muted, #94a3b8); font-size: 12px; margin: 0 0 10px 0;">Please enter your name below to initialize your free guest session with trial limits.</p>
-                    </div>
-                """, unsafe_allow_html=True)
-                with st.form("guest_name_form"):
-                    g_name = st.text_input("Your Full Name", placeholder="e.g. Rahul Sharma", key="guest_name_field").strip()
-                    col_g1, col_g2 = st.columns([2, 1])
-                    with col_g1:
-                        g_submit = st.form_submit_button("ENTER WORKSPACE 🚀", use_container_width=True)
-                    with col_g2:
-                        g_cancel = st.form_submit_button("Cancel", use_container_width=True)
-
-                    if g_submit:
-                        if not g_name:
-                            st.error("⚠️ Please enter your name to continue as a guest student!")
-                        else:
-                            st.session_state.user_data = {
-                                "email": "guest@toppergpt.in",
-                                "full_name": g_name,
-                                "is_pro": False,
-                                "is_guest": True,
-                                "trial_count": 5
-                            }
-                            st.session_state.guest_prompt_open = False
-                            st.rerun()
-                    if g_cancel:
+                if g_submit:
+                    if not g_name:
+                        st.error("⚠️ Please enter your name to continue as a guest student!")
+                    else:
+                        st.session_state.user_data = {
+                            "email": "guest@toppergpt.in",
+                            "full_name": g_name,
+                            "is_pro": False,
+                            "is_guest": True,
+                            "trial_count": 5
+                        }
                         st.session_state.guest_prompt_open = False
                         st.rerun()
+                if g_cancel:
+                    st.session_state.guest_prompt_open = False
+                    st.rerun()
 
-            st.markdown("<div style='text-align: center; margin: 12px 0; color: var(--text-dim, #64748b); font-size: 12px;'>─── OR SIGN IN WITH EMAIL ───</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin: 12px 0; color: var(--text-dim, #64748b); font-size: 12px;'>─── OR SIGN IN WITH EMAIL ───</div>", unsafe_allow_html=True)
 
-            auth_tab = st.tabs(["🔑 Quick Access", "📝 New Registration"])
-            
-            with auth_tab[0]:
-                with st.form("quick_login"):
-                    l_email = st.text_input("Registered Email Address", placeholder="name@domain.com", key="l_email_quick").strip().lower()
-                    if st.form_submit_button("ENTER DASHBOARD 🚀", use_container_width=True):
-                        if not l_email:
-                            st.error("⚠️ Please enter your registered email address!")
-                        elif not is_valid_email(l_email):
-                            st.error("⚠️ Please enter a valid email address with a proper domain (e.g. name@domain.com)!")
+        auth_tab = st.tabs(["🔑 Quick Access", "📝 New Registration"])
+        
+        with auth_tab[0]:
+            with st.form("quick_login"):
+                l_email = st.text_input("Registered Email Address", placeholder="name@domain.com", key="l_email_quick").strip().lower()
+                if st.form_submit_button("ENTER DASHBOARD 🚀", use_container_width=True):
+                    if not l_email:
+                        st.error("⚠️ Please enter your registered email address!")
+                    elif not is_valid_email(l_email):
+                        st.error("⚠️ Please enter a valid email address with a proper domain (e.g. name@domain.com)!")
+                    else:
+                        active_email = l_email
+                        # Instant cached lookup
+                        cached_prof = get_cached_profile(active_email)
+                        if cached_prof:
+                            st.session_state.user_data = cached_prof
                         else:
-                            active_email = l_email
-                            if supabase:
-                                try:
-                                    prof = supabase.table("profiles").select("*").eq("email", active_email).execute()
-                                    if prof.data:
-                                        st.session_state.user_data = prof.data[0]
-                                        st.rerun()
-                                    else:
-                                        st.session_state.user_data = {"email": active_email, "full_name": active_email.split('@')[0].capitalize(), "is_pro": True}
-                                        st.rerun()
-                                except Exception as e:
-                                    st.session_state.user_data = {"email": active_email, "full_name": active_email.split('@')[0].capitalize(), "is_pro": True}
-                                    st.rerun()
-                            else:
-                                st.session_state.user_data = {"email": active_email, "full_name": active_email.split('@')[0].capitalize(), "is_pro": True}
-                                st.rerun()
+                            st.session_state.user_data = {
+                                "email": active_email,
+                                "full_name": active_email.split('@')[0].capitalize(),
+                                "is_pro": True
+                            }
+                        st.rerun()
 
-            with auth_tab[1]:
-                with st.form("reg_form_quick"):
-                    s_name = st.text_input("Full Name", placeholder="Enter your full name", key="reg_name_quick").strip()
-                    s_email = st.text_input("Email Address", placeholder="name@domain.com", key="reg_email_quick").strip().lower()
-                    if st.form_submit_button("CREATE ACCOUNT 🔥", use_container_width=True):
-                        if not s_name:
-                            st.warning("⚠️ Please provide your full name.")
-                        elif not s_email:
-                            st.error("⚠️ Please enter your email address!")
-                        elif not is_valid_email(s_email):
-                            st.error("⚠️ Please enter a valid email address with a proper domain (e.g. name@domain.com)!")
-                        else:
-                            if supabase:
-                                try:
-                                    check = supabase.table("profiles").select("*").eq("email", s_email).execute()
-                                    if check.data:
-                                        st.warning("Account already exists with this email. Please log in.")
-                                    else:
-                                        new_u = {"email": s_email, "full_name": s_name}
-                                        try:
-                                            new_u["is_pro"] = True
-                                            ins = supabase.table("profiles").insert(new_u).execute()
-                                        except Exception:
-                                            new_u.pop("is_pro", None)
-                                            ins = supabase.table("profiles").insert(new_u).execute()
-
-                                        if ins.data:
-                                            st.session_state.user_data = ins.data[0]
-                                            st.rerun()
-                                except Exception as e:
-                                    st.error(f"Server error: {str(e)}")
-                            else:
-                                st.session_state.user_data = {"email": s_email, "full_name": s_name, "is_pro": True}
-                                st.rerun()
-        st.stop()
+        with auth_tab[1]:
+            with st.form("reg_form_quick"):
+                s_name = st.text_input("Full Name", placeholder="Enter your full name", key="reg_name_quick").strip()
+                s_email = st.text_input("Email Address", placeholder="name@domain.com", key="reg_email_quick").strip().lower()
+                if st.form_submit_button("CREATE ACCOUNT 🔥", use_container_width=True):
+                    if not s_name:
+                        st.warning("⚠️ Please provide your full name.")
+                    elif not s_email:
+                        st.error("⚠️ Please enter your email address!")
+                    elif not is_valid_email(s_email):
+                        st.error("⚠️ Please enter a valid email address with a proper domain (e.g. name@domain.com)!")
+                    else:
+                        new_u = {"email": s_email, "full_name": s_name, "is_pro": True}
+                        if supabase:
+                            try:
+                                supabase.table("profiles").insert(new_u).execute()
+                            except Exception:
+                                pass
+                        st.session_state.user_data = new_u
+                        st.rerun()
+    st.stop()
 
 # --- 6. UNLIMITED ACCESS OVERRIDE (CREDITS TEMPORARILY DISABLED) ---
 def check_access():
@@ -2485,13 +2560,26 @@ with st.sidebar:
             default_nav_idx = 2
         elif any(k in feat for k in ["solver", "research", "analytics", "flashcard"]):
             default_nav_idx = 3
+        st.session_state.active_nav = nav_options[default_nav_idx]
+        st.session_state["desktop_sidebar_radio"] = nav_options[default_nav_idx]
 
-    nav_selection = st.radio(
+    if "active_nav" not in st.session_state or st.session_state.active_nav not in nav_options:
+        st.session_state.active_nav = nav_options[default_nav_idx]
+        st.session_state["desktop_sidebar_radio"] = nav_options[default_nav_idx]
+
+    curr_idx = nav_options.index(st.session_state.active_nav)
+    sidebar_selection = st.radio(
         "Navigation",
         nav_options,
-        index=default_nav_idx,
-        label_visibility="collapsed"
+        index=curr_idx,
+        label_visibility="collapsed",
+        key="desktop_sidebar_radio"
     )
+    if sidebar_selection != st.session_state.active_nav:
+        st.session_state.active_nav = sidebar_selection
+        st.rerun()
+
+    nav_selection = st.session_state.active_nav
 
     st.markdown("""
         <div class="status-card">
@@ -2532,9 +2620,29 @@ with st.sidebar:
         st.query_params.clear()
         st.rerun()
 
-# --- 8. TOP HEADER & STREAK BAR ---
+# --- 8. TOP HEADER, MOBILE PILL NAVIGATION & STREAK BAR ---
 student_name = (st.session_state.user_data or {}).get("full_name", "Student")
 clean_title = nav_selection.split(" ", 1)[1]
+
+# Top Horizontal Navigation Pill-Menu (1-tap mobile feature switching)
+st.markdown('<div id="mobile-nav-anchor"></div>', unsafe_allow_html=True)
+m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+mobile_pills = [
+    ("💡 Tutor", "💡 AI Tutor"),
+    ("🎯 Qs", "🎯 Predicted Qs"),
+    ("📄 Notes", "📄 Short Notes"),
+    ("🔍 Research", "🔍 Topic Research")
+]
+
+for col, (pill_label, full_feature) in zip([m_col1, m_col2, m_col3, m_col4], mobile_pills):
+    with col:
+        is_active = (st.session_state.active_nav == full_feature)
+        btn_type = "primary" if is_active else "secondary"
+        if st.button(pill_label, key=f"btn_m_nav_{pill_label}", type=btn_type, use_container_width=True):
+            if st.session_state.active_nav != full_feature:
+                st.session_state.active_nav = full_feature
+                st.session_state["desktop_sidebar_radio"] = full_feature
+                st.rerun()
 
 col_head, col_badge = st.columns([3, 1])
 with col_head:
