@@ -737,14 +737,12 @@ div[data-baseweb="menu"] li {
         z-index: 100 !important;
     }
 
-    /* Hide collapse controls and mobile navigation pill bar on desktop */
+    /* Hide collapse controls on desktop */
     [data-testid="stSidebarCollapseButton"],
     button[data-testid="stSidebarCollapseButton"],
     [data-testid="stSidebarCollapsedControl"],
     [data-testid="collapsedControl"],
-    button[aria-label="Close sidebar"],
-    div:has(#mobile-nav-anchor) + div[data-testid="stHorizontalBlock"],
-    div:has(#mobile-nav-anchor) {
+    button[aria-label="Close sidebar"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -808,14 +806,12 @@ div[data-baseweb="menu"] li {
         z-index: 100 !important;
     }
 
-    /* Hide collapse controls and mobile navigation pill bar on tablet */
+    /* Hide collapse controls on tablet */
     [data-testid="stSidebarCollapseButton"],
     button[data-testid="stSidebarCollapseButton"],
     [data-testid="stSidebarCollapsedControl"],
     [data-testid="collapsedControl"],
-    button[aria-label="Close sidebar"],
-    div:has(#mobile-nav-anchor) + div[data-testid="stHorizontalBlock"],
-    div:has(#mobile-nav-anchor) {
+    button[aria-label="Close sidebar"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -936,35 +932,6 @@ div[data-baseweb="menu"] li {
         pointer-events: auto !important;
     }
 
-    /* Mobile Top Horizontal Navigation Pill-Menu */
-    div:has(#mobile-nav-anchor) + div[data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 6px !important;
-        margin-top: 2px !important;
-        margin-bottom: 14px !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-    }
-
-    div:has(#mobile-nav-anchor) + div[data-testid="stHorizontalBlock"] > div {
-        flex: 1 1 0 !important;
-        min-width: 0 !important;
-        padding: 0 !important;
-    }
-
-    div:has(#mobile-nav-anchor) + div[data-testid="stHorizontalBlock"] button {
-        padding: 8px 2px !important;
-        font-size: 11px !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        min-height: 38px !important;
-        width: 100% !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        letter-spacing: -0.2px !important;
-    }
 
     /* Header & Streak Badge Layout on Mobile */
     div[data-testid="stHorizontalBlock"]:has(.streak-badge) {
@@ -2560,26 +2527,17 @@ with st.sidebar:
             default_nav_idx = 2
         elif any(k in feat for k in ["solver", "research", "analytics", "flashcard"]):
             default_nav_idx = 3
-        st.session_state.active_nav = nav_options[default_nav_idx]
-        st.session_state["desktop_sidebar_radio"] = nav_options[default_nav_idx]
+        st.session_state["unified_nav_radio"] = nav_options[default_nav_idx]
 
-    if "active_nav" not in st.session_state or st.session_state.active_nav not in nav_options:
-        st.session_state.active_nav = nav_options[default_nav_idx]
-        st.session_state["desktop_sidebar_radio"] = nav_options[default_nav_idx]
+    if "unified_nav_radio" not in st.session_state or st.session_state["unified_nav_radio"] not in nav_options:
+        st.session_state["unified_nav_radio"] = nav_options[default_nav_idx]
 
-    curr_idx = nav_options.index(st.session_state.active_nav)
-    sidebar_selection = st.radio(
+    nav_selection = st.radio(
         "Navigation",
         nav_options,
-        index=curr_idx,
-        label_visibility="collapsed",
-        key="desktop_sidebar_radio"
+        key="unified_nav_radio",
+        label_visibility="collapsed"
     )
-    if sidebar_selection != st.session_state.active_nav:
-        st.session_state.active_nav = sidebar_selection
-        st.rerun()
-
-    nav_selection = st.session_state.active_nav
 
     st.markdown("""
         <div class="status-card">
@@ -2620,29 +2578,9 @@ with st.sidebar:
         st.query_params.clear()
         st.rerun()
 
-# --- 8. TOP HEADER, MOBILE PILL NAVIGATION & STREAK BAR ---
+# --- 8. TOP HEADER & STREAK BAR ---
 student_name = (st.session_state.user_data or {}).get("full_name", "Student")
 clean_title = nav_selection.split(" ", 1)[1]
-
-# Top Horizontal Navigation Pill-Menu (1-tap mobile feature switching)
-st.markdown('<div id="mobile-nav-anchor"></div>', unsafe_allow_html=True)
-m_col1, m_col2, m_col3, m_col4 = st.columns(4)
-mobile_pills = [
-    ("💡 Tutor", "💡 AI Tutor"),
-    ("🎯 Qs", "🎯 Predicted Qs"),
-    ("📄 Notes", "📄 Short Notes"),
-    ("🔍 Research", "🔍 Topic Research")
-]
-
-for col, (pill_label, full_feature) in zip([m_col1, m_col2, m_col3, m_col4], mobile_pills):
-    with col:
-        is_active = (st.session_state.active_nav == full_feature)
-        btn_type = "primary" if is_active else "secondary"
-        if st.button(pill_label, key=f"btn_m_nav_{pill_label}", type=btn_type, use_container_width=True):
-            if st.session_state.active_nav != full_feature:
-                st.session_state.active_nav = full_feature
-                st.session_state["desktop_sidebar_radio"] = full_feature
-                st.rerun()
 
 col_head, col_badge = st.columns([3, 1])
 with col_head:
