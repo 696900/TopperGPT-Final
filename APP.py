@@ -68,186 +68,54 @@ if qp_query and "pending_query" not in st.session_state:
 if qp_feature and "pending_feature" not in st.session_state:
     st.session_state.pending_feature = qp_feature
 
-# Safe theme query parameter extraction
-try:
-    qp_theme = str(st.query_params.get("theme") or "").strip().lower()
-except Exception:
-    qp_theme = ""
+# Universal Permanent Black (Dark) Theme Lock across all devices
+st.session_state.theme_choice = "dark"
+active_theme = "dark"
 
-if qp_theme in ["light", "dark"]:
-    st.session_state.theme_choice = qp_theme
-
-def is_mobile_client() -> bool:
-    """
-    Detects if the client is a mobile device via Streamlit context headers.
-    Returns True for mobile devices (smartphones/tablets), False for laptop/PC.
-    """
-    try:
-        headers = getattr(st, "context", None) and getattr(st.context, "headers", None)
-        if headers:
-            # Check Client Hints: Sec-CH-UA-Mobile (?1 for mobile)
-            sec_ch_mobile = str(headers.get("sec-ch-ua-mobile", "") or headers.get("Sec-Ch-Ua-Mobile", "")).strip()
-            if sec_ch_mobile == "?1":
-                return True
-            # Check User Agent header
-            ua = str(headers.get("user-agent", "") or headers.get("User-Agent", "")).lower()
-            mobile_identifiers = [
-                "mobile", "android", "iphone", "ipod", "ipad",
-                "webos", "blackberry", "windows phone", "opera mini", "iemobile"
-            ]
-            if any(k in ua for k in mobile_identifiers):
-                return True
-    except Exception:
-        pass
-    return False
-
-# Device default theme resolution:
-# For Mobile devices: Default theme must be strictly WHITE (light theme).
-# For Laptop / PC devices: Default theme must be strictly BLACK (dark theme).
-if "theme_choice" not in st.session_state or st.session_state.theme_choice not in ["light", "dark"]:
-    st.session_state.theme_choice = "light" if is_mobile_client() else "dark"
-
-active_theme = st.session_state.theme_choice
-
-# Prepare dynamic CSS theme values according to active theme
-if active_theme == "light":
-    css_text_primary = "#090d16"
-    css_text_secondary = "#1e293b"
-    css_text_muted = "#475569"
-    css_text_dim = "#64748b"
-    css_text_placeholder = "#64748b"
-    css_bg_primary = "#f8fafc"
-    css_bg_surface = "#ffffff"
-    css_bg_sidebar = "#ffffff"
-    css_bg_input = "#ffffff"
-    css_bg_chat_bar = "rgba(255, 255, 255, 0.96)"
-    css_bg_pinned_bar = "linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.96) 30%, #f8fafc 100%)"
-    css_bg_hover = "rgba(88, 193, 200, 0.12)"
-    css_grid_line = "rgba(0, 0, 0, 0.04)"
-else:
-    css_text_primary = "#f8fafc"
-    css_text_secondary = "#cbd5e1"
-    css_text_muted = "#94a3b8"
-    css_text_dim = "#64748b"
-    css_text_placeholder = "#94a3b8"
-    css_bg_primary = "#030303"
-    css_bg_surface = "#08090d"
-    css_bg_sidebar = "#060709"
-    css_bg_input = "#08090d"
-    css_bg_chat_bar = "rgba(8, 9, 13, 0.94)"
-    css_bg_pinned_bar = "linear-gradient(180deg, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.96) 30%, #030303 100%)"
-    css_bg_hover = "rgba(88, 193, 200, 0.08)"
-    css_grid_line = "rgba(255, 255, 255, 0.02)"
-
-# Inject active theme variable block
-st.markdown(f"""
-<style>
-:root {{
-    --text-primary: {css_text_primary} !important;
-    --text-secondary: {css_text_secondary} !important;
-    --text-muted: {css_text_muted} !important;
-    --text-dim: {css_text_dim} !important;
-    --text-placeholder: {css_text_placeholder} !important;
-    --bg-primary: {css_bg_primary} !important;
-    --bg-surface: {css_bg_surface} !important;
-    --bg-sidebar: {css_bg_sidebar} !important;
-    --bg-input: {css_bg_input} !important;
-    --bg-chat-bar: {css_bg_chat_bar} !important;
-    --bg-pinned-bar: {css_bg_pinned_bar} !important;
-    --bg-hover: {css_bg_hover} !important;
-    --grid-line: {css_grid_line} !important;
-}}
-</style>
-""", unsafe_allow_html=True)
-
-# --- 2. CSS STYLING OVERHAUL (DYNAMIC THEME & MULTI-DEVICE RESPONSIVE) ---
+# --- 2. CSS STYLING OVERHAUL (PERMANENT DARK THEME & STREAMLIT TOOLBAR REMOVAL) ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 
 /* ================================================================ */
-/* 0. DYNAMIC THEME SYSTEM (DARK & LIGHT MODE ADAPTATION)            */
+/* 0. STREAMLIT TOOLBAR, MENU, FOOTER & BRANDING REMOVAL            */
 /* ================================================================ */
-:root {
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
-    --text-dim: #64748b;
-    --text-placeholder: #94a3b8;
-    --bg-primary: #030303;
-    --bg-surface: #08090d;
-    --bg-sidebar: #060709;
-    --bg-input: #08090d;
-    --bg-chat-bar: rgba(8, 9, 13, 0.94);
-    --bg-pinned-bar: linear-gradient(180deg, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.96) 30%, #030303 100%);
-    --bg-hover: rgba(88, 193, 200, 0.08);
-    --grid-line: rgba(255, 255, 255, 0.02);
+#MainMenu {
+    visibility: hidden !important;
+    display: none !important;
+}
+footer {
+    visibility: hidden !important;
+    display: none !important;
+}
+[data-testid="stToolbar"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    width: 0 !important;
+}
+div[data-testid="stDecoration"] {
+    display: none !important;
+    visibility: hidden !important;
+}
+div[data-testid="stStatusWidget"] {
+    display: none !important;
+    visibility: hidden !important;
+}
+.stDeployButton {
+    display: none !important;
+    visibility: hidden !important;
 }
 
-/* Device-based default in CSS: Mobile screen (< 768px) defaults to Light theme */
-@media (max-width: 768px) {
-    :root:not([data-theme="dark"]) {
-        --text-primary: #090d16;
-        --text-secondary: #1e293b;
-        --text-muted: #475569;
-        --text-dim: #64748b;
-        --text-placeholder: #64748b;
-        --bg-primary: #f8fafc;
-        --bg-surface: #ffffff;
-        --bg-sidebar: #ffffff;
-        --bg-input: #ffffff;
-        --bg-chat-bar: rgba(255, 255, 255, 0.96);
-        --bg-pinned-bar: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.96) 30%, #f8fafc 100%);
-        --bg-hover: rgba(88, 193, 200, 0.12);
-        --grid-line: rgba(0, 0, 0, 0.04);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    :root {
-        --text-primary: #090d16;
-        --text-secondary: #1e293b;
-        --text-muted: #475569;
-        --text-dim: #64748b;
-        --text-placeholder: #64748b;
-        --bg-primary: #f8fafc;
-        --bg-surface: #ffffff;
-        --bg-sidebar: #ffffff;
-        --bg-input: #ffffff;
-        --bg-chat-bar: rgba(255, 255, 255, 0.96);
-        --bg-pinned-bar: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.96) 30%, #f8fafc 100%);
-        --bg-hover: rgba(88, 193, 200, 0.12);
-        --grid-line: rgba(0, 0, 0, 0.03);
-    }
-}
-
-[data-theme="light"],
-[data-base-theme="light"],
-.stApp[data-theme="light"],
-.stApp[data-base-theme="light"],
-html[data-theme="light"],
-body[data-theme="light"] {
-    --text-primary: #090d16 !important;
-    --text-secondary: #1e293b !important;
-    --text-muted: #475569 !important;
-    --text-dim: #64748b !important;
-    --text-placeholder: #64748b !important;
-    --bg-primary: #f8fafc !important;
-    --bg-surface: #ffffff !important;
-    --bg-sidebar: #f8fafc !important;
-    --bg-input: #ffffff !important;
-    --bg-chat-bar: rgba(255, 255, 255, 0.96) !important;
-    --bg-pinned-bar: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.96) 30%, #f8fafc 100%) !important;
-    --bg-hover: rgba(88, 193, 200, 0.12) !important;
-    --grid-line: rgba(0, 0, 0, 0.03) !important;
-}
-
-[data-theme="dark"],
-[data-base-theme="dark"],
-.stApp[data-theme="dark"],
-.stApp[data-base-theme="dark"],
-html[data-theme="dark"],
-body[data-theme="dark"] {
+/* ================================================================ */
+/* 1. UNIVERSAL PERMANENT BLACK (DARK) THEME PALETTE                */
+/* ================================================================ */
+:root,
+html,
+body,
+.stApp {
     --text-primary: #f8fafc !important;
     --text-secondary: #cbd5e1 !important;
     --text-muted: #94a3b8 !important;
@@ -737,51 +605,6 @@ div[data-testid="stChatInput"] button svg {
     fill: #58C1C8 !important;
 }
 
-/* Sleek styling for theme toggle button */
-button[key="header_theme_toggle"],
-div:has(> button[key="header_theme_toggle"]) button {
-    background: var(--bg-surface) !important;
-    color: var(--text-primary) !important;
-    border: 1px solid rgba(88, 193, 200, 0.4) !important;
-    border-radius: 9999px !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-    padding: 6px 14px !important;
-    box-shadow: 0 0 12px rgba(88, 193, 200, 0.15) !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 6px !important;
-    transition: all 0.2s ease !important;
-}
-button[key="header_theme_toggle"]:hover,
-div:has(> button[key="header_theme_toggle"]) button:hover {
-    border-color: #58C1C8 !important;
-    box-shadow: 0 0 18px rgba(88, 193, 200, 0.4) !important;
-    transform: translateY(-1px) !important;
-}
-
-/* Sidebar Theme Buttons */
-button[key="sb_btn_dark"], button[key="sb_btn_light"],
-div:has(> button[key="sb_btn_dark"]) button, div:has(> button[key="sb_btn_light"]) button {
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    padding: 6px 10px !important;
-    border-radius: 8px !important;
-}
-
-/* Auth Theme Button */
-button[key="auth_theme_btn"],
-div:has(> button[key="auth_theme_btn"]) button {
-    background: var(--bg-surface) !important;
-    color: var(--text-primary) !important;
-    border: 1px solid rgba(88, 193, 200, 0.4) !important;
-    border-radius: 9999px !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    padding: 6px 12px !important;
-}
-
 /* Table and Component Contrast Enhancements */
 table, thead, tbody, tr, th, td {
     color: var(--text-primary) !important;
@@ -936,25 +759,12 @@ div[data-baseweb="menu"] li {
     div[data-testid="stHorizontalBlock"]:has(.streak-badge) {
         display: flex !important;
         flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 6px !important;
+        align-items: flex-start !important;
+        gap: 2px !important;
     }
     div[data-testid="stHorizontalBlock"]:has(.streak-badge) > div {
         width: 100% !important;
         min-width: 100% !important;
-    }
-    /* Inner control row for theme toggle + streak badge */
-    div[data-testid="stHorizontalBlock"]:has(button[key="header_theme_toggle"]) {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 8px !important;
-        align-items: center !important;
-        width: 100% !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(button[key="header_theme_toggle"]) > div {
-        flex: 1 !important;
-        min-width: 0 !important;
-        width: 50% !important;
     }
 
     .page-main-title {
@@ -965,12 +775,10 @@ div[data-baseweb="menu"] li {
 
     .streak-badge {
         float: none !important;
-        margin: 0 !important;
+        margin: 2px 0 12px 0 !important;
         font-size: 12px !important;
-        padding: 6px 10px !important;
-        text-align: center !important;
-        justify-content: center !important;
-        width: 100% !important;
+        padding: 5px 12px !important;
+        display: inline-flex !important;
     }
 
     /* Starter Quick Chips */
@@ -2331,17 +2139,11 @@ def clean_email_auth():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-        col_back, col_auth_theme, _ = st.columns([1.5, 1.5, 3])
+    if st.session_state.user_data is None:
+        col_back, _ = st.columns([1, 5])
         with col_back:
             if st.button("← Back to Home"):
                 st.query_params.clear()
-                st.rerun()
-        with col_auth_theme:
-            auth_theme_lbl = "☀️ Light" if active_theme == "dark" else "🌙 Dark"
-            if st.button(auth_theme_lbl, key="auth_theme_btn"):
-                next_th = "light" if active_theme == "dark" else "dark"
-                st.session_state.theme_choice = next_th
-                st.query_params["theme"] = next_th
                 st.rerun()
 
         st.markdown("""
@@ -2372,9 +2174,42 @@ def clean_email_auth():
                     <p style="color: var(--text-muted, #94a3b8); font-size: 12px; margin: 4px 0 0 0;">Enter your academic email below or continue as Guest Student.</p>
                 </div>
             """, unsafe_allow_html=True)
-            if st.button("🚀 CONTINUE AS GUEST STUDENT", use_container_width=True):
-                st.session_state.user_data = {"email": "student@toppergpt.in", "full_name": "Student", "is_pro": True}
-                st.rerun()
+
+            if not st.session_state.get("guest_prompt_open", False):
+                if st.button("🚀 CONTINUE AS GUEST STUDENT", use_container_width=True):
+                    st.session_state.guest_prompt_open = True
+                    st.rerun()
+            else:
+                st.markdown("""
+                    <div style="background: rgba(88, 193, 200, 0.08); border: 1px solid rgba(88, 193, 200, 0.3); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;">
+                        <div style="color: #58c1c8; font-weight: 700; font-size: 13px; margin-bottom: 4px;">✦ GUEST STUDENT ONBOARDING</div>
+                        <p style="color: var(--text-muted, #94a3b8); font-size: 12px; margin: 0 0 10px 0;">Please enter your name below to initialize your free guest session with trial limits.</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                with st.form("guest_name_form"):
+                    g_name = st.text_input("Your Full Name", placeholder="e.g. Rahul Sharma", key="guest_name_field").strip()
+                    col_g1, col_g2 = st.columns([2, 1])
+                    with col_g1:
+                        g_submit = st.form_submit_button("ENTER WORKSPACE 🚀", use_container_width=True)
+                    with col_g2:
+                        g_cancel = st.form_submit_button("Cancel", use_container_width=True)
+
+                    if g_submit:
+                        if not g_name:
+                            st.error("⚠️ Please enter your name to continue as a guest student!")
+                        else:
+                            st.session_state.user_data = {
+                                "email": "guest@toppergpt.in",
+                                "full_name": g_name,
+                                "is_pro": False,
+                                "is_guest": True,
+                                "trial_count": 5
+                            }
+                            st.session_state.guest_prompt_open = False
+                            st.rerun()
+                    if g_cancel:
+                        st.session_state.guest_prompt_open = False
+                        st.rerun()
 
             st.markdown("<div style='text-align: center; margin: 12px 0; color: var(--text-dim, #64748b); font-size: 12px;'>─── OR SIGN IN WITH EMAIL ───</div>", unsafe_allow_html=True)
 
@@ -2384,22 +2219,25 @@ def clean_email_auth():
                 with st.form("quick_login"):
                     l_email = st.text_input("Registered Email Address", placeholder="name@domain.com", key="l_email_quick").strip().lower()
                     if st.form_submit_button("ENTER DASHBOARD 🚀", use_container_width=True):
-                        active_email = l_email if l_email else "student@toppergpt.in"
-                        if supabase:
-                            try:
-                                prof = supabase.table("profiles").select("*").eq("email", active_email).execute()
-                                if prof.data:
-                                    st.session_state.user_data = prof.data[0]
-                                    st.rerun()
-                                else:
+                        if not l_email:
+                            st.error("⚠️ Please enter your registered email address!")
+                        else:
+                            active_email = l_email
+                            if supabase:
+                                try:
+                                    prof = supabase.table("profiles").select("*").eq("email", active_email).execute()
+                                    if prof.data:
+                                        st.session_state.user_data = prof.data[0]
+                                        st.rerun()
+                                    else:
+                                        st.session_state.user_data = {"email": active_email, "full_name": active_email.split('@')[0].capitalize(), "is_pro": True}
+                                        st.rerun()
+                                except Exception as e:
                                     st.session_state.user_data = {"email": active_email, "full_name": active_email.split('@')[0].capitalize(), "is_pro": True}
                                     st.rerun()
-                            except Exception as e:
+                            else:
                                 st.session_state.user_data = {"email": active_email, "full_name": active_email.split('@')[0].capitalize(), "is_pro": True}
                                 st.rerun()
-                        else:
-                            st.session_state.user_data = {"email": active_email, "full_name": active_email.split('@')[0].capitalize(), "is_pro": True}
-                            st.rerun()
 
             with auth_tab[1]:
                 with st.form("reg_form_quick"):
@@ -2489,18 +2327,6 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<div style='font-size: 11px; font-weight: 700; color: var(--text-dim, #64748b); text-transform: uppercase; letter-spacing: 0.8px; margin: 16px 0 6px 2px;'>Appearance / Theme</div>", unsafe_allow_html=True)
-    col_sb_t1, col_sb_t2 = st.columns(2)
-    with col_sb_t1:
-        if st.button("🌙 Dark", key="sb_btn_dark", use_container_width=True, disabled=(active_theme == "dark")):
-            st.session_state.theme_choice = "dark"
-            st.query_params["theme"] = "dark"
-            st.rerun()
-    with col_sb_t2:
-        if st.button("☀️ Light", key="sb_btn_light", use_container_width=True, disabled=(active_theme == "light")):
-            st.session_state.theme_choice = "light"
-            st.query_params["theme"] = "light"
-            st.rerun()
 
     with st.expander(f"👤 {(st.session_state.user_data or {}).get('full_name', 'Student')}", expanded=False):
         curr_email = (st.session_state.user_data or {}).get("email", "student@toppergpt.in")
@@ -2527,20 +2353,11 @@ with st.sidebar:
 student_name = (st.session_state.user_data or {}).get("full_name", "Student")
 clean_title = nav_selection.split(" ", 1)[1]
 
-col_head, col_controls = st.columns([5, 4])
+col_head, col_badge = st.columns([3, 1])
 with col_head:
-    st.markdown(f"<h1 class='page-main-title' style='color:var(--text-primary, #ffffff); margin:0 0 10px 0;'>{clean_title}</h1>", unsafe_allow_html=True)
-with col_controls:
-    col_t_btn, col_s_bdg = st.columns([1, 1])
-    with col_t_btn:
-        theme_btn_text = "☀️ Light" if active_theme == "dark" else "🌙 Dark"
-        if st.button(theme_btn_text, key="header_theme_toggle", help="Toggle between Dark and Light mode", use_container_width=True):
-            next_th = "light" if active_theme == "dark" else "dark"
-            st.session_state.theme_choice = next_th
-            st.query_params["theme"] = next_th
-            st.rerun()
-    with col_s_bdg:
-        st.markdown("<div class='streak-badge' style='width:100%; justify-content:center;'>🔥 6-day streak</div>", unsafe_allow_html=True)
+    st.markdown(f"<h1 class='page-main-title' style='color:var(--text-primary, #ffffff); margin:0 0 15px 0;'>{clean_title}</h1>", unsafe_allow_html=True)
+with col_badge:
+    st.markdown("<div class='streak-badge'>🔥 6-day study streak</div>", unsafe_allow_html=True)
 
 # Helper function for Instant Hinglish Translation
 def translate_to_hinglish(text_content):
