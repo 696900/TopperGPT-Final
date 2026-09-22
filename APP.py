@@ -137,8 +137,7 @@ div[data-testid="stStatusWidget"] {
     visibility: hidden !important;
 }
 /* Toolbar and header action cleanup (sidebar toggle buttons are handled per-device in media queries) */
-section[data-testid="stSidebar"] button[kind="header"],
-button[data-testid="baseButton-headerNoPadding"] {
+section[data-testid="stSidebar"] button[kind="header"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
@@ -553,11 +552,13 @@ div[data-testid="stChatInput"] {
     margin: 8px 0 12px 0 !important;
 }
 
-div[data-testid="stChatInput"] > div {
-    background: #0c0d12 !important;
+div[data-testid="stChatInput"] > div,
+div[data-testid="stChatInput"] .stChatFloatingInputContainer {
+    background: #13151f !important;
+    background-color: #13151f !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(88, 193, 200, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
     border-radius: 16px !important;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7) !important;
     outline: none !important;
@@ -565,22 +566,44 @@ div[data-testid="stChatInput"] > div {
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-div[data-testid="stChatInput"] > div:focus-within {
+div[data-testid="stChatInput"] > div:focus-within,
+div[data-testid="stChatInput"] .stChatFloatingInputContainer:focus-within {
     background: #13151f !important;
-    border-color: rgba(88, 193, 200, 0.65) !important;
-    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.85), 0 0 16px rgba(88, 193, 200, 0.25) !important;
+    background-color: #13151f !important;
+    border-color: rgba(88, 193, 200, 0.5) !important;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.85), 0 0 10px rgba(88, 193, 200, 0.15) !important;
     outline: none !important;
     transform: translateY(-1px);
 }
 
-div[data-testid="stChatInput"] textarea {
+/* Strip all BaseWeb inner borders, outlines, and box-shadows */
+div[data-testid="stChatInput"] div[data-baseweb="textarea"],
+div[data-testid="stChatInput"] div[data-baseweb="base-input"],
+div[data-testid="stChatInput"] div[data-baseweb="textarea"] > div,
+div[data-testid="stChatInput"] div[data-baseweb="base-input"] > div,
+div[data-testid="stChatInput"] [class*="StyledRoot"],
+div[data-testid="stChatInput"] [class*="StyledInputContainer"] {
+    background: transparent !important;
     background-color: transparent !important;
-    color: var(--text-primary) !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+}
+
+div[data-testid="stChatInput"] textarea,
+div[data-testid="stChatInput"] textarea:focus,
+div[data-testid="stChatInput"] textarea:focus-visible,
+div[data-testid="stChatInput"] textarea:active {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: var(--text-primary, #f8fafc) !important;
     font-family: inherit !important;
     font-size: 15px !important;
     line-height: 1.5 !important;
     border: none !important;
     box-shadow: none !important;
+    -webkit-box-shadow: none !important;
     outline: none !important;
     padding: 8px 10px !important;
 }
@@ -660,9 +683,10 @@ div[data-testid="stChatInput"] button svg {
 }
 
 /* Sleek Hamburger Drawer Button */
-[data-testid="collapsedControl"] {
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapsedControl"] {
     color: #58c1c8 !important;
-    background: var(--bg-chat-bar) !important;
+    background: #13151f !important;
     border: 1.5px solid rgba(88, 193, 200, 0.4) !important;
     border-radius: 10px !important;
     padding: 7px 9px !important;
@@ -674,11 +698,13 @@ div[data-testid="stChatInput"] button svg {
     z-index: 999999 !important;
     transition: all 0.2s ease !important;
 }
-[data-testid="collapsedControl"]:hover {
+[data-testid="collapsedControl"]:hover,
+[data-testid="stSidebarCollapsedControl"]:hover {
     border-color: #58C1C8 !important;
     box-shadow: 0 4px 22px rgba(0, 0, 0, 0.5), 0 0 18px rgba(88, 193, 200, 0.5) !important;
 }
-[data-testid="collapsedControl"] svg {
+[data-testid="collapsedControl"] svg,
+[data-testid="stSidebarCollapsedControl"] svg {
     stroke: #58C1C8 !important;
     fill: #58C1C8 !important;
 }
@@ -885,9 +911,9 @@ div[data-baseweb="menu"] li {
     div[data-testid="stMainBlockContainer"] {
         width: 100% !important;
         max-width: 100% !important;
-        padding-top: 1.2rem !important;
-        padding-left: 12px !important;
-        padding-right: 12px !important;
+        padding-top: 4.2rem !important; /* Adequate clearance so top title never collides with floating hamburger */
+        padding-left: 14px !important;
+        padding-right: 14px !important;
         padding-bottom: 140px !important;
         box-sizing: border-box !important;
         overflow-x: hidden !important;
@@ -904,7 +930,7 @@ div[data-baseweb="menu"] li {
         max-width: 320px !important;
     }
 
-    /* Mobile Floating Hamburger Icon */
+    /* Mobile Native Hamburger Menu Accessibility */
     [data-testid="stSidebarCollapsedControl"],
     [data-testid="collapsedControl"] {
         display: flex !important;
@@ -914,13 +940,49 @@ div[data-baseweb="menu"] li {
         position: fixed !important;
         top: 12px !important;
         left: 12px !important;
-        z-index: 99998 !important;
+        z-index: 999999 !important;
         background: #13151f !important;
-        border: 1px solid rgba(88, 193, 200, 0.4) !important;
-        border-radius: 8px !important;
-        padding: 5px 8px !important;
+        border: 1.5px solid rgba(88, 193, 200, 0.6) !important;
+        border-radius: 10px !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 12px rgba(88, 193, 200, 0.3) !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+    }
+
+    [data-testid="stSidebarCollapsedControl"] button,
+    [data-testid="collapsedControl"] button,
+    [data-testid="stSidebarCollapsedControl"] button[data-testid="baseButton-headerNoPadding"],
+    [data-testid="collapsedControl"] button[data-testid="baseButton-headerNoPadding"],
+    [data-testid="stSidebarCollapsedControl"] button[aria-label="Open sidebar"],
+    [data-testid="collapsedControl"] button[aria-label="Open sidebar"] {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        outline: none !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
         color: #58c1c8 !important;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+    }
+
+    [data-testid="stSidebarCollapsedControl"] svg,
+    [data-testid="collapsedControl"] svg {
+        display: block !important;
+        width: 22px !important;
+        height: 22px !important;
+        fill: #58c1c8 !important;
+        stroke: #58c1c8 !important;
     }
 
     [data-testid="stSidebarCollapseButton"],
@@ -930,8 +992,8 @@ div[data-baseweb="menu"] li {
         visibility: visible !important;
         opacity: 1 !important;
         pointer-events: auto !important;
+        color: #58c1c8 !important;
     }
-
 
     /* Header & Streak Badge Layout on Mobile */
     div[data-testid="stHorizontalBlock"]:has(.streak-badge) {
@@ -946,15 +1008,16 @@ div[data-baseweb="menu"] li {
     }
 
     .page-main-title {
-        font-size: 22px !important;
+        font-size: 24px !important;
         line-height: 1.25 !important;
         margin: 0 0 6px 0 !important;
+        word-break: break-word !important;
     }
 
     .streak-badge {
         float: none !important;
-        margin: 2px 0 10px 0 !important;
-        font-size: 11px !important;
+        margin: 2px 0 12px 0 !important;
+        font-size: 11.5px !important;
         padding: 4px 10px !important;
         display: inline-flex !important;
     }
@@ -965,11 +1028,11 @@ div[data-baseweb="menu"] li {
         flex-wrap: wrap !important;
         gap: 6px !important;
         width: 100% !important;
-        margin-bottom: 10px !important;
+        margin-bottom: 12px !important;
     }
     .starter-chip {
         font-size: 11px !important;
-        padding: 5px 10px !important;
+        padding: 6px 12px !important;
         margin-right: 0 !important;
         margin-bottom: 0 !important;
         flex-shrink: 0 !important;
@@ -977,18 +1040,22 @@ div[data-baseweb="menu"] li {
 
     /* Cards on Mobile */
     .topper-card {
-        padding: 14px 12px !important;
-        margin-bottom: 12px !important;
-        border-radius: 12px !important;
+        padding: 16px 14px !important;
+        margin-bottom: 14px !important;
+        border-radius: 14px !important;
         box-sizing: border-box !important;
         word-break: break-word !important;
+        width: 100% !important;
     }
     .topper-card h3 {
-        font-size: 16px !important;
+        font-size: 17px !important;
+        line-height: 1.35 !important;
+        margin-top: 0 !important;
+        margin-bottom: 6px !important;
     }
     .topper-card p {
-        font-size: 12.5px !important;
-        line-height: 1.45 !important;
+        font-size: 13px !important;
+        line-height: 1.5 !important;
     }
 
     /* Stack Multi-column Cards on Mobile */
@@ -1007,22 +1074,38 @@ div[data-baseweb="menu"] li {
     div[data-testid="stFormSubmitButton"] > button,
     .stDownloadButton > button {
         font-size: 13px !important;
-        padding: 9px 12px !important;
+        padding: 10px 14px !important;
         width: 100% !important;
-        min-height: 38px !important;
+        min-height: 40px !important;
     }
 
     /* Inputs: 16px font-size prevents iOS Safari auto-zoom */
+    .stTextInput {
+        margin-bottom: 12px !important;
+    }
     .stTextInput > div > div > input {
         font-size: 16px !important;
-        padding: 10px 12px !important;
+        padding: 10px 14px !important;
+        border-radius: 10px !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+    }
+
+    /* Chat message bubble scaling on mobile */
+    div[data-testid="stChatMessage"] {
+        padding: 12px 14px !important;
+        margin-bottom: 10px !important;
+        border-radius: 12px !important;
+        max-width: 100% !important;
+        word-break: break-word !important;
+        box-sizing: border-box !important;
     }
 
     /* Mathematical Equations and Code Overflow on Mobile */
     .katex-display {
         overflow-x: auto !important;
         overflow-y: hidden !important;
-        padding: 4px 0 !important;
+        padding: 6px 0 !important;
         max-width: 100% !important;
         -webkit-overflow-scrolling: touch !important;
     }
@@ -1069,21 +1152,49 @@ div[data-baseweb="menu"] li {
         box-shadow: none !important;
     }
 
-    div[data-testid="stChatInput"] > div {
+    div[data-testid="stChatInput"] > div,
+    div[data-testid="stChatInput"] .stChatFloatingInputContainer {
         background: #13151f !important;
-        border: 1px solid rgba(88, 193, 200, 0.35) !important;
+        background-color: #13151f !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
         border-radius: 14px !important;
         padding: 4px 8px !important;
         outline: none !important;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
     }
 
-    div[data-testid="stChatInput"] textarea {
+    div[data-testid="stChatInput"] > div:focus-within,
+    div[data-testid="stChatInput"] .stChatFloatingInputContainer:focus-within {
+        border-color: rgba(88, 193, 200, 0.5) !important;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.8), 0 0 8px rgba(88, 193, 200, 0.15) !important;
+        outline: none !important;
+    }
+
+    /* Strip all BaseWeb inner borders, outlines, and box-shadows */
+    div[data-testid="stChatInput"] div[data-baseweb="textarea"],
+    div[data-testid="stChatInput"] div[data-baseweb="base-input"],
+    div[data-testid="stChatInput"] div[data-baseweb="textarea"] > div,
+    div[data-testid="stChatInput"] div[data-baseweb="base-input"] > div,
+    div[data-testid="stChatInput"] [class*="StyledRoot"],
+    div[data-testid="stChatInput"] [class*="StyledInputContainer"] {
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        -webkit-box-shadow: none !important;
+    }
+
+    div[data-testid="stChatInput"] textarea,
+    div[data-testid="stChatInput"] textarea:focus,
+    div[data-testid="stChatInput"] textarea:focus-visible,
+    div[data-testid="stChatInput"] textarea:active {
         font-size: 16px !important;
         padding: 6px 8px !important;
         border: none !important;
         outline: none !important;
         box-shadow: none !important;
+        -webkit-box-shadow: none !important;
         color: #f8fafc !important;
         background: transparent !important;
     }
@@ -2520,21 +2631,19 @@ with st.sidebar:
 
     default_nav_idx = 0
     if "pending_feature" in st.session_state:
-        feat = st.session_state.pop("pending_feature")
+        feat = str(st.session_state.pop("pending_feature", "")).lower()
         if "predict" in feat:
             default_nav_idx = 1
         elif "note" in feat:
             default_nav_idx = 2
         elif any(k in feat for k in ["solver", "research", "analytics", "flashcard"]):
             default_nav_idx = 3
-        st.session_state["unified_nav_radio"] = nav_options[default_nav_idx]
-
-    if "unified_nav_radio" not in st.session_state or st.session_state["unified_nav_radio"] not in nav_options:
-        st.session_state["unified_nav_radio"] = nav_options[default_nav_idx]
+        st.session_state.pop("unified_nav_radio", None)
 
     nav_selection = st.radio(
         "Navigation",
         nav_options,
+        index=default_nav_idx,
         key="unified_nav_radio",
         label_visibility="collapsed"
     )
