@@ -128,10 +128,11 @@ if qp_feature and "pending_feature" not in st.session_state:
 st.session_state.theme_choice = "dark"
 active_theme = "dark"
 
-# Dynamic Persistent Sidebar Layout (Expanded vs Collapsed)
+# Dynamic Persistent Sidebar Layout with Butter-Smooth CSS Transitions
 if is_sidebar_open:
     st.markdown("""
         <style>
+        /* Sidebar Open State (Desktop & Large displays) */
         [data-testid="stSidebar"],
         section[data-testid="stSidebar"] {
             display: flex !important;
@@ -139,25 +140,27 @@ if is_sidebar_open:
             opacity: 1 !important;
             width: 285px !important;
             min-width: 285px !important;
-            max-width: 300px !important;
+            max-width: 285px !important;
             background-color: #12161c !important;
             border-right: 1px solid rgba(88, 193, 200, 0.14) !important;
             box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5) !important;
-            transform: none !important;
+            transform: translateX(0) !important;
             margin-left: 0 !important;
-            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            pointer-events: auto !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         .main .block-container,
         div[data-testid="stMainBlockContainer"] {
             width: 88% !important;
             max-width: 1060px !important;
             margin: 0 auto !important;
-            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         div[data-testid="stBottomBlockContainer"] {
             width: 88% !important;
             max-width: 1060px !important;
             margin: 0 auto !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         @media (max-width: 768px) {
             [data-testid="stSidebar"],
@@ -166,11 +169,20 @@ if is_sidebar_open:
                 position: fixed !important;
                 top: 0 !important;
                 left: 0 !important;
+                bottom: 0 !important;
                 height: 100vh !important;
+                height: 100dvh !important;
                 width: 82vw !important;
                 max-width: 320px !important;
+                min-width: 260px !important;
+                margin-left: 0 !important;
+                transform: translateX(0) !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                pointer-events: auto !important;
                 z-index: 999999 !important;
-                box-shadow: 4px 0 32px rgba(0, 0, 0, 0.95) !important;
+                box-shadow: 6px 0 36px rgba(0, 0, 0, 0.95) !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
             }
         }
         </style>
@@ -178,16 +190,19 @@ if is_sidebar_open:
 else:
     st.markdown("""
         <style>
+        /* Sidebar Collapsed State (Desktop & Large displays) */
         [data-testid="stSidebar"],
         section[data-testid="stSidebar"] {
-            display: none !important;
             width: 0 !important;
             min-width: 0 !important;
             max-width: 0 !important;
-            margin-left: -350px !important;
+            margin-left: -285px !important;
             transform: translateX(-100%) !important;
+            opacity: 0 !important;
             visibility: hidden !important;
             pointer-events: none !important;
+            overflow: hidden !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         section.main,
         .stMain {
@@ -195,19 +210,42 @@ else:
             max-width: 100% !important;
             margin-left: 0 !important;
             padding-left: 0 !important;
-            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         .main .block-container,
         div[data-testid="stMainBlockContainer"] {
             width: 92% !important;
             max-width: 1200px !important;
             margin: 0 auto !important;
-            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         div[data-testid="stBottomBlockContainer"] {
             width: 92% !important;
             max-width: 1200px !important;
             margin: 0 auto !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        @media (max-width: 768px) {
+            [data-testid="stSidebar"],
+            section[data-testid="stSidebar"] {
+                display: flex !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                bottom: 0 !important;
+                height: 100vh !important;
+                height: 100dvh !important;
+                width: 82vw !important;
+                max-width: 320px !important;
+                min-width: 260px !important;
+                margin-left: 0 !important;
+                transform: translateX(-105%) !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+                z-index: 999999 !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s !important;
+            }
         }
         </style>
     """, unsafe_allow_html=True)
@@ -915,8 +953,31 @@ div:has(> button[key="btn_logout_sidebar"]) button:hover {
 
 /* Ensure column container vertically centers toggle with title */
 div[data-testid="stHorizontalBlock"]:has(button[key="main_header_toggle"]) {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
     align-items: center !important;
-    margin-bottom: 8px !important;
+    gap: 12px !important;
+    margin-bottom: 14px !important;
+    width: 100% !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(button[key="main_header_toggle"]) > div[data-testid="column"]:first-child {
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(button[key="main_header_toggle"]) > div[data-testid="column"]:nth-child(2) {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(button[key="main_header_toggle"]) > div[data-testid="column"]:last-child {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    justify-content: flex-end !important;
 }
 
 div[data-testid="stElementContainer"]:has(button[key="main_header_toggle"]) {
@@ -927,6 +988,59 @@ div[data-testid="stElementContainer"]:has(button[key="main_header_toggle"]) {
 div[data-testid="stElementContainer"]:has(button[key="sidebar_collapse_btn"]) {
     width: 38px !important;
     margin-top: 4px !important;
+}
+
+/* Sidebar Brand and Toggle Row layout */
+[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin-bottom: 2px !important;
+}
+
+[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+}
+
+[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child {
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+}
+
+/* Off-canvas mobile backdrop blur */
+.mobile-sidebar-backdrop {
+    display: none;
+}
+@media (max-width: 768px) {
+    .mobile-sidebar-backdrop {
+        display: block !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        background: rgba(0, 0, 0, 0.72) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        z-index: 999990 !important;
+        cursor: pointer !important;
+        animation: backdropFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+    }
+}
+@keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 /* Table and Component Contrast Enhancements */
@@ -963,35 +1077,18 @@ div[data-baseweb="menu"] li {
 /* 3. DESKTOP / LAPTOPS (@media min-width: 1025px)                  */
 /* ================================================================ */
 @media (min-width: 1025px) {
-    [data-testid="stSidebar"],
-    section[data-testid="stSidebar"] {
-        min-width: 280px !important;
-        max-width: 300px !important;
-        width: 285px !important;
-    }
-
     .main .block-container,
     div[data-testid="stMainBlockContainer"] {
-        width: 88% !important;
-        max-width: 1060px !important;
         margin-left: auto !important;
         margin-right: auto !important;
-        padding-top: 2rem !important;
+        padding-top: 1.8rem !important;
         padding-bottom: 120px !important;
         padding-left: 2rem !important;
         padding-right: 2rem !important;
     }
 
-    div[data-testid="stBottomBlockContainer"] {
-        width: 88% !important;
-        max-width: 1060px !important;
-        margin: 0 auto !important;
-        padding-bottom: 22px !important;
-        padding-top: 8px !important;
-    }
-
     .page-main-title {
-        font-size: 32px !important;
+        font-size: 30px !important;
     }
 }
 
@@ -999,31 +1096,14 @@ div[data-baseweb="menu"] li {
 /* 4. TABLETS (@media min-width: 769px and max-width: 1024px)       */
 /* ================================================================ */
 @media (min-width: 769px) and (max-width: 1024px) {
-    [data-testid="stSidebar"],
-    section[data-testid="stSidebar"] {
-        min-width: 260px !important;
-        max-width: 280px !important;
-        width: 265px !important;
-    }
-
     .main .block-container,
     div[data-testid="stMainBlockContainer"] {
-        width: 94% !important;
-        max-width: 100% !important;
         margin-left: auto !important;
         margin-right: auto !important;
-        padding-top: 2.2rem !important;
+        padding-top: 2rem !important;
         padding-bottom: 125px !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
-    }
-
-    div[data-testid="stBottomBlockContainer"] {
-        width: 94% !important;
-        max-width: 100% !important;
-        margin: 0 auto !important;
-        padding-bottom: 18px !important;
-        padding-top: 6px !important;
     }
 
     div[data-testid="stSidebar"] div[role="radiogroup"] label {
@@ -1037,7 +1117,7 @@ div[data-baseweb="menu"] li {
     }
 
     .page-main-title {
-        font-size: 28px !important;
+        font-size: 26px !important;
     }
 }
 
@@ -1057,7 +1137,7 @@ div[data-baseweb="menu"] li {
         margin-left: 0 !important;
         width: 100% !important;
         max-width: 100vw !important;
-        padding-top: 6px !important;
+        padding-top: 4px !important;
         overflow-x: hidden !important;
     }
 
@@ -1065,49 +1145,28 @@ div[data-baseweb="menu"] li {
     div[data-testid="stMainBlockContainer"] {
         width: 100% !important;
         max-width: 100% !important;
-        padding-top: 1.8rem !important;
-        padding-left: 14px !important;
-        padding-right: 14px !important;
-        padding-bottom: 140px !important;
+        padding-top: 1.2rem !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+        padding-bottom: 135px !important;
         box-sizing: border-box !important;
         overflow-x: hidden !important;
     }
 
-    /* Mobile Sidebar Drawer Styling */
-    [data-testid="stSidebar"],
-    section[data-testid="stSidebar"] {
-        background-color: #12161c !important;
-        border-right: 1px solid rgba(88, 193, 200, 0.25) !important;
-        box-shadow: 4px 0 30px rgba(0, 0, 0, 0.85) !important;
-        z-index: 999999 !important;
-        width: 82vw !important;
-        max-width: 320px !important;
-    }
-
-    /* Header & Streak Badge Layout on Mobile */
-    div[data-testid="stHorizontalBlock"]:has(.streak-badge) {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 2px !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.streak-badge) > div {
-        width: 100% !important;
-        min-width: 100% !important;
-    }
-
     .page-main-title {
-        font-size: 24px !important;
+        font-size: 20px !important;
         line-height: 1.25 !important;
-        margin: 0 0 6px 0 !important;
-        word-break: break-word !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
     .streak-badge {
-        float: none !important;
-        margin: 2px 0 12px 0 !important;
-        font-size: 11.5px !important;
-        padding: 4px 10px !important;
+        font-size: 11px !important;
+        padding: 4px 8px !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
         display: inline-flex !important;
     }
 
@@ -1121,7 +1180,7 @@ div[data-baseweb="menu"] li {
     }
     .starter-chip {
         font-size: 11px !important;
-        padding: 6px 12px !important;
+        padding: 5px 11px !important;
         margin-right: 0 !important;
         margin-bottom: 0 !important;
         flex-shrink: 0 !important;
@@ -1129,21 +1188,21 @@ div[data-baseweb="menu"] li {
 
     /* Cards on Mobile */
     .topper-card {
-        padding: 16px 14px !important;
-        margin-bottom: 14px !important;
-        border-radius: 14px !important;
+        padding: 14px 12px !important;
+        margin-bottom: 12px !important;
+        border-radius: 12px !important;
         box-sizing: border-box !important;
         word-break: break-word !important;
         width: 100% !important;
     }
     .topper-card h3 {
-        font-size: 17px !important;
+        font-size: 16px !important;
         line-height: 1.35 !important;
         margin-top: 0 !important;
         margin-bottom: 6px !important;
     }
     .topper-card p {
-        font-size: 13px !important;
+        font-size: 12.5px !important;
         line-height: 1.5 !important;
     }
 
@@ -1162,15 +1221,16 @@ div[data-baseweb="menu"] li {
     .stButton > button,
     div[data-testid="stFormSubmitButton"] > button,
     .stDownloadButton > button {
-        font-size: 13px !important;
+        font-size: 13.5px !important;
         padding: 10px 14px !important;
         width: 100% !important;
         min-height: 40px !important;
+        border-radius: 9px !important;
     }
 
     /* Inputs: 16px font-size prevents iOS Safari auto-zoom */
     .stTextInput {
-        margin-bottom: 12px !important;
+        margin-bottom: 10px !important;
     }
     .stTextInput > div > div > input {
         font-size: 16px !important;
@@ -1212,8 +1272,8 @@ div[data-baseweb="menu"] li {
         right: 0 !important;
         width: 100% !important;
         max-width: 100vw !important;
-        background: #0c0d12 !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background: #0e1117 !important;
+        border-top: 1px solid rgba(88, 193, 200, 0.16) !important;
         border-left: none !important;
         border-right: none !important;
         border-bottom: none !important;
@@ -1243,9 +1303,9 @@ div[data-baseweb="menu"] li {
 
     div[data-testid="stChatInput"] > div,
     div[data-testid="stChatInput"] .stChatFloatingInputContainer {
-        background: #13151f !important;
-        background-color: #13151f !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        background: #131722 !important;
+        background-color: #131722 !important;
+        border: 1px solid rgba(88, 193, 200, 0.25) !important;
         border-radius: 14px !important;
         padding: 4px 8px !important;
         outline: none !important;
@@ -1254,8 +1314,8 @@ div[data-baseweb="menu"] li {
 
     div[data-testid="stChatInput"] > div:focus-within,
     div[data-testid="stChatInput"] .stChatFloatingInputContainer:focus-within {
-        border-color: rgba(88, 193, 200, 0.5) !important;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.8), 0 0 8px rgba(88, 193, 200, 0.15) !important;
+        border-color: rgba(88, 193, 200, 0.6) !important;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.8), 0 0 10px rgba(88, 193, 200, 0.2) !important;
         outline: none !important;
     }
 
@@ -2703,23 +2763,46 @@ def show_paywall():
 clean_email_auth()
 
 # --- 7. SIDEBAR NAVIGATION ---
+# Off-canvas mobile backdrop blur (closes drawer when tapped outside)
+if is_sidebar_open:
+    st.markdown("""
+        <div id="mobile-sidebar-backdrop" class="mobile-sidebar-backdrop" 
+             onclick="const b = document.querySelector('button[key=\\'sidebar_collapse_btn\\']') || document.querySelector('button[key=\\'main_header_toggle\\']'); if(b) b.click();" 
+             title="Tap outside to close navigation drawer"></div>
+    """, unsafe_allow_html=True)
+
 with st.sidebar:
     col_sb_brand, col_sb_toggle = st.columns([4.2, 0.8])
     with col_sb_brand:
-        logo_html = f'<img src="{_LOGO_B64}" style="width:36px; height:36px; object-fit:contain; border-radius:9px; box-shadow: 0 0 14px rgba(88, 193, 200, 0.4); flex-shrink:0;" alt="TopperGPT Logo" />' if _LOGO_B64 else '<div style="width:14px; height:14px; background:#58c1c8; border-radius:50%; box-shadow: 0 0 14px #58c1c8;"></div>'
+        _svg_fallback = '<div style="width:36px; height:36px; min-width:36px; min-height:36px; background:rgba(88, 193, 200, 0.12); border:1px solid rgba(88, 193, 200, 0.35); border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 12px rgba(88, 193, 200, 0.25); flex-shrink:0;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58c1c8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div>'
+        if _LOGO_B64:
+            logo_html = f'''<div style="position:relative; width:36px; height:36px; min-width:36px; min-height:36px; flex-shrink:0;">
+                <img src="{_LOGO_B64}" alt="TopperGPT" style="width:36px; height:36px; min-width:36px; min-height:36px; object-fit:contain; border-radius:10px; box-shadow:0 0 12px rgba(88, 193, 200, 0.35); display:block;" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';" />
+                <div style="display:none; width:36px; height:36px; background:rgba(88, 193, 200, 0.12); border:1px solid rgba(88, 193, 200, 0.35); border-radius:10px; align-items:center; justify-content:center;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58c1c8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                </div>
+            </div>'''
+        else:
+            logo_html = _svg_fallback
+
         st.markdown(f"""
-            <div style="display:flex; align-items:center; gap:12px;">
+            <div class="sidebar-brand-wrapper" style="display:flex; align-items:center; gap:10px; min-width:0; padding:2px 0;">
                 {logo_html}
-                <div style="display:flex; flex-direction:column; justify-content:center;">
-                    <h2 style="color:var(--text-primary, #f8fafc); margin:0; font-size:22px; font-weight:800; letter-spacing:-0.5px; line-height:1.15;">Topper<span style="color:#58c1c8;">GPT</span></h2>
-                    <span style="color:#58c1c8; font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; margin-top:2px;">Academic AI</span>
+                <div style="display:flex; flex-direction:column; justify-content:center; min-width:0;">
+                    <div style="color:#ffffff; font-size:20px; font-weight:800; letter-spacing:-0.4px; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        Topper<span style="color:#58c1c8;">GPT</span>
+                    </div>
+                    <div style="display:inline-flex; align-items:center; gap:5px; margin-top:2px;">
+                        <span style="display:inline-block; width:5px; height:5px; background:#58c1c8; border-radius:50%; box-shadow:0 0 6px #58c1c8; flex-shrink:0;"></span>
+                        <span style="color:#58c1c8; font-size:9.5px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; white-space:nowrap;">ACADEMIC AI</span>
+                    </div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
     with col_sb_toggle:
         st.button("◧", key="sidebar_collapse_btn", help="Collapse sidebar", on_click=toggle_sidebar)
 
-    st.markdown("<div style='border-bottom: 1px solid rgba(88, 193, 200, 0.14); margin: 12px 0 16px 0;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='border-bottom: 1px solid rgba(88, 193, 200, 0.14); margin: 10px 0 16px 0;'></div>", unsafe_allow_html=True)
 
     nav_options = [
         "💡 AI Tutor",
