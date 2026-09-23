@@ -24,7 +24,7 @@ except ImportError:
 from supabase import create_client, Client
 from landing_page import render_landing_page
 
-def extract_text_from_pdf(file_bytes_or_buffer, max_pages=15) -> str:
+def extract_text_from_pdf(file_bytes_or_buffer, max_pages=20) -> str:
     """
     Safely extracts clean plain text from uploaded PDF documents using pypdf.
     Truncates to max_pages to prevent memory pressure or latency on large files.
@@ -47,8 +47,8 @@ def extract_text_from_pdf(file_bytes_or_buffer, max_pages=15) -> str:
         if not extracted:
             return ""
         combined = "\n\n".join(extracted)
-        if len(combined) > 12000:
-            combined = combined[:12000] + "\n\n[...PDF text truncated for prompt size...]"
+        if len(combined) > 25000:
+            combined = combined[:25000] + "\n\n[...PDF text truncated for prompt size...]"
         return combined
     except Exception as e:
         print(f"Notice: PDF text extraction: {e}")
@@ -2691,6 +2691,35 @@ def format_topic_research_for_pdf(topic_name: str, topic_dict: dict) -> str:
 {working_principle}
 """
 
+def is_generic_refusal(text: str) -> bool:
+    """
+    Detects unwanted generic refusal patterns or disclaimer chatter from LLM responses,
+    preventing models from refusing academic files or asking 'which subject is this'.
+    """
+    if not text or not isinstance(text, str):
+        return True
+    t_lower = text.lower()
+    refusal_signals = [
+        "not equipped to discuss",
+        "i'm not equipped",
+        "im not equipped",
+        "i am not equipped",
+        "tell me the subject first",
+        "what subject is this",
+        "specify the subject first",
+        "please specify the subject",
+        "please let me know the subject",
+        "outside of engineering",
+        "topics outside engineering",
+        "as an ai language model, i cannot",
+        "i don't have access to the file",
+        "i cannot view the attached",
+        "i cannot read the attached",
+        "unable to read the pdf",
+        "i cannot read this pdf"
+    ]
+    return any(sig in t_lower for sig in refusal_signals)
+
 # --- 7. BACKEND AI ENGINE (GROQ P1 + GEMINI P2 + OPENROUTER P3 + MULTIMODAL VISION) ---
 def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None, temperature=0.2, max_tokens=None, attached_file=None):
     """
@@ -2698,16 +2727,20 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
     - Accepts either a single string prompt OR a list of chat message dicts:
       [{"role": "system"/"user"/"assistant", "content": ...}]
     - Accepts attached_file dict: {"type": "image"|"pdf", "name": ..., "mime_type": ..., "base64": ..., "extracted_text": ...}
-    - Priority 1: Groq llama-3.1-8b-instant (or Gemini 1.5 Flash first if image is attached)
-    - Priority 2: Gemini 1.5 Flash via direct HTTP REST (native multimodal inline_data for images & PDFs)
-    - Priority 3: OpenRouter vision/text models
+    - Priority 1: Gemini 1.5 Flash via direct HTTP REST when files (PDF or Image) are attached (native vision & PDF parsing)
+    - Priority 1: Groq llama-3.1-8b-instant for rapid text-only queries
+    - Priority 2/3: Robust fallback across Gemini backup key, Groq, and OpenRouter
     - Silent failover across tiers without throwing st.error until all tiers fail.
     """
     if max_tokens is not None:
         max_toks = max_tokens
 
-    tier_timeout = 35 if attached_file else (25 if max_toks > 1000 else 12)
-    gemini_timeout = 45 if attached_file else (25 if max_toks > 1000 else 15)
+    # When an academic document or image is attached, provide ample tokens for full derivations
+    if attached_file and max_toks < 2000:
+        max_toks = 2500
+
+    tier_timeout = 40 if attached_file else (25 if max_toks > 1000 else 12)
+    gemini_timeout = 50 if attached_file else (25 if max_toks > 1000 else 15)
 
     # -------------------------------------------------------------------------
     # 0. NORMALIZE & SANITIZE MESSAGES ARRAY
@@ -2735,13 +2768,19 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
 
     # Prepend extracted text from PDF attachment if available
     if attached_file and attached_file.get("extracted_text"):
-        doc_header = f"[ATTACHED DOCUMENT: {attached_file.get('name', 'Document')}]\n{attached_file['extracted_text']}\n\n"
+        doc_header = (
+            f"[ATTACHED DOCUMENT CONTENT - {attached_file.get('name', 'Document')}]:\n"
+            f"{attached_file['extracted_text']}\n\n"
+        )
         for m in reversed(messages_array):
             if m["role"] == "user":
                 m["content"] = doc_header + m["content"]
                 break
 
-    is_image_attached = bool(attached_file and attached_file.get("type") == "image" and attached_file.get("base64"))
+    has_attachment = bool(attached_file and (attached_file.get("base64") or attached_file.get("extracted_text")))
+    is_image = bool(attached_file and attached_file.get("type") == "image" and attached_file.get("base64"))
+    is_pdf = bool(attached_file and attached_file.get("type") == "pdf")
+
     gemini_key = (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip()
     groq_key = (get_env_secret("GROQ_API_KEY") or get_env_secret("GROQ_API_KEY_2", "")).strip()
     openrouter_key = get_env_secret("OPENROUTER_API_KEY").strip()
@@ -2772,9 +2811,12 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
 
             # Append native multimodal binary (Image or PDF)
             if attached_file and attached_file.get("base64"):
+                mime = attached_file.get("mime_type")
+                if not mime:
+                    mime = "application/pdf" if is_pdf else "image/jpeg"
                 gemini_contents[-1]["parts"].append({
                     "inline_data": {
-                        "mime_type": attached_file.get("mime_type", "image/jpeg"),
+                        "mime_type": mime,
                         "data": attached_file["base64"]
                     }
                 })
@@ -2794,7 +2836,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                 cand = res.json().get('candidates', [])
                 if cand and 'content' in cand[0] and 'parts' in cand[0]['content'] and cand[0]['content']['parts']:
                     out_text = cand[0]['content']['parts'][0].get('text', '').strip()
-                    if out_text:
+                    if out_text and not is_generic_refusal(out_text):
                         return clean_output_text(out_text)
             elif sys_text:
                 gemini_contents[0]["parts"][0]["text"] = sys_text + "\n\n" + gemini_contents[0]["parts"][0]["text"]
@@ -2803,7 +2845,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                     cand = res2.json().get('candidates', [])
                     if cand and cand[0].get('content', {}).get('parts'):
                         out_text = cand[0]['content']['parts'][0].get('text', '').strip()
-                        if out_text:
+                        if out_text and not is_generic_refusal(out_text):
                             return clean_output_text(out_text)
         except Exception:
             pass
@@ -2812,7 +2854,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
     def try_groq():
         if not groq_key:
             return None
-        if is_image_attached:
+        if is_image:
             vision_models = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
             for vm in vision_models:
                 try:
@@ -2837,13 +2879,15 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                     res = requests.post(
                         "https://api.groq.com/openai/v1/chat/completions",
                         headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                        json={"model": vm, "messages": multimodal_msgs, "temperature": temperature, "max_tokens": max_toks},
+                        json={"model": vm, "messages": multimodal_msgs, "temperature": temperature, "max_tokens": min(max_toks, 4096)},
                         timeout=tier_timeout
                     )
                     if res.status_code == 200:
                         choices = res.json().get("choices", [])
                         if choices and choices[0]["message"].get("content"):
-                            return clean_output_text(choices[0]["message"]["content"].strip())
+                            out_text = choices[0]["message"]["content"].strip()
+                            if out_text and not is_generic_refusal(out_text):
+                                return clean_output_text(out_text)
                 except Exception:
                     continue
         else:
@@ -2853,13 +2897,15 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                     res = requests.post(
                         "https://api.groq.com/openai/v1/chat/completions",
                         headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                        json={"model": g_model, "messages": messages_array, "temperature": temperature, "max_tokens": max_toks},
+                        json={"model": g_model, "messages": messages_array, "temperature": temperature, "max_tokens": min(max_toks, 4096)},
                         timeout=tier_timeout
                     )
                     if res.status_code == 200:
                         choices = res.json().get("choices", [])
                         if choices and choices[0]["message"].get("content"):
-                            return clean_output_text(choices[0]["message"]["content"].strip())
+                            out_text = choices[0]["message"]["content"].strip()
+                            if out_text and not is_generic_refusal(out_text):
+                                return clean_output_text(out_text)
                 except Exception:
                     continue
         return None
@@ -2867,7 +2913,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
     def try_openrouter():
         if not openrouter_key:
             return None
-        if is_image_attached:
+        if is_image:
             or_models = [
                 "meta-llama/llama-3.2-11b-vision-instruct:free",
                 "google/gemini-2.0-flash-exp:free",
@@ -2909,59 +2955,64 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                 res = requests.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json", "HTTP-Referer": "https://toppergpt.in", "X-Title": "TopperGPT Academic Workspace"},
-                    json={"model": or_m, "messages": req_messages, "max_tokens": max_toks, "temperature": temperature, "include_reasoning": False},
+                    json={"model": or_m, "messages": req_messages, "max_tokens": min(max_toks, 4096), "temperature": temperature, "include_reasoning": False},
                     timeout=tier_timeout
                 )
                 if res.status_code == 200:
                     choices = res.json().get("choices", [])
                     if choices and "message" in choices[0]:
                         out_text = str(choices[0]["message"].get("content") or "").strip()
-                        if out_text:
+                        if out_text and not is_generic_refusal(out_text):
                             return clean_output_text(out_text)
             except Exception:
                 continue
         return None
 
     # Routing order:
-    if is_image_attached:
+    if has_attachment:
+        # Multimodal Academic Document (PDF) or Image -> Gemini 1.5 Flash FIRST
         result = try_gemini(gemini_key)
-        if result:
+        if result and not is_generic_refusal(result):
             return result
         sec_key = (get_env_secret("GEMINI_API_KEY_2") or get_env_secret("GOOGLE_API_KEY_2")).strip()
         if sec_key and sec_key != gemini_key:
             result = try_gemini(sec_key)
-            if result:
+            if result and not is_generic_refusal(result):
                 return result
         result = try_groq()
-        if result:
+        if result and not is_generic_refusal(result):
             return result
         result = try_openrouter()
-        if result:
+        if result and not is_generic_refusal(result):
             return result
     else:
+        # Rapid text queries: Groq first for near-instant latency
         result = try_groq()
-        if result:
+        if result and not is_generic_refusal(result):
             return result
         result = try_gemini(gemini_key)
-        if result:
+        if result and not is_generic_refusal(result):
             return result
         sec_key = (get_env_secret("GEMINI_API_KEY_2") or get_env_secret("GOOGLE_API_KEY_2")).strip()
         if sec_key and sec_key != gemini_key:
             result = try_gemini(sec_key)
-            if result:
+            if result and not is_generic_refusal(result):
                 return result
         result = try_openrouter()
-        if result:
+        if result and not is_generic_refusal(result):
             return result
 
     raise RuntimeError("All AI generation tiers (Groq, Gemini, OpenRouter) failed due to API timeout or rate limit. Please retry.")
 
 
-def generate_chat_response(messages, max_toks=1000, temperature=0.3, attached_file=None):
+def generate_chat_response(messages, max_toks=1500, temperature=0.3, attached_file=None):
     """
     Dedicated Multi-Turn Chat Response Engine supporting Multimodal Files:
     Accepts a list of message dicts and an optional attached_file dict.
+    Provides generous token capacity for complete multi-question academic solutions.
     """
+    if attached_file and max_toks < 2500:
+        max_toks = 2500
     return generate_ai_response(messages, max_toks=max_toks, temperature=temperature, attached_file=attached_file)
 
 
@@ -3264,36 +3315,46 @@ if nav_selection == "💡 AI Tutor":
         ]
 
     AI_TUTOR_SYSTEM_INSTRUCTION = (
-        "You are TopperGPT's 24/7 AI Academic Tutor, operating as a Senior Evaluator, Subject Matter Expert, and Academic Mentor "
-        "for Mumbai University (MU) Engineering students under the C-Scheme. Maintain full context of the ongoing conversation history. "
-        "If the student asks follow-up requests such as 'explain in simple english', 'give an example', 'summarize this', or 'explain again', "
-        "apply the request directly to the previous AI response in the conversation history without asking what topic they are referring to.\n\n"
-        "Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.\n"
-        "Respond exclusively in professional, clear, exam-oriented English for Mumbai University Engineering (C-Scheme).\n\n"
-        "MATHEMATICAL NOTATION RULES:\n"
-        "- Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{eq}$, $I_1$).\n"
-        "- Wrap ALL standalone or block equations in double dollar signs ($$...$$).\n"
+        "You are TopperGPT: an elite, authoritative 24/7 AI Academic Tutor and Senior University Evaluator designed exclusively "
+        "for Mumbai University (MU) Engineering students under the C-Scheme. You operate with total technical rigor, zero fluff, "
+        "zero conversational filler, and ZERO generic AI chatbot disclaimers (NEVER say 'As an AI language model', 'I don't have eyes', "
+        "'I am not equipped', or 'please tell me the subject first').\n\n"
+        "STRICT PERSONA LOCK:\n"
+        "- Act purely as TopperGPT: Senior Academic Evaluator and Subject Matter Expert across all MU engineering disciplines "
+        "(First Year FE Common, Computer, IT, AI-DS, Mechanical, Civil, Electrical, EXTC, Electronics, etc.).\n"
+        "- Maintain full context of the ongoing conversation history. Follow-up requests ('explain in simple english', 'give an example', "
+        "'summarize this', 'solve step 2') must be applied directly to the previous AI response without asking what topic they are referring to.\n"
+        "- Respond exclusively in professional, clear, exam-oriented English formatted for Mumbai University C-Scheme evaluation.\n\n"
+        "CORE PROTOCOL 1: UPLOADED ACADEMIC DOCUMENTS, PDFs & IMAGES (MISSION-CRITICAL - ZERO REFUSALS):\n"
+        "- Whenever a student uploads or references an academic file (e.g., 'Tutorial no.1.pdf', assignment sheets, PYQ question papers, "
+        "textbook scans, handwritten notes, circuit diagrams, numerical problem sheets, code files, or graphs):\n"
+        "  1. ZERO REFUSAL POLICY: You must NEVER refuse an uploaded document. NEVER state 'I am not equipped' or 'I cannot discuss [file]'.\n"
+        "  2. NO SUBJECT ASKING: NEVER ask 'Which subject is this?' or demand that the student specify the subject first. "
+        "Automatically infer and identify the engineering subject, branch, and module directly from the questions, equations, terms, or diagrams in the document.\n"
+        "  3. QUESTION PARSING & EXTRACTION: Automatically scan the full uploaded PDF text or visual image content, extract EVERY question or numerical problem present, and clearly state each question before solving.\n"
+        "  4. EXHAUSTIVE STEP-BY-STEP SOLUTIONS: Provide complete, comprehensive solutions for every identified question adhering strictly to Mumbai University C-Scheme standards:\n"
+        "     For each question (e.g., **Question 1**, **Question 2**, etc.):\n"
+        "     ### 📌 1. University Standard Definition / Theory (2-Mark Standard)\n"
+        "     Accurate textbook definition, governing laws, and mandatory examiner keywords.\n"
+        "     ### ⚡ 2. Step-by-Step Technical Execution & Derivation\n"
+        "     Every algebraic and numerical step written out in full (never skip steps), all formulas wrapped in LaTeX ($...$ or $$...$$), circuit/block diagram explanation, and the final numerical value clearly boxed/stated with SI units.\n"
+        "     ### ⚠️ 3. Examiner Trap Alert\n"
+        "     Specific calculation errors, sign convention mistakes, unit conversion traps, or unstated assumptions where students frequently lose marks.\n\n"
+        "CORE PROTOCOL 2: ACADEMIC & ENGINEERING TOPICS:\n"
+        "When answering student doubts, syllabus concepts, derivations, or university PYQs, structure the answer using the same strict 3-block structure (Definition, Technical Derivation, Examiner Trap Alert).\n\n"
+        "CORE PROTOCOL 3: MATHEMATICAL NOTATION RULES:\n"
+        "- Wrap ALL inline variables, formulas, and symbols in single dollar signs (e.g., $V_p / V_s$, $R_{eq}$, $I_1$, $\\omega$).\n"
+        "- Wrap ALL standalone or multi-line equations in double dollar signs ($$...$$).\n"
         "- NEVER use \\displaystyle or wrap formulas in bare curly braces {...} without dollar signs.\n\n"
-        "CORE RESPONSE PROTOCOLS:\n"
-        "1. DYNAMIC NON-ENGINEERING GUARDRAIL (CRITICAL & NON-NEGOTIABLE):\n"
-        "   If the user's prompt or question is about ANYTHING outside of engineering, core sciences, mathematics, or the Mumbai University academic curriculum "
-        "(for example: gaming, video games, movies, entertainment, anime, making money, financial advice, dating, relationships, fitness, cooking, personal life advice, or non-engineering general topics):\n"
-        "   You MUST NOT answer, fulfill, or entertain the off-topic request.\n"
-        "   You MUST dynamically acknowledge their exact requested topic and politely pivot back using this precise response format:\n"
-        "   \"I understand you're interested in [dynamically insert their exact requested topic], but as TopperGPT, my primary function is to help you excel in Mumbai University engineering subjects and exam preparation. I'm not equipped to discuss [dynamically insert their exact requested topic] or topics outside engineering. Feel free to ask any doubts regarding your engineering syllabus, concepts, derivations, numerical problems, or university PYQs!\"\n\n"
-        "2. CONVERSATIONAL GREETINGS:\n"
-        "   If the message is a polite greeting (e.g., 'hi', 'hello', 'hey', 'good morning'): Reply warmly and concisely in 1-2 sentences, inviting their engineering doubt or subject topic.\n\n"
-        "3. FOLLOW-UP REQUESTS:\n"
-        "   If the student makes a follow-up request (e.g., 'explain in simple english', 'give an example', 'summarize this', 'explain again', 'simplify'): "
-        "Apply the request directly to the previous AI response in the conversation history without asking what topic they are referring to.\n\n"
-        "4. ACADEMIC & ENGINEERING TOPICS:\n"
-        "   Deliver comprehensive, university-standard answers using this strict 3-block structure:\n"
-        "   ### 📌 1. University Standard Definition (2-Mark Standard)\n"
-        "   Accurate textbook definition and mandatory examiner keywords.\n\n"
-        "   ### ⚡ 2. Step-by-Step Technical Execution & Derivation\n"
-        "   Logically organized steps, formulas with Markdown LaTeX ($...$ or $$...$$), and specific 'Exam Diagram Requirement' if applicable.\n\n"
-        "   ### ⚠️ 3. Examiner Trap Alert\n"
-        "   Precise calculation error, unit conversion, or assumption where students frequently lose marks."
+        "CORE PROTOCOL 4: STRICT NON-ENGINEERING GUARDRAIL:\n"
+        "- This guardrail triggers ONLY if the user's prompt is explicitly about purely non-academic entertainment or lifestyle topics "
+        "(such as video games, movies, celebrity gossip, dating, cryptocurrency speculation, cooking recipes, fitness routines, or humor) "
+        "AND has NO academic, mathematical, scientific, or engineering content.\n"
+        "- Any document, PDF, tutorial, assignment, homework, math formula, code, circuit, mechanics problem, or scientific topic is STRICTLY IN-SCOPE and MUST BE ANSWERED IMMEDIATELY.\n"
+        "- If an off-topic entertainment prompt occurs, respond concisely: "
+        "\"As TopperGPT, my focus is exclusively on Mumbai University engineering syllabus, PYQs, and exam preparation. Feel free to ask any engineering concepts, derivations, numerical problems, or upload your tutorial/assignment for instant step-by-step solutions!\"\n\n"
+        "CORE PROTOCOL 5: CONVERSATIONAL GREETINGS:\n"
+        "If the user says 'hi', 'hello', or 'good morning', reply warmly in 1 sentence, inviting their engineering doubt or tutorial PDF."
     )
 
     # Auto-process pending query from Landing Page search
@@ -3308,7 +3369,7 @@ if nav_selection == "💡 AI Tutor":
                     "content": str(m.get("content", "")).strip()
                 })
             try:
-                ai_reply = generate_chat_response(messages_payload, max_toks=1000, temperature=0.3)
+                ai_reply = generate_chat_response(messages_payload, max_toks=1500, temperature=0.3)
                 st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
             except Exception:
                 st.session_state.tutor_messages.append({
@@ -3410,8 +3471,8 @@ if nav_selection == "💡 AI Tutor":
                     "base64": b64_str
                 }
             elif fext == "pdf":
-                extracted_txt = extract_text_from_pdf(fbytes, max_pages=15)
-                b64_str = base64.b64encode(fbytes).decode("utf-8") if len(fbytes) < 4 * 1024 * 1024 else ""
+                extracted_txt = extract_text_from_pdf(fbytes, max_pages=20)
+                b64_str = base64.b64encode(fbytes).decode("utf-8") if len(fbytes) <= 10 * 1024 * 1024 else ""
                 att_data = {
                     "type": "pdf",
                     "name": fname,
@@ -3422,18 +3483,31 @@ if nav_selection == "💡 AI Tutor":
                     "extracted_text": extracted_txt
                 }
 
-        # If user attached a file without typing text, default to academic evaluation prompt
-        if not p_text and att_data:
-            doc_type_str = "image diagram" if att_data["type"] == "image" else "PDF chapter/notes"
-            p_text = (
-                f"Please analyze the attached {doc_type_str} ({att_data['name']}) according to Mumbai University C-Scheme standards. "
-                "Explain the fundamental concepts, step-by-step mathematical derivation/solution, mandatory examiner keywords, and any examiner trap alerts."
+        user_query_text = p_text.strip() if p_text else ""
+        if att_data:
+            display_text = user_query_text if user_query_text else f"Analyze and solve all questions in {att_data['name']}"
+            backend_user_prompt = (
+                f"[ATTACHED ACADEMIC DOCUMENT: {att_data['name']}]\n"
+                f"Student Directive: {display_text}\n\n"
+                "TOPPERGPT MISSION-CRITICAL INSTRUCTIONS:\n"
+                "- This document is an official Mumbai University Engineering tutorial, assignment, or examination paper. NEVER refuse it.\n"
+                "- Do NOT ask for the subject name or syllabus details. Automatically infer the subject, branch, and module from the questions and technical terminology.\n"
+                "- Identify and extract EVERY individual question or numerical problem present in this file.\n"
+                "- Provide an exhaustive, step-by-step solution for EACH question adhering to Mumbai University C-Scheme standards:\n"
+                "  * 📌 1. University Standard Definition / Theory (2-Mark standard keywords & laws)\n"
+                "  * ⚡ 2. Step-by-Step Technical Execution & Derivation (complete math, formulas wrapped in LaTeX $...$ or $$...$$, diagram explanations, final numerical answers boxed)\n"
+                "  * ⚠️ 3. Examiner Trap Alert (common calculation errors, unit conversions, and pitfalls)\n"
+                "- Solve all questions thoroughly without taking shortcuts or omitting steps."
             )
+        else:
+            display_text = user_query_text
+            backend_user_prompt = user_query_text
 
-        if p_text or att_data:
+        if display_text or att_data:
             st.session_state.tutor_messages.append({
                 "role": "user",
-                "content": p_text,
+                "content": display_text,
+                "full_prompt": backend_user_prompt,
                 "hinglish": None,
                 "attachment": att_data
             })
@@ -3464,20 +3538,21 @@ if nav_selection == "💡 AI Tutor":
                             </div>""",
                             unsafe_allow_html=True
                         )
-                st.markdown(clean_output_text(p_text))
+                st.markdown(clean_output_text(display_text))
 
             # Dynamic messages payload with system instruction and the last 6 messages
             messages_payload = [{"role": "system", "content": AI_TUTOR_SYSTEM_INSTRUCTION}]
             for m in st.session_state.tutor_messages[-6:]:
+                content_val = m.get("full_prompt") if m.get("full_prompt") else str(m.get("content", "")).strip()
                 messages_payload.append({
                     "role": "assistant" if m.get("role") == "assistant" else "user",
-                    "content": str(m.get("content", "")).strip()
+                    "content": content_val
                 })
 
             with st.chat_message("assistant"):
                 with st.spinner("⚡ Consulting AI Tutor..."):
                     try:
-                        ai_reply = generate_chat_response(messages_payload, max_toks=1000, temperature=0.3, attached_file=att_data)
+                        ai_reply = generate_chat_response(messages_payload, max_toks=2500, temperature=0.3, attached_file=att_data)
                         st.markdown(clean_output_text(ai_reply))
                         st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
                         st.rerun()
