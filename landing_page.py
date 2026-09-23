@@ -1,7 +1,7 @@
 import streamlit as st
 
 def render_landing_page(initial_theme=None):
-    initial_bg = "#030303"
+    initial_bg = "#0e1117"
 
     # 1. Clean Streamlit Container Overrides
     st.markdown(f"""
@@ -48,7 +48,7 @@ def render_landing_page(initial_theme=None):
     }
 
     :root {
-        --bg-dark: #030303;
+        --bg-dark: #0e1117;
         --bg-card: #080808;
         --bg-card-hover: #0d0d0d;
         --bg-input: #0a0a0a;
@@ -978,7 +978,7 @@ def render_landing_page(initial_theme=None):
     .footer {
         border-top: 1px solid var(--border-subtle);
         padding: 3rem 0 2rem;
-        background: #030303;
+        background: #0e1117;
         color: var(--text-muted);
         font-size: 0.875rem;
     }

@@ -4,6 +4,7 @@ import json
 import time
 import os
 import re
+import base64
 from datetime import datetime
 try:
     from fpdf import FPDF
@@ -13,6 +14,22 @@ except ImportError:
     FontFace = None
 from supabase import create_client, Client
 from landing_page import render_landing_page
+
+# Helper to encode logo to base64 data URI for zero-latency HTML rendering
+def get_base64_image(image_path: str) -> str:
+    try:
+        if os.path.exists(image_path):
+            with open(image_path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("utf-8")
+            ext = os.path.splitext(image_path)[1].lower().replace(".", "")
+            mime = "image/png" if ext == "png" else f"image/{ext}"
+            return f"data:{mime};base64,{b64}"
+    except Exception:
+        pass
+    return ""
+
+_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "logo.png")
+_LOGO_B64 = get_base64_image(_LOGO_PATH)
 
 # Safe Secret Helper for Render & Streamlit Environments
 def get_env_secret(key, default=""):
@@ -116,6 +133,7 @@ footer {
     visibility: hidden !important;
     display: none !important;
 }
+/* Toolbar and header action cleanup */
 [data-testid="stToolbar"] {
     display: none !important;
     visibility: hidden !important;
@@ -127,6 +145,8 @@ footer {
 div[data-testid="stDecoration"] {
     display: none !important;
     visibility: hidden !important;
+    height: 0 !important;
+    border: none !important;
 }
 div[data-testid="stStatusWidget"] {
     display: none !important;
@@ -136,36 +156,32 @@ div[data-testid="stStatusWidget"] {
     display: none !important;
     visibility: hidden !important;
 }
-/* Toolbar and header action cleanup (sidebar toggle buttons are handled per-device in media queries) */
-section[data-testid="stSidebar"] button[kind="header"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    width: 0 !important;
-    height: 0 !important;
-}
 
 /* ================================================================ */
-/* 1. UNIVERSAL PERMANENT BLACK (DARK) THEME PALETTE                */
+/* 1. UNIVERSAL PERMANENT BLACK (DARK) THEME PALETTE (#0e1117 LOCK)  */
 /* ================================================================ */
 :root,
 html,
 body,
-.stApp {
+.stApp,
+div[data-testid="stAppViewContainer"],
+section.main,
+.stMain {
+    background-color: #0e1117 !important;
+    color: #f8fafc !important;
     --text-primary: #f8fafc !important;
     --text-secondary: #cbd5e1 !important;
     --text-muted: #94a3b8 !important;
     --text-dim: #64748b !important;
     --text-placeholder: #94a3b8 !important;
-    --bg-primary: #030303 !important;
-    --bg-surface: #08090d !important;
-    --bg-sidebar: #060709 !important;
-    --bg-input: #08090d !important;
-    --bg-chat-bar: rgba(8, 9, 13, 0.94) !important;
-    --bg-pinned-bar: linear-gradient(180deg, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.96) 30%, #030303 100%) !important;
+    --bg-primary: #0e1117 !important;
+    --bg-surface: #131722 !important;
+    --bg-sidebar: #0b0e14 !important;
+    --bg-input: #131722 !important;
+    --bg-chat-bar: rgba(14, 17, 23, 0.94) !important;
+    --bg-pinned-bar: linear-gradient(180deg, rgba(14, 17, 23, 0) 0%, rgba(14, 17, 23, 0.96) 30%, #0e1117 100%) !important;
     --bg-hover: rgba(88, 193, 200, 0.08) !important;
-    --grid-line: rgba(255, 255, 255, 0.02) !important;
+    --grid-line: rgba(255, 255, 255, 0.025) !important;
 }
 
 html, body, [class*="css"] {
@@ -180,7 +196,7 @@ html, body, [class*="css"] {
     height: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: var(--bg-primary);
+    background: #0e1117;
 }
 ::-webkit-scrollbar-thumb {
     background: rgba(88, 193, 200, 0.25);
@@ -197,18 +213,43 @@ html, body, [class*="css"] {
 
 /* Background grid styling matching cyber-cyan aesthetic */
 .stApp {
-    background-color: var(--bg-primary) !important;
+    background-color: #0e1117 !important;
     background-image: 
-        radial-gradient(circle at 50% 8%, rgba(88, 193, 200, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 50% 8%, rgba(88, 193, 200, 0.1) 0%, transparent 60%),
         linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
         linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px) !important;
     background-size: 100% 100%, 36px 36px, 36px 36px !important;
     color: var(--text-primary) !important;
 }
 
-/* Header customization */
+div[data-testid="stAppViewContainer"] {
+    background-color: #0e1117 !important;
+    border: none !important;
+}
+
+section.main, .stMain {
+    background-color: #0e1117 !important;
+    border: none !important;
+}
+
+/* Header customization - zero border / white line artifacts */
 header[data-testid="stHeader"] {
     background-color: transparent !important;
+    border: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+}
+
+/* Containers and divider lines - eliminate white lines */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border: 1px solid rgba(88, 193, 200, 0.16) !important;
+    border-radius: 12px !important;
+}
+
+hr, div[data-testid="stMarkdownContainer"] hr {
+    border: none !important;
+    border-top: 1px solid rgba(88, 193, 200, 0.16) !important;
+    margin: 18px 0 !important;
 }
 
 /* Typography & Headings */
@@ -249,28 +290,29 @@ div[data-testid="stMarkdownContainer"] code {
 [data-testid="stSidebar"],
 section[data-testid="stSidebar"] {
     background-color: var(--bg-sidebar) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-    padding-top: 15px !important;
+    border-right: 1px solid rgba(88, 193, 200, 0.14) !important;
+    padding-top: 12px !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* Sidebar Feature Navigation Radio Container */
 div[data-testid="stSidebar"] div[role="radiogroup"] {
-    gap: 10px !important;
+    gap: 8px !important;
     display: flex !important;
     flex-direction: column !important;
     width: 100% !important;
 }
 
-/* Convert sidebar items into full-width, clean rounded action buttons/cards */
+/* Convert sidebar items into full-width, clean rounded high-end academic cards */
 div[data-testid="stSidebar"] div[role="radiogroup"] label {
     width: 100% !important;
     display: flex !important;
     align-items: center !important;
     box-sizing: border-box !important;
     background: var(--bg-surface) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(88, 193, 200, 0.12) !important;
     border-radius: 12px !important;
-    padding: 12px 16px !important;
+    padding: 14px 18px !important;
     margin: 0 0 6px 0 !important;
     cursor: pointer !important;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
@@ -278,9 +320,9 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label {
 
 div[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
     background: var(--bg-hover) !important;
-    border-color: rgba(88, 193, 200, 0.4) !important;
-    transform: translateY(-1px) translateX(3px) !important;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3), 0 0 12px rgba(88, 193, 200, 0.15) !important;
+    border-color: rgba(88, 193, 200, 0.45) !important;
+    transform: translateX(4px) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), 0 0 14px rgba(88, 193, 200, 0.15) !important;
 }
 
 /* Completely Hide Streamlit default radio-button circles */
@@ -330,13 +372,13 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label span {
 /* Active State: Glowing Accent Outline (#58C1C8) & Glassmorphism */
 div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"],
 div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
-    background: linear-gradient(135deg, rgba(88, 193, 200, 0.18) 0%, rgba(8, 9, 13, 0.88) 100%) !important;
+    background: linear-gradient(135deg, rgba(88, 193, 200, 0.2) 0%, rgba(14, 17, 23, 0.95) 100%) !important;
     backdrop-filter: blur(14px) !important;
     -webkit-backdrop-filter: blur(14px) !important;
     border: 1.5px solid #58C1C8 !important;
-    border-left: 4.5px solid #58C1C8 !important;
-    box-shadow: 0 0 22px rgba(88, 193, 200, 0.35), inset 0 0 14px rgba(88, 193, 200, 0.12) !important;
-    transform: translateX(3px) !important;
+    border-left: 5px solid #58C1C8 !important;
+    box-shadow: 0 4px 22px rgba(88, 193, 200, 0.35), inset 0 0 14px rgba(88, 193, 200, 0.12) !important;
+    transform: translateX(4px) !important;
 }
 
 div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] div p,
@@ -682,31 +724,112 @@ div[data-testid="stChatInput"] button svg {
     border-bottom-color: #58c1c8 !important;
 }
 
-/* Sleek Hamburger Drawer Button */
+/* ================================================================ */
+/* 2.5 CHATGPT / GEMINI STYLE SIDEBAR TOGGLE & CONTROLS             */
+/* ================================================================ */
+/* Sleek floating expand button (visible in top-left when sidebar is collapsed) */
 [data-testid="collapsedControl"],
 [data-testid="stSidebarCollapsedControl"] {
-    color: #58c1c8 !important;
-    background: #13151f !important;
-    border: 1.5px solid rgba(88, 193, 200, 0.4) !important;
-    border-radius: 10px !important;
-    padding: 7px 9px !important;
-    top: 12px !important;
-    left: 12px !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 12px rgba(88, 193, 200, 0.25) !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    position: fixed !important;
+    top: 14px !important;
+    left: 14px !important;
     z-index: 999999 !important;
-    transition: all 0.2s ease !important;
+    background: #131722 !important;
+    border: 1px solid rgba(88, 193, 200, 0.35) !important;
+    border-radius: 10px !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(88, 193, 200, 0.15) !important;
+    cursor: pointer !important;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
+
 [data-testid="collapsedControl"]:hover,
 [data-testid="stSidebarCollapsedControl"]:hover {
-    border-color: #58C1C8 !important;
-    box-shadow: 0 4px 22px rgba(0, 0, 0, 0.5), 0 0 18px rgba(88, 193, 200, 0.5) !important;
+    background: #1a2030 !important;
+    border-color: #58c1c8 !important;
+    transform: scale(1.05) translateY(-1px) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75), 0 0 16px rgba(88, 193, 200, 0.35) !important;
 }
+
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"] button,
+[data-testid="stSidebarCollapsedControl"] button[data-testid="baseButton-headerNoPadding"],
+[data-testid="collapsedControl"] button[data-testid="baseButton-headerNoPadding"],
+[data-testid="stSidebarCollapsedControl"] button[aria-label="Open sidebar"],
+[data-testid="collapsedControl"] button[aria-label="Open sidebar"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    color: #58c1c8 !important;
+}
+
 [data-testid="collapsedControl"] svg,
 [data-testid="stSidebarCollapsedControl"] svg {
+    display: block !important;
+    width: 20px !important;
+    height: 20px !important;
     stroke: #58C1C8 !important;
     fill: #58C1C8 !important;
+}
+
+/* Sidebar Collapse Button (Inside Expanded Sidebar - ChatGPT/Gemini Style) */
+[data-testid="stSidebarCollapseButton"],
+button[data-testid="stSidebarCollapseButton"],
+section[data-testid="stSidebar"] button[aria-label="Close sidebar"],
+section[data-testid="stSidebar"] button[data-testid="baseButton-headerNoPadding"],
+section[data-testid="stSidebar"] button[data-testid="stSidebarCollapseButton"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    color: #58c1c8 !important;
+    background: rgba(88, 193, 200, 0.08) !important;
+    border: 1px solid rgba(88, 193, 200, 0.22) !important;
+    border-radius: 8px !important;
+    width: 32px !important;
+    height: 32px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+}
+
+[data-testid="stSidebarCollapseButton"]:hover,
+button[data-testid="stSidebarCollapseButton"]:hover,
+section[data-testid="stSidebar"] button[aria-label="Close sidebar"]:hover,
+section[data-testid="stSidebar"] button[data-testid="baseButton-headerNoPadding"]:hover {
+    background: rgba(88, 193, 200, 0.2) !important;
+    border-color: #58c1c8 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(88, 193, 200, 0.3) !important;
+    transform: scale(1.05) !important;
+}
+
+[data-testid="stSidebarCollapseButton"] svg,
+button[data-testid="stSidebarCollapseButton"] svg,
+section[data-testid="stSidebar"] button svg {
+    fill: #58c1c8 !important;
+    stroke: #58c1c8 !important;
+    width: 18px !important;
+    height: 18px !important;
 }
 
 /* Table and Component Contrast Enhancements */
@@ -744,60 +867,27 @@ div[data-baseweb="menu"] li {
 /* ================================================================ */
 @media (min-width: 1025px) {
     [data-testid="stSidebar"],
-    section[data-testid="stSidebar"],
-    [data-testid="stSidebar"][aria-expanded="false"],
-    section[data-testid="stSidebar"][aria-expanded="false"] {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        bottom: 0 !important;
-        height: 100vh !important;
-        min-width: 290px !important;
-        width: 290px !important;
-        max-width: 320px !important;
-        transform: none !important;
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        margin-left: 0 !important;
-        z-index: 100 !important;
-    }
-
-    /* Hide collapse controls on desktop */
-    [data-testid="stSidebarCollapseButton"],
-    button[data-testid="stSidebarCollapseButton"],
-    [data-testid="stSidebarCollapsedControl"],
-    [data-testid="collapsedControl"],
-    button[aria-label="Close sidebar"] {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        width: 0 !important;
-        height: 0 !important;
-    }
-
-    section.main,
-    .stMain {
-        margin-left: 290px !important;
-        width: calc(100% - 290px) !important;
+    section[data-testid="stSidebar"] {
+        min-width: 280px !important;
+        max-width: 300px !important;
+        width: 285px !important;
     }
 
     .main .block-container,
     div[data-testid="stMainBlockContainer"] {
-        width: 85% !important;
-        max-width: 1000px !important;
+        width: 88% !important;
+        max-width: 1060px !important;
         margin-left: auto !important;
         margin-right: auto !important;
         padding-top: 2rem !important;
         padding-bottom: 120px !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
     }
 
     div[data-testid="stBottomBlockContainer"] {
-        width: 85% !important;
-        max-width: 1000px !important;
+        width: 88% !important;
+        max-width: 1060px !important;
         margin: 0 auto !important;
         padding-bottom: 22px !important;
         padding-top: 8px !important;
@@ -813,43 +903,10 @@ div[data-baseweb="menu"] li {
 /* ================================================================ */
 @media (min-width: 769px) and (max-width: 1024px) {
     [data-testid="stSidebar"],
-    section[data-testid="stSidebar"],
-    [data-testid="stSidebar"][aria-expanded="false"],
-    section[data-testid="stSidebar"][aria-expanded="false"] {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        bottom: 0 !important;
-        height: 100vh !important;
-        min-width: 250px !important;
-        width: 250px !important;
-        max-width: 260px !important;
-        transform: none !important;
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        margin-left: 0 !important;
-        z-index: 100 !important;
-    }
-
-    /* Hide collapse controls on tablet */
-    [data-testid="stSidebarCollapseButton"],
-    button[data-testid="stSidebarCollapseButton"],
-    [data-testid="stSidebarCollapsedControl"],
-    [data-testid="collapsedControl"],
-    button[aria-label="Close sidebar"] {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        width: 0 !important;
-        height: 0 !important;
-    }
-
-    section.main,
-    .stMain {
-        margin-left: 250px !important;
-        width: calc(100% - 250px) !important;
+    section[data-testid="stSidebar"] {
+        min-width: 260px !important;
+        max-width: 280px !important;
+        width: 265px !important;
     }
 
     .main .block-container,
@@ -858,10 +915,10 @@ div[data-baseweb="menu"] li {
         max-width: 100% !important;
         margin-left: auto !important;
         margin-right: auto !important;
-        padding-top: 2rem !important;
+        padding-top: 2.2rem !important;
         padding-bottom: 125px !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
     }
 
     div[data-testid="stBottomBlockContainer"] {
@@ -873,7 +930,7 @@ div[data-baseweb="menu"] li {
     }
 
     div[data-testid="stSidebar"] div[role="radiogroup"] label {
-        padding: 10px 12px !important;
+        padding: 12px 14px !important;
     }
 
     div[data-testid="stSidebar"] div[role="radiogroup"] label div p,
@@ -2615,10 +2672,14 @@ clean_email_auth()
 
 # --- 7. SIDEBAR NAVIGATION ---
 with st.sidebar:
-    st.markdown("""
-        <div style="display:flex; align-items:center; gap:10px; padding: 5px 0 20px 4px;">
-            <div style="width:12px; height:12px; background:#58c1c8; border-radius:50%; box-shadow: 0 0 12px #58c1c8;"></div>
-            <h2 style="color:var(--text-primary, #ffffff); margin:0; font-size:24px; font-weight:800; letter-spacing:-0.5px;">Topper<span style="color:#58c1c8;">GPT</span></h2>
+    logo_html = f'<img src="{_LOGO_B64}" style="width:36px; height:36px; object-fit:contain; border-radius:9px; box-shadow: 0 0 14px rgba(88, 193, 200, 0.4); flex-shrink:0;" alt="TopperGPT Logo" />' if _LOGO_B64 else '<div style="width:14px; height:14px; background:#58c1c8; border-radius:50%; box-shadow: 0 0 14px #58c1c8;"></div>'
+    st.markdown(f"""
+        <div style="display:flex; align-items:center; gap:12px; padding: 6px 4px 18px 4px; border-bottom: 1px solid rgba(88, 193, 200, 0.14); margin-bottom: 16px;">
+            {logo_html}
+            <div style="display:flex; flex-direction:column; justify-content:center;">
+                <h2 style="color:var(--text-primary, #f8fafc); margin:0; font-size:22px; font-weight:800; letter-spacing:-0.5px; line-height:1.15;">Topper<span style="color:#58c1c8;">GPT</span></h2>
+                <span style="color:#58c1c8; font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; margin-top:2px;">Academic AI</span>
+            </div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -2744,11 +2805,20 @@ if nav_selection == "💡 AI Tutor":
         "- Wrap ALL inline variables and formulas in single dollar signs (e.g., $V_p / V_s$, $R_{eq}$, $I_1$).\n"
         "- Wrap ALL standalone or block equations in double dollar signs ($$...$$).\n"
         "- NEVER use \\displaystyle or wrap formulas in bare curly braces {...} without dollar signs.\n\n"
-        "RESPONSE GUIDELINES:\n"
-        "1. If conversational (greetings, general chat): Reply politely and concisely in 1-2 sentences.\n"
-        "2. If follow-up request (e.g., 'explain in simple english', 'give an example', 'summarize this', 'explain again', 'simplify'): "
-        "Apply the request directly to the previous AI response in the conversation history without asking what topic they are referring to.\n"
-        "3. If academic topic/question: Use the strict 3-block structure:\n"
+        "CORE RESPONSE PROTOCOLS:\n"
+        "1. DYNAMIC NON-ENGINEERING GUARDRAIL (CRITICAL & NON-NEGOTIABLE):\n"
+        "   If the user's prompt or question is about ANYTHING outside of engineering, core sciences, mathematics, or the Mumbai University academic curriculum "
+        "(for example: gaming, video games, movies, entertainment, anime, making money, financial advice, dating, relationships, fitness, cooking, personal life advice, or non-engineering general topics):\n"
+        "   You MUST NOT answer, fulfill, or entertain the off-topic request.\n"
+        "   You MUST dynamically acknowledge their exact requested topic and politely pivot back using this precise response format:\n"
+        "   \"I understand you're interested in [dynamically insert their exact requested topic], but as TopperGPT, my primary function is to help you excel in Mumbai University engineering subjects and exam preparation. I'm not equipped to discuss [dynamically insert their exact requested topic] or topics outside engineering. Feel free to ask any doubts regarding your engineering syllabus, concepts, derivations, numerical problems, or university PYQs!\"\n\n"
+        "2. CONVERSATIONAL GREETINGS:\n"
+        "   If the message is a polite greeting (e.g., 'hi', 'hello', 'hey', 'good morning'): Reply warmly and concisely in 1-2 sentences, inviting their engineering doubt or subject topic.\n\n"
+        "3. FOLLOW-UP REQUESTS:\n"
+        "   If the student makes a follow-up request (e.g., 'explain in simple english', 'give an example', 'summarize this', 'explain again', 'simplify'): "
+        "Apply the request directly to the previous AI response in the conversation history without asking what topic they are referring to.\n\n"
+        "4. ACADEMIC & ENGINEERING TOPICS:\n"
+        "   Deliver comprehensive, university-standard answers using this strict 3-block structure:\n"
         "   ### 📌 1. University Standard Definition (2-Mark Standard)\n"
         "   Accurate textbook definition and mandatory examiner keywords.\n\n"
         "   ### ⚡ 2. Step-by-Step Technical Execution & Derivation\n"
