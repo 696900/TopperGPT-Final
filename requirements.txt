@@ -3,3 +3,4 @@ requests
 supabase
 fpdf2
 pypdf
+pillow

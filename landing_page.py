@@ -926,54 +926,6 @@ def render_landing_page(initial_theme=None):
         gap: 0.25rem;
     }
 
-    /* Founder Section */
-    .founder-section {
-        text-align: center;
-        padding: 4rem 0 5rem;
-        border-top: 1px solid var(--border-subtle);
-    }
-
-    .founder-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.85rem;
-        font-family: var(--font-mono);
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 0.75rem;
-    }
-
-    .founder-title {
-        font-size: 2rem;
-        font-weight: 800;
-        margin-bottom: 2rem;
-    }
-
-    .founder-title span {
-        color: var(--accent);
-    }
-
-    .founder-card {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--bg-card);
-        border: 1px solid var(--border-highlight);
-        border-radius: 9999px;
-        padding: 6px;
-        box-shadow: 0 0 25px rgba(88, 193, 200, 0.2);
-    }
-
-    .founder-img {
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid var(--accent);
-    }
-
     /* Footer */
     .footer {
         border-top: 1px solid var(--border-subtle);
@@ -1041,7 +993,6 @@ def render_landing_page(initial_theme=None):
       <ul class="nav-links">
         <li><a href="#foundation" class="nav-link active">Foundation</a></li>
         <li><a href="#research" class="nav-link">Research</a></li>
-        <li><a href="#business" class="nav-link">Business</a></li>
         <li><a href="#developers" class="nav-link">Developers</a></li>
         <li><a href="#tools" class="nav-link">Products</a></li>
       </ul>
@@ -1344,24 +1295,6 @@ def render_landing_page(initial_theme=None):
           <span class="action">Open →</span>
         </div>
       </a>
-    </div>
-  </section>
-
-  <!-- Founder Section -->
-  <section class="founder-section" id="business">
-    <div class="container">
-      <div class="founder-badge">Meet The Founders</div>
-      <h2 class="founder-title">
-        The mind behind <span>Topper</span><span style="color: var(--accent);">GPT</span>
-      </h2>
-      <div class="founder-card">
-        <img 
-          src="https://raw.githubusercontent.com/Kunal1315/TopperGpt-v2.0/main/images/Picsart_26-06-29_09-47-44-859.jpg" 
-          alt="Founder" 
-          class="founder-img"
-          onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'"
-        />
-      </div>
     </div>
   </section>
 

@@ -17,6 +17,10 @@ try:
     import pypdf
 except ImportError:
     pypdf = None
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 from supabase import create_client, Client
 from landing_page import render_landing_page
 
@@ -49,6 +53,42 @@ def extract_text_from_pdf(file_bytes_or_buffer, max_pages=15) -> str:
     except Exception as e:
         print(f"Notice: PDF text extraction: {e}")
         return ""
+
+def optimize_image_for_ai(image_bytes: bytes, max_dim: int = 1600, quality: int = 85) -> tuple[bytes, str]:
+    """
+    Optimizes high-resolution or heavy camera photos into a compact, web-optimized JPEG
+    preserving crisp diagram readability while shrinking transfer payloads from 10MB to ~200KB.
+    Prevents API socket timeouts and latency.
+    """
+    if Image is None:
+        return image_bytes, "image/jpeg"
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        # Convert RGBA / palette / transparency to RGB with white background
+        if img.mode in ("RGBA", "LA", "P"):
+            bg = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            bg.paste(img, mask=img.split()[-1] if "A" in img.getbands() else None)
+            img = bg
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+
+        w, h = img.size
+        if max(w, h) > max_dim:
+            if w > h:
+                new_w = max_dim
+                new_h = int(h * (max_dim / w))
+            else:
+                new_h = max_dim
+                new_w = int(w * (max_dim / h))
+            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+        out_buf = io.BytesIO()
+        img.save(out_buf, format="JPEG", quality=quality, optimize=True)
+        return out_buf.getvalue(), "image/jpeg"
+    except Exception:
+        return image_bytes, "image/jpeg"
 
 # Helper to encode logo to base64 data URI for zero-latency HTML rendering
 def get_base64_image(image_path: str) -> str:
@@ -182,7 +222,8 @@ if is_sidebar_open:
             transform: translateX(0) !important;
             margin-left: 0 !important;
             pointer-events: auto !important;
-            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            will-change: transform, margin-left, opacity;
         }
         .main .block-container,
         div[data-testid="stMainBlockContainer"] {
@@ -218,6 +259,7 @@ if is_sidebar_open:
                 z-index: 999999 !important;
                 box-shadow: 6px 0 36px rgba(0, 0, 0, 0.95) !important;
                 transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                will-change: transform, opacity;
             }
         }
         </style>
@@ -228,16 +270,17 @@ else:
         /* Sidebar Collapsed State (Desktop & Large displays) */
         [data-testid="stSidebar"],
         section[data-testid="stSidebar"] {
-            width: 0 !important;
-            min-width: 0 !important;
-            max-width: 0 !important;
+            display: flex !important;
+            width: 285px !important;
+            min-width: 285px !important;
+            max-width: 285px !important;
             margin-left: -285px !important;
             transform: translateX(-100%) !important;
             opacity: 0 !important;
-            visibility: hidden !important;
             pointer-events: none !important;
             overflow: hidden !important;
-            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            will-change: transform, margin-left, opacity;
         }
         section.main,
         .stMain {
@@ -276,10 +319,10 @@ else:
                 margin-left: 0 !important;
                 transform: translateX(-105%) !important;
                 opacity: 0 !important;
-                visibility: hidden !important;
                 pointer-events: none !important;
                 z-index: 999999 !important;
-                transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.35s !important;
+                transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                will-change: transform, opacity;
             }
         }
         </style>
@@ -691,14 +734,26 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) spa
 .stSelectbox > div,
 .stMultiSelect > div,
 div[data-baseweb="input"],
+div[data-baseweb="input"] > div,
 div[data-baseweb="base-input"],
+div[data-baseweb="base-input"] > div,
 div[data-baseweb="textarea"],
+div[data-baseweb="textarea"] > div,
 div[data-baseweb="select"],
 div[data-baseweb="select"] > div,
+div[data-testid="stTextInputRootElement"],
+div[data-testid="stTextInputRootElement"] > div,
+[data-testid="stSidebar"] .stTextInput > div,
+[data-testid="stSidebar"] div[data-baseweb="input"],
+[data-testid="stSidebar"] div[data-baseweb="input"] > div,
+[data-testid="stSidebar"] div[data-baseweb="base-input"],
+[data-testid="stSidebar"] div[data-baseweb="base-input"] > div,
+[data-testid="stSidebar"] input,
 section[data-testid="stFileUploadDropzone"],
 div[data-testid="stFileUploaderDropzone"],
 div[data-testid="stFileUploaderFileData"],
-div[data-testid="stUploadedFileData"] {
+div[data-testid="stUploadedFileData"],
+div[data-testid="stChatInputFile"] {
     background: #1e293b !important;
     background-color: #1e293b !important;
     color: #ffffff !important;
@@ -709,9 +764,14 @@ div[data-testid="stUploadedFileData"] {
 }
 
 div[data-baseweb="input"]:focus-within,
+div[data-baseweb="input"] > div:focus-within,
 div[data-baseweb="base-input"]:focus-within,
+div[data-baseweb="base-input"] > div:focus-within,
 div[data-baseweb="textarea"]:focus-within,
 div[data-baseweb="select"]:focus-within,
+div[data-testid="stTextInputRootElement"]:focus-within,
+[data-testid="stSidebar"] div[data-baseweb="input"]:focus-within,
+[data-testid="stSidebar"] div[data-baseweb="input"] > div:focus-within,
 section[data-testid="stFileUploadDropzone"]:focus-within {
     background: #1e293b !important;
     background-color: #1e293b !important;
@@ -725,9 +785,13 @@ section[data-testid="stFileUploadDropzone"]:focus-within {
 .stTextArea textarea,
 .stTextArea > div > div > textarea,
 div[data-baseweb="input"] input,
+div[data-baseweb="input"] > div > input,
 div[data-baseweb="base-input"] input,
 div[data-baseweb="textarea"] textarea,
 div[data-baseweb="select"] input,
+div[data-testid="stTextInputRootElement"] input,
+[data-testid="stSidebar"] .stTextInput input,
+[data-testid="stSidebar"] input,
 input, textarea, select {
     background-color: transparent !important;
     background: transparent !important;
@@ -760,6 +824,24 @@ div[data-testid="stChatInput"] textarea::placeholder {
     opacity: 1 !important;
     font-size: 14.5px !important;
     font-weight: 500 !important;
+}
+
+/* Forms & Expanders Dark Mode */
+div[data-testid="stForm"] {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+[data-testid="stExpander"] {
+    background-color: #12161c !important;
+    border: 1px solid rgba(88, 193, 200, 0.2) !important;
+    border-radius: 12px !important;
+}
+
+div[data-testid="stExpanderDetails"] {
+    background-color: #12161c !important;
+    color: #ffffff !important;
 }
 
 /* File Uploader Custom Dark Mode Styling (#1e293b) */
@@ -818,11 +900,17 @@ input:-webkit-autofill:hover,
 input:-webkit-autofill:focus, 
 textarea:-webkit-autofill,
 textarea:-webkit-autofill:hover,
-textarea:-webkit-autofill:focus {
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
     -webkit-text-fill-color: #ffffff !important;
     -webkit-box-shadow: 0 0 0px 1000px #1e293b inset !important;
+    box-shadow: 0 0 0px 1000px #1e293b inset !important;
     transition: background-color 5000s ease-in-out 0s !important;
+    caret-color: #ffffff !important;
 }
+
 
 /* ================================================================ */
 /* 2. CHAT INPUT BAR (NO WHITE BORDER / OUTLINE, DARK BACKDROP)     */
@@ -910,8 +998,90 @@ div[data-testid="stChatInput"] textarea:active {
     padding: 8px 10px !important;
 }
 
+/* ChatGPT / Gemini Style Inline File Attachment Button (+) */
+button[data-testid="stChatInputFileUploadButton"],
+div[data-testid="stChatInputFileUploadButton"] {
+    background: rgba(255, 255, 255, 0.08) !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: #58c1c8 !important;
+    border: 1px solid rgba(88, 193, 200, 0.3) !important;
+    border-radius: 50% !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: auto 6px auto 2px !important;
+    padding: 0 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-shadow: none !important;
+}
+
+button[data-testid="stChatInputFileUploadButton"]:hover {
+    background: rgba(88, 193, 200, 0.2) !important;
+    background-color: rgba(88, 193, 200, 0.2) !important;
+    border-color: #58c1c8 !important;
+    color: #ffffff !important;
+    transform: scale(1.08) !important;
+    box-shadow: 0 0 12px rgba(88, 193, 200, 0.4) !important;
+}
+
+button[data-testid="stChatInputFileUploadButton"] svg {
+    fill: currentColor !important;
+    color: inherit !important;
+    width: 18px !important;
+    height: 18px !important;
+}
+
+/* Chat Input File Attachment Chip (Preview in Input Bar) */
+div[data-testid="stChatInputFile"],
+.stChatInputFile {
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+    border: 1px solid rgba(88, 193, 200, 0.35) !important;
+    border-radius: 10px !important;
+    padding: 4px 10px !important;
+    margin-bottom: 6px !important;
+    color: #ffffff !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+div[data-testid="stChatInputFileName"],
+.stChatInputFileName {
+    color: #58c1c8 !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+}
+
+div[data-testid="stChatInputDeleteBtn"],
+button[data-testid="stChatInputDeleteBtn"] {
+    background: transparent !important;
+    border: none !important;
+    color: #94a3b8 !important;
+    cursor: pointer !important;
+    padding: 2px !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    transition: all 0.2s ease !important;
+}
+
+div[data-testid="stChatInputDeleteBtn"]:hover,
+button[data-testid="stChatInputDeleteBtn"]:hover {
+    color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.15) !important;
+}
+
 /* Send Button with Cyber-Cyan Accent */
-div[data-testid="stChatInput"] button {
+button[data-testid="stChatInputSubmitButton"] {
     background: linear-gradient(135deg, rgb(88, 193, 200) 0%, rgb(40, 155, 165) 100%) !important;
     color: #000000 !important;
     border: none !important;
@@ -930,16 +1100,16 @@ div[data-testid="stChatInput"] button {
     box-shadow: 0 0 14px rgba(88, 193, 200, 0.35) !important;
 }
 
-div[data-testid="stChatInput"] button:hover:not(:disabled) {
+button[data-testid="stChatInputSubmitButton"]:hover:not(:disabled) {
     transform: scale(1.06) translateY(-1px) !important;
     box-shadow: 0 0 22px rgba(88, 193, 200, 0.6) !important;
 }
 
-div[data-testid="stChatInput"] button:active:not(:disabled) {
+button[data-testid="stChatInputSubmitButton"]:active:not(:disabled) {
     transform: scale(0.96) !important;
 }
 
-div[data-testid="stChatInput"] button:disabled {
+button[data-testid="stChatInputSubmitButton"]:disabled {
     background: rgba(255, 255, 255, 0.06) !important;
     color: var(--text-dim) !important;
     opacity: 0.45 !important;
@@ -947,7 +1117,7 @@ div[data-testid="stChatInput"] button:disabled {
     cursor: not-allowed !important;
 }
 
-div[data-testid="stChatInput"] button svg {
+button[data-testid="stChatInputSubmitButton"] svg {
     fill: currentColor !important;
     width: 18px !important;
     height: 18px !important;
@@ -2536,8 +2706,8 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
     if max_tokens is not None:
         max_toks = max_tokens
 
-    tier_timeout = 25 if max_toks > 1000 else 12
-    gemini_timeout = 30 if attached_file else (25 if max_toks > 1000 else 15)
+    tier_timeout = 35 if attached_file else (25 if max_toks > 1000 else 12)
+    gemini_timeout = 45 if attached_file else (25 if max_toks > 1000 else 15)
 
     # -------------------------------------------------------------------------
     # 0. NORMALIZE & SANITIZE MESSAGES ARRAY
@@ -3148,124 +3318,6 @@ if nav_selection == "💡 AI Tutor":
                 })
         st.rerun()
 
-    # Multimodal Document & Image Uploader (PNG, JPG, JPEG, PDF - max 10MB)
-    uploader_ver = st.session_state.get("uploader_key_version", 0)
-    with st.expander("📎 Attach Question Diagram or PDF Notes (Multimodal AI Solver)", expanded=("current_attachment" in st.session_state and st.session_state.current_attachment is not None)):
-        st.markdown(
-            "<p style='color: var(--text-muted, #94a3b8); font-size: 13px; margin: 0 0 10px 0;'>"
-            "Upload an exam question diagram (PNG / JPG) or textbook / syllabus chapter (PDF up to 10MB) for instant AI evaluation & doubt resolution."
-            "</p>",
-            unsafe_allow_html=True
-        )
-        uploaded_doc = st.file_uploader(
-            "Upload Question Diagram or PDF Chapter",
-            type=["png", "jpg", "jpeg", "pdf"],
-            key=f"tutor_file_uploader_{uploader_ver}",
-            label_visibility="collapsed"
-        )
-        if uploaded_doc is not None:
-            if uploaded_doc.size > 10 * 1024 * 1024:
-                st.error("⚠️ File size exceeds 10MB limit! Please upload a file smaller than 10MB.")
-                st.session_state.current_attachment = None
-            else:
-                fname = uploaded_doc.name
-                fext = fname.lower().split('.')[-1]
-                file_bytes = uploaded_doc.getvalue()
-                cached_att = st.session_state.get("current_attachment")
-                if not cached_att or cached_att.get("name") != fname or cached_att.get("size_bytes") != len(file_bytes):
-                    if fext in ["png", "jpg", "jpeg"]:
-                        mime_type = "image/png" if fext == "png" else "image/jpeg"
-                        b64_str = base64.b64encode(file_bytes).decode("utf-8")
-                        st.session_state.current_attachment = {
-                            "type": "image",
-                            "name": fname,
-                            "size_kb": round(len(file_bytes) / 1024, 1),
-                            "size_bytes": len(file_bytes),
-                            "mime_type": mime_type,
-                            "base64": b64_str
-                        }
-                    elif fext == "pdf":
-                        with st.spinner("📄 Reading PDF pages and extracting text..."):
-                            extracted_txt = extract_text_from_pdf(file_bytes, max_pages=15)
-                            b64_str = base64.b64encode(file_bytes).decode("utf-8")
-                            st.session_state.current_attachment = {
-                                "type": "pdf",
-                                "name": fname,
-                                "size_kb": round(len(file_bytes) / 1024, 1),
-                                "size_bytes": len(file_bytes),
-                                "mime_type": "application/pdf",
-                                "base64": b64_str,
-                                "extracted_text": extracted_txt
-                            }
-        else:
-            if "current_attachment" in st.session_state and st.session_state.current_attachment is not None:
-                st.session_state.current_attachment = None
-
-        if st.session_state.get("current_attachment"):
-            att_info = st.session_state.current_attachment
-            if att_info["type"] == "image":
-                st.markdown(
-                    f"<div style='background: rgba(88, 193, 200, 0.08); border: 1px solid rgba(88, 193, 200, 0.3); border-radius: 8px; padding: 10px 14px; margin: 8px 0;'>"
-                    f"<span style='color: #58c1c8; font-weight: 600;'>📷 {att_info['name']}</span> "
-                    f"<span style='color: #94a3b8; font-size: 12px;'>({att_info['size_kb']} KB) — Ready for analysis!</span>"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
-            elif att_info["type"] == "pdf":
-                st.markdown(
-                    f"<div style='background: rgba(88, 193, 200, 0.08); border: 1px solid rgba(88, 193, 200, 0.3); border-radius: 8px; padding: 10px 14px; margin: 8px 0;'>"
-                    f"<span style='color: #58c1c8; font-weight: 600;'>📄 {att_info['name']}</span> "
-                    f"<span style='color: #94a3b8; font-size: 12px;'>({att_info['size_kb']} KB · {len(att_info.get('extracted_text', ''))} characters extracted) — Ready for analysis!</span>"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
-
-            col_qsolve, col_qclr = st.columns([2.5, 1])
-            with col_qsolve:
-                if st.button("⚡ Solve / Explain Attached Document", key="btn_solve_attached_doc", use_container_width=True):
-                    st.session_state.pending_attachment_action = True
-                    st.rerun()
-            with col_qclr:
-                if st.button("🗑️ Remove File", key="btn_remove_attached_doc", use_container_width=True):
-                    st.session_state.current_attachment = None
-                    st.session_state.uploader_key_version = st.session_state.get("uploader_key_version", 0) + 1
-                    st.rerun()
-
-    # Process quick solve button action on attachment
-    if st.session_state.get("pending_attachment_action") and st.session_state.get("current_attachment"):
-        st.session_state.pending_attachment_action = False
-        active_att = st.session_state.current_attachment
-        doc_type_str = "image diagram" if active_att["type"] == "image" else "PDF chapter/notes"
-        q_prompt = (
-            f"Please analyze the attached {doc_type_str} ({active_att['name']}) according to Mumbai University C-Scheme standards. "
-            "Explain the fundamental concepts, step-by-step mathematical derivation/solution, mandatory keywords, and any examiner trap alerts."
-        )
-        st.session_state.tutor_messages.append({
-            "role": "user",
-            "content": q_prompt,
-            "hinglish": None,
-            "attachment": active_att
-        })
-        st.session_state.current_attachment = None
-        st.session_state.uploader_key_version = st.session_state.get("uploader_key_version", 0) + 1
-
-        messages_payload = [{"role": "system", "content": AI_TUTOR_SYSTEM_INSTRUCTION}]
-        for m in st.session_state.tutor_messages[-6:]:
-            messages_payload.append({
-                "role": "assistant" if m.get("role") == "assistant" else "user",
-                "content": str(m.get("content", "")).strip()
-            })
-        with st.spinner("⚡ Consulting AI Tutor on attached document..."):
-            try:
-                ai_reply = generate_chat_response(messages_payload, max_toks=1000, temperature=0.3, attached_file=active_att)
-                st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
-            except Exception:
-                st.session_state.tutor_messages.append({
-                    "role": "assistant",
-                    "content": "Generation failed due to API timeout or rate limit. Please retry.",
-                    "hinglish": None
-                })
-        st.rerun()
 
     for idx, msg in enumerate(st.session_state.tutor_messages):
         with st.chat_message(msg["role"]):
@@ -3307,76 +3359,130 @@ if nav_selection == "💡 AI Tutor":
                             st.session_state.tutor_messages[idx]["hinglish"] = h_res
                             st.rerun()
 
-    if st.session_state.get("current_attachment"):
-        att_cur = st.session_state.current_attachment
-        icon = "📷" if att_cur["type"] == "image" else "📄"
-        st.markdown(
-            f"<div style='background: rgba(88, 193, 200, 0.12); border: 1px solid rgba(88, 193, 200, 0.4); border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: 13px;'>"
-            f"<span style='color: #58c1c8; font-weight: 600;'>{icon} Attached: {att_cur['name']} ({att_cur['size_kb']} KB)</span> "
-            f"<span style='color: #94a3b8;'>— Type your doubt below to send with this file.</span>"
-            f"</div>",
-            unsafe_allow_html=True
+    # Inline ChatGPT / Gemini-Style Chat Input with File Attachment
+    try:
+        user_input_val = st.chat_input(
+            "Ask a doubt, request notes, or attach an exam diagram/PDF...",
+            accept_file=True,
+            file_type=["png", "jpg", "jpeg", "pdf"],
+            key="ai_tutor_inline_chat"
+        )
+    except TypeError:
+        # Fallback if running on an environment with older Streamlit signature
+        user_input_val = st.chat_input(
+            "Ask a doubt, request notes, or get PYQs...",
+            key="ai_tutor_inline_chat"
         )
 
-    user_query = st.chat_input("Ask a doubt, request notes, or get PYQs...")
+    if user_input_val:
+        p_text = ""
+        up_files = []
+        if hasattr(user_input_val, "text"):
+            p_text = str(user_input_val.text or "").strip()
+        elif isinstance(user_input_val, dict):
+            p_text = str(user_input_val.get("text", "") or "").strip()
+        elif isinstance(user_input_val, str):
+            p_text = user_input_val.strip()
 
-    if user_query:
-        active_att = st.session_state.get("current_attachment")
-        st.session_state.tutor_messages.append({
-            "role": "user",
-            "content": user_query,
-            "hinglish": None,
-            "attachment": active_att
-        })
-        if active_att:
-            st.session_state.current_attachment = None
-            st.session_state.uploader_key_version = st.session_state.get("uploader_key_version", 0) + 1
+        if hasattr(user_input_val, "files"):
+            up_files = user_input_val.files or []
+        elif isinstance(user_input_val, dict):
+            up_files = user_input_val.get("files", []) or []
 
-        with st.chat_message("user"):
-            if active_att:
-                if active_att.get("type") == "image":
-                    st.markdown(
-                        f"""<div style="background: rgba(30, 41, 59, 0.85); border: 1px solid #334155; border-radius: 10px; padding: 6px 12px; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 15px;">📷</span>
-                            <span style="font-size: 13px; color: #58c1c8; font-weight: 600;">{active_att.get('name', 'Image')}</span>
-                            <span style="font-size: 12px; color: #94a3b8;">({active_att.get('size_kb', 0)} KB)</span>
-                        </div>""",
-                        unsafe_allow_html=True
-                    )
-                    if active_att.get("base64"):
-                        try:
-                            img_bytes = base64.b64decode(active_att["base64"])
-                            st.image(img_bytes, width=320)
-                        except Exception:
-                            pass
-                elif active_att.get("type") == "pdf":
-                    st.markdown(
-                        f"""<div style="background: rgba(30, 41, 59, 0.85); border: 1px solid #334155; border-radius: 10px; padding: 6px 12px; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 15px;">📄</span>
-                            <span style="font-size: 13px; color: #58c1c8; font-weight: 600;">{active_att.get('name', 'PDF Document')}</span>
-                            <span style="font-size: 12px; color: #94a3b8;">({active_att.get('size_kb', 0)} KB)</span>
-                        </div>""",
-                        unsafe_allow_html=True
-                    )
-            st.markdown(clean_output_text(user_query))
+        att_data = None
+        if up_files:
+            up_f = up_files[0]
+            if up_f.size > 10 * 1024 * 1024:
+                st.error("⚠️ The attached file exceeds the 10MB limit! Please attach a file smaller than 10MB.")
+                st.stop()
+            fbytes = up_f.getvalue()
+            fname = up_f.name
+            fext = fname.lower().split('.')[-1]
+            if fext in ["png", "jpg", "jpeg"]:
+                opt_bytes, mime_type = optimize_image_for_ai(fbytes, max_dim=1600, quality=85)
+                b64_str = base64.b64encode(opt_bytes).decode("utf-8")
+                att_data = {
+                    "type": "image",
+                    "name": fname,
+                    "size_kb": round(len(opt_bytes) / 1024, 1),
+                    "size_bytes": len(opt_bytes),
+                    "mime_type": mime_type,
+                    "base64": b64_str
+                }
+            elif fext == "pdf":
+                extracted_txt = extract_text_from_pdf(fbytes, max_pages=15)
+                b64_str = base64.b64encode(fbytes).decode("utf-8") if len(fbytes) < 4 * 1024 * 1024 else ""
+                att_data = {
+                    "type": "pdf",
+                    "name": fname,
+                    "size_kb": round(len(fbytes) / 1024, 1),
+                    "size_bytes": len(fbytes),
+                    "mime_type": "application/pdf",
+                    "base64": b64_str,
+                    "extracted_text": extracted_txt
+                }
 
-        # Dynamic messages payload with system instruction and the last 6 messages
-        messages_payload = [{"role": "system", "content": AI_TUTOR_SYSTEM_INSTRUCTION}]
-        for m in st.session_state.tutor_messages[-6:]:
-            messages_payload.append({
-                "role": "assistant" if m.get("role") == "assistant" else "user",
-                "content": str(m.get("content", "")).strip()
+        # If user attached a file without typing text, default to academic evaluation prompt
+        if not p_text and att_data:
+            doc_type_str = "image diagram" if att_data["type"] == "image" else "PDF chapter/notes"
+            p_text = (
+                f"Please analyze the attached {doc_type_str} ({att_data['name']}) according to Mumbai University C-Scheme standards. "
+                "Explain the fundamental concepts, step-by-step mathematical derivation/solution, mandatory examiner keywords, and any examiner trap alerts."
+            )
+
+        if p_text or att_data:
+            st.session_state.tutor_messages.append({
+                "role": "user",
+                "content": p_text,
+                "hinglish": None,
+                "attachment": att_data
             })
 
-        with st.chat_message("assistant"):
-            with st.spinner("⚡ Consulting AI Tutor..."):
-                try:
-                    ai_reply = generate_chat_response(messages_payload, max_toks=1000, temperature=0.3, attached_file=active_att)
-                    st.markdown(clean_output_text(ai_reply))
-                    st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
-                    st.rerun()
-                except Exception:
-                    st.error("Generation failed due to API timeout or rate limit. Please retry.")
+            with st.chat_message("user"):
+                if att_data:
+                    if att_data.get("type") == "image":
+                        st.markdown(
+                            f"""<div style="background: rgba(30, 41, 59, 0.85); border: 1px solid #334155; border-radius: 10px; padding: 6px 12px; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 15px;">📷</span>
+                                <span style="font-size: 13px; color: #58c1c8; font-weight: 600;">{att_data.get('name', 'Image')}</span>
+                                <span style="font-size: 12px; color: #94a3b8;">({att_data.get('size_kb', 0)} KB)</span>
+                            </div>""",
+                            unsafe_allow_html=True
+                        )
+                        if att_data.get("base64"):
+                            try:
+                                img_bytes = base64.b64decode(att_data["base64"])
+                                st.image(img_bytes, width=320)
+                            except Exception:
+                                pass
+                    elif att_data.get("type") == "pdf":
+                        st.markdown(
+                            f"""<div style="background: rgba(30, 41, 59, 0.85); border: 1px solid #334155; border-radius: 10px; padding: 6px 12px; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 15px;">📄</span>
+                                <span style="font-size: 13px; color: #58c1c8; font-weight: 600;">{att_data.get('name', 'PDF Document')}</span>
+                                <span style="font-size: 12px; color: #94a3b8;">({att_data.get('size_kb', 0)} KB)</span>
+                            </div>""",
+                            unsafe_allow_html=True
+                        )
+                st.markdown(clean_output_text(p_text))
+
+            # Dynamic messages payload with system instruction and the last 6 messages
+            messages_payload = [{"role": "system", "content": AI_TUTOR_SYSTEM_INSTRUCTION}]
+            for m in st.session_state.tutor_messages[-6:]:
+                messages_payload.append({
+                    "role": "assistant" if m.get("role") == "assistant" else "user",
+                    "content": str(m.get("content", "")).strip()
+                })
+
+            with st.chat_message("assistant"):
+                with st.spinner("⚡ Consulting AI Tutor..."):
+                    try:
+                        ai_reply = generate_chat_response(messages_payload, max_toks=1000, temperature=0.3, attached_file=att_data)
+                        st.markdown(clean_output_text(ai_reply))
+                        st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
+                        st.rerun()
+                    except Exception:
+                        st.error("Generation failed due to API timeout or rate limit. Please retry.")
 
 # ==================================================
 # --- 2. FEATURE: PREDICTED QUESTIONS ---
