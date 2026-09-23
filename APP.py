@@ -12,8 +12,43 @@ try:
 except ImportError:
     FPDF = None
     FontFace = None
+import io
+try:
+    import pypdf
+except ImportError:
+    pypdf = None
 from supabase import create_client, Client
 from landing_page import render_landing_page
+
+def extract_text_from_pdf(file_bytes_or_buffer, max_pages=15) -> str:
+    """
+    Safely extracts clean plain text from uploaded PDF documents using pypdf.
+    Truncates to max_pages to prevent memory pressure or latency on large files.
+    """
+    try:
+        if pypdf is None:
+            return ""
+        if isinstance(file_bytes_or_buffer, bytes):
+            stream = io.BytesIO(file_bytes_or_buffer)
+        else:
+            stream = file_bytes_or_buffer
+        reader = pypdf.PdfReader(stream)
+        extracted = []
+        total_pages = len(reader.pages)
+        pages_to_read = min(total_pages, max_pages)
+        for i in range(pages_to_read):
+            text = reader.pages[i].extract_text()
+            if text and text.strip():
+                extracted.append(f"--- [Page {i+1}] ---\n{text.strip()}")
+        if not extracted:
+            return ""
+        combined = "\n\n".join(extracted)
+        if len(combined) > 12000:
+            combined = combined[:12000] + "\n\n[...PDF text truncated for prompt size...]"
+        return combined
+    except Exception as e:
+        print(f"Notice: PDF text extraction: {e}")
+        return ""
 
 # Helper to encode logo to base64 data URI for zero-latency HTML rendering
 def get_base64_image(image_path: str) -> str:
@@ -128,7 +163,7 @@ if qp_feature and "pending_feature" not in st.session_state:
 st.session_state.theme_choice = "dark"
 active_theme = "dark"
 
-# Dynamic Persistent Sidebar Layout with Butter-Smooth CSS Transitions
+# Dynamic Persistent Sidebar Layout with Butter-Smooth CSS Transitions (0.35s cubic-bezier)
 if is_sidebar_open:
     st.markdown("""
         <style>
@@ -147,20 +182,20 @@ if is_sidebar_open:
             transform: translateX(0) !important;
             margin-left: 0 !important;
             pointer-events: auto !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         .main .block-container,
         div[data-testid="stMainBlockContainer"] {
             width: 88% !important;
             max-width: 1060px !important;
             margin: 0 auto !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         div[data-testid="stBottomBlockContainer"] {
             width: 88% !important;
             max-width: 1060px !important;
             margin: 0 auto !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         @media (max-width: 768px) {
             [data-testid="stSidebar"],
@@ -182,7 +217,7 @@ if is_sidebar_open:
                 pointer-events: auto !important;
                 z-index: 999999 !important;
                 box-shadow: 6px 0 36px rgba(0, 0, 0, 0.95) !important;
-                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
             }
         }
         </style>
@@ -202,7 +237,7 @@ else:
             visibility: hidden !important;
             pointer-events: none !important;
             overflow: hidden !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         section.main,
         .stMain {
@@ -210,20 +245,20 @@ else:
             max-width: 100% !important;
             margin-left: 0 !important;
             padding-left: 0 !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         .main .block-container,
         div[data-testid="stMainBlockContainer"] {
             width: 92% !important;
             max-width: 1200px !important;
             margin: 0 auto !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         div[data-testid="stBottomBlockContainer"] {
             width: 92% !important;
             max-width: 1200px !important;
             margin: 0 auto !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         @media (max-width: 768px) {
             [data-testid="stSidebar"],
@@ -244,7 +279,7 @@ else:
                 visibility: hidden !important;
                 pointer-events: none !important;
                 z-index: 999999 !important;
-                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s !important;
+                transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.35s !important;
             }
         }
         </style>
@@ -647,54 +682,146 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) spa
     color: var(--text-primary) !important;
 }
 
-/* Standard Text Inputs and Text Areas */
+/* ================================================================ */
+/* ELIMINATE ALL WHITE INPUT BOXES & FORM FIELD STYLING (#1e293b)   */
+/* ================================================================ */
 .stTextInput > div,
+.stTextArea > div,
+.stNumberInput > div,
+.stSelectbox > div,
+.stMultiSelect > div,
 div[data-baseweb="input"],
-div[data-baseweb="base-input"] {
-    background-color: #0c0d12 !important;
-    border: 1px solid rgba(88, 193, 200, 0.2) !important;
+div[data-baseweb="base-input"],
+div[data-baseweb="textarea"],
+div[data-baseweb="select"],
+div[data-baseweb="select"] > div,
+section[data-testid="stFileUploadDropzone"],
+div[data-testid="stFileUploaderDropzone"],
+div[data-testid="stFileUploaderFileData"],
+div[data-testid="stUploadedFileData"] {
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+    color: #ffffff !important;
+    border: 1px solid #334155 !important;
     border-radius: 10px !important;
     box-shadow: none !important;
     outline: none !important;
 }
 
 div[data-baseweb="input"]:focus-within,
-div[data-baseweb="base-input"]:focus-within {
-    background-color: #13151f !important;
-    border-color: rgba(88, 193, 200, 0.6) !important;
+div[data-baseweb="base-input"]:focus-within,
+div[data-baseweb="textarea"]:focus-within,
+div[data-baseweb="select"]:focus-within,
+section[data-testid="stFileUploadDropzone"]:focus-within {
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+    border-color: #58c1c8 !important;
     box-shadow: 0 0 14px rgba(88, 193, 200, 0.25) !important;
     outline: none !important;
 }
 
 .stTextInput input,
 .stTextInput > div > div > input,
-div[data-baseweb="input"] input {
+.stTextArea textarea,
+.stTextArea > div > div > textarea,
+div[data-baseweb="input"] input,
+div[data-baseweb="base-input"] input,
+div[data-baseweb="textarea"] textarea,
+div[data-baseweb="select"] input,
+input, textarea, select {
     background-color: transparent !important;
+    background: transparent !important;
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
-    color: var(--text-primary) !important;
-    padding: 12px 16px !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    padding: 12px 14px !important;
     font-size: 15px !important;
 }
 
 .stTextInput input:focus,
 .stTextInput > div > div > input:focus,
-div[data-baseweb="input"] input:focus {
+.stTextArea textarea:focus,
+div[data-baseweb="input"] input:focus,
+div[data-baseweb="textarea"] textarea:focus {
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
 }
 
 .stTextInput input::placeholder,
+.stTextArea textarea::placeholder,
 input::placeholder,
 textarea::placeholder,
 div[data-testid="stChatInput"] textarea::placeholder {
-    color: var(--text-placeholder) !important;
-    -webkit-text-fill-color: var(--text-placeholder) !important;
+    color: var(--text-placeholder, #94a3b8) !important;
+    -webkit-text-fill-color: var(--text-placeholder, #94a3b8) !important;
     opacity: 1 !important;
     font-size: 14.5px !important;
     font-weight: 500 !important;
+}
+
+/* File Uploader Custom Dark Mode Styling (#1e293b) */
+div[data-testid="stFileUploader"] {
+    background: transparent !important;
+    margin: 8px 0 !important;
+}
+
+div[data-testid="stFileUploader"] section {
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+    border: 1.5px dashed #334155 !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    transition: all 0.2s ease !important;
+}
+
+div[data-testid="stFileUploader"] section:hover {
+    border-color: #58c1c8 !important;
+    background: rgba(30, 41, 59, 0.9) !important;
+}
+
+div[data-testid="stFileUploader"] section span,
+div[data-testid="stFileUploader"] section small,
+div[data-testid="stFileUploader"] section p,
+div[data-testid="stFileUploader"] [data-testid="stMarkdownContainer"] p {
+    color: #cbd5e1 !important;
+}
+
+div[data-testid="stFileUploader"] button {
+    background: #0f172a !important;
+    border: 1px solid #334155 !important;
+    color: #58c1c8 !important;
+    border-radius: 8px !important;
+    padding: 6px 14px !important;
+}
+
+div[data-testid="stFileUploader"] button:hover {
+    background: #1e293b !important;
+    border-color: #58c1c8 !important;
+    color: #ffffff !important;
+}
+
+div[data-testid="stFileUploaderFileData"],
+div[data-testid="stUploadedFileData"] {
+    background: #0f172a !important;
+    background-color: #0f172a !important;
+    border: 1px solid #334155 !important;
+    border-radius: 8px !important;
+    color: #ffffff !important;
+}
+
+/* WebKit Browser Autofill Dark Mode Fix */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+    -webkit-text-fill-color: #ffffff !important;
+    -webkit-box-shadow: 0 0 0px 1000px #1e293b inset !important;
+    transition: background-color 5000s ease-in-out 0s !important;
 }
 
 /* ================================================================ */
@@ -1035,7 +1162,7 @@ div[data-testid="stElementContainer"]:has(button[key="sidebar_collapse_btn"]) {
         -webkit-backdrop-filter: blur(8px) !important;
         z-index: 999990 !important;
         cursor: pointer !important;
-        animation: backdropFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+        animation: backdropFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
     }
 }
 @keyframes backdropFadeIn {
@@ -2394,22 +2521,23 @@ def format_topic_research_for_pdf(topic_name: str, topic_dict: dict) -> str:
 {working_principle}
 """
 
-# --- 7. BACKEND AI ENGINE (GROQ P1 + GEMINI P2 + OPENROUTER P3) ---
-def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None, temperature=0.2, max_tokens=None):
+# --- 7. BACKEND AI ENGINE (GROQ P1 + GEMINI P2 + OPENROUTER P3 + MULTIMODAL VISION) ---
+def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None, temperature=0.2, max_tokens=None, attached_file=None):
     """
-    Automatic 3-Tier Multi-Model AI Engine for Ultra-Fast Execution:
+    Automatic 3-Tier Multi-Model AI Engine with Multimodal PDF & Image Support:
     - Accepts either a single string prompt OR a list of chat message dicts:
       [{"role": "system"/"user"/"assistant", "content": ...}]
-    - Priority 1: Groq llama-3.1-8b-instant or llama3-8b-8192
-    - Priority 2: Gemini 1.5 Flash via direct HTTP REST
-    - Priority 3: OpenRouter meta-llama/llama-3.1-8b-instruct:free
-    - Silent failover across tiers without throwing st.error until all 3 tiers fail.
+    - Accepts attached_file dict: {"type": "image"|"pdf", "name": ..., "mime_type": ..., "base64": ..., "extracted_text": ...}
+    - Priority 1: Groq llama-3.1-8b-instant (or Gemini 1.5 Flash first if image is attached)
+    - Priority 2: Gemini 1.5 Flash via direct HTTP REST (native multimodal inline_data for images & PDFs)
+    - Priority 3: OpenRouter vision/text models
+    - Silent failover across tiers without throwing st.error until all tiers fail.
     """
     if max_tokens is not None:
         max_toks = max_tokens
 
     tier_timeout = 25 if max_toks > 1000 else 12
-    gemini_timeout = 25 if max_toks > 1000 else 15
+    gemini_timeout = 30 if attached_file else (25 if max_toks > 1000 else 15)
 
     # -------------------------------------------------------------------------
     # 0. NORMALIZE & SANITIZE MESSAGES ARRAY
@@ -2435,43 +2563,24 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
     if not messages_array:
         messages_array = [{"role": "user", "content": "Hello"}]
 
-    # -------------------------------------------------------------------------
-    # PRIORITY 1: Groq llama-3.1-8b-instant or llama3-8b-8192
-    # -------------------------------------------------------------------------
-    groq_key = (get_env_secret("GROQ_API_KEY") or get_env_secret("GROQ_API_KEY_2", "")).strip()
-    if groq_key:
-        groq_models = ["llama-3.1-8b-instant", "llama3-8b-8192"]
-        for g_model in groq_models:
-            try:
-                res = requests.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                    json={
-                        "model": g_model,
-                        "messages": messages_array,
-                        "temperature": temperature,
-                        "max_tokens": max_toks
-                    },
-                    timeout=tier_timeout
-                )
-                if res.status_code == 200:
-                    choices = res.json().get("choices", [])
-                    if choices and "message" in choices[0] and choices[0]["message"].get("content"):
-                        out_text = choices[0]["message"]["content"].strip()
-                        if out_text:
-                            return clean_output_text(out_text)
-            except Exception:
-                continue
+    # Prepend extracted text from PDF attachment if available
+    if attached_file and attached_file.get("extracted_text"):
+        doc_header = f"[ATTACHED DOCUMENT: {attached_file.get('name', 'Document')}]\n{attached_file['extracted_text']}\n\n"
+        for m in reversed(messages_array):
+            if m["role"] == "user":
+                m["content"] = doc_header + m["content"]
+                break
 
-    # -------------------------------------------------------------------------
-    # PRIORITY 2: Gemini 1.5 Flash via direct HTTP REST
-    # -------------------------------------------------------------------------
+    is_image_attached = bool(attached_file and attached_file.get("type") == "image" and attached_file.get("base64"))
     gemini_key = (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip()
-    if gemini_key:
+    groq_key = (get_env_secret("GROQ_API_KEY") or get_env_secret("GROQ_API_KEY_2", "")).strip()
+    openrouter_key = get_env_secret("OPENROUTER_API_KEY").strip()
+
+    def try_gemini(key_to_use):
+        if not key_to_use:
+            return None
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-            
-            # Format history array into Gemini contents
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key_to_use}"
             sys_parts = [m["content"] for m in messages_array if m["role"] == "system"]
             sys_text = "\n\n".join(sys_parts).strip()
 
@@ -2491,6 +2600,15 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
             elif gemini_contents[0]["role"] == "model":
                 gemini_contents.insert(0, {"role": "user", "parts": [{"text": "Hello"}]})
 
+            # Append native multimodal binary (Image or PDF)
+            if attached_file and attached_file.get("base64"):
+                gemini_contents[-1]["parts"].append({
+                    "inline_data": {
+                        "mime_type": attached_file.get("mime_type", "image/jpeg"),
+                        "data": attached_file["base64"]
+                    }
+                })
+
             gemini_payload = {
                 "contents": gemini_contents,
                 "generationConfig": {
@@ -2501,12 +2619,7 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
             if sys_text:
                 gemini_payload["system_instruction"] = {"parts": [{"text": sys_text}]}
 
-            res = requests.post(
-                url,
-                headers={"Content-Type": "application/json"},
-                json=gemini_payload,
-                timeout=gemini_timeout
-            )
+            res = requests.post(url, headers={"Content-Type": "application/json"}, json=gemini_payload, timeout=gemini_timeout)
             if res.status_code == 200:
                 cand = res.json().get('candidates', [])
                 if cand and 'content' in cand[0] and 'parts' in cand[0]['content'] and cand[0]['content']['parts']:
@@ -2514,20 +2627,8 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                     if out_text:
                         return clean_output_text(out_text)
             elif sys_text:
-                # Retry by prepending system text to first user message if system_instruction is not supported
                 gemini_contents[0]["parts"][0]["text"] = sys_text + "\n\n" + gemini_contents[0]["parts"][0]["text"]
-                res2 = requests.post(
-                    url,
-                    headers={"Content-Type": "application/json"},
-                    json={
-                        "contents": gemini_contents,
-                        "generationConfig": {
-                            "temperature": temperature,
-                            "maxOutputTokens": max_toks
-                        }
-                    },
-                    timeout=gemini_timeout
-                )
+                res2 = requests.post(url, headers={"Content-Type": "application/json"}, json={"contents": gemini_contents, "generationConfig": {"temperature": temperature, "maxOutputTokens": max_toks}}, timeout=gemini_timeout)
                 if res2.status_code == 200:
                     cand = res2.json().get('candidates', [])
                     if cand and cand[0].get('content', {}).get('parts'):
@@ -2536,89 +2637,162 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                             return clean_output_text(out_text)
         except Exception:
             pass
+        return None
 
-    # Secondary Gemini API Key fallback if provided
-    sec_gemini_key = (
-        get_env_secret("GEMINI_API_KEY_2")
-        or get_env_secret("GOOGLE_API_KEY_2")
-        or get_env_secret("GEMINI_BACKUP_KEY")
-        or get_env_secret("GEMINI_SECONDARY_KEY")
-    ).strip()
-    if sec_gemini_key and sec_gemini_key != gemini_key:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={sec_gemini_key}"
-            res = requests.post(
-                url,
-                headers={"Content-Type": "application/json"},
-                json=gemini_payload,
-                timeout=gemini_timeout
-            )
-            if res.status_code == 200:
-                cand = res.json().get('candidates', [])
-                if cand and cand[0].get('content', {}).get('parts'):
-                    out_text = cand[0]['content']['parts'][0].get('text', '').strip()
-                    if out_text:
-                        return clean_output_text(out_text)
-        except Exception:
-            pass
+    def try_groq():
+        if not groq_key:
+            return None
+        if is_image_attached:
+            vision_models = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+            for vm in vision_models:
+                try:
+                    multimodal_msgs = []
+                    for m in messages_array:
+                        if m == messages_array[-1]:
+                            multimodal_msgs.append({
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": m["content"]},
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:{attached_file.get('mime_type', 'image/jpeg')};base64,{attached_file['base64']}"
+                                        }
+                                    }
+                                ]
+                            })
+                        else:
+                            multimodal_msgs.append(m)
 
-    # -------------------------------------------------------------------------
-    # PRIORITY 3: OpenRouter (meta-llama/llama-3.1-8b-instruct:free)
-    # -------------------------------------------------------------------------
-    openrouter_key = get_env_secret("OPENROUTER_API_KEY").strip()
-    if openrouter_key:
-        or_models = [
-            "meta-llama/llama-3.1-8b-instruct:free",
-            "meta-llama/llama-3.2-3b-instruct",
-            "meta-llama/llama-3.1-8b-instruct",
-            "openrouter/auto",
-            "qwen/qwen3.8-27b:free",
-            "liquid/lfm-2.5-2.6b:free",
-            "nvidia/nemotron-3.5-lightning:free",
-            "nex-agi/nex-n2.5-mini:free"
-        ]
+                    res = requests.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                        json={"model": vm, "messages": multimodal_msgs, "temperature": temperature, "max_tokens": max_toks},
+                        timeout=tier_timeout
+                    )
+                    if res.status_code == 200:
+                        choices = res.json().get("choices", [])
+                        if choices and choices[0]["message"].get("content"):
+                            return clean_output_text(choices[0]["message"]["content"].strip())
+                except Exception:
+                    continue
+        else:
+            groq_models = ["llama-3.1-8b-instant", "llama3-8b-8192"]
+            for g_model in groq_models:
+                try:
+                    res = requests.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                        json={"model": g_model, "messages": messages_array, "temperature": temperature, "max_tokens": max_toks},
+                        timeout=tier_timeout
+                    )
+                    if res.status_code == 200:
+                        choices = res.json().get("choices", [])
+                        if choices and choices[0]["message"].get("content"):
+                            return clean_output_text(choices[0]["message"]["content"].strip())
+                except Exception:
+                    continue
+        return None
+
+    def try_openrouter():
+        if not openrouter_key:
+            return None
+        if is_image_attached:
+            or_models = [
+                "meta-llama/llama-3.2-11b-vision-instruct:free",
+                "google/gemini-2.0-flash-exp:free",
+                "qwen/qwen-2-vl-72b-instruct:free",
+                "openrouter/auto"
+            ]
+            multimodal_msgs = []
+            for m in messages_array:
+                if m == messages_array[-1]:
+                    multimodal_msgs.append({
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": m["content"]},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{attached_file.get('mime_type', 'image/jpeg')};base64,{attached_file['base64']}"
+                                }
+                            }
+                        ]
+                    })
+                else:
+                    multimodal_msgs.append(m)
+            req_messages = multimodal_msgs
+        else:
+            or_models = [
+                "meta-llama/llama-3.1-8b-instruct:free",
+                "meta-llama/llama-3.2-3b-instruct",
+                "meta-llama/llama-3.1-8b-instruct",
+                "openrouter/auto",
+                "qwen/qwen3.8-27b:free",
+                "liquid/lfm-2.5-2.6b:free",
+                "nvidia/nemotron-3.5-lightning:free"
+            ]
+            req_messages = messages_array
+
         for or_m in or_models:
             try:
                 res = requests.post(
                     "https://openrouter.ai/api/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {openrouter_key}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://toppergpt.in",
-                        "X-Title": "TopperGPT Academic Workspace"
-                    },
-                    json={
-                        "model": or_m,
-                        "messages": messages_array,
-                        "max_tokens": max_toks,
-                        "temperature": temperature,
-                        "include_reasoning": False
-                    },
+                    headers={"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json", "HTTP-Referer": "https://toppergpt.in", "X-Title": "TopperGPT Academic Workspace"},
+                    json={"model": or_m, "messages": req_messages, "max_tokens": max_toks, "temperature": temperature, "include_reasoning": False},
                     timeout=tier_timeout
                 )
                 if res.status_code == 200:
                     choices = res.json().get("choices", [])
                     if choices and "message" in choices[0]:
-                        msg = choices[0]["message"]
-                        out_text = str(msg.get("content") or msg.get("reasoning") or "").strip()
+                        out_text = str(choices[0]["message"].get("content") or "").strip()
                         if out_text:
                             return clean_output_text(out_text)
             except Exception:
                 continue
+        return None
 
-    # -------------------------------------------------------------------------
-    # ALL 3 TIERS FAILED: Raise Exception (Silent failover until all 3 tiers fail)
-    # -------------------------------------------------------------------------
+    # Routing order:
+    if is_image_attached:
+        result = try_gemini(gemini_key)
+        if result:
+            return result
+        sec_key = (get_env_secret("GEMINI_API_KEY_2") or get_env_secret("GOOGLE_API_KEY_2")).strip()
+        if sec_key and sec_key != gemini_key:
+            result = try_gemini(sec_key)
+            if result:
+                return result
+        result = try_groq()
+        if result:
+            return result
+        result = try_openrouter()
+        if result:
+            return result
+    else:
+        result = try_groq()
+        if result:
+            return result
+        result = try_gemini(gemini_key)
+        if result:
+            return result
+        sec_key = (get_env_secret("GEMINI_API_KEY_2") or get_env_secret("GOOGLE_API_KEY_2")).strip()
+        if sec_key and sec_key != gemini_key:
+            result = try_gemini(sec_key)
+            if result:
+                return result
+        result = try_openrouter()
+        if result:
+            return result
+
     raise RuntimeError("All AI generation tiers (Groq, Gemini, OpenRouter) failed due to API timeout or rate limit. Please retry.")
 
 
-def generate_chat_response(messages, max_toks=1000, temperature=0.3):
+def generate_chat_response(messages, max_toks=1000, temperature=0.3, attached_file=None):
     """
-    Dedicated Multi-Turn Chat Response Engine:
-    Accepts a list of message dicts [{"role": "system"/"user"/"assistant", "content": ...}]
-    and routes through the multi-tier AI engine with temperature=0.3 and max_tokens=1000.
+    Dedicated Multi-Turn Chat Response Engine supporting Multimodal Files:
+    Accepts a list of message dicts and an optional attached_file dict.
     """
-    return generate_ai_response(messages, max_toks=max_toks, temperature=temperature)
+    return generate_ai_response(messages, max_toks=max_toks, temperature=temperature, attached_file=attached_file)
 
 
 
@@ -2974,8 +3148,153 @@ if nav_selection == "💡 AI Tutor":
                 })
         st.rerun()
 
+    # Multimodal Document & Image Uploader (PNG, JPG, JPEG, PDF - max 10MB)
+    uploader_ver = st.session_state.get("uploader_key_version", 0)
+    with st.expander("📎 Attach Question Diagram or PDF Notes (Multimodal AI Solver)", expanded=("current_attachment" in st.session_state and st.session_state.current_attachment is not None)):
+        st.markdown(
+            "<p style='color: var(--text-muted, #94a3b8); font-size: 13px; margin: 0 0 10px 0;'>"
+            "Upload an exam question diagram (PNG / JPG) or textbook / syllabus chapter (PDF up to 10MB) for instant AI evaluation & doubt resolution."
+            "</p>",
+            unsafe_allow_html=True
+        )
+        uploaded_doc = st.file_uploader(
+            "Upload Question Diagram or PDF Chapter",
+            type=["png", "jpg", "jpeg", "pdf"],
+            key=f"tutor_file_uploader_{uploader_ver}",
+            label_visibility="collapsed"
+        )
+        if uploaded_doc is not None:
+            if uploaded_doc.size > 10 * 1024 * 1024:
+                st.error("⚠️ File size exceeds 10MB limit! Please upload a file smaller than 10MB.")
+                st.session_state.current_attachment = None
+            else:
+                fname = uploaded_doc.name
+                fext = fname.lower().split('.')[-1]
+                file_bytes = uploaded_doc.getvalue()
+                cached_att = st.session_state.get("current_attachment")
+                if not cached_att or cached_att.get("name") != fname or cached_att.get("size_bytes") != len(file_bytes):
+                    if fext in ["png", "jpg", "jpeg"]:
+                        mime_type = "image/png" if fext == "png" else "image/jpeg"
+                        b64_str = base64.b64encode(file_bytes).decode("utf-8")
+                        st.session_state.current_attachment = {
+                            "type": "image",
+                            "name": fname,
+                            "size_kb": round(len(file_bytes) / 1024, 1),
+                            "size_bytes": len(file_bytes),
+                            "mime_type": mime_type,
+                            "base64": b64_str
+                        }
+                    elif fext == "pdf":
+                        with st.spinner("📄 Reading PDF pages and extracting text..."):
+                            extracted_txt = extract_text_from_pdf(file_bytes, max_pages=15)
+                            b64_str = base64.b64encode(file_bytes).decode("utf-8")
+                            st.session_state.current_attachment = {
+                                "type": "pdf",
+                                "name": fname,
+                                "size_kb": round(len(file_bytes) / 1024, 1),
+                                "size_bytes": len(file_bytes),
+                                "mime_type": "application/pdf",
+                                "base64": b64_str,
+                                "extracted_text": extracted_txt
+                            }
+        else:
+            if "current_attachment" in st.session_state and st.session_state.current_attachment is not None:
+                st.session_state.current_attachment = None
+
+        if st.session_state.get("current_attachment"):
+            att_info = st.session_state.current_attachment
+            if att_info["type"] == "image":
+                st.markdown(
+                    f"<div style='background: rgba(88, 193, 200, 0.08); border: 1px solid rgba(88, 193, 200, 0.3); border-radius: 8px; padding: 10px 14px; margin: 8px 0;'>"
+                    f"<span style='color: #58c1c8; font-weight: 600;'>📷 {att_info['name']}</span> "
+                    f"<span style='color: #94a3b8; font-size: 12px;'>({att_info['size_kb']} KB) — Ready for analysis!</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+            elif att_info["type"] == "pdf":
+                st.markdown(
+                    f"<div style='background: rgba(88, 193, 200, 0.08); border: 1px solid rgba(88, 193, 200, 0.3); border-radius: 8px; padding: 10px 14px; margin: 8px 0;'>"
+                    f"<span style='color: #58c1c8; font-weight: 600;'>📄 {att_info['name']}</span> "
+                    f"<span style='color: #94a3b8; font-size: 12px;'>({att_info['size_kb']} KB · {len(att_info.get('extracted_text', ''))} characters extracted) — Ready for analysis!</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+            col_qsolve, col_qclr = st.columns([2.5, 1])
+            with col_qsolve:
+                if st.button("⚡ Solve / Explain Attached Document", key="btn_solve_attached_doc", use_container_width=True):
+                    st.session_state.pending_attachment_action = True
+                    st.rerun()
+            with col_qclr:
+                if st.button("🗑️ Remove File", key="btn_remove_attached_doc", use_container_width=True):
+                    st.session_state.current_attachment = None
+                    st.session_state.uploader_key_version = st.session_state.get("uploader_key_version", 0) + 1
+                    st.rerun()
+
+    # Process quick solve button action on attachment
+    if st.session_state.get("pending_attachment_action") and st.session_state.get("current_attachment"):
+        st.session_state.pending_attachment_action = False
+        active_att = st.session_state.current_attachment
+        doc_type_str = "image diagram" if active_att["type"] == "image" else "PDF chapter/notes"
+        q_prompt = (
+            f"Please analyze the attached {doc_type_str} ({active_att['name']}) according to Mumbai University C-Scheme standards. "
+            "Explain the fundamental concepts, step-by-step mathematical derivation/solution, mandatory keywords, and any examiner trap alerts."
+        )
+        st.session_state.tutor_messages.append({
+            "role": "user",
+            "content": q_prompt,
+            "hinglish": None,
+            "attachment": active_att
+        })
+        st.session_state.current_attachment = None
+        st.session_state.uploader_key_version = st.session_state.get("uploader_key_version", 0) + 1
+
+        messages_payload = [{"role": "system", "content": AI_TUTOR_SYSTEM_INSTRUCTION}]
+        for m in st.session_state.tutor_messages[-6:]:
+            messages_payload.append({
+                "role": "assistant" if m.get("role") == "assistant" else "user",
+                "content": str(m.get("content", "")).strip()
+            })
+        with st.spinner("⚡ Consulting AI Tutor on attached document..."):
+            try:
+                ai_reply = generate_chat_response(messages_payload, max_toks=1000, temperature=0.3, attached_file=active_att)
+                st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
+            except Exception:
+                st.session_state.tutor_messages.append({
+                    "role": "assistant",
+                    "content": "Generation failed due to API timeout or rate limit. Please retry.",
+                    "hinglish": None
+                })
+        st.rerun()
+
     for idx, msg in enumerate(st.session_state.tutor_messages):
         with st.chat_message(msg["role"]):
+            if msg.get("attachment"):
+                att = msg["attachment"]
+                if att.get("type") == "image":
+                    st.markdown(
+                        f"""<div style="background: rgba(30, 41, 59, 0.85); border: 1px solid #334155; border-radius: 10px; padding: 6px 12px; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 15px;">📷</span>
+                            <span style="font-size: 13px; color: #58c1c8; font-weight: 600;">{att.get('name', 'Attached Image')}</span>
+                            <span style="font-size: 12px; color: #94a3b8;">({att.get('size_kb', 0)} KB)</span>
+                        </div>""",
+                        unsafe_allow_html=True
+                    )
+                    if att.get("base64"):
+                        try:
+                            img_bytes = base64.b64decode(att["base64"])
+                            st.image(img_bytes, width=320)
+                        except Exception:
+                            pass
+                elif att.get("type") == "pdf":
+                    st.markdown(
+                        f"""<div style="background: rgba(30, 41, 59, 0.85); border: 1px solid #334155; border-radius: 10px; padding: 6px 12px; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 15px;">📄</span>
+                            <span style="font-size: 13px; color: #58c1c8; font-weight: 600;">{att.get('name', 'Attached PDF')}</span>
+                            <span style="font-size: 12px; color: #94a3b8;">({att.get('size_kb', 0)} KB)</span>
+                        </div>""",
+                        unsafe_allow_html=True
+                    )
             st.markdown(clean_output_text(msg["content"]))
             if msg["role"] == "assistant" and idx > 0:
                 if msg.get("hinglish"):
@@ -2988,11 +3307,57 @@ if nav_selection == "💡 AI Tutor":
                             st.session_state.tutor_messages[idx]["hinglish"] = h_res
                             st.rerun()
 
+    if st.session_state.get("current_attachment"):
+        att_cur = st.session_state.current_attachment
+        icon = "📷" if att_cur["type"] == "image" else "📄"
+        st.markdown(
+            f"<div style='background: rgba(88, 193, 200, 0.12); border: 1px solid rgba(88, 193, 200, 0.4); border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: 13px;'>"
+            f"<span style='color: #58c1c8; font-weight: 600;'>{icon} Attached: {att_cur['name']} ({att_cur['size_kb']} KB)</span> "
+            f"<span style='color: #94a3b8;'>— Type your doubt below to send with this file.</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
     user_query = st.chat_input("Ask a doubt, request notes, or get PYQs...")
 
     if user_query:
-        st.session_state.tutor_messages.append({"role": "user", "content": user_query, "hinglish": None})
+        active_att = st.session_state.get("current_attachment")
+        st.session_state.tutor_messages.append({
+            "role": "user",
+            "content": user_query,
+            "hinglish": None,
+            "attachment": active_att
+        })
+        if active_att:
+            st.session_state.current_attachment = None
+            st.session_state.uploader_key_version = st.session_state.get("uploader_key_version", 0) + 1
+
         with st.chat_message("user"):
+            if active_att:
+                if active_att.get("type") == "image":
+                    st.markdown(
+                        f"""<div style="background: rgba(30, 41, 59, 0.85); border: 1px solid #334155; border-radius: 10px; padding: 6px 12px; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 15px;">📷</span>
+                            <span style="font-size: 13px; color: #58c1c8; font-weight: 600;">{active_att.get('name', 'Image')}</span>
+                            <span style="font-size: 12px; color: #94a3b8;">({active_att.get('size_kb', 0)} KB)</span>
+                        </div>""",
+                        unsafe_allow_html=True
+                    )
+                    if active_att.get("base64"):
+                        try:
+                            img_bytes = base64.b64decode(active_att["base64"])
+                            st.image(img_bytes, width=320)
+                        except Exception:
+                            pass
+                elif active_att.get("type") == "pdf":
+                    st.markdown(
+                        f"""<div style="background: rgba(30, 41, 59, 0.85); border: 1px solid #334155; border-radius: 10px; padding: 6px 12px; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 15px;">📄</span>
+                            <span style="font-size: 13px; color: #58c1c8; font-weight: 600;">{active_att.get('name', 'PDF Document')}</span>
+                            <span style="font-size: 12px; color: #94a3b8;">({active_att.get('size_kb', 0)} KB)</span>
+                        </div>""",
+                        unsafe_allow_html=True
+                    )
             st.markdown(clean_output_text(user_query))
 
         # Dynamic messages payload with system instruction and the last 6 messages
@@ -3006,7 +3371,7 @@ if nav_selection == "💡 AI Tutor":
         with st.chat_message("assistant"):
             with st.spinner("⚡ Consulting AI Tutor..."):
                 try:
-                    ai_reply = generate_chat_response(messages_payload, max_toks=1000, temperature=0.3)
+                    ai_reply = generate_chat_response(messages_payload, max_toks=1000, temperature=0.3, attached_file=active_att)
                     st.markdown(clean_output_text(ai_reply))
                     st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
                     st.rerun()
