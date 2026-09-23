@@ -84,11 +84,22 @@ def is_valid_email(email_str: str) -> bool:
     return True
 
 # --- 1. CONFIGURATION & PAGE SETUP ---
+# Persistent State Management for Sidebar (Expanded / Collapsed across all interactions)
+if "sidebar_state" not in st.session_state:
+    st.session_state.sidebar_state = "expanded"
+
+def toggle_sidebar():
+    st.session_state.sidebar_state = (
+        "collapsed" if st.session_state.get("sidebar_state", "expanded") == "expanded" else "expanded"
+    )
+
+is_sidebar_open = st.session_state.get("sidebar_state", "expanded") == "expanded"
+
 st.set_page_config(
     page_title="TopperGPT - AI Academic Workspace",
     layout="wide",
     page_icon="🎓",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state=st.session_state.sidebar_state
 )
 
 # Route & Query Parameter Handler (Safe extraction)
@@ -116,6 +127,90 @@ if qp_feature and "pending_feature" not in st.session_state:
 # Universal Permanent Black (Dark) Theme Lock across all devices
 st.session_state.theme_choice = "dark"
 active_theme = "dark"
+
+# Dynamic Persistent Sidebar Layout (Expanded vs Collapsed)
+if is_sidebar_open:
+    st.markdown("""
+        <style>
+        [data-testid="stSidebar"],
+        section[data-testid="stSidebar"] {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 285px !important;
+            min-width: 285px !important;
+            max-width: 300px !important;
+            background-color: #12161c !important;
+            border-right: 1px solid rgba(88, 193, 200, 0.14) !important;
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5) !important;
+            transform: none !important;
+            margin-left: 0 !important;
+            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        .main .block-container,
+        div[data-testid="stMainBlockContainer"] {
+            width: 88% !important;
+            max-width: 1060px !important;
+            margin: 0 auto !important;
+            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        div[data-testid="stBottomBlockContainer"] {
+            width: 88% !important;
+            max-width: 1060px !important;
+            margin: 0 auto !important;
+        }
+        @media (max-width: 768px) {
+            [data-testid="stSidebar"],
+            section[data-testid="stSidebar"] {
+                display: flex !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                height: 100vh !important;
+                width: 82vw !important;
+                max-width: 320px !important;
+                z-index: 999999 !important;
+                box-shadow: 4px 0 32px rgba(0, 0, 0, 0.95) !important;
+            }
+        }
+        </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+        <style>
+        [data-testid="stSidebar"],
+        section[data-testid="stSidebar"] {
+            display: none !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            margin-left: -350px !important;
+            transform: translateX(-100%) !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+        section.main,
+        .stMain {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin-left: 0 !important;
+            padding-left: 0 !important;
+            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        .main .block-container,
+        div[data-testid="stMainBlockContainer"] {
+            width: 92% !important;
+            max-width: 1200px !important;
+            margin: 0 auto !important;
+            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        div[data-testid="stBottomBlockContainer"] {
+            width: 92% !important;
+            max-width: 1200px !important;
+            margin: 0 auto !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
 # --- 2. CSS STYLING OVERHAUL (PERMANENT DARK THEME & STREAMLIT TOOLBAR REMOVAL) ---
 st.markdown("""
@@ -175,9 +270,9 @@ section.main,
     --text-dim: #64748b !important;
     --text-placeholder: #94a3b8 !important;
     --bg-primary: #0e1117 !important;
-    --bg-surface: #131722 !important;
-    --bg-sidebar: #0b0e14 !important;
-    --bg-input: #131722 !important;
+    --bg-surface: #171c24 !important;
+    --bg-sidebar: #12161c !important;
+    --bg-input: #171c24 !important;
     --bg-chat-bar: rgba(14, 17, 23, 0.94) !important;
     --bg-pinned-bar: linear-gradient(180deg, rgba(14, 17, 23, 0) 0%, rgba(14, 17, 23, 0.96) 30%, #0e1117 100%) !important;
     --bg-hover: rgba(88, 193, 200, 0.08) !important;
@@ -725,111 +820,113 @@ div[data-testid="stChatInput"] button svg {
 }
 
 /* ================================================================ */
-/* 2.5 CHATGPT / GEMINI STYLE SIDEBAR TOGGLE & CONTROLS             */
+/* 2.5 CHATGPT / GEMINI / JEE GENIUS STYLE SIDEBAR TOGGLE & CONTROLS */
 /* ================================================================ */
-/* Sleek floating expand button (visible in top-left when sidebar is collapsed) */
+/* Hide Streamlit default collapse controls to eliminate state conflicts */
+[data-testid="stSidebarCollapsedControl"],
 [data-testid="collapsedControl"],
-[data-testid="stSidebarCollapsedControl"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    position: fixed !important;
-    top: 14px !important;
-    left: 14px !important;
-    z-index: 999999 !important;
-    background: #131722 !important;
-    border: 1px solid rgba(88, 193, 200, 0.35) !important;
-    border-radius: 10px !important;
-    width: 38px !important;
+button[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapseButton"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+/* Custom Sidebar Toggle Buttons (Main Top-Left & Sidebar Header) */
+button[key="main_header_toggle"],
+button[key="sidebar_collapse_btn"],
+div:has(> button[key="main_header_toggle"]) button,
+div:has(> button[key="sidebar_collapse_btn"]) button {
+    background: #171c24 !important;
+    background-color: #171c24 !important;
+    border: 1.5px solid rgba(88, 193, 200, 0.35) !important;
+    border-radius: 9px !important;
+    color: #58c1c8 !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
     height: 38px !important;
-    min-width: 38px !important;
     min-height: 38px !important;
+    max-height: 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(88, 193, 200, 0.15) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 10px rgba(88, 193, 200, 0.15) !important;
     cursor: pointer !important;
     transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-[data-testid="collapsedControl"]:hover,
-[data-testid="stSidebarCollapsedControl"]:hover {
-    background: #1a2030 !important;
-    border-color: #58c1c8 !important;
-    transform: scale(1.05) translateY(-1px) !important;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75), 0 0 16px rgba(88, 193, 200, 0.35) !important;
-}
-
-[data-testid="stSidebarCollapsedControl"] button,
-[data-testid="collapsedControl"] button,
-[data-testid="stSidebarCollapsedControl"] button[data-testid="baseButton-headerNoPadding"],
-[data-testid="collapsedControl"] button[data-testid="baseButton-headerNoPadding"],
-[data-testid="stSidebarCollapsedControl"] button[aria-label="Open sidebar"],
-[data-testid="collapsedControl"] button[aria-label="Open sidebar"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    width: 100% !important;
-    height: 100% !important;
-    background: transparent !important;
-    border: none !important;
-    outline: none !important;
-    align-items: center !important;
-    justify-content: center !important;
-    cursor: pointer !important;
-    color: #58c1c8 !important;
-}
-
-[data-testid="collapsedControl"] svg,
-[data-testid="stSidebarCollapsedControl"] svg {
-    display: block !important;
-    width: 20px !important;
-    height: 20px !important;
-    stroke: #58C1C8 !important;
-    fill: #58C1C8 !important;
-}
-
-/* Sidebar Collapse Button (Inside Expanded Sidebar - ChatGPT/Gemini Style) */
-[data-testid="stSidebarCollapseButton"],
-button[data-testid="stSidebarCollapseButton"],
-section[data-testid="stSidebar"] button[aria-label="Close sidebar"],
-section[data-testid="stSidebar"] button[data-testid="baseButton-headerNoPadding"],
-section[data-testid="stSidebar"] button[data-testid="stSidebarCollapseButton"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    color: #58c1c8 !important;
-    background: rgba(88, 193, 200, 0.08) !important;
-    border: 1px solid rgba(88, 193, 200, 0.22) !important;
-    border-radius: 8px !important;
-    width: 32px !important;
-    height: 32px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    transition: all 0.2s ease !important;
-    cursor: pointer !important;
-}
-
-[data-testid="stSidebarCollapseButton"]:hover,
-button[data-testid="stSidebarCollapseButton"]:hover,
-section[data-testid="stSidebar"] button[aria-label="Close sidebar"]:hover,
-section[data-testid="stSidebar"] button[data-testid="baseButton-headerNoPadding"]:hover {
-    background: rgba(88, 193, 200, 0.2) !important;
+button[key="main_header_toggle"]:hover,
+button[key="sidebar_collapse_btn"]:hover,
+div:has(> button[key="main_header_toggle"]) button:hover,
+div:has(> button[key="sidebar_collapse_btn"]) button:hover {
+    background: #1e2532 !important;
+    background-color: #1e2532 !important;
     border-color: #58c1c8 !important;
     color: #ffffff !important;
-    box-shadow: 0 0 12px rgba(88, 193, 200, 0.3) !important;
-    transform: scale(1.05) !important;
+    transform: scale(1.06) translateY(-1px) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 16px rgba(88, 193, 200, 0.35) !important;
 }
 
-[data-testid="stSidebarCollapseButton"] svg,
-button[data-testid="stSidebarCollapseButton"] svg,
-section[data-testid="stSidebar"] button svg {
-    fill: #58c1c8 !important;
-    stroke: #58c1c8 !important;
-    width: 18px !important;
-    height: 18px !important;
+button[key="main_header_toggle"]:active,
+button[key="sidebar_collapse_btn"]:active {
+    transform: scale(0.96) !important;
+}
+
+/* Sidebar Logout Button - JEE Genius / ChatGPT Padded Row */
+button[key="btn_logout_sidebar"],
+div:has(> button[key="btn_logout_sidebar"]) button {
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    box-sizing: border-box !important;
+    background: #171c24 !important;
+    background-color: #171c24 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    padding: 13px 18px !important;
+    color: var(--text-secondary, #cbd5e1) !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
+    cursor: pointer !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: none !important;
+}
+
+button[key="btn_logout_sidebar"]:hover,
+div:has(> button[key="btn_logout_sidebar"]) button:hover {
+    background: rgba(239, 68, 68, 0.12) !important;
+    background-color: rgba(239, 68, 68, 0.12) !important;
+    border-color: rgba(239, 68, 68, 0.45) !important;
+    color: #f87171 !important;
+    transform: translateX(4px) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), 0 0 14px rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Ensure column container vertically centers toggle with title */
+div[data-testid="stHorizontalBlock"]:has(button[key="main_header_toggle"]) {
+    align-items: center !important;
+    margin-bottom: 8px !important;
+}
+
+div[data-testid="stElementContainer"]:has(button[key="main_header_toggle"]) {
+    width: 38px !important;
+    margin-top: 2px !important;
+}
+
+div[data-testid="stElementContainer"]:has(button[key="sidebar_collapse_btn"]) {
+    width: 38px !important;
+    margin-top: 4px !important;
 }
 
 /* Table and Component Contrast Enhancements */
@@ -968,7 +1065,7 @@ div[data-baseweb="menu"] li {
     div[data-testid="stMainBlockContainer"] {
         width: 100% !important;
         max-width: 100% !important;
-        padding-top: 4.2rem !important; /* Adequate clearance so top title never collides with floating hamburger */
+        padding-top: 1.8rem !important;
         padding-left: 14px !important;
         padding-right: 14px !important;
         padding-bottom: 140px !important;
@@ -979,77 +1076,12 @@ div[data-baseweb="menu"] li {
     /* Mobile Sidebar Drawer Styling */
     [data-testid="stSidebar"],
     section[data-testid="stSidebar"] {
-        background-color: #0c0d12 !important;
+        background-color: #12161c !important;
         border-right: 1px solid rgba(88, 193, 200, 0.25) !important;
         box-shadow: 4px 0 30px rgba(0, 0, 0, 0.85) !important;
-        z-index: 99999 !important;
+        z-index: 999999 !important;
         width: 82vw !important;
         max-width: 320px !important;
-    }
-
-    /* Mobile Native Hamburger Menu Accessibility */
-    [data-testid="stSidebarCollapsedControl"],
-    [data-testid="collapsedControl"] {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        position: fixed !important;
-        top: 12px !important;
-        left: 12px !important;
-        z-index: 999999 !important;
-        background: #13151f !important;
-        border: 1.5px solid rgba(88, 193, 200, 0.6) !important;
-        border-radius: 10px !important;
-        width: 44px !important;
-        height: 44px !important;
-        min-width: 44px !important;
-        min-height: 44px !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 12px rgba(88, 193, 200, 0.3) !important;
-        cursor: pointer !important;
-        padding: 0 !important;
-    }
-
-    [data-testid="stSidebarCollapsedControl"] button,
-    [data-testid="collapsedControl"] button,
-    [data-testid="stSidebarCollapsedControl"] button[data-testid="baseButton-headerNoPadding"],
-    [data-testid="collapsedControl"] button[data-testid="baseButton-headerNoPadding"],
-    [data-testid="stSidebarCollapsedControl"] button[aria-label="Open sidebar"],
-    [data-testid="collapsedControl"] button[aria-label="Open sidebar"] {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        width: 100% !important;
-        height: 100% !important;
-        background: transparent !important;
-        border: none !important;
-        outline: none !important;
-        align-items: center !important;
-        justify-content: center !important;
-        cursor: pointer !important;
-        color: #58c1c8 !important;
-    }
-
-    [data-testid="stSidebarCollapsedControl"] svg,
-    [data-testid="collapsedControl"] svg {
-        display: block !important;
-        width: 22px !important;
-        height: 22px !important;
-        fill: #58c1c8 !important;
-        stroke: #58c1c8 !important;
-    }
-
-    [data-testid="stSidebarCollapseButton"],
-    button[data-testid="stSidebarCollapseButton"],
-    button[aria-label="Close sidebar"] {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        color: #58c1c8 !important;
     }
 
     /* Header & Streak Badge Layout on Mobile */
@@ -2672,16 +2704,22 @@ clean_email_auth()
 
 # --- 7. SIDEBAR NAVIGATION ---
 with st.sidebar:
-    logo_html = f'<img src="{_LOGO_B64}" style="width:36px; height:36px; object-fit:contain; border-radius:9px; box-shadow: 0 0 14px rgba(88, 193, 200, 0.4); flex-shrink:0;" alt="TopperGPT Logo" />' if _LOGO_B64 else '<div style="width:14px; height:14px; background:#58c1c8; border-radius:50%; box-shadow: 0 0 14px #58c1c8;"></div>'
-    st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:12px; padding: 6px 4px 18px 4px; border-bottom: 1px solid rgba(88, 193, 200, 0.14); margin-bottom: 16px;">
-            {logo_html}
-            <div style="display:flex; flex-direction:column; justify-content:center;">
-                <h2 style="color:var(--text-primary, #f8fafc); margin:0; font-size:22px; font-weight:800; letter-spacing:-0.5px; line-height:1.15;">Topper<span style="color:#58c1c8;">GPT</span></h2>
-                <span style="color:#58c1c8; font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; margin-top:2px;">Academic AI</span>
+    col_sb_brand, col_sb_toggle = st.columns([4.2, 0.8])
+    with col_sb_brand:
+        logo_html = f'<img src="{_LOGO_B64}" style="width:36px; height:36px; object-fit:contain; border-radius:9px; box-shadow: 0 0 14px rgba(88, 193, 200, 0.4); flex-shrink:0;" alt="TopperGPT Logo" />' if _LOGO_B64 else '<div style="width:14px; height:14px; background:#58c1c8; border-radius:50%; box-shadow: 0 0 14px #58c1c8;"></div>'
+        st.markdown(f"""
+            <div style="display:flex; align-items:center; gap:12px;">
+                {logo_html}
+                <div style="display:flex; flex-direction:column; justify-content:center;">
+                    <h2 style="color:var(--text-primary, #f8fafc); margin:0; font-size:22px; font-weight:800; letter-spacing:-0.5px; line-height:1.15;">Topper<span style="color:#58c1c8;">GPT</span></h2>
+                    <span style="color:#58c1c8; font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; margin-top:2px;">Academic AI</span>
+                </div>
             </div>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    with col_sb_toggle:
+        st.button("◧", key="sidebar_collapse_btn", help="Collapse sidebar", on_click=toggle_sidebar)
+
+    st.markdown("<div style='border-bottom: 1px solid rgba(88, 193, 200, 0.14); margin: 12px 0 16px 0;'></div>", unsafe_allow_html=True)
 
     nav_options = [
         "💡 AI Tutor",
@@ -2743,7 +2781,7 @@ with st.sidebar:
                     st.rerun()
 
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-    if st.button("🚪 Logout", use_container_width=True):
+    if st.button("🚪 Logout", key="btn_logout_sidebar", use_container_width=True):
         st.session_state.clear()
         st.query_params.clear()
         st.rerun()
@@ -2752,7 +2790,11 @@ with st.sidebar:
 student_name = (st.session_state.user_data or {}).get("full_name", "Student")
 clean_title = nav_selection.split(" ", 1)[1]
 
-col_head, col_badge = st.columns([3, 1])
+col_toggle, col_head, col_badge = st.columns([0.45, 3.55, 1.2])
+with col_toggle:
+    toggle_icon = "◧" if is_sidebar_open else "☰"
+    toggle_tooltip = "Collapse sidebar menu" if is_sidebar_open else "Expand sidebar menu"
+    st.button(toggle_icon, key="main_header_toggle", help=toggle_tooltip, on_click=toggle_sidebar)
 with col_head:
     st.markdown(f"<h1 class='page-main-title' style='color:var(--text-primary, #ffffff); margin:0 0 15px 0;'>{clean_title}</h1>", unsafe_allow_html=True)
 with col_badge:
