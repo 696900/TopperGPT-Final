@@ -1173,8 +1173,31 @@ div[data-testid="stChatInput"] textarea::placeholder {
 }
 
 /* ChatGPT / Gemini Style Inline File Attachment Button (+) */
-button[data-testid="stChatInputFileUploadButton"],
-div[data-testid="stChatInputFileUploadButton"] {
+/* 1. Reset outer wrapper container to avoid nested border artifacts */
+div[data-testid="stChatInputFileUploadButton"],
+[data-testid="stChatInput"] div[data-testid="stChatInputFileUploadButton"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: auto 8px auto 2px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+}
+
+/* 2. Target the actual clickable button inside the attachment container */
+div[data-testid="stChatInputFileUploadButton"] button,
+[data-testid="stChatInputFileUploadButton"] button,
+[data-testid="stChatInput"] [data-testid="stChatInputFileUploadButton"] button,
+[data-testid="stChatInput"] button:has(path[d^="M16.5 6"]),
+[data-testid="stChatInput"] button:has(path[d*="16.5 6v11.5"]) {
     background: #1f2937 !important;
     background-color: #1f2937 !important;
     color: #38bdf8 !important;
@@ -1183,19 +1206,26 @@ div[data-testid="stChatInputFileUploadButton"] {
     width: 34px !important;
     height: 34px !important;
     min-width: 34px !important;
+    max-width: 34px !important;
     min-height: 34px !important;
-    display: inline-flex !important;
+    max-height: 34px !important;
+    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    margin: auto 8px auto 2px !important;
     padding: 0 !important;
+    margin: 0 !important;
     cursor: pointer !important;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    box-shadow: none !important;
     position: relative !important;
+    outline: none !important;
+    box-shadow: none !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-button[data-testid="stChatInputFileUploadButton"]:hover {
+div[data-testid="stChatInputFileUploadButton"] button:hover,
+[data-testid="stChatInputFileUploadButton"] button:hover,
+[data-testid="stChatInput"] [data-testid="stChatInputFileUploadButton"] button:hover,
+[data-testid="stChatInput"] button:has(path[d^="M16.5 6"]):hover,
+[data-testid="stChatInput"] button:has(path[d*="16.5 6v11.5"]):hover {
     background: rgba(56, 189, 248, 0.2) !important;
     background-color: rgba(56, 189, 248, 0.2) !important;
     border-color: #38bdf8 !important;
@@ -1204,32 +1234,64 @@ button[data-testid="stChatInputFileUploadButton"]:hover {
     box-shadow: 0 0 12px rgba(56, 189, 248, 0.35) !important;
 }
 
-/* Perfectly Centered '+' Icon for Attachment Button */
-button[data-testid="stChatInputFileUploadButton"] svg {
+/* 3. Completely hide the default paperclip SVG and its paths */
+div[data-testid="stChatInputFileUploadButton"] svg,
+[data-testid="stChatInputFileUploadButton"] svg,
+[data-testid="stChatInput"] [data-testid="stChatInputFileUploadButton"] svg,
+div[data-testid="stChatInputFileUploadButton"] button svg,
+[data-testid="stChatInputFileUploadButton"] button svg,
+[data-testid="stChatInput"] [data-testid="stChatInputFileUploadButton"] button svg,
+[data-testid="stChatInput"] button:has(path[d^="M16.5 6"]) svg,
+path[d^="M16.5 6"],
+path[d*="16.5 6v11.5"],
+svg:has(path[d^="M16.5 6"]) {
     display: none !important;
-}
-
-button[data-testid="stChatInputFileUploadButton"]::before {
-    content: "+" !important;
-    font-size: 24px !important;
-    line-height: 1 !important;
-    font-weight: 400 !important;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-    color: #38bdf8 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100% !important;
-    height: 100% !important;
-    text-align: center !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
     pointer-events: none !important;
-    transform: translateY(-1.5px) !important;
-    transition: color 0.2s ease, transform 0.2s ease !important;
 }
 
-button[data-testid="stChatInputFileUploadButton"]:hover::before {
-    color: #ffffff !important;
-    transform: translateY(-1.5px) scale(1.1) !important;
+/* 4. Render clean, perfectly centered '+' icon via ::after with SVG vector */
+div[data-testid="stChatInputFileUploadButton"] button::after,
+[data-testid="stChatInputFileUploadButton"] button::after,
+[data-testid="stChatInput"] [data-testid="stChatInputFileUploadButton"] button::after,
+[data-testid="stChatInput"] button:has(path[d^="M16.5 6"])::after,
+[data-testid="stChatInput"] button:has(path[d*="16.5 6v11.5"])::after {
+    content: "" !important;
+    display: block !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='12' y1='5' x2='12' y2='19'%3E%3C/line%3E%3Cline x1='5' y1='12' x2='19' y2='12'%3E%3C/line%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: contain !important;
+    pointer-events: none !important;
+    margin: auto !important;
+    transition: transform 0.2s ease, filter 0.2s ease !important;
+}
+
+div[data-testid="stChatInputFileUploadButton"] button:hover::after,
+[data-testid="stChatInputFileUploadButton"] button:hover::after,
+[data-testid="stChatInput"] [data-testid="stChatInputFileUploadButton"] button:hover::after,
+[data-testid="stChatInput"] button:has(path[d^="M16.5 6"]):hover::after,
+[data-testid="stChatInput"] button:has(path[d*="16.5 6v11.5"]):hover::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='12' y1='5' x2='12' y2='19'%3E%3C/line%3E%3Cline x1='5' y1='12' x2='19' y2='12'%3E%3C/line%3E%3C/svg%3E") !important;
+    transform: scale(1.1) !important;
+}
+
+/* 5. Direct SVG path override fallback */
+div[data-testid="stChatInputFileUploadButton"] svg path,
+[data-testid="stChatInputFileUploadButton"] svg path,
+[data-testid="stChatInput"] [data-testid="stChatInputFileUploadButton"] svg path {
+    d: path("M12 5v14M5 12h14") !important;
+    stroke: #38bdf8 !important;
+    stroke-width: 2.5px !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
 }
 
 /* Chat Input File Attachment Chip (Preview in Input Bar) */
@@ -1851,6 +1913,36 @@ div[data-baseweb="menu"] li {
 }
 </style>
 """, unsafe_allow_html=True)
+
+# Real-time client-side DOM enforcement for chat attachment '+' icon
+try:
+    st.html("""
+    <script>
+    (function() {
+        function replacePaperclipWithPlus() {
+            var uploadContainers = document.querySelectorAll('[data-testid="stChatInputFileUploadButton"], [data-testid="stChatInput"] [data-testid="stChatInputFileUploadButton"]');
+            uploadContainers.forEach(function(container) {
+                var btn = container.querySelector('button');
+                if (btn && !btn.getAttribute('data-plus-ready')) {
+                    btn.setAttribute('data-plus-ready', 'true');
+                    btn.setAttribute('title', 'Attach file or image');
+                    var svgs = btn.querySelectorAll('svg');
+                    svgs.forEach(function(s) {
+                        s.style.setProperty('display', 'none', 'important');
+                    });
+                }
+            });
+        }
+        replacePaperclipWithPlus();
+        if (!window._topperPlusObserver) {
+            window._topperPlusObserver = new MutationObserver(replacePaperclipWithPlus);
+            window._topperPlusObserver.observe(document.body, {childList: true, subtree: true});
+        }
+    })();
+    </script>
+    """, unsafe_allow_javascript=True)
+except Exception:
+    pass
 
 # Default: If not logged in and not requesting login page, render landing page
 if st.session_state.get("user_data") is None and qp_page != "login":
