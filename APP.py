@@ -24,6 +24,30 @@ from supabase import create_client
 from landing_page import render_landing_page
 
 # --- 1. CONFIGURATION & PAGE SETUP (FIRST STREAMLIT CALL) ---
+_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Run SEO metadata patcher for Streamlit static index.html on server start
+try:
+    import patch_seo
+    patch_seo.patch_all()
+except Exception:
+    pass
+
+# Ensure custom logo.jpeg is loaded globally for st.set_page_config and browser tab icon
+_LOGO_JPEG_PATH = os.path.join(_ROOT_DIR, "images", "logo.jpeg")
+if not os.path.exists(_LOGO_JPEG_PATH):
+    _LOGO_JPEG_PATH = os.path.join(_ROOT_DIR, "logo.jpeg")
+
+_PAGE_ICON = "🎓"
+if os.path.exists(_LOGO_JPEG_PATH):
+    try:
+        if Image:
+            _PAGE_ICON = Image.open(_LOGO_JPEG_PATH)
+        else:
+            _PAGE_ICON = _LOGO_JPEG_PATH
+    except Exception:
+        _PAGE_ICON = _LOGO_JPEG_PATH
+
 if "sidebar_state" not in st.session_state:
     st.session_state.sidebar_state = "expanded"
 
@@ -37,9 +61,10 @@ is_sidebar_open = st.session_state.get("sidebar_state", "expanded") == "expanded
 st.set_page_config(
     page_title="TopperGPT - AI Academic Workspace",
     layout="wide",
-    page_icon="🎓",
+    page_icon=_PAGE_ICON,
     initial_sidebar_state=st.session_state.sidebar_state
 )
+
 
 def extract_text_from_pdf(file_bytes_or_buffer, max_pages=20) -> str:
     """
@@ -120,7 +145,11 @@ def get_base64_image(image_path: str) -> str:
         pass
     return ""
 
-_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "logo.png")
+_LOGO_PATH = os.path.join(_ROOT_DIR, "images", "logo.jpeg")
+if not os.path.exists(_LOGO_PATH):
+    _LOGO_PATH = os.path.join(_ROOT_DIR, "logo.jpeg")
+if not os.path.exists(_LOGO_PATH):
+    _LOGO_PATH = os.path.join(_ROOT_DIR, "images", "logo.png")
 _LOGO_B64 = get_base64_image(_LOGO_PATH)
 
 # Safe Secret Helper for Render & Streamlit Environments
@@ -387,7 +416,7 @@ div[data-testid="stStatusWidget"] {
 }
 
 /* ================================================================ */
-/* 1. UNIVERSAL PERMANENT BLACK (DARK) THEME PALETTE (#0e1117 LOCK)  */
+/* 1. UNIVERSAL PERMANENT DARK THEME PALETTE (#0b0f19 / #111827)    */
 /* ================================================================ */
 :root,
 html,
@@ -396,20 +425,22 @@ body,
 div[data-testid="stAppViewContainer"],
 section.main,
 .stMain {
-    background-color: #0e1117 !important;
-    color: #f8fafc !important;
-    --text-primary: #f8fafc !important;
+    background-color: #0b0f19 !important;
+    background: #0b0f19 !important;
+    color: #f3f4f6 !important;
+    --text-primary: #f3f4f6 !important;
     --text-secondary: #cbd5e1 !important;
     --text-muted: #94a3b8 !important;
     --text-dim: #64748b !important;
     --text-placeholder: #94a3b8 !important;
-    --bg-primary: #0e1117 !important;
-    --bg-surface: #171c24 !important;
+    --text-highlight: #38bdf8 !important;
+    --bg-primary: #0b0f19 !important;
+    --bg-surface: #111827 !important;
     --bg-sidebar: #12161c !important;
-    --bg-input: #171c24 !important;
-    --bg-chat-bar: rgba(14, 17, 23, 0.94) !important;
-    --bg-pinned-bar: linear-gradient(180deg, rgba(14, 17, 23, 0) 0%, rgba(14, 17, 23, 0.96) 30%, #0e1117 100%) !important;
-    --bg-hover: rgba(88, 193, 200, 0.08) !important;
+    --bg-input: #111827 !important;
+    --bg-chat-bar: rgba(11, 15, 25, 0.96) !important;
+    --bg-pinned-bar: linear-gradient(180deg, rgba(11, 15, 25, 0) 0%, rgba(11, 15, 25, 0.98) 30%, #0b0f19 100%) !important;
+    --bg-hover: rgba(56, 189, 248, 0.08) !important;
     --grid-line: rgba(255, 255, 255, 0.025) !important;
 }
 
@@ -425,26 +456,26 @@ html, body, [class*="css"] {
     height: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: #0e1117;
+    background: #0b0f19;
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(88, 193, 200, 0.25);
+    background: rgba(56, 189, 248, 0.25);
     border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(88, 193, 200, 0.55);
+    background: rgba(56, 189, 248, 0.55);
 }
 
 ::selection {
-    background: rgba(88, 193, 200, 0.3) !important;
+    background: rgba(56, 189, 248, 0.3) !important;
     color: var(--text-primary) !important;
 }
 
-/* Background grid styling matching cyber-cyan aesthetic */
+/* Background grid styling matching cyber aesthetic */
 .stApp {
-    background-color: #0e1117 !important;
+    background-color: #0b0f19 !important;
     background-image: 
-        radial-gradient(circle at 50% 8%, rgba(88, 193, 200, 0.1) 0%, transparent 60%),
+        radial-gradient(circle at 50% 8%, rgba(56, 189, 248, 0.08) 0%, transparent 60%),
         linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
         linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px) !important;
     background-size: 100% 100%, 36px 36px, 36px 36px !important;
@@ -452,12 +483,12 @@ html, body, [class*="css"] {
 }
 
 div[data-testid="stAppViewContainer"] {
-    background-color: #0e1117 !important;
+    background-color: #0b0f19 !important;
     border: none !important;
 }
 
 section.main, .stMain {
-    background-color: #0e1117 !important;
+    background-color: #0b0f19 !important;
     border: none !important;
 }
 
@@ -471,13 +502,15 @@ header[data-testid="stHeader"] {
 
 /* Containers and divider lines - eliminate white lines */
 div[data-testid="stVerticalBlockBorderWrapper"] {
-    border: 1px solid rgba(88, 193, 200, 0.16) !important;
+    background-color: #111827 !important;
+    background: #111827 !important;
+    border: 1px solid rgba(56, 189, 248, 0.16) !important;
     border-radius: 12px !important;
 }
 
 hr, div[data-testid="stMarkdownContainer"] hr {
     border: none !important;
-    border-top: 1px solid rgba(88, 193, 200, 0.16) !important;
+    border-top: 1px solid rgba(56, 189, 248, 0.16) !important;
     margin: 18px 0 !important;
 }
 
@@ -496,7 +529,7 @@ p, span, li, label,
 div[data-testid="stMarkdownContainer"] p,
 div[data-testid="stMarkdownContainer"] li,
 div[data-testid="stMarkdownContainer"] span {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
 }
 
 div[data-testid="stMarkdownContainer"] strong, strong {
@@ -504,13 +537,132 @@ div[data-testid="stMarkdownContainer"] strong, strong {
     font-weight: 700;
 }
 
-div[data-testid="stMarkdownContainer"] code {
-    color: #58C1C8 !important;
-    background: rgba(88, 193, 200, 0.08) !important;
-    border: 1px solid rgba(88, 193, 200, 0.25) !important;
-    padding: 2px 6px !important;
-    border-radius: 4px !important;
+/* ================================================================ */
+/* ELIMINATE ALL WHITE BOX ARTIFACTS & STANDARDIZE CODE/CONTAINERS  */
+/* ================================================================ */
+pre,
+code,
+[data-testid="stCodeBlock"],
+[data-testid="stCodeBlock"] > div,
+[data-testid="stCodeBlock"] pre,
+[data-testid="stCodeBlock"] code,
+div.stCodeBlock,
+div.stCode,
+div[data-testid="stCode"],
+[data-testid="stMarkdownContainer"] pre,
+[data-testid="stMarkdownContainer"] pre code,
+[data-testid="stChatMessage"] pre,
+[data-testid="stChatMessage"] code,
+[class*="stCodeBlock"],
+[class*="StyledCodeBlock"],
+pre[class*="language-"],
+code[class*="language-"] {
+    background-color: #111827 !important;
+    background: #111827 !important;
+    color: #f3f4f6 !important;
+    border-color: rgba(56, 189, 248, 0.22) !important;
+}
+
+[data-testid="stCodeBlock"] pre,
+[data-testid="stMarkdownContainer"] pre,
+pre {
+    padding: 14px 18px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(56, 189, 248, 0.25) !important;
+    overflow-x: auto !important;
+    margin: 12px 0 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+}
+
+pre code,
+[data-testid="stCodeBlock"] pre code,
+[data-testid="stMarkdownContainer"] pre code {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: #f3f4f6 !important;
+    border: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-size: 0.92rem !important;
+    font-family: 'Space Mono', Consolas, Monaco, monospace !important;
+    line-height: 1.55 !important;
+}
+
+/* Highlighted inline text and code badges (#38bdf8) */
+:not(pre) > code,
+div[data-testid="stMarkdownContainer"] :not(pre) > code,
+p > code,
+li > code,
+span > code {
+    color: #38bdf8 !important;
+    background-color: #111827 !important;
+    background: rgba(56, 189, 248, 0.12) !important;
+    border: 1px solid rgba(56, 189, 248, 0.3) !important;
+    padding: 2px 7px !important;
+    border-radius: 6px !important;
     font-size: 0.88em !important;
+    font-weight: 600 !important;
+    font-family: 'Space Mono', Consolas, monospace !important;
+}
+
+/* Syntax Highlighting tokens inside code blocks */
+.token, span.token {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+.token.keyword, .token.tag, .token.selector, .token.important { color: #f43f5e !important; }
+.token.string, .token.char, .token.attr-value { color: #34d399 !important; }
+.token.function, .token.class-name { color: #38bdf8 !important; }
+.token.operator, .token.punctuation { color: #9ca3af !important; }
+.token.number, .token.boolean { color: #fbbf24 !important; }
+.token.comment, .token.prolog, .token.doctype { color: #64748b !important; font-style: italic !important; }
+
+/* Copy button inside code block */
+[data-testid="stCodeBlock"] button {
+    background: #1f2937 !important;
+    background-color: #1f2937 !important;
+    color: #9ca3af !important;
+    border: 1px solid #374151 !important;
+    border-radius: 6px !important;
+}
+[data-testid="stCodeBlock"] button:hover {
+    background: #374151 !important;
+    background-color: #374151 !important;
+    color: #ffffff !important;
+}
+
+/* Chat Message Bubbles & Markdown Wrappers */
+[data-testid="stChatMessage"] {
+    background-color: #111827 !important;
+    background: #111827 !important;
+    border: 1px solid rgba(56, 189, 248, 0.16) !important;
+    border-radius: 14px !important;
+    color: #f3f4f6 !important;
+    padding: 16px 20px !important;
+    margin-bottom: 12px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {
+    color: #f3f4f6 !important;
+}
+
+/* All Form Fields & Inputs */
+div[data-baseweb="input"],
+div[data-baseweb="base-input"],
+div[data-baseweb="textarea"],
+.stTextInput input,
+.stTextArea textarea {
+    background-color: #111827 !important;
+    background: #111827 !important;
+    color: #f3f4f6 !important;
+    border: 1px solid #1f2937 !important;
+    border-radius: 10px !important;
+}
+div[data-baseweb="input"]:focus-within,
+div[data-baseweb="textarea"]:focus-within {
+    border-color: #38bdf8 !important;
 }
 
 /* ================================================================ */
@@ -957,29 +1109,29 @@ div[data-testid="stChatInput"] {
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
-    margin: 8px 0 12px 0 !important;
+    margin: 8px 0 14px 0 !important;
 }
 
 div[data-testid="stChatInput"] > div,
 div[data-testid="stChatInput"] .stChatFloatingInputContainer {
-    background: #13151f !important;
-    background-color: #13151f !important;
+    background: #111827 !important;
+    background-color: #111827 !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7) !important;
+    border: 1px solid #1f2937 !important;
+    border-radius: 18px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
     outline: none !important;
-    padding: 6px 12px !important;
+    padding: 6px 14px !important;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 div[data-testid="stChatInput"] > div:focus-within,
 div[data-testid="stChatInput"] .stChatFloatingInputContainer:focus-within {
-    background: #13151f !important;
-    background-color: #13151f !important;
-    border-color: rgba(88, 193, 200, 0.5) !important;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.85), 0 0 10px rgba(88, 193, 200, 0.15) !important;
+    background: #111827 !important;
+    background-color: #111827 !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.85), 0 0 12px rgba(56, 189, 248, 0.25) !important;
     outline: none !important;
     transform: translateY(-1px);
 }
@@ -1005,7 +1157,7 @@ div[data-testid="stChatInput"] textarea:focus-visible,
 div[data-testid="stChatInput"] textarea:active {
     background-color: transparent !important;
     background: transparent !important;
-    color: var(--text-primary, #f8fafc) !important;
+    color: #f3f4f6 !important;
     font-family: inherit !important;
     font-size: 15px !important;
     line-height: 1.5 !important;
@@ -1016,42 +1168,68 @@ div[data-testid="stChatInput"] textarea:active {
     padding: 8px 10px !important;
 }
 
+div[data-testid="stChatInput"] textarea::placeholder {
+    color: #94a3b8 !important;
+}
+
 /* ChatGPT / Gemini Style Inline File Attachment Button (+) */
 button[data-testid="stChatInputFileUploadButton"],
 div[data-testid="stChatInputFileUploadButton"] {
-    background: rgba(255, 255, 255, 0.08) !important;
-    background-color: rgba(255, 255, 255, 0.08) !important;
-    color: #58c1c8 !important;
-    border: 1px solid rgba(88, 193, 200, 0.3) !important;
+    background: #1f2937 !important;
+    background-color: #1f2937 !important;
+    color: #38bdf8 !important;
+    border: 1px solid rgba(56, 189, 248, 0.35) !important;
     border-radius: 50% !important;
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    margin: auto 6px auto 2px !important;
+    margin: auto 8px auto 2px !important;
     padding: 0 !important;
     cursor: pointer !important;
-    transition: all 0.2s ease !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
     box-shadow: none !important;
+    position: relative !important;
 }
 
 button[data-testid="stChatInputFileUploadButton"]:hover {
-    background: rgba(88, 193, 200, 0.2) !important;
-    background-color: rgba(88, 193, 200, 0.2) !important;
-    border-color: #58c1c8 !important;
+    background: rgba(56, 189, 248, 0.2) !important;
+    background-color: rgba(56, 189, 248, 0.2) !important;
+    border-color: #38bdf8 !important;
     color: #ffffff !important;
     transform: scale(1.08) !important;
-    box-shadow: 0 0 12px rgba(88, 193, 200, 0.4) !important;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35) !important;
 }
 
+/* Perfectly Centered '+' Icon for Attachment Button */
 button[data-testid="stChatInputFileUploadButton"] svg {
-    fill: currentColor !important;
-    color: inherit !important;
-    width: 18px !important;
-    height: 18px !important;
+    display: none !important;
+}
+
+button[data-testid="stChatInputFileUploadButton"]::before {
+    content: "+" !important;
+    font-size: 24px !important;
+    line-height: 1 !important;
+    font-weight: 400 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    color: #38bdf8 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    text-align: center !important;
+    pointer-events: none !important;
+    transform: translateY(-1.5px) !important;
+    transition: color 0.2s ease, transform 0.2s ease !important;
+}
+
+button[data-testid="stChatInputFileUploadButton"]:hover::before {
+    color: #ffffff !important;
+    transform: translateY(-1.5px) scale(1.1) !important;
 }
 
 /* Chat Input File Attachment Chip (Preview in Input Bar) */
@@ -1587,8 +1765,8 @@ div[data-baseweb="menu"] li {
         right: 0 !important;
         width: 100% !important;
         max-width: 100vw !important;
-        background: #0e1117 !important;
-        border-top: 1px solid rgba(88, 193, 200, 0.16) !important;
+        background: #0b0f19 !important;
+        border-top: 1px solid #1f2937 !important;
         border-left: none !important;
         border-right: none !important;
         border-bottom: none !important;
@@ -1618,19 +1796,19 @@ div[data-baseweb="menu"] li {
 
     div[data-testid="stChatInput"] > div,
     div[data-testid="stChatInput"] .stChatFloatingInputContainer {
-        background: #131722 !important;
-        background-color: #131722 !important;
-        border: 1px solid rgba(88, 193, 200, 0.25) !important;
-        border-radius: 14px !important;
-        padding: 4px 8px !important;
+        background: #111827 !important;
+        background-color: #111827 !important;
+        border: 1px solid #1f2937 !important;
+        border-radius: 18px !important;
+        padding: 4px 10px !important;
         outline: none !important;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
     }
 
     div[data-testid="stChatInput"] > div:focus-within,
     div[data-testid="stChatInput"] .stChatFloatingInputContainer:focus-within {
-        border-color: rgba(88, 193, 200, 0.6) !important;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.8), 0 0 10px rgba(88, 193, 200, 0.2) !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.8), 0 0 10px rgba(56, 189, 248, 0.25) !important;
         outline: none !important;
     }
 
@@ -1659,7 +1837,7 @@ div[data-baseweb="menu"] li {
         outline: none !important;
         box-shadow: none !important;
         -webkit-box-shadow: none !important;
-        color: #f8fafc !important;
+        color: #f3f4f6 !important;
         background: transparent !important;
     }
 
@@ -1668,7 +1846,7 @@ div[data-baseweb="menu"] li {
         height: 36px !important;
         min-width: 36px !important;
         min-height: 36px !important;
-        border-radius: 10px !important;
+        border-radius: 50% !important;
     }
 }
 </style>

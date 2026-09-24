@@ -1,3 +1,4 @@
-.streamlit/
+.streamlit/secrets.toml
+.streamlit/knowledge_base.py
 __pycache__/
 *.pyc

@@ -34,6 +34,16 @@ def render_landing_page(initial_theme=None):
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TopperGPT - AI Academic Workspace</title>
+  <meta name="description" content="Your syllabus. Your questions. Your AI study partner. From last-minute revision to deep concept learning, TopperGPT turns complex engineering topics into clear, exam-ready answers, smart notes, summaries, and practice questions. Don't just study harder. Study with TopperGPT." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:title" content="TopperGPT - AI Academic Workspace" />
+  <meta property="og:description" content="Your syllabus. Your questions. Your AI study partner. From last-minute revision to deep concept learning, TopperGPT turns complex engineering topics into clear, exam-ready answers, smart notes, summaries, and practice questions. Don't just study harder. Study with TopperGPT." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://toppergpt.in" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="TopperGPT - AI Academic Workspace" />
+  <meta name="twitter:description" content="Your syllabus. Your questions. Your AI study partner. From last-minute revision to deep concept learning, TopperGPT turns complex engineering topics into clear, exam-ready answers, smart notes, summaries, and practice questions. Don't just study harder. Study with TopperGPT." />
+  <link rel="icon" type="image/jpeg" href="images/logo.jpeg" />
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1380,6 +1390,19 @@ def render_landing_page(initial_theme=None):
       }
     }
   });
+
+  // Sync title and SEO meta description to parent window
+  try {
+    const pDoc = (window.parent && window.parent.document) || document;
+    pDoc.title = "TopperGPT - AI Academic Workspace";
+    let m = pDoc.querySelector('meta[name="description"]');
+    if (!m) {
+      m = pDoc.createElement('meta');
+      m.setAttribute('name', 'description');
+      pDoc.head.appendChild(m);
+    }
+    m.setAttribute('content', "Your syllabus. Your questions. Your AI study partner. From last-minute revision to deep concept learning, TopperGPT turns complex engineering topics into clear, exam-ready answers, smart notes, summaries, and practice questions. Don't just study harder. Study with TopperGPT.");
+  } catch(e) {}
 </script>
 """
     # 3. Render directly via Streamlit HTML Component with graceful fallback
