@@ -525,6 +525,30 @@ div[data-testid="stMarkdownContainer"] h4 {
     letter-spacing: -0.02em;
 }
 
+/* Remove all Streamlit Heading Anchor Link Icons & Action Buttons */
+[data-testid="stHeadingAnchorIcon"],
+.anchor-link,
+a.anchor-link,
+a[data-testid="stHeadingAnchorIcon"],
+.stHeadingWithActionElements a,
+div[data-testid="stHeadingWithActionElements"] a:first-child,
+div[data-testid="stHeadingWithActionElements"] > a,
+.stHeadingWithActionElements svg,
+div[data-testid="stHeadingActionElements"],
+h1 > a, h2 > a, h3 > a, h4 > a, h5 > a, h6 > a,
+[data-testid="stMarkdownContainer"] h1 > a,
+[data-testid="stMarkdownContainer"] h2 > a,
+[data-testid="stMarkdownContainer"] h3 > a {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 p, span, li, label,
 div[data-testid="stMarkdownContainer"] p,
 div[data-testid="stMarkdownContainer"] li,
@@ -1976,6 +2000,146 @@ def get_cached_profile(email_addr: str):
     except Exception:
         pass
     return None
+
+# --- 3.5 PERSISTENT CHAT STORAGE (SUPABASE & USER-ISOLATED CACHE) ---
+_CHAT_CACHE_DIR = os.path.join(_ROOT_DIR, ".user_chats")
+
+def get_default_tutor_messages(name: str = "Student") -> list:
+    return [
+        {
+            "role": "assistant",
+            "content": f"Hello {name} 👋 What are we studying today? Ask me anything from your syllabus.",
+            "hinglish": None
+        }
+    ]
+
+def load_user_chat_history(user_email: str, name: str = "Student") -> list:
+    """
+    Securely fetches user-specific chat history for persistent multi-session continuity.
+    Different users and topics are strictly segregated by email.
+    Tier 1: Supabase dedicated chat_messages table
+    Tier 2: Supabase profiles table chat_history column
+    Tier 3: Local user file cache
+    """
+    if not user_email:
+        return get_default_tutor_messages(name)
+
+    clean_email = user_email.strip().lower()
+
+    # Tier 1 & 2: Supabase
+    if supabase:
+        try:
+            res = supabase.table("chat_messages").select("role, content, hinglish, attachment, created_at").eq("user_email", clean_email).order("created_at").limit(60).execute()
+            if res.data and len(res.data) > 0:
+                msgs = []
+                for row in res.data:
+                    m = {
+                        "role": row.get("role", "user"),
+                        "content": row.get("content", ""),
+                        "hinglish": row.get("hinglish")
+                    }
+                    if row.get("attachment"):
+                        m["attachment"] = row.get("attachment")
+                    msgs.append(m)
+                return msgs
+        except Exception:
+            pass
+
+        try:
+            prof = supabase.table("profiles").select("chat_history").eq("email", clean_email).execute()
+            if prof.data and len(prof.data) > 0 and prof.data[0].get("chat_history"):
+                hist = prof.data[0]["chat_history"]
+                if isinstance(hist, list) and len(hist) > 0:
+                    return hist
+        except Exception:
+            pass
+
+    # Tier 3: Local user cache
+    try:
+        os.makedirs(_CHAT_CACHE_DIR, exist_ok=True)
+        safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', clean_email)
+        cache_file = os.path.join(_CHAT_CACHE_DIR, f"{safe_name}.json")
+        if os.path.exists(cache_file):
+            with open(cache_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list) and len(data) > 0:
+                    return data
+    except Exception:
+        pass
+
+    return get_default_tutor_messages(name)
+
+def save_user_chat_history(user_email: str, messages: list):
+    """
+    Persists updated chat messages to Supabase and user-specific local storage.
+    Prunes heavy binary payloads while preserving text and attachment metadata.
+    """
+    if not user_email or not messages:
+        return
+
+    clean_email = user_email.strip().lower()
+
+    # Prune to latest 50 messages and remove heavy base64 strings to prevent DB payload errors
+    pruned = []
+    for m in messages[-50:]:
+        item = {
+            "role": m.get("role", "user"),
+            "content": str(m.get("content", "")),
+            "hinglish": m.get("hinglish")
+        }
+        if m.get("attachment"):
+            att = m["attachment"]
+            item["attachment"] = {
+                "type": att.get("type"),
+                "name": att.get("name"),
+                "size_kb": att.get("size_kb")
+            }
+        pruned.append(item)
+
+    # 1. Local file cache
+    try:
+        os.makedirs(_CHAT_CACHE_DIR, exist_ok=True)
+        safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', clean_email)
+        cache_file = os.path.join(_CHAT_CACHE_DIR, f"{safe_name}.json")
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump(pruned, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+    # 2. Supabase profiles column
+    if supabase:
+        try:
+            supabase.table("profiles").update({"chat_history": pruned}).eq("email", clean_email).execute()
+        except Exception:
+            pass
+
+def clear_user_chat_history(user_email: str, name: str = "Student") -> list:
+    """
+    Clears the saved chat history for this specific user in Supabase and local cache.
+    """
+    clean_email = (user_email or "").strip().lower()
+    if clean_email:
+        # Clear local cache
+        try:
+            safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', clean_email)
+            cache_file = os.path.join(_CHAT_CACHE_DIR, f"{safe_name}.json")
+            if os.path.exists(cache_file):
+                os.remove(cache_file)
+        except Exception:
+            pass
+
+        # Clear Supabase
+        if supabase:
+            try:
+                supabase.table("profiles").update({"chat_history": []}).eq("email", clean_email).execute()
+            except Exception:
+                pass
+            try:
+                supabase.table("chat_messages").delete().eq("user_email", clean_email).execute()
+            except Exception:
+                pass
+
+    return get_default_tutor_messages(name)
 
 # --- 4. LATEX & MATHEMATICAL FORMULA SANITIZER ---
 def clean_latex_math(text: str) -> str:
@@ -3618,41 +3782,52 @@ with col_head:
 with col_badge:
     st.markdown("<div class='streak-badge'>🔥 6-day study streak</div>", unsafe_allow_html=True)
 
-# Helper function for Instant Hinglish Translation
+# Helper function for Instant Hinglish Translation (Natural Conversational Style)
 def translate_to_hinglish(text_content):
-    prompt = f"""Be extremely direct, concise, and structured. No fluff, no introductory chatter, no conversational filler.
-Translate and simplify the following engineering explanation into clear, friendly Hinglish (Hindi written in English alphabets) so that an Indian student can understand it effortlessly. Keep all equations and mathematical variables intact.
+    prompt = f"""You are a brilliant, friendly senior engineering student and university topper from Mumbai University who explains complex syllabus concepts to junior batchmates in authentic, conversational Hinglish (the way engineering students talk on campus/WhatsApp).
 
-    MATHEMATICAL NOTATION INSTRUCTIONS:
-    - Wrap ALL inline math variables/formulas in single dollar signs (e.g., $V_p / V_s$, $R_{{eq}}$).
-    - Wrap ALL standalone or display equations in double dollar signs ($$...$$).
-    - Never use \\displaystyle or wrap equations in raw curly braces {{...}} without dollar signs.
+STRICT TONE & CONVERSATIONAL STYLE INSTRUCTIONS:
+1. Opening line: Start with a natural, friendly peer-to-peer opening such as:
+   "Arey bhai, yeh raha iska simple aur crystal-clear explanation:" or "Arey bhai, tension mat le, yeh concept bilkul simple hai:"
+2. Conversational Hinglish: Write in smooth, natural Roman Hindi (Hinglish) blended with standard English technical terms.
+   - Example style: "Basically yaha pe jab current flow hota hai...", "Is step pe examiner trap daalta hai, dhyan rakhna...", "Simple words me bole toh iska funda yeh hai ki..."
+   - DO NOT translate standard engineering terms into awkward Hindi words (keep terms like Voltage, Current, Transistor, Derivative, Impedance, Matrix, Algorithm, Memory, Node in English).
+3. Structure:
+   - 💡 **Main Funda (Core Concept):** 2-3 clear, relatable bullet points in conversational Hinglish.
+   - ⚡ **Step-by-Step Logic / Calculation:** Walk through the mechanism or math simply.
+   - ⚠️ **Examiner Trap:** "Bhai exam me yeh galti bilkul mat karna..."
+4. Keep all mathematical formulas, equations, and variables strictly wrapped in LaTeX dollar signs ($...$ for inline or $$...$$ for display equations).
+5. Never be stiff, robotic, or overly formal. Speak like a helpful senior topper guiding their friend the night before the exam!
 
-    Text:
-    {text_content}"""
-    return generate_ai_response(prompt, max_toks=700, temperature=0.2)
+Text to explain in natural conversational Hinglish:
+{text_content}"""
+    return generate_ai_response(prompt, max_toks=1200, temperature=0.35)
 
 
 # ==================================================
 # --- 1. FEATURE: AI ACADEMIC TUTOR ---
 # ==================================================
 if nav_selection == "💡 AI Tutor":
-    st.markdown("""
-        <div class="starter-chip-container">
-            <span class="starter-chip">💡 Explain a concept</span>
-            <span class="starter-chip">📄 Summarize a chapter</span>
-            <span class="starter-chip">🎯 Practice questions</span>
-        </div>
-    """, unsafe_allow_html=True)
+    curr_user_email = (st.session_state.user_data or {}).get("email", "guest@toppergpt.in").strip().lower()
 
-    if "tutor_messages" not in st.session_state:
-        st.session_state.tutor_messages = [
-            {
-                "role": "assistant",
-                "content": f"Hello {student_name} 👋 What are we studying today? Ask me anything from your syllabus.",
-                "hinglish": None
-            }
-        ]
+    # Load segregated user chat history from Supabase / persistent cache
+    if "tutor_messages" not in st.session_state or st.session_state.get("active_chat_email") != curr_user_email:
+        st.session_state.tutor_messages = load_user_chat_history(curr_user_email, student_name)
+        st.session_state.active_chat_email = curr_user_email
+
+    col_chips, col_clear = st.columns([4.2, 1.2])
+    with col_chips:
+        st.markdown("""
+            <div class="starter-chip-container">
+                <span class="starter-chip">💡 Explain a concept</span>
+                <span class="starter-chip">📄 Summarize a chapter</span>
+                <span class="starter-chip">🎯 Practice questions</span>
+            </div>
+        """, unsafe_allow_html=True)
+    with col_clear:
+        if st.button("🗑️ Clear Chat", key="btn_clear_tutor_chat", help="Start a fresh chat and clear your saved conversation history"):
+            st.session_state.tutor_messages = clear_user_chat_history(curr_user_email, student_name)
+            st.rerun()
 
     AI_TUTOR_SYSTEM_INSTRUCTION = (
         "You are TopperGPT: an elite, authoritative 24/7 AI Academic Tutor and Senior University Evaluator designed exclusively "
@@ -3717,8 +3892,8 @@ if nav_selection == "💡 AI Tutor":
                     "content": "Generation failed due to API timeout or rate limit. Please retry.",
                     "hinglish": None
                 })
+        save_user_chat_history(curr_user_email, st.session_state.tutor_messages)
         st.rerun()
-
 
     for idx, msg in enumerate(st.session_state.tutor_messages):
         with st.chat_message(msg["role"]):
@@ -3750,15 +3925,44 @@ if nav_selection == "💡 AI Tutor":
                     )
             st.markdown(clean_output_text(msg["content"]))
             if msg["role"] == "assistant" and idx > 0:
-                if msg.get("hinglish"):
-                    with st.expander("🗣️ View Hinglish Explanation"):
-                        st.markdown(clean_output_text(msg["hinglish"]))
-                else:
+                h_content = msg.get("hinglish")
+                h_visible_key = f"show_h_{idx}"
+                if h_visible_key not in st.session_state:
+                    st.session_state[h_visible_key] = True if h_content else False
+
+                if not h_content:
                     if st.button("🗣️ Explain in Hinglish", key=f"tr_{idx}"):
-                        with st.spinner("⚡ Translating to simple Hinglish..."):
+                        with st.spinner("⚡ Arey bhai, simplifying in Hinglish..."):
                             h_res = translate_to_hinglish(msg["content"])
                             st.session_state.tutor_messages[idx]["hinglish"] = h_res
+                            st.session_state[h_visible_key] = True
+                            save_user_chat_history(curr_user_email, st.session_state.tutor_messages)
                             st.rerun()
+                else:
+                    tog_col, _ = st.columns([2.5, 5])
+                    with tog_col:
+                        tog_label = "👁️ Hide Hinglish" if st.session_state[h_visible_key] else "🗣️ View Hinglish Explanation"
+                        if st.button(tog_label, key=f"tog_{idx}"):
+                            st.session_state[h_visible_key] = not st.session_state[h_visible_key]
+                            st.rerun()
+
+                    if st.session_state[h_visible_key]:
+                        st.markdown(
+                            f"""<div style="background: linear-gradient(135deg, rgba(88, 193, 200, 0.08) 0%, rgba(17, 24, 39, 0.95) 100%); 
+                                            border: 1.5px solid rgba(88, 193, 200, 0.35); 
+                                            border-left: 4px solid #58c1c8; 
+                                            border-radius: 12px; 
+                                            padding: 14px 18px; 
+                                            margin: 10px 0 14px 0; 
+                                            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);">
+                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                                    <span style="font-size:15px;">🇮🇳</span>
+                                    <span style="color:#58c1c8; font-weight:700; font-size:12.5px; text-transform:uppercase; letter-spacing:0.8px;">Hinglish Explanation (Senior Topper Notes)</span>
+                                </div>
+                            </div>""",
+                            unsafe_allow_html=True
+                        )
+                        st.markdown(clean_output_text(h_content))
 
     # Inline ChatGPT / Gemini-Style Chat Input with File Attachment
     try:
@@ -3851,6 +4055,7 @@ if nav_selection == "💡 AI Tutor":
                 "hinglish": None,
                 "attachment": att_data
             })
+            save_user_chat_history(curr_user_email, st.session_state.tutor_messages)
 
             with st.chat_message("user"):
                 if att_data:
@@ -3895,6 +4100,7 @@ if nav_selection == "💡 AI Tutor":
                         ai_reply = generate_chat_response(messages_payload, max_toks=2500, temperature=0.3, attached_file=att_data)
                         st.markdown(clean_output_text(ai_reply))
                         st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
+                        save_user_chat_history(curr_user_email, st.session_state.tutor_messages)
                         st.rerun()
                     except Exception:
                         st.error("Generation failed due to API timeout or rate limit. Please retry.")

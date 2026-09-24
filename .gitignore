@@ -1,4 +1,5 @@
 .streamlit/secrets.toml
 .streamlit/knowledge_base.py
+.user_chats/
 __pycache__/
 *.pyc
