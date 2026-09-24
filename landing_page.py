@@ -1382,5 +1382,16 @@ def render_landing_page(initial_theme=None):
   });
 </script>
 """
-    # 3. Render directly via Streamlit HTML Component
-    st.html(landing_html, unsafe_allow_javascript=True)
+    # 3. Render directly via Streamlit HTML Component with graceful fallback
+    try:
+        st.html(landing_html, unsafe_allow_javascript=True)
+    except TypeError:
+        try:
+            st.html(landing_html)
+        except Exception:
+            import streamlit.components.v1 as components
+            components.html(landing_html, height=1200, scrolling=True)
+    except Exception:
+        import streamlit.components.v1 as components
+        components.html(landing_html, height=1200, scrolling=True)
+

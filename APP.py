@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import json
-import time
 import os
 import re
 import base64
@@ -21,8 +20,26 @@ try:
     from PIL import Image
 except ImportError:
     Image = None
-from supabase import create_client, Client
+from supabase import create_client
 from landing_page import render_landing_page
+
+# --- 1. CONFIGURATION & PAGE SETUP (FIRST STREAMLIT CALL) ---
+if "sidebar_state" not in st.session_state:
+    st.session_state.sidebar_state = "expanded"
+
+def toggle_sidebar():
+    st.session_state.sidebar_state = (
+        "collapsed" if st.session_state.get("sidebar_state", "expanded") == "expanded" else "expanded"
+    )
+
+is_sidebar_open = st.session_state.get("sidebar_state", "expanded") == "expanded"
+
+st.set_page_config(
+    page_title="TopperGPT - AI Academic Workspace",
+    layout="wide",
+    page_icon="🎓",
+    initial_sidebar_state=st.session_state.sidebar_state
+)
 
 def extract_text_from_pdf(file_bytes_or_buffer, max_pages=20) -> str:
     """
@@ -107,26 +124,46 @@ _LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", 
 _LOGO_B64 = get_base64_image(_LOGO_PATH)
 
 # Safe Secret Helper for Render & Streamlit Environments
-def get_env_secret(key, default=""):
+def get_env_secret(key: str, default: str = "") -> str:
+    """
+    Safely retrieves configuration secrets with robust failover across:
+    1. Render & OS environment variables (os.environ)
+    2. Streamlit Cloud secrets (st.secrets)
+    3. Local .streamlit/secrets.toml
+    Guarantees no KeyError or unhandled exceptions during initialization.
+    """
+    if not key:
+        return default
+    # Priority 1: Render container OS environment
+    val = os.environ.get(key)
+    if val is not None and str(val).strip():
+        return str(val).strip()
+
+    # Priority 2: Streamlit secrets
     try:
-        if key in st.secrets:
-            return st.secrets[key]
+        if hasattr(st, "secrets") and key in st.secrets:
+            s_val = st.secrets[key]
+            if s_val is not None and str(s_val).strip():
+                return str(s_val).strip()
     except Exception:
         pass
-    val = os.environ.get(key)
-    if val:
-        return val
+
+    # Priority 3: Local secrets.toml file
     try:
         sec_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", "secrets.toml")
         if os.path.exists(sec_path):
             try:
                 import tomllib
             except ImportError:
-                import tomli as tomllib
-            with open(sec_path, "rb") as f:
-                sec_dict = tomllib.load(f)
-                if key in sec_dict:
-                    return sec_dict[key]
+                try:
+                    import tomli as tomllib
+                except ImportError:
+                    tomllib = None
+            if tomllib:
+                with open(sec_path, "rb") as f:
+                    sec_dict = tomllib.load(f)
+                    if key in sec_dict:
+                        return str(sec_dict[key]).strip()
     except Exception:
         pass
     return default
@@ -157,25 +194,6 @@ def is_valid_email(email_str: str) -> bool:
         if not sec or sec.startswith("-") or sec.endswith("-"):
             return False
     return True
-
-# --- 1. CONFIGURATION & PAGE SETUP ---
-# Persistent State Management for Sidebar (Expanded / Collapsed across all interactions)
-if "sidebar_state" not in st.session_state:
-    st.session_state.sidebar_state = "expanded"
-
-def toggle_sidebar():
-    st.session_state.sidebar_state = (
-        "collapsed" if st.session_state.get("sidebar_state", "expanded") == "expanded" else "expanded"
-    )
-
-is_sidebar_open = st.session_state.get("sidebar_state", "expanded") == "expanded"
-
-st.set_page_config(
-    page_title="TopperGPT - AI Academic Workspace",
-    layout="wide",
-    page_icon="🎓",
-    initial_sidebar_state=st.session_state.sidebar_state
-)
 
 # Route & Query Parameter Handler (Safe extraction)
 try:
@@ -2376,23 +2394,53 @@ if FPDF is not None:
             self.doc_title = title_text
             self.is_unicode = False
 
-            # Attempt to load Arial TrueType font for native math & Unicode glyph support
-            win_font = r"C:\Windows\Fonts\arial.ttf"
-            win_font_b = r"C:\Windows\Fonts\arialbd.ttf"
-            win_font_i = r"C:\Windows\Fonts\ariali.ttf"
-            if os.path.exists(win_font):
-                try:
-                    self.add_font("TopperFont", "", win_font)
-                    if os.path.exists(win_font_b):
-                        self.add_font("TopperFont", "B", win_font_b)
-                    if os.path.exists(win_font_i):
-                        self.add_font("TopperFont", "I", win_font_i)
-                    self.font_family_name = "TopperFont"
-                    self.is_unicode = True
-                except Exception:
-                    self.font_family_name = "Helvetica"
-            else:
+            # Multi-Platform TrueType Font Discovery (Windows & Linux/Render containers)
+            font_candidates = [
+                # Windows standard Arial fonts
+                {
+                    "reg": r"C:\Windows\Fonts\arial.ttf",
+                    "b": r"C:\Windows\Fonts\arialbd.ttf",
+                    "i": r"C:\Windows\Fonts\ariali.ttf"
+                },
+                # Linux DejaVu fonts (prevalent in Debian/Ubuntu/Render containers)
+                {
+                    "reg": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "b": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "i": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"
+                },
+                # Linux Liberation fonts
+                {
+                    "reg": "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                    "b": "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                    "i": "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf"
+                },
+                # Linux FreeSans fonts
+                {
+                    "reg": "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+                    "b": "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+                    "i": "/usr/share/fonts/truetype/freefont/FreeSansOblique.ttf"
+                }
+            ]
+
+            font_loaded = False
+            for f_cand in font_candidates:
+                if os.path.exists(f_cand["reg"]):
+                    try:
+                        self.add_font("TopperFont", "", f_cand["reg"])
+                        if f_cand.get("b") and os.path.exists(f_cand["b"]):
+                            self.add_font("TopperFont", "B", f_cand["b"])
+                        if f_cand.get("i") and os.path.exists(f_cand["i"]):
+                            self.add_font("TopperFont", "I", f_cand["i"])
+                        self.font_family_name = "TopperFont"
+                        self.is_unicode = True
+                        font_loaded = True
+                        break
+                    except Exception:
+                        continue
+
+            if not font_loaded:
                 self.font_family_name = "Helvetica"
+                self.is_unicode = False
 
             self.set_auto_page_break(auto=True, margin=18)
             self.set_margins(15, 30, 15)
@@ -2419,10 +2467,9 @@ if FPDF is not None:
             self.rect(0, 0, 210, 22, style="F")
 
             # Header Logo if available
-            logo_path = os.path.join(os.path.dirname(__file__), "images", "logo.png")
-            if os.path.exists(logo_path):
+            if os.path.exists(_LOGO_PATH):
                 try:
-                    self.image(logo_path, x=15, y=4, w=14)
+                    self.image(_LOGO_PATH, x=15, y=4, w=14)
                     text_x = 33
                 except Exception:
                     text_x = 15
@@ -2739,8 +2786,8 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
     if attached_file and max_toks < 2000:
         max_toks = 2500
 
-    tier_timeout = 40 if attached_file else (25 if max_toks > 1000 else 12)
-    gemini_timeout = 50 if attached_file else (25 if max_toks > 1000 else 15)
+    tier_timeout = 25 if attached_file else (15 if max_toks > 1000 else 8)
+    gemini_timeout = 25 if attached_file else (15 if max_toks > 1000 else 10)
 
     # -------------------------------------------------------------------------
     # 0. NORMALIZE & SANITIZE MESSAGES ARRAY
@@ -2781,202 +2828,211 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
     is_image = bool(attached_file and attached_file.get("type") == "image" and attached_file.get("base64"))
     is_pdf = bool(attached_file and attached_file.get("type") == "pdf")
 
-    gemini_key = (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip()
-    groq_key = (get_env_secret("GROQ_API_KEY") or get_env_secret("GROQ_API_KEY_2", "")).strip()
-    openrouter_key = get_env_secret("OPENROUTER_API_KEY").strip()
+    gemini_key_1 = (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip()
+    gemini_key_2 = (get_env_secret("GEMINI_API_KEY_2") or get_env_secret("GOOGLE_API_KEY_2", "")).strip()
+    gemini_keys = [k for k in [gemini_key_1, gemini_key_2] if k]
+
+    groq_key_1 = get_env_secret("GROQ_API_KEY").strip()
+    groq_key_2 = get_env_secret("GROQ_API_KEY_2").strip()
+    groq_keys = [k for k in [groq_key_1, groq_key_2] if k]
+
+    openrouter_key_1 = get_env_secret("OPENROUTER_API_KEY").strip()
+    openrouter_key_2 = get_env_secret("OPENROUTER_API_KEY_2").strip()
+    openrouter_keys = [k for k in [openrouter_key_1, openrouter_key_2] if k]
 
     def try_gemini(key_to_use):
         if not key_to_use:
             return None
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key_to_use}"
-            sys_parts = [m["content"] for m in messages_array if m["role"] == "system"]
-            sys_text = "\n\n".join(sys_parts).strip()
+        gemini_models = ["gemini-1.5-flash", "gemini-2.0-flash"]
+        for g_model in gemini_models:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={key_to_use}"
+                sys_parts = [m["content"] for m in messages_array if m["role"] == "system"]
+                sys_text = "\n\n".join(sys_parts).strip()
 
-            gemini_contents = []
-            for m in messages_array:
-                if m["role"] == "system":
-                    continue
-                g_role = "model" if m["role"] == "assistant" else "user"
-                text_val = m["content"]
-                if gemini_contents and gemini_contents[-1]["role"] == g_role:
-                    gemini_contents[-1]["parts"][0]["text"] += "\n\n" + text_val
-                else:
-                    gemini_contents.append({"role": g_role, "parts": [{"text": text_val}]})
+                gemini_contents = []
+                for m in messages_array:
+                    if m["role"] == "system":
+                        continue
+                    g_role = "model" if m["role"] == "assistant" else "user"
+                    text_val = m["content"]
+                    if gemini_contents and gemini_contents[-1]["role"] == g_role:
+                        gemini_contents[-1]["parts"][0]["text"] += "\n\n" + text_val
+                    else:
+                        gemini_contents.append({"role": g_role, "parts": [{"text": text_val}]})
 
-            if not gemini_contents:
-                gemini_contents = [{"role": "user", "parts": [{"text": sys_text or "Hello"}]}]
-            elif gemini_contents[0]["role"] == "model":
-                gemini_contents.insert(0, {"role": "user", "parts": [{"text": "Hello"}]})
+                if not gemini_contents:
+                    gemini_contents = [{"role": "user", "parts": [{"text": sys_text or "Hello"}]}]
+                elif gemini_contents[0]["role"] == "model":
+                    gemini_contents.insert(0, {"role": "user", "parts": [{"text": "Hello"}]})
 
-            # Append native multimodal binary (Image or PDF)
-            if attached_file and attached_file.get("base64"):
-                mime = attached_file.get("mime_type")
-                if not mime:
-                    mime = "application/pdf" if is_pdf else "image/jpeg"
-                gemini_contents[-1]["parts"].append({
-                    "inline_data": {
-                        "mime_type": mime,
-                        "data": attached_file["base64"]
+                # Append native multimodal binary (Image or PDF)
+                if attached_file and attached_file.get("base64"):
+                    mime = attached_file.get("mime_type")
+                    if not mime:
+                        mime = "application/pdf" if is_pdf else "image/jpeg"
+                    gemini_contents[-1]["parts"].append({
+                        "inline_data": {
+                            "mime_type": mime,
+                            "data": attached_file["base64"]
+                        }
+                    })
+
+                gemini_payload = {
+                    "contents": gemini_contents,
+                    "generationConfig": {
+                        "temperature": temperature,
+                        "maxOutputTokens": max_toks
                     }
-                })
-
-            gemini_payload = {
-                "contents": gemini_contents,
-                "generationConfig": {
-                    "temperature": temperature,
-                    "maxOutputTokens": max_toks
                 }
-            }
-            if sys_text:
-                gemini_payload["system_instruction"] = {"parts": [{"text": sys_text}]}
+                if sys_text:
+                    gemini_payload["system_instruction"] = {"parts": [{"text": sys_text}]}
 
-            res = requests.post(url, headers={"Content-Type": "application/json"}, json=gemini_payload, timeout=gemini_timeout)
-            if res.status_code == 200:
-                cand = res.json().get('candidates', [])
-                if cand and 'content' in cand[0] and 'parts' in cand[0]['content'] and cand[0]['content']['parts']:
-                    out_text = cand[0]['content']['parts'][0].get('text', '').strip()
-                    if out_text and not is_generic_refusal(out_text):
-                        return clean_output_text(out_text)
-            elif sys_text:
-                gemini_contents[0]["parts"][0]["text"] = sys_text + "\n\n" + gemini_contents[0]["parts"][0]["text"]
-                res2 = requests.post(url, headers={"Content-Type": "application/json"}, json={"contents": gemini_contents, "generationConfig": {"temperature": temperature, "maxOutputTokens": max_toks}}, timeout=gemini_timeout)
-                if res2.status_code == 200:
-                    cand = res2.json().get('candidates', [])
-                    if cand and cand[0].get('content', {}).get('parts'):
+                res = requests.post(url, headers={"Content-Type": "application/json"}, json=gemini_payload, timeout=gemini_timeout)
+                if res.status_code == 200:
+                    cand = res.json().get('candidates', [])
+                    if cand and 'content' in cand[0] and 'parts' in cand[0]['content'] and cand[0]['content']['parts']:
                         out_text = cand[0]['content']['parts'][0].get('text', '').strip()
                         if out_text and not is_generic_refusal(out_text):
                             return clean_output_text(out_text)
-        except Exception:
-            pass
-        return None
-
-    def try_groq():
-        if not groq_key:
-            return None
-        if is_image:
-            vision_models = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
-            for vm in vision_models:
-                try:
-                    multimodal_msgs = []
-                    for m in messages_array:
-                        if m == messages_array[-1]:
-                            multimodal_msgs.append({
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": m["content"]},
-                                    {
-                                        "type": "image_url",
-                                        "image_url": {
-                                            "url": f"data:{attached_file.get('mime_type', 'image/jpeg')};base64,{attached_file['base64']}"
-                                        }
-                                    }
-                                ]
-                            })
-                        else:
-                            multimodal_msgs.append(m)
-
-                    res = requests.post(
-                        "https://api.groq.com/openai/v1/chat/completions",
-                        headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                        json={"model": vm, "messages": multimodal_msgs, "temperature": temperature, "max_tokens": min(max_toks, 4096)},
-                        timeout=tier_timeout
-                    )
-                    if res.status_code == 200:
-                        choices = res.json().get("choices", [])
-                        if choices and choices[0]["message"].get("content"):
-                            out_text = choices[0]["message"]["content"].strip()
+                elif sys_text:
+                    gemini_contents[0]["parts"][0]["text"] = sys_text + "\n\n" + gemini_contents[0]["parts"][0]["text"]
+                    res2 = requests.post(url, headers={"Content-Type": "application/json"}, json={"contents": gemini_contents, "generationConfig": {"temperature": temperature, "maxOutputTokens": max_toks}}, timeout=gemini_timeout)
+                    if res2.status_code == 200:
+                        cand = res2.json().get('candidates', [])
+                        if cand and cand[0].get('content', {}).get('parts'):
+                            out_text = cand[0]['content']['parts'][0].get('text', '').strip()
                             if out_text and not is_generic_refusal(out_text):
                                 return clean_output_text(out_text)
-                except Exception:
-                    continue
-        else:
-            groq_models = ["llama-3.1-8b-instant", "llama3-8b-8192"]
-            for g_model in groq_models:
-                try:
-                    res = requests.post(
-                        "https://api.groq.com/openai/v1/chat/completions",
-                        headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                        json={"model": g_model, "messages": messages_array, "temperature": temperature, "max_tokens": min(max_toks, 4096)},
-                        timeout=tier_timeout
-                    )
-                    if res.status_code == 200:
-                        choices = res.json().get("choices", [])
-                        if choices and choices[0]["message"].get("content"):
-                            out_text = choices[0]["message"]["content"].strip()
-                            if out_text and not is_generic_refusal(out_text):
-                                return clean_output_text(out_text)
-                except Exception:
-                    continue
-        return None
-
-    def try_openrouter():
-        if not openrouter_key:
-            return None
-        if is_image:
-            or_models = [
-                "meta-llama/llama-3.2-11b-vision-instruct:free",
-                "google/gemini-2.0-flash-exp:free",
-                "qwen/qwen-2-vl-72b-instruct:free",
-                "openrouter/auto"
-            ]
-            multimodal_msgs = []
-            for m in messages_array:
-                if m == messages_array[-1]:
-                    multimodal_msgs.append({
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": m["content"]},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:{attached_file.get('mime_type', 'image/jpeg')};base64,{attached_file['base64']}"
-                                }
-                            }
-                        ]
-                    })
-                else:
-                    multimodal_msgs.append(m)
-            req_messages = multimodal_msgs
-        else:
-            or_models = [
-                "meta-llama/llama-3.1-8b-instruct:free",
-                "meta-llama/llama-3.2-3b-instruct",
-                "meta-llama/llama-3.1-8b-instruct",
-                "openrouter/auto",
-                "qwen/qwen3.8-27b:free",
-                "liquid/lfm-2.5-2.6b:free",
-                "nvidia/nemotron-3.5-lightning:free"
-            ]
-            req_messages = messages_array
-
-        for or_m in or_models:
-            try:
-                res = requests.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json", "HTTP-Referer": "https://toppergpt.in", "X-Title": "TopperGPT Academic Workspace"},
-                    json={"model": or_m, "messages": req_messages, "max_tokens": min(max_toks, 4096), "temperature": temperature, "include_reasoning": False},
-                    timeout=tier_timeout
-                )
-                if res.status_code == 200:
-                    choices = res.json().get("choices", [])
-                    if choices and "message" in choices[0]:
-                        out_text = str(choices[0]["message"].get("content") or "").strip()
-                        if out_text and not is_generic_refusal(out_text):
-                            return clean_output_text(out_text)
             except Exception:
                 continue
         return None
 
+    def try_groq():
+        if not groq_keys:
+            return None
+        for g_key in groq_keys:
+            if is_image:
+                vision_models = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+                for vm in vision_models:
+                    try:
+                        multimodal_msgs = []
+                        for m in messages_array:
+                            if m == messages_array[-1]:
+                                multimodal_msgs.append({
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": m["content"]},
+                                        {
+                                            "type": "image_url",
+                                            "image_url": {
+                                                "url": f"data:{attached_file.get('mime_type', 'image/jpeg')};base64,{attached_file['base64']}"
+                                            }
+                                        }
+                                    ]
+                                })
+                            else:
+                                multimodal_msgs.append(m)
+
+                        res = requests.post(
+                            "https://api.groq.com/openai/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {g_key}", "Content-Type": "application/json"},
+                            json={"model": vm, "messages": multimodal_msgs, "temperature": temperature, "max_tokens": min(max_toks, 4096)},
+                            timeout=tier_timeout
+                        )
+                        if res.status_code == 200:
+                            choices = res.json().get("choices", [])
+                            if choices and choices[0]["message"].get("content"):
+                                out_text = choices[0]["message"]["content"].strip()
+                                if out_text and not is_generic_refusal(out_text):
+                                    return clean_output_text(out_text)
+                    except Exception:
+                        continue
+            else:
+                groq_models = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"]
+                for g_model in groq_models:
+                    try:
+                        res = requests.post(
+                            "https://api.groq.com/openai/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {g_key}", "Content-Type": "application/json"},
+                            json={"model": g_model, "messages": messages_array, "temperature": temperature, "max_tokens": min(max_toks, 4096)},
+                            timeout=tier_timeout
+                        )
+                        if res.status_code == 200:
+                            choices = res.json().get("choices", [])
+                            if choices and choices[0]["message"].get("content"):
+                                out_text = choices[0]["message"]["content"].strip()
+                                if out_text and not is_generic_refusal(out_text):
+                                    return clean_output_text(out_text)
+                    except Exception:
+                        continue
+        return None
+
+    def try_openrouter():
+        if not openrouter_keys:
+            return None
+        for or_key in openrouter_keys:
+            if is_image:
+                or_models = [
+                    "meta-llama/llama-3.2-11b-vision-instruct:free",
+                    "google/gemini-2.0-flash-exp:free",
+                    "qwen/qwen-2-vl-72b-instruct:free",
+                    "openrouter/auto"
+                ]
+                multimodal_msgs = []
+                for m in messages_array:
+                    if m == messages_array[-1]:
+                        multimodal_msgs.append({
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": m["content"]},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:{attached_file.get('mime_type', 'image/jpeg')};base64,{attached_file['base64']}"
+                                    }
+                                }
+                            ]
+                        })
+                    else:
+                        multimodal_msgs.append(m)
+                req_messages = multimodal_msgs
+            else:
+                or_models = [
+                    "meta-llama/llama-3.1-8b-instruct:free",
+                    "meta-llama/llama-3.3-70b-instruct:free",
+                    "meta-llama/llama-3.2-3b-instruct",
+                    "meta-llama/llama-3.1-8b-instruct",
+                    "openrouter/auto",
+                    "qwen/qwen-2.5-72b-instruct:free",
+                    "liquid/lfm-2.5-2.6b:free",
+                    "nvidia/nemotron-3.5-lightning:free"
+                ]
+                req_messages = messages_array
+
+            for or_m in or_models:
+                try:
+                    res = requests.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {or_key}", "Content-Type": "application/json", "HTTP-Referer": "https://toppergpt.in", "X-Title": "TopperGPT Academic Workspace"},
+                        json={"model": or_m, "messages": req_messages, "max_tokens": min(max_toks, 4096), "temperature": temperature, "include_reasoning": False},
+                        timeout=tier_timeout
+                    )
+                    if res.status_code == 200:
+                        choices = res.json().get("choices", [])
+                        if choices and "message" in choices[0]:
+                            out_text = str(choices[0]["message"].get("content") or "").strip()
+                            if out_text and not is_generic_refusal(out_text):
+                                return clean_output_text(out_text)
+                except Exception:
+                    continue
+        return None
+
     # Routing order:
     if has_attachment:
-        # Multimodal Academic Document (PDF) or Image -> Gemini 1.5 Flash FIRST
-        result = try_gemini(gemini_key)
-        if result and not is_generic_refusal(result):
-            return result
-        sec_key = (get_env_secret("GEMINI_API_KEY_2") or get_env_secret("GOOGLE_API_KEY_2")).strip()
-        if sec_key and sec_key != gemini_key:
-            result = try_gemini(sec_key)
+        # Multimodal Academic Document (PDF) or Image -> Gemini FIRST
+        for g_k in gemini_keys:
+            result = try_gemini(g_k)
             if result and not is_generic_refusal(result):
                 return result
         result = try_groq()
@@ -2990,12 +3046,8 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
         result = try_groq()
         if result and not is_generic_refusal(result):
             return result
-        result = try_gemini(gemini_key)
-        if result and not is_generic_refusal(result):
-            return result
-        sec_key = (get_env_secret("GEMINI_API_KEY_2") or get_env_secret("GOOGLE_API_KEY_2")).strip()
-        if sec_key and sec_key != gemini_key:
-            result = try_gemini(sec_key)
+        for g_k in gemini_keys:
+            result = try_gemini(g_k)
             if result and not is_generic_refusal(result):
                 return result
         result = try_openrouter()
@@ -3255,6 +3307,24 @@ with st.sidebar:
                     st.session_state.user_data["full_name"] = new_name
                     if new_email:
                         st.session_state.user_data["email"] = new_email
+
+                    if supabase:
+                        try:
+                            update_payload = {"full_name": new_name}
+                            if new_email:
+                                update_payload["email"] = new_email
+                            u_id = st.session_state.user_data.get("id")
+                            if u_id:
+                                supabase.table("profiles").update(update_payload).eq("id", u_id).execute()
+                            elif curr_email:
+                                supabase.table("profiles").update(update_payload).eq("email", curr_email).execute()
+                            try:
+                                get_cached_profile.clear()
+                            except Exception:
+                                pass
+                        except Exception as e:
+                            print(f"Notice: Profile update sync failed: {e}")
+
                     st.success("Profile saved!")
                     st.rerun()
 
@@ -3572,6 +3642,12 @@ elif nav_selection == "🎯 Predicted Qs":
         </div>
     """, unsafe_allow_html=True)
 
+    if "pending_query" in st.session_state and st.session_state.pending_query:
+        if "pred_topic_input" not in st.session_state:
+            st.session_state.pred_topic_input = st.session_state.pop("pending_query")
+        else:
+            st.session_state.pop("pending_query", None)
+
     p_topic = st.text_input("Enter Topic or Module Name:", placeholder="e.g. Runge-Kutta 4th Order, Virtual Memory, BJT Biasing, Trees", key="pred_topic_input")
 
     if st.button("Generate Exam Blueprint ⚡", use_container_width=True):
@@ -3657,6 +3733,12 @@ elif nav_selection == "📄 Short Notes":
             </p>
         </div>
     """, unsafe_allow_html=True)
+
+    if "pending_query" in st.session_state and st.session_state.pending_query:
+        if "sn_topic_input" not in st.session_state:
+            st.session_state.sn_topic_input = st.session_state.pop("pending_query")
+        else:
+            st.session_state.pop("pending_query", None)
 
     sn_topic = st.text_input("Enter Chapter / Module Name:", placeholder="e.g. Semiconductor Physics, AC Circuits, Interpolation", key="sn_topic_input")
 
@@ -3754,6 +3836,12 @@ elif nav_selection == "🔍 Topic Research":
             </p>
         </div>
     """, unsafe_allow_html=True)
+
+    if "pending_query" in st.session_state and st.session_state.pending_query:
+        if "res_q_input" not in st.session_state:
+            st.session_state.res_q_input = st.session_state.pop("pending_query")
+        else:
+            st.session_state.pop("pending_query", None)
 
     topic_q = st.text_input("Enter Concept to Research:", placeholder="e.g. Transformer, BJT Biasing, Process Scheduling, Op-Amp", key="res_q_input")
 
