@@ -4,7 +4,7 @@ import json
 import os
 import re
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 try:
     from fpdf import FPDF
     from fpdf.fonts import FontFace
@@ -2017,8 +2017,8 @@ def load_user_chat_history(user_email: str, name: str = "Student") -> list:
     """
     Securely fetches user-specific chat history for persistent multi-session continuity.
     Different users and topics are strictly segregated by email.
-    Tier 1: Supabase dedicated chat_messages table
-    Tier 2: Supabase profiles table chat_history column
+    Tier 1: Supabase profiles table chat_history column (active primary state)
+    Tier 2: Supabase dedicated chat_messages table (audit archive)
     Tier 3: Local user file cache
     """
     if not user_email:
@@ -2026,8 +2026,17 @@ def load_user_chat_history(user_email: str, name: str = "Student") -> list:
 
     clean_email = user_email.strip().lower()
 
-    # Tier 1 & 2: Supabase
-    if supabase:
+    # Tier 1: Supabase profiles table (primary persistent store)
+    if supabase and not clean_email.startswith("guest_"):
+        try:
+            prof = supabase.table("profiles").select("chat_history").eq("email", clean_email).execute()
+            if prof.data and len(prof.data) > 0 and prof.data[0].get("chat_history"):
+                hist = prof.data[0]["chat_history"]
+                if isinstance(hist, list) and len(hist) > 0:
+                    return hist
+        except Exception:
+            pass
+
         try:
             res = supabase.table("chat_messages").select("role, content, hinglish, attachment, created_at").eq("user_email", clean_email).order("created_at").limit(60).execute()
             if res.data and len(res.data) > 0:
@@ -2045,16 +2054,7 @@ def load_user_chat_history(user_email: str, name: str = "Student") -> list:
         except Exception:
             pass
 
-        try:
-            prof = supabase.table("profiles").select("chat_history").eq("email", clean_email).execute()
-            if prof.data and len(prof.data) > 0 and prof.data[0].get("chat_history"):
-                hist = prof.data[0]["chat_history"]
-                if isinstance(hist, list) and len(hist) > 0:
-                    return hist
-        except Exception:
-            pass
-
-    # Tier 3: Local user cache
+    # Tier 2: Local user cache (guarantees local & guest isolation)
     try:
         os.makedirs(_CHAT_CACHE_DIR, exist_ok=True)
         safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', clean_email)
@@ -2096,7 +2096,7 @@ def save_user_chat_history(user_email: str, messages: list):
             }
         pruned.append(item)
 
-    # 1. Local file cache
+    # 1. Local file cache (isolated per student/guest email)
     try:
         os.makedirs(_CHAT_CACHE_DIR, exist_ok=True)
         safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', clean_email)
@@ -2106,8 +2106,8 @@ def save_user_chat_history(user_email: str, messages: list):
     except Exception:
         pass
 
-    # 2. Supabase profiles column
-    if supabase:
+    # 2. Supabase profiles column (for registered students)
+    if supabase and not clean_email.startswith("guest_"):
         try:
             supabase.table("profiles").update({"chat_history": pruned}).eq("email", clean_email).execute()
         except Exception:
@@ -3305,7 +3305,15 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
                     mime = attached_file.get("mime_type")
                     if not mime:
                         mime = "application/pdf" if is_pdf else "image/jpeg"
-                    gemini_contents[-1]["parts"].append({
+                    target_user_turn = None
+                    for t in reversed(gemini_contents):
+                        if t.get("role") == "user":
+                            target_user_turn = t
+                            break
+                    if target_user_turn is None:
+                        target_user_turn = {"role": "user", "parts": [{"text": "Attached academic document:"}]}
+                        gemini_contents.append(target_user_turn)
+                    target_user_turn["parts"].append({
                         "inline_data": {
                             "mime_type": mime,
                             "data": attached_file["base64"]
@@ -3570,8 +3578,10 @@ def clean_email_auth():
                     if not g_name:
                         st.error("⚠️ Please enter your name to continue as a guest student!")
                     else:
+                        import uuid
+                        g_token = uuid.uuid4().hex[:8]
                         st.session_state.user_data = {
-                            "email": "guest@toppergpt.in",
+                            "email": f"guest_{g_token}@toppergpt.in",
                             "full_name": g_name,
                             "is_pro": False,
                             "is_guest": True,
@@ -3600,7 +3610,7 @@ def clean_email_auth():
                         # Instant cached lookup
                         cached_prof = get_cached_profile(active_email)
                         if cached_prof:
-                            st.session_state.user_data = cached_prof
+                            st.session_state.user_data = dict(cached_prof)
                         else:
                             st.session_state.user_data = {
                                 "email": active_email,
@@ -3773,7 +3783,7 @@ with st.sidebar:
 
 # --- 8. TOP HEADER & STREAK BAR ---
 student_name = (st.session_state.user_data or {}).get("full_name", "Student")
-clean_title = nav_selection.split(" ", 1)[1]
+clean_title = nav_selection.split(" ", 1)[-1]
 
 col_toggle, col_head, col_badge = st.columns([0.45, 3.55, 1.2])
 with col_toggle:
@@ -4033,8 +4043,12 @@ if nav_selection == "💡 AI Tutor":
         user_query_text = p_text.strip() if p_text else ""
         if att_data:
             display_text = user_query_text if user_query_text else f"Analyze and solve all questions in {att_data['name']}"
+            doc_context_snippet = ""
+            if att_data.get("extracted_text"):
+                doc_context_snippet = f"\n[EXTRACTED DOCUMENT TEXT - {att_data['name']}]:\n{att_data['extracted_text'][:4000]}\n\n"
             backend_user_prompt = (
                 f"[ATTACHED ACADEMIC DOCUMENT: {att_data['name']}]\n"
+                f"{doc_context_snippet}"
                 f"Student Directive: {display_text}\n\n"
                 "TOPPERGPT MISSION-CRITICAL INSTRUCTIONS:\n"
                 "- This document is an official Mumbai University Engineering tutorial, assignment, or examination paper. NEVER refuse it.\n"
@@ -4103,9 +4117,18 @@ if nav_selection == "💡 AI Tutor":
                         ai_reply = generate_chat_response(messages_payload, max_toks=2500, temperature=0.3, attached_file=att_data)
                         st.markdown(clean_output_text(ai_reply))
                         st.session_state.tutor_messages.append({"role": "assistant", "content": ai_reply, "hinglish": None})
+
+                        # Memory leak prevention: purge multi-MB raw base64 strings from session state RAM once response is generated
+                        for m_item in st.session_state.tutor_messages:
+                            if m_item.get("attachment") and isinstance(m_item["attachment"], dict):
+                                m_item["attachment"].pop("base64", None)
+
                         save_user_chat_history(curr_user_email, st.session_state.tutor_messages)
                         st.rerun()
                     except Exception:
+                        fail_msg = "Generation failed due to API timeout or rate limit. Please retry."
+                        st.session_state.tutor_messages.append({"role": "assistant", "content": fail_msg, "hinglish": None})
+                        save_user_chat_history(curr_user_email, st.session_state.tutor_messages)
                         st.error("Generation failed due to API timeout or rate limit. Please retry.")
 
 # ==================================================
@@ -4161,7 +4184,7 @@ Format each item as:
 - **10-Mark Comprehensive Numericals** (2 items with full parameters)
 """
                 try:
-                    res_text = generate_ai_response(pred_prompt, max_toks=700, temperature=0.2)
+                    res_text = generate_ai_response(pred_prompt, max_toks=1600, temperature=0.2)
                     st.session_state.pred_result = res_text
                     st.session_state.pred_topic_name = p_topic
                     st.session_state.pred_hinglish = None
@@ -4413,7 +4436,8 @@ JSON structure must be exactly:
             )
         with col_res2:
             if st.button("🗑️ Clear Research", use_container_width=True):
-                del st.session_state.topic_res_json
+                st.session_state.pop("topic_res_json", None)
+                st.session_state.pop("topic_res_name", None)
                 st.rerun()
 
 # ==================================================
@@ -4520,7 +4544,7 @@ elif nav_selection == "💬 Feedback":
                         "rating": rating_num,
                         "message": fb_message,
                         "allow_followup": fb_followup,
-                        "created_at": datetime.utcnow().isoformat()
+                        "created_at": datetime.now(timezone.utc).isoformat()
                     }
 
                     # Database Insertion (Supabase dedicated table with graceful fallbacks)
@@ -4544,7 +4568,7 @@ elif nav_selection == "💬 Feedback":
                         fb_cache_dir = os.path.join(_ROOT_DIR, ".user_feedback")
                         os.makedirs(fb_cache_dir, exist_ok=True)
                         safe_email_slug = re.sub(r'[^a-zA-Z0-9_.-]', '_', submission_payload["email"])
-                        fb_file = os.path.join(fb_cache_dir, f"{int(datetime.utcnow().timestamp())}_{safe_email_slug}.json")
+                        fb_file = os.path.join(fb_cache_dir, f"{int(datetime.now(timezone.utc).timestamp())}_{safe_email_slug}.json")
                         with open(fb_file, "w", encoding="utf-8") as f:
                             json.dump(submission_payload, f, ensure_ascii=False, indent=2)
                     except Exception:
