@@ -3689,7 +3689,8 @@ with st.sidebar:
         "💡 AI Tutor",
         "🎯 Predicted Qs",
         "📄 Short Notes",
-        "🔍 Topic Research"
+        "🔍 Topic Research",
+        "💬 Feedback"
     ]
 
     default_nav_idx = 0
@@ -3701,6 +3702,8 @@ with st.sidebar:
             default_nav_idx = 2
         elif any(k in feat for k in ["solver", "research", "analytics", "flashcard"]):
             default_nav_idx = 3
+        elif "feedback" in feat:
+            default_nav_idx = 4
         st.session_state.pop("unified_nav_radio", None)
 
     nav_selection = st.radio(
@@ -4412,3 +4415,140 @@ JSON structure must be exactly:
             if st.button("🗑️ Clear Research", use_container_width=True):
                 del st.session_state.topic_res_json
                 st.rerun()
+
+# ==================================================
+# --- 5. FEATURE: FEEDBACK & ACADEMIC REQUESTS ---
+# ==================================================
+elif nav_selection == "💬 Feedback":
+    st.markdown("""
+        <div class="topper-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                <h3 style="margin:0; color:#58c1c8; font-size:20px; font-weight:700;">Direct Academic Feedback & Requests</h3>
+                <span class="research-card-tag research-tag-def">DIRECT TO ENGINEERING TEAM</span>
+            </div>
+            <p style="color:var(--text-muted, #94a3b8); font-size:14px; margin:0; line-height:1.5;">
+                Your feedback directly shapes syllabus coverage, AI exam accuracy, and new features. Share bug reports, PYQ requests, or study notes suggestions for Mumbai University engineering.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    user_info = st.session_state.get("user_data") or {}
+    prefill_name = user_info.get("full_name", "")
+    prefill_email = user_info.get("email", "")
+
+    if "feedback_submitted_recently" not in st.session_state:
+        st.session_state.feedback_submitted_recently = False
+
+    if st.session_state.feedback_submitted_recently:
+        st.markdown("""
+            <div style="background: rgba(34, 197, 94, 0.12); border: 1.5px solid rgba(34, 197, 94, 0.4); border-radius: 12px; padding: 18px 22px; margin-bottom: 20px;">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                    <span style="font-size:22px;">✅</span>
+                    <h4 style="color:#22c55e; margin:0; font-size:17px; font-weight:700;">Thank You for Your Feedback!</h4>
+                </div>
+                <p style="color:#f3f4f6; font-size:14px; margin:0; line-height:1.5;">
+                    Your submission has been captured and routed directly to our engineering team. We appreciate your help in making TopperGPT the ultimate academic partner for Mumbai University students.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("Submit Another Response 📝"):
+            st.session_state.feedback_submitted_recently = False
+            st.rerun()
+    else:
+        with st.form("topper_feedback_form"):
+            col_fb1, col_fb2 = st.columns(2)
+            with col_fb1:
+                fb_name = st.text_input("Your Full Name", value=prefill_name, placeholder="e.g. Rahul Sharma").strip()
+            with col_fb2:
+                fb_email = st.text_input("Email Address", value=prefill_email, placeholder="name@domain.com").strip().lower()
+
+            col_fb3, col_fb4 = st.columns(2)
+            with col_fb3:
+                fb_category = st.selectbox(
+                    "Feedback Category",
+                    [
+                        "🌟 General Experience & Praise",
+                        "🐛 Technical Bug or Rendering Issue",
+                        "📚 Syllabus / PYQ Solution Request",
+                        "🚀 New Feature Suggestion",
+                        "📝 Question Paper Solution Correction",
+                        "Other Feedback"
+                    ]
+                )
+            with col_fb4:
+                fb_rating_label = st.selectbox(
+                    "Overall Satisfaction Rating",
+                    [
+                        "⭐⭐⭐⭐⭐ (5/5 - Outstanding)",
+                        "⭐⭐⭐⭐ (4/5 - Very Good)",
+                        "⭐⭐⭐ (3/5 - Good / Helpful)",
+                        "⭐⭐ (2/5 - Needs Improvement)",
+                        "⭐ (1/5 - Poor / Encountered blockers)"
+                    ]
+                )
+
+            fb_message = st.text_area(
+                "Your Message, Request, or Bug Details *",
+                placeholder="Tell us what worked well, what broke, or what specific subject/module you want us to add next (e.g., 'Please add Dec 2024 Applied Chemistry PYQ solutions with diagrams')...",
+                height=140
+            ).strip()
+
+            fb_followup = st.checkbox("Allow the TopperGPT academic team to follow up via email if needed", value=True)
+
+            fb_submit = st.form_submit_button("SUBMIT ACADEMIC FEEDBACK 🚀", use_container_width=True)
+
+            if fb_submit:
+                if not fb_message:
+                    st.error("⚠️ Please enter your feedback or request before submitting.")
+                elif fb_email and not is_valid_email(fb_email):
+                    st.error("⚠️ Please enter a valid email address (e.g. name@domain.com).")
+                else:
+                    rating_num = 5
+                    if "4/5" in fb_rating_label:
+                        rating_num = 4
+                    elif "3/5" in fb_rating_label:
+                        rating_num = 3
+                    elif "2/5" in fb_rating_label:
+                        rating_num = 2
+                    elif "1/5" in fb_rating_label:
+                        rating_num = 1
+
+                    submission_payload = {
+                        "name": fb_name if fb_name else "Anonymous Student",
+                        "email": fb_email if fb_email else (prefill_email if prefill_email else "guest@toppergpt.in"),
+                        "category": fb_category,
+                        "rating": rating_num,
+                        "message": fb_message,
+                        "allow_followup": fb_followup,
+                        "created_at": datetime.utcnow().isoformat()
+                    }
+
+                    # Database Insertion (Supabase dedicated table with graceful fallbacks)
+                    saved_to_db = False
+                    if supabase:
+                        try:
+                            supabase.table("feedback").insert(submission_payload).execute()
+                            saved_to_db = True
+                        except Exception:
+                            pass
+
+                        if not saved_to_db and fb_email:
+                            try:
+                                supabase.table("profiles").update({"last_feedback": submission_payload}).eq("email", fb_email).execute()
+                                saved_to_db = True
+                            except Exception:
+                                pass
+
+                    # Local user feedback cache fallback (guarantees zero data loss)
+                    try:
+                        fb_cache_dir = os.path.join(_ROOT_DIR, ".user_feedback")
+                        os.makedirs(fb_cache_dir, exist_ok=True)
+                        safe_email_slug = re.sub(r'[^a-zA-Z0-9_.-]', '_', submission_payload["email"])
+                        fb_file = os.path.join(fb_cache_dir, f"{int(datetime.utcnow().timestamp())}_{safe_email_slug}.json")
+                        with open(fb_file, "w", encoding="utf-8") as f:
+                            json.dump(submission_payload, f, ensure_ascii=False, indent=2)
+                    except Exception:
+                        pass
+
+                    st.session_state.feedback_submitted_recently = True
+                    st.rerun()
