@@ -1,0 +1,262 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-cyber: var(--cyber);
+  --color-cyan-neon: var(--cyan-neon);
+  --color-academic: var(--academic);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --font-sans: var(--font-inter);
+  --font-slab: var(--font-slab);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+}
+
+:root {
+  color-scheme: dark;
+  --background: #030303;
+  --foreground: #e7ecf3;
+
+  --card: #0c0d12;
+  --card-foreground: #e7ecf3;
+  --popover: #0c0d12;
+  --popover-foreground: #e7ecf3;
+
+  --primary: #3b82f6;
+  --primary-foreground: #030712;
+
+  --secondary: #12141c;
+  --secondary-foreground: #cbd5e1;
+
+  --muted: #0f1118;
+  --muted-foreground: #7c879a;
+
+  --accent: #12141c;
+  --accent-foreground: #e7ecf3;
+
+  --destructive: #ef4444;
+
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #3b82f6;
+
+  --cyber: #3b82f6;
+  --cyan-neon: #06b6d4;
+  --academic: #ea580c;
+
+  --chart-1: #3b82f6;
+  --chart-2: #06b6d4;
+  --chart-3: #ea580c;
+  --chart-4: #8b5cf6;
+  --chart-5: #22c55e;
+
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--cyber) 35%, transparent);
+    color: #ffffff;
+  }
+}
+
+/* Ambient page glow */
+.cyber-grid {
+  background-image:
+    radial-gradient(circle at 15% 0%, color-mix(in oklab, var(--cyber) 12%, transparent), transparent 42%),
+    radial-gradient(circle at 85% 100%, color-mix(in oklab, var(--cyan-neon) 10%, transparent), transparent 45%),
+    linear-gradient(to bottom, transparent, transparent);
+}
+
+/* Frosted glass surface */
+.glass {
+  background: color-mix(in oklab, var(--card) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+.glow-cyber {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--cyber) 35%, transparent),
+    0 8px 40px -12px color-mix(in oklab, var(--cyber) 55%, transparent);
+}
+
+/* Custom scrollbars */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--cyber) 45%, transparent) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--cyber) 40%, var(--border));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--cyber) 65%, var(--border));
+  background-clip: padding-box;
+}
+
+@keyframes blink-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.typing-caret::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--cyan-neon);
+  animation: blink-caret 1s steps(1) infinite;
+}
+
+/* Markdown / prose styling for chat */
+.md-body {
+  font-size: 0.925rem;
+  line-height: 1.7;
+  color: var(--foreground);
+}
+.md-body p {
+  margin: 0.5rem 0;
+}
+.md-body h1,
+.md-body h2,
+.md-body h3 {
+  font-family: var(--font-slab), serif;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  line-height: 1.3;
+}
+.md-body h1 {
+  font-size: 1.3rem;
+}
+.md-body h2 {
+  font-size: 1.15rem;
+}
+.md-body h3 {
+  font-size: 1.02rem;
+}
+.md-body ul,
+.md-body ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+.md-body ul {
+  list-style: disc;
+}
+.md-body ol {
+  list-style: decimal;
+}
+.md-body li {
+  margin: 0.2rem 0;
+}
+.md-body a {
+  color: var(--cyan-neon);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md-body strong {
+  color: #fff;
+  font-weight: 600;
+}
+.md-body blockquote {
+  border-left: 3px solid var(--cyber);
+  padding-left: 0.85rem;
+  margin: 0.75rem 0;
+  color: var(--muted-foreground);
+}
+.md-body code:not(pre code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82em;
+  background: color-mix(in oklab, var(--cyber) 16%, transparent);
+  color: var(--cyan-neon);
+  padding: 0.12rem 0.4rem;
+  border-radius: 6px;
+}
+.md-body pre {
+  margin: 0.75rem 0;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #05060a;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+.md-body pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #d6e2f0;
+}
+.md-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.85rem;
+}
+.md-body th,
+.md-body td {
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+}
+.md-body th {
+  background: var(--secondary);
+}
