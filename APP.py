@@ -3940,26 +3940,54 @@ with col_head:
 with col_badge:
     st.markdown("<div class='streak-badge'>🔥 6-day study streak</div>", unsafe_allow_html=True)
 
-# Helper function for Instant Hinglish Translation (Natural Conversational Style)
-def translate_to_hinglish(text_content):
-    prompt = f"""You are a brilliant, friendly senior engineering student and university topper from Mumbai University who explains complex syllabus concepts to junior batchmates in authentic, conversational Hinglish (the way engineering students talk on campus/WhatsApp).
+# Helper function for Instant Hinglish Translation (Dynamic Contextual Translation)
+def translate_to_hinglish(text_content: str) -> str:
+    """
+    Dynamically translates and contextualizes the exact response into authentic, student-friendly
+    Hinglish (conversational Mumbai engineering peer style).
+    - If the input is a greeting, clarification, or question, it translates it cleanly and contextually.
+    - If the input is a technical syllabus concept, problem, or solution, it explains that exact content
+      with senior-topper intuition, keeping formulas in LaTeX and technical terms in English.
+    - Strictly avoids hardcoded templates or hallucinating unmentioned topics (e.g. DC circuits).
+    """
+    if not text_content or not str(text_content).strip():
+        return ""
 
-STRICT TONE & CONVERSATIONAL STYLE INSTRUCTIONS:
-1. Opening line: Start with a natural, friendly peer-to-peer opening such as:
-   "Arey bhai, yeh raha iska simple aur crystal-clear explanation:" or "Arey bhai, tension mat le, yeh concept bilkul simple hai:"
-2. Conversational Hinglish: Write in smooth, natural Roman Hindi (Hinglish) blended with standard English technical terms.
-   - Example style: "Basically yaha pe jab current flow hota hai...", "Is step pe examiner trap daalta hai, dhyan rakhna...", "Simple words me bole toh iska funda yeh hai ki..."
-   - DO NOT translate standard engineering terms into awkward Hindi words (keep terms like Voltage, Current, Transistor, Derivative, Impedance, Matrix, Algorithm, Memory, Node in English).
-3. Structure:
-   - 💡 **Main Funda (Core Concept):** 2-3 clear, relatable bullet points in conversational Hinglish.
-   - ⚡ **Step-by-Step Logic / Calculation:** Walk through the mechanism or math simply.
-   - ⚠️ **Examiner Trap:** "Bhai exam me yeh galti bilkul mat karna..."
-4. Keep all mathematical formulas, equations, and variables strictly wrapped in LaTeX dollar signs ($...$ for inline or $$...$$ for display equations).
-5. Never be stiff, robotic, or overly formal. Speak like a helpful senior topper guiding their friend the night before the exam!
+    clean_src = str(text_content).strip()
 
-Text to explain in natural conversational Hinglish:
-{text_content}"""
-    return generate_ai_response(prompt, max_toks=1200, temperature=0.35)
+    prompt = f"""You are a helpful, knowledgeable senior topper from Mumbai University Engineering who explains things to a junior classmate in smooth, authentic, conversational Hinglish (the way engineering students talk on campus/WhatsApp).
+
+TASK:
+Accurately translate and re-explain the TARGET MESSAGE below into natural, friendly conversational Hinglish.
+
+CRITICAL RULES:
+1. CONTEXTUAL ACCURACY (NO HALLUCINATIONS):
+   - You must translate and explain ONLY the concepts, questions, or statements present in the target message below.
+   - Do NOT introduce unmentioned engineering topics (e.g., do NOT invent DC circuits, Ohm's law, or random syllabus topics unless the target message explicitly discussed them).
+   - If the target message is a greeting, clarification, or question (e.g. asking the student what topic they want help with), reply warmly in conversational Hinglish translating that exact question/greeting.
+   - If the target message is an academic explanation, problem solution, or revision note, translate that exact concept into easy-to-understand Hinglish with senior-topper clarity and intuition.
+
+2. NATURAL CONVERSATIONAL HINGLISH:
+   - Use natural Roman Hindi (Hinglish) blended comfortably with standard English technical terms (e.g., "basically...", "iska simple matlab yeh hai ki...", "bata bhai...", "dhyan rakhna...").
+   - Keep technical terms, variable names, and units strictly in English (e.g., Voltage, Current, Algorithm, Node, Array, Pointer, Matrix, Derivative).
+   - Keep all LaTeX equations and formulas intact in dollar signs ($...$ or $$...$$).
+
+3. FORMATTING:
+   - Match the tone and structure of the target message.
+   - Do NOT force rigid boilerplate headings if the target text does not call for them.
+   - Never be stiff or robotic. Speak like a helpful senior friend guiding a junior batchmate.
+
+TARGET MESSAGE TO TRANSLATE INTO HINGLISH:
+\"\"\"
+{clean_src}
+\"\"\""""
+
+    try:
+        translated = generate_ai_response(prompt, max_toks=1500, temperature=0.3)
+        return translated if translated and translated.strip() else ""
+    except Exception as e:
+        print(f"[Hinglish Translation Warning]: {e}")
+        return ""
 
 
 # ==================================================
@@ -3972,6 +4000,9 @@ if nav_selection == "💡 AI Tutor":
     if "tutor_messages" not in st.session_state or st.session_state.get("active_chat_email") != curr_user_email:
         st.session_state.tutor_messages = load_user_chat_history(curr_user_email, student_name)
         st.session_state.active_chat_email = curr_user_email
+        for k in list(st.session_state.keys()):
+            if k.startswith("show_h_"):
+                st.session_state.pop(k, None)
 
     col_chips, col_clear = st.columns([4.2, 1.2])
     with col_chips:
@@ -3985,6 +4016,9 @@ if nav_selection == "💡 AI Tutor":
     with col_clear:
         if st.button("🗑️ Clear Chat", key="btn_clear_tutor_chat", help="Start a fresh chat and clear your saved conversation history"):
             st.session_state.tutor_messages = clear_user_chat_history(curr_user_email, student_name)
+            for k in list(st.session_state.keys()):
+                if k.startswith("show_h_"):
+                    st.session_state.pop(k, None)
             st.rerun()
 
     AI_TUTOR_SYSTEM_INSTRUCTION = (
@@ -4084,27 +4118,33 @@ if nav_selection == "💡 AI Tutor":
             st.markdown(clean_output_text(msg["content"]))
             if msg["role"] == "assistant" and idx > 0:
                 h_content = msg.get("hinglish")
-                h_visible_key = f"show_h_{idx}"
+                # Stable message signature based on index and content hash for clean state isolation
+                msg_sig = f"{idx}_{abs(hash(str(msg.get('content', ''))[:60]))}"
+                h_visible_key = f"show_h_{msg_sig}"
                 if h_visible_key not in st.session_state:
                     st.session_state[h_visible_key] = True if h_content else False
 
                 if not h_content:
-                    if st.button("🗣️ Explain in Hinglish", key=f"tr_{idx}"):
+                    if st.button("🗣️ Explain in Hinglish", key=f"tr_{msg_sig}"):
                         with st.spinner("⚡ Arey bhai, simplifying in Hinglish..."):
                             h_res = translate_to_hinglish(msg["content"])
-                            st.session_state.tutor_messages[idx]["hinglish"] = h_res
-                            st.session_state[h_visible_key] = True
-                            save_user_chat_history(curr_user_email, st.session_state.tutor_messages)
-                            st.rerun()
+                            if h_res and h_res.strip():
+                                st.session_state.tutor_messages[idx]["hinglish"] = h_res
+                                st.session_state[h_visible_key] = True
+                                save_user_chat_history(curr_user_email, st.session_state.tutor_messages)
+                                st.rerun()
+                            else:
+                                st.error("⚠️ Hinglish translation is momentarily busy. Please try again.")
                 else:
                     tog_col, _ = st.columns([2.5, 5])
                     with tog_col:
-                        tog_label = "👁️ Hide Hinglish" if st.session_state[h_visible_key] else "🗣️ View Hinglish Explanation"
-                        if st.button(tog_label, key=f"tog_{idx}"):
-                            st.session_state[h_visible_key] = not st.session_state[h_visible_key]
+                        is_visible = st.session_state.get(h_visible_key, True)
+                        tog_label = "👁️ Hide Hinglish" if is_visible else "🗣️ View Hinglish Explanation"
+                        if st.button(tog_label, key=f"tog_{msg_sig}"):
+                            st.session_state[h_visible_key] = not is_visible
                             st.rerun()
 
-                    if st.session_state[h_visible_key]:
+                    if st.session_state.get(h_visible_key, True):
                         st.markdown(
                             f"""<div style="background: linear-gradient(135deg, rgba(88, 193, 200, 0.08) 0%, rgba(17, 24, 39, 0.95) 100%); 
                                             border: 1.5px solid rgba(88, 193, 200, 0.35); 
