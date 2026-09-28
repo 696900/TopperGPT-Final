@@ -2828,7 +2828,7 @@ if FPDF is not None:
             self.doc_title = title_text
             self.is_unicode = False
 
-            # Multi-Platform TrueType Font Discovery (Windows & Linux/Render containers)
+            # Multi-Platform TrueType Font Discovery (Windows & Linux/Render containers via fonts-dejavu-core)
             font_candidates = [
                 # Windows standard Arial fonts
                 {
@@ -2842,11 +2842,21 @@ if FPDF is not None:
                     "b": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
                     "i": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"
                 },
+                {
+                    "reg": "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+                    "b": "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+                    "i": "/usr/share/fonts/dejavu/DejaVuSans-Oblique.ttf"
+                },
                 # Linux Liberation fonts
                 {
                     "reg": "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
                     "b": "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
                     "i": "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf"
+                },
+                {
+                    "reg": "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+                    "b": "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+                    "i": "/usr/share/fonts/truetype/liberation2/LiberationSans-Italic.ttf"
                 },
                 # Linux FreeSans fonts
                 {
@@ -2858,18 +2868,21 @@ if FPDF is not None:
 
             font_loaded = False
             for f_cand in font_candidates:
-                if os.path.exists(f_cand["reg"]):
+                reg_p = f_cand.get("reg", "")
+                if reg_p and os.path.exists(reg_p):
                     try:
-                        self.add_font("TopperFont", "", f_cand["reg"])
-                        if f_cand.get("b") and os.path.exists(f_cand["b"]):
-                            self.add_font("TopperFont", "B", f_cand["b"])
-                        if f_cand.get("i") and os.path.exists(f_cand["i"]):
-                            self.add_font("TopperFont", "I", f_cand["i"])
+                        b_p = f_cand.get("b") if (f_cand.get("b") and os.path.exists(f_cand["b"])) else reg_p
+                        i_p = f_cand.get("i") if (f_cand.get("i") and os.path.exists(f_cand["i"])) else reg_p
+                        self.add_font("TopperFont", "", reg_p)
+                        self.add_font("TopperFont", "B", b_p)
+                        self.add_font("TopperFont", "I", i_p)
+                        self.add_font("TopperFont", "BI", b_p)
                         self.font_family_name = "TopperFont"
                         self.is_unicode = True
                         font_loaded = True
                         break
-                    except Exception:
+                    except Exception as fe:
+                        print(f"[TopperPDF Font Load Notice]: {fe}")
                         continue
 
             if not font_loaded:
@@ -2881,11 +2894,11 @@ if FPDF is not None:
             self.alias_nb_pages()
 
         def header(self):
-            # 1. Subtle diagonal watermark text: "TOPPERGPT - ACADEMIC AI" in exact center
-            # Rendered BEFORE header banner or body text so it stays strictly in the background
+            # 1. Ultra-subtle diagonal watermark text: "TOPPERGPT - ACADEMIC AI" in exact center
+            # Rendered BEFORE header banner or body text in ultra-faint gray so it never clashes with content
             try:
-                self.set_font(self.font_family_name, style="B", size=32)
-                self.set_text_color(240, 240, 240)
+                self.set_font(self.font_family_name, style="B", size=30)
+                self.set_text_color(245, 247, 250)
                 w_text = "TOPPERGPT - ACADEMIC AI"
                 str_w = self.get_string_width(w_text)
                 if hasattr(self, "rotation"):
@@ -3040,6 +3053,16 @@ if FPDF is not None:
                     self.set_text_color(51, 65, 85)
                     self.set_x(self.l_margin + 3)
                     self.multi_cell(self.epw - 3, 7, f"-  {bullet_clean}", new_x="LMARGIN", new_y="NEXT")
+                elif trimmed.startswith("**") and trimmed.endswith("**") and len(trimmed) < 100:
+                    # Markdown bold subheading on its own line (e.g. **Key Principles**, **Operational Architecture**)
+                    subheading = trimmed.strip("*").strip()
+                    subheading = re.sub(r'[`#|]', '', subheading)
+                    self.ln(2)
+                    self.set_x(self.l_margin)
+                    self.set_font(self.font_family_name, style="B", size=10.5)
+                    self.set_text_color(15, 23, 42)
+                    self.multi_cell(0, 6.5, subheading, new_x="LMARGIN", new_y="NEXT")
+                    self.ln(0.5)
                 else:
                     # 3. Standard Paragraphs (line_height=7, clean dangling markdown symbols)
                     clean_p = re.sub(r'\*\*(.*?)\*\*', r'\1', trimmed)
@@ -3066,33 +3089,155 @@ else:
 def generate_fallback_pdf(title: str, content: str, feature_name: str = "Academic Report") -> bytes:
     """Pure-Python fallback PDF generator if FPDF library is unavailable in environment."""
     clean_text = sanitize_pdf_text(format_math_for_pdf(clean_output_text(content)), is_unicode=False)
-    lines = [
-        "TopperGPT | Academic AI Workspace",
-        f"Feature: {feature_name}",
-        f"Title: {title}",
-        f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        "--------------------------------------------------",
-        ""
-    ]
-    for raw_line in clean_text.split("\n"):
-        line = raw_line.strip()
-        while len(line) > 75:
-            lines.append(line[:75])
-            line = line[75:]
-        lines.append(line)
+    date_str = datetime.now().strftime("%d %B %Y")
+    safe_title = sanitize_pdf_text(title[:60], is_unicode=False).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+    safe_feat = sanitize_pdf_text(feature_name[:40], is_unicode=False).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
     text_ops = [
-        "BT /F1 28 Tf 50 400 Td (TOPPERGPT - ACADEMIC AI) Tj ET",
-        "BT /F1 14 Tf 40 800 Td (TopperGPT | Academic AI Workspace) Tj ET",
-        "BT /F2 11 Tf 40 782 Td (" + sanitize_pdf_text(title[:60], is_unicode=False).replace("(", "\\(").replace(")", "\\)") + ") Tj ET"
+        # 1. Dark Top Banner #0B0F19 (RGB: 11, 15, 25 -> 0.043, 0.059, 0.098)
+        "0.043 0.059 0.098 rg 0 795 595 47 re f",
+        # Cyan Brand Header #58C1C8 (RGB: 88, 193, 200 -> 0.345, 0.757, 0.784)
+        "0.345 0.757 0.784 rg BT /F1 13 Tf 35 818 Td (TopperGPT | Academic AI Workspace) Tj ET",
+        # Banner Subtitle
+        "0.627 0.686 0.765 rg BT /F3 8.5 Tf 35 804 Td (University Examination & Academic Resource) Tj ET",
+        # 2. Ultra-subtle Watermark in Background (Rotated 45 degrees, very faint gray 0.94 - never clashes with text)
+        "q",
+        "0.935 0.945 0.965 rg",
+        "0.7071 0.7071 -0.7071 0.7071 90 260 cm",
+        "BT /F1 30 Tf 0 0 Td (TOPPERGPT - ACADEMIC AI) Tj ET",
+        "Q",
+        # 3. Document Title below banner
+        f"0.06 0.09 0.15 rg BT /F1 12.5 Tf 35 770 Td ({safe_title}) Tj ET",
+        # Metadata Subtitle
+        f"0.42 0.50 0.60 rg BT /F3 8.5 Tf 35 756 Td (Category: {safe_feat}   |   Date: {date_str}) Tj ET",
+        # Subtle horizontal separator
+        "0.88 0.90 0.94 RG 0.5 w 35 746 m 560 746 l S"
     ]
-    y = 750
-    for l in lines[:55]:
-        safe_l = l.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-        text_ops.append(f"BT /F3 9.5 Tf 40 {y} Td ({safe_l}) Tj ET")
-        y -= 12
-        if y < 45:
-            break
+
+    raw_lines = clean_text.split("\n")
+    y = 730
+    in_code_block = False
+
+    def wrap_line(text_str: str, max_w: int = 80) -> list:
+        words = text_str.split(" ")
+        wrapped = []
+        cur = []
+        cur_len = 0
+        for w in words:
+            if not w:
+                continue
+            if cur_len + len(w) + 1 <= max_w:
+                cur.append(w)
+                cur_len += len(w) + 1
+            else:
+                if cur:
+                    wrapped.append(" ".join(cur))
+                cur = [w]
+                cur_len = len(w)
+        if cur:
+            wrapped.append(" ".join(cur))
+        return wrapped if wrapped else [text_str]
+
+    for raw_line in raw_lines:
+        trimmed = raw_line.strip()
+        if not trimmed:
+            y -= 6
+            if y < 45:
+                break
+            continue
+
+        if trimmed.startswith("```"):
+            in_code_block = not in_code_block
+            continue
+
+        # Headings (strip raw markdown # tags and format cleanly)
+        if trimmed.startswith("###"):
+            heading = trimmed.lstrip("#").strip()
+            heading = re.sub(r'[*_`|]', '', heading)
+            safe_h = sanitize_pdf_text(heading[:75], is_unicode=False).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+            y -= 7
+            if y < 45:
+                break
+            text_ops.append(f"0.08 0.12 0.20 rg BT /F1 10.5 Tf 35 {y} Td ({safe_h}) Tj ET")
+            y -= 13
+            if y < 45:
+                break
+            continue
+        elif trimmed.startswith("##"):
+            heading = trimmed.lstrip("#").strip()
+            heading = re.sub(r'[*_`|]', '', heading)
+            safe_h = sanitize_pdf_text(heading[:70], is_unicode=False).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+            y -= 9
+            if y < 45:
+                break
+            text_ops.append(f"0.06 0.09 0.15 rg BT /F1 12 Tf 35 {y} Td ({safe_h}) Tj ET")
+            y -= 15
+            if y < 45:
+                break
+            continue
+        elif trimmed.startswith("#"):
+            heading = trimmed.lstrip("#").strip()
+            heading = re.sub(r'[*_`|]', '', heading)
+            safe_h = sanitize_pdf_text(heading[:65], is_unicode=False).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+            y -= 11
+            if y < 45:
+                break
+            text_ops.append(f"0.04 0.07 0.12 rg BT /F1 13.5 Tf 35 {y} Td ({safe_h}) Tj ET")
+            y -= 16
+            if y < 45:
+                break
+            continue
+        elif trimmed.startswith("---") or trimmed.startswith("==="):
+            y -= 4
+            if y < 45:
+                break
+            text_ops.append(f"0.88 0.90 0.94 RG 0.4 w 35 {y} m 560 {y} l S")
+            y -= 8
+            if y < 45:
+                break
+            continue
+        elif trimmed.startswith(("- ", "* ")):
+            bullet_body = trimmed[2:].strip()
+            bullet_body = re.sub(r'\*\*(.*?)\*\*', r'\1', bullet_body)
+            bullet_body = re.sub(r'[*_`|]', '', bullet_body).strip()
+            bullet_lines = wrap_line(f"-  {bullet_body}", 78)
+            for idx, bl in enumerate(bullet_lines):
+                safe_bl = sanitize_pdf_text(bl, is_unicode=False).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+                indent = 38 if idx == 0 else 44
+                text_ops.append(f"0.18 0.24 0.32 rg BT /F3 9.5 Tf {indent} {y} Td ({safe_bl}) Tj ET")
+                y -= 12
+                if y < 45:
+                    break
+            continue
+        elif trimmed.startswith("**") and trimmed.endswith("**") and len(trimmed) < 100:
+            subheading = trimmed.strip("*").strip()
+            subheading = re.sub(r'[`#|]', '', subheading)
+            safe_sub = sanitize_pdf_text(subheading[:75], is_unicode=False).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+            y -= 5
+            if y < 45:
+                break
+            text_ops.append(f"0.08 0.12 0.20 rg BT /F1 10 Tf 35 {y} Td ({safe_sub}) Tj ET")
+            y -= 13
+            if y < 45:
+                break
+            continue
+        else:
+            clean_p = re.sub(r'\*\*(.*?)\*\*', r'\1', trimmed)
+            clean_p = re.sub(r'[*_`|]', '', clean_p)
+            clean_p = re.sub(r'(?<!\S)\|(?!\S)', ' ', clean_p)
+            clean_p = re.sub(r'^\s*\|\s*', '', clean_p)
+            clean_p = re.sub(r'\s*\|\s*$', '', clean_p)
+            clean_p = re.sub(r'\s*\|\s*', '  ', clean_p)
+            clean_p = re.sub(r'---+', '', clean_p).strip()
+            if not clean_p:
+                continue
+            para_lines = wrap_line(clean_p, 80)
+            for pl in para_lines:
+                safe_pl = sanitize_pdf_text(pl, is_unicode=False).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+                text_ops.append(f"0.18 0.24 0.32 rg BT /F3 9.5 Tf 35 {y} Td ({safe_pl}) Tj ET")
+                y -= 12
+                if y < 45:
+                    break
 
     stream_content = "\n".join(text_ops).encode("latin-1", "ignore")
     stream_len = len(stream_content)
@@ -4537,42 +4682,70 @@ elif nav_selection == "💬 Feedback":
                     elif "1/5" in fb_rating_label:
                         rating_num = 1
 
-                    submission_payload = {
-                        "name": fb_name if fb_name else "Anonymous Student",
-                        "email": fb_email if fb_email else (prefill_email if prefill_email else "guest@toppergpt.in"),
-                        "category": fb_category,
+                    user_email_val = fb_email if fb_email else (prefill_email if prefill_email else "guest@toppergpt.in")
+
+                    # Primary required schema: (user_email, rating, category, message)
+                    primary_payload = {
+                        "user_email": user_email_val,
                         "rating": rating_num,
-                        "message": fb_message,
-                        "allow_followup": fb_followup,
-                        "created_at": datetime.now(timezone.utc).isoformat()
+                        "category": fb_category,
+                        "message": fb_message
                     }
 
-                    # Database Insertion (Supabase dedicated table with graceful fallbacks)
+                    # Database Insertion (Supabase dedicated table with thorough logging and column fallback)
                     saved_to_db = False
+                    db_error_details = ""
                     if supabase:
+                        # Attempt 1: Target exact table schema with 'user_email'
                         try:
-                            supabase.table("feedback").insert(submission_payload).execute()
+                            supabase.table("feedback").insert(primary_payload).execute()
                             saved_to_db = True
-                        except Exception:
-                            pass
+                            print(f"[Supabase Feedback Success]: Inserted feedback for {user_email_val}")
+                        except Exception as e1:
+                            err_str = str(e1)
+                            print(f"[Supabase Feedback Warning - Primary Insert]: {err_str}")
+                            db_error_details = err_str
 
-                        if not saved_to_db and fb_email:
+                            # Attempt 2: Fallback with 'email' column in case the table was created with 'email' instead of 'user_email'
                             try:
-                                supabase.table("profiles").update({"last_feedback": submission_payload}).eq("email", fb_email).execute()
+                                alt_payload = {
+                                    "email": user_email_val,
+                                    "rating": rating_num,
+                                    "category": fb_category,
+                                    "message": fb_message
+                                }
+                                supabase.table("feedback").insert(alt_payload).execute()
                                 saved_to_db = True
-                            except Exception:
-                                pass
+                                db_error_details = ""
+                                print(f"[Supabase Feedback Success]: Inserted feedback via 'email' column fallback for {user_email_val}")
+                            except Exception as e2:
+                                print(f"[Supabase Feedback Error - Fallback Insert]: {e2}")
+                                db_error_details = f"{err_str} (fallback also failed: {e2})"
 
-                    # Local user feedback cache fallback (guarantees zero data loss)
+                            # Secondary backup: update user profile if logged in
+                            if not saved_to_db and fb_email:
+                                try:
+                                    supabase.table("profiles").update({"last_feedback": primary_payload}).eq("email", fb_email).execute()
+                                except Exception:
+                                    pass
+                    else:
+                        db_error_details = "Supabase client is not initialized or credentials missing."
+                        print(f"[Supabase Feedback Warning]: {db_error_details}")
+
+                    # Local user feedback cache (guarantees zero data loss even during network outage)
                     try:
                         fb_cache_dir = os.path.join(_ROOT_DIR, ".user_feedback")
                         os.makedirs(fb_cache_dir, exist_ok=True)
-                        safe_email_slug = re.sub(r'[^a-zA-Z0-9_.-]', '_', submission_payload["email"])
+                        safe_email_slug = re.sub(r'[^a-zA-Z0-9_.-]', '_', user_email_val)
                         fb_file = os.path.join(fb_cache_dir, f"{int(datetime.now(timezone.utc).timestamp())}_{safe_email_slug}.json")
                         with open(fb_file, "w", encoding="utf-8") as f:
-                            json.dump(submission_payload, f, ensure_ascii=False, indent=2)
-                    except Exception:
-                        pass
+                            json.dump({**primary_payload, "name": fb_name, "allow_followup": fb_followup, "created_at": datetime.now(timezone.utc).isoformat()}, f, ensure_ascii=False, indent=2)
+                    except Exception as fe:
+                        print(f"[Feedback Local Cache Warning]: {fe}")
 
-                    st.session_state.feedback_submitted_recently = True
-                    st.rerun()
+                    if saved_to_db:
+                        st.session_state.feedback_submitted_recently = True
+                        st.rerun()
+                    else:
+                        st.error(f"⚠️ Notice: Could not sync feedback to Supabase database: {db_error_details}")
+                        st.info("💡 Your response has been securely cached in the local backup queue. If you are an administrator, ensure the 'feedback' table exists with columns (user_email, rating, category, message) and that an INSERT RLS policy is enabled for public access.")

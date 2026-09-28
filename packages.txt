@@ -1,3 +1,4 @@
 libgbm1
 libnss3
 libasound2
+fonts-dejavu-core
