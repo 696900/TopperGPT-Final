@@ -1968,24 +1968,233 @@ div[data-baseweb="menu"] li {
 </style>
 """, unsafe_allow_html=True)
 
-# Real-time client-side DOM enforcement for chat attachment '+' icon & Cookie Consent
+# Real-time client-side DOM enforcement for chat attachment '+' icon & Unified Cookie Consent
 try:
     st.html("""
-    <div id="topperAppCookieBanner" style="display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:calc(100% - 32px); max-width:820px; background:rgba(14, 17, 23, 0.96); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1.5px solid rgba(88, 193, 200, 0.4); border-radius:14px; box-shadow:0 16px 45px rgba(0,0,0,0.85), 0 0 25px rgba(88,193,200,0.2); padding:16px 20px; align-items:center; justify-content:space-between; gap:16px; z-index:9999999;">
-      <div style="display:flex; align-items:flex-start; gap:12px; color:#e2e8f0; font-size:13px; line-height:1.45;">
-        <span style="font-size:24px; line-height:1;">🍪</span>
-        <div>
-          <div style="font-weight:700; color:#fff; font-size:14px; margin-bottom:2px;">Cookie & Storage Notice</div>
-          <div style="color:#94a3b8;">TopperGPT uses strictly necessary cookies and local storage to keep your session authenticated, preserve your dark theme, and cache study sessions. We <strong>never</strong> use advertising trackers or sell your personal data. Read our <a href="?page=privacy" style="color:#58c1c8; text-decoration:underline;">Privacy Policy</a> and <a href="?page=cookies" style="color:#58c1c8; text-decoration:underline;">Cookie Policy</a>.</div>
+    <style>
+    /* ==========================================================================
+       TOPPERGPT UNIFIED COOKIE CONSENT BANNER - MOBILE-FIRST & DESKTOP STYLES
+       ========================================================================== */
+    #topperCookieBanner {
+        position: fixed !important;
+        bottom: 20px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: calc(100% - 32px) !important;
+        max-width: 840px !important;
+        background: rgba(14, 17, 23, 0.96) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border: 1.5px solid rgba(88, 193, 200, 0.45) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 16px 45px rgba(0, 0, 0, 0.9), 0 0 25px rgba(88, 193, 200, 0.22) !important;
+        padding: 16px 22px !important;
+        display: none;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 18px !important;
+        z-index: 9999999 !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    }
+
+    #topperCookieBanner .tc-content {
+        display: flex !important;
+        align-items: flex-start !important;
+        gap: 14px !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+
+    #topperCookieBanner .tc-icon {
+        font-size: 26px !important;
+        line-height: 1 !important;
+        flex-shrink: 0 !important;
+        margin-top: 2px !important;
+    }
+
+    #topperCookieBanner .tc-text {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+
+    #topperCookieBanner .tc-title {
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        font-size: 14.5px !important;
+        line-height: 1.3 !important;
+        margin-bottom: 4px !important;
+        letter-spacing: 0.2px !important;
+    }
+
+    #topperCookieBanner .tc-desc {
+        color: #94a3b8 !important;
+        font-size: 13px !important;
+        line-height: 1.55 !important;
+        word-break: normal !important;
+        overflow-wrap: break-word !important;
+        margin: 0 !important;
+    }
+
+    #topperCookieBanner .tc-desc a {
+        color: #58c1c8 !important;
+        text-decoration: underline !important;
+        font-weight: 500 !important;
+        cursor: pointer !important;
+        transition: color 0.2s ease !important;
+    }
+
+    #topperCookieBanner .tc-desc a:hover {
+        color: #6ed2d9 !important;
+    }
+
+    #topperCookieBanner .tc-actions {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        flex-shrink: 0 !important;
+    }
+
+    #topperCookieBanner .tc-btn-essential {
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: #e2e8f0 !important;
+        border: 1px solid rgba(255, 255, 255, 0.18) !important;
+        font-weight: 600 !important;
+        font-size: 13px !important;
+        padding: 9px 18px !important;
+        border-radius: 9999px !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        white-space: nowrap !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+        line-height: 1.2 !important;
+    }
+
+    #topperCookieBanner .tc-btn-essential:hover,
+    #topperCookieBanner .tc-btn-essential:active {
+        background: rgba(255, 255, 255, 0.15) !important;
+        border-color: rgba(255, 255, 255, 0.35) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    #topperCookieBanner .tc-btn-accept {
+        background: rgb(88, 193, 200) !important;
+        color: #0b0f19 !important;
+        border: none !important;
+        font-weight: 700 !important;
+        font-size: 13px !important;
+        padding: 9px 20px !important;
+        border-radius: 9999px !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        white-space: nowrap !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+        line-height: 1.2 !important;
+        box-shadow: 0 0 12px rgba(88, 193, 200, 0.4) !important;
+    }
+
+    #topperCookieBanner .tc-btn-accept:hover,
+    #topperCookieBanner .tc-btn-accept:active {
+        background: rgb(110, 210, 217) !important;
+        box-shadow: 0 0 18px rgba(88, 193, 200, 0.65) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* Mobile Responsive Breakpoint (< 640px) */
+    @media screen and (max-width: 640px) {
+        #topperCookieBanner {
+            bottom: 12px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: calc(100% - 20px) !important;
+            max-width: calc(100% - 20px) !important;
+            padding: 14px 16px !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+            border-radius: 14px !important;
+            max-height: 42vh !important;
+            overflow-y: auto !important;
+        }
+
+        #topperCookieBanner .tc-content {
+            gap: 10px !important;
+            width: 100% !important;
+        }
+
+        #topperCookieBanner .tc-icon {
+            font-size: 22px !important;
+            margin-top: 1px !important;
+        }
+
+        #topperCookieBanner .tc-title {
+            font-size: 13.5px !important;
+            margin-bottom: 3px !important;
+        }
+
+        #topperCookieBanner .tc-desc {
+            font-size: 12px !important;
+            line-height: 1.48 !important;
+        }
+
+        #topperCookieBanner .tc-actions {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: stretch !important;
+            width: 100% !important;
+            gap: 8px !important;
+            margin-top: 2px !important;
+        }
+
+        #topperCookieBanner .tc-btn-essential,
+        #topperCookieBanner .tc-btn-accept {
+            flex: 1 1 50% !important;
+            width: 50% !important;
+            padding: 10px 8px !important;
+            font-size: 12.5px !important;
+            min-height: 38px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+    }
+
+    /* Extra small mobile (< 360px) */
+    @media screen and (max-width: 360px) {
+        #topperCookieBanner .tc-actions {
+            flex-direction: column !important;
+        }
+        #topperCookieBanner .tc-btn-essential,
+        #topperCookieBanner .tc-btn-accept {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+        }
+    }
+    </style>
+
+    <!-- UNIFIED TOPPERGPT COOKIE CONSENT BANNER -->
+    <div id="topperCookieBanner" role="dialog" aria-label="Cookie & Storage Preferences">
+      <div class="tc-content">
+        <span class="tc-icon">🍪</span>
+        <div class="tc-text">
+          <div class="tc-title">Cookie & Storage Notice</div>
+          <div class="tc-desc">
+            TopperGPT uses strictly necessary cookies and local storage to keep your session authenticated, preserve your dark theme, and cache study sessions. We <strong>never</strong> use advertising trackers or sell your personal data. Read our <a href="?page=privacy" onclick="if(window.openLegalModal){event.preventDefault(); window.openLegalModal('privacy');}" target="_self">Privacy Policy</a> and <a href="?page=cookies" onclick="if(window.openLegalModal){event.preventDefault(); window.openLegalModal('cookies');}" target="_self">Cookie Policy</a>.
+          </div>
         </div>
       </div>
-      <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-        <button type="button" onclick="acceptTopperCookie('essential')" style="background:rgba(255,255,255,0.06); color:#e2e8f0; border:1px solid rgba(255,255,255,0.15); font-weight:600; font-size:12.5px; padding:7px 14px; border-radius:9999px; cursor:pointer;">Essential Only</button>
-        <button type="button" onclick="acceptTopperCookie('all')" style="background:rgb(88, 193, 200); color:#0b0f19; border:none; font-weight:700; font-size:12.5px; padding:7px 16px; border-radius:9999px; cursor:pointer; box-shadow:0 0 10px rgba(88,193,200,0.35);">Accept All</button>
+      <div class="tc-actions">
+        <button type="button" class="tc-btn-essential" onclick="topperSaveCookieConsent('essential')">Essential Only</button>
+        <button type="button" class="tc-btn-accept" onclick="topperSaveCookieConsent('all')">Accept All</button>
       </div>
     </div>
+
     <script>
     (function() {
+        // --- 1. Chat Attachment '+' Icon Replacement ---
         function replacePaperclipWithPlus() {
             var uploadContainers = document.querySelectorAll('[data-testid="stChatInputFileUploadButton"], [data-testid="stChatInput"] [data-testid="stChatInputFileUploadButton"]');
             uploadContainers.forEach(function(container) {
@@ -2006,20 +2215,113 @@ try:
             window._topperPlusObserver.observe(document.body, {childList: true, subtree: true});
         }
 
-        window.acceptTopperCookie = function(type) {
-            try { localStorage.setItem('toppergpt_cookie_consent', type || 'all'); } catch(e) {}
-            var b = document.getElementById('topperAppCookieBanner');
-            if (b) b.style.setProperty('display', 'none', 'important');
-        };
+        // --- 2. Robust Cookie Consent State Management ---
+        var CONSENT_KEY = 'toppergpt_cookie_consent';
 
-        try {
-            if (!localStorage.getItem('toppergpt_cookie_consent')) {
-                setTimeout(function() {
-                    var b = document.getElementById('topperAppCookieBanner');
-                    if (b) b.style.setProperty('display', 'flex', 'important');
-                }, 1000);
+        function hasCookieConsent() {
+            try {
+                var ls = localStorage.getItem(CONSENT_KEY);
+                if (ls === 'all' || ls === 'essential' || ls === 'true') return true;
+            } catch(e) {}
+            try {
+                if (document.cookie && document.cookie.indexOf(CONSENT_KEY + '=') !== -1) return true;
+            } catch(e) {}
+            return false;
+        }
+
+        function saveCookieConsent(val) {
+            var choice = val || 'all';
+            try {
+                localStorage.setItem(CONSENT_KEY, choice);
+            } catch(e) {}
+
+            try {
+                var exp = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+                document.cookie = CONSENT_KEY + '=' + choice + '; expires=' + exp + '; path=/; SameSite=Lax';
+            } catch(e) {}
+
+            var banners = document.querySelectorAll('#topperCookieBanner, #topperAppCookieBanner, #cookieBanner, .cookie-banner');
+            banners.forEach(function(b) {
+                b.style.setProperty('display', 'none', 'important');
+                if (b.parentNode) {
+                    try { b.parentNode.removeChild(b); } catch(e) {}
+                }
+            });
+        }
+
+        window.topperSaveCookieConsent = saveCookieConsent;
+
+        function initCookieBanner() {
+            if (hasCookieConsent()) {
+                var banners = document.querySelectorAll('#topperCookieBanner, #topperAppCookieBanner, #cookieBanner, .cookie-banner');
+                banners.forEach(function(b) {
+                    b.style.setProperty('display', 'none', 'important');
+                    if (b.parentNode) {
+                        try { b.parentNode.removeChild(b); } catch(e) {}
+                    }
+                });
+                return;
             }
-        } catch(e) {}
+
+            var banner = document.getElementById('topperCookieBanner');
+            if (banner) {
+                banner.style.setProperty('display', 'flex', 'important');
+
+                var btnEssential = banner.querySelector('.tc-btn-essential');
+                var btnAccept = banner.querySelector('.tc-btn-accept');
+
+                if (btnEssential && !btnEssential.getAttribute('data-tc-bound')) {
+                    btnEssential.setAttribute('data-tc-bound', 'true');
+                    btnEssential.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        saveCookieConsent('essential');
+                    }, true);
+                    btnEssential.addEventListener('touchend', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        saveCookieConsent('essential');
+                    }, true);
+                }
+
+                if (btnAccept && !btnAccept.getAttribute('data-tc-bound')) {
+                    btnAccept.setAttribute('data-tc-bound', 'true');
+                    btnAccept.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        saveCookieConsent('all');
+                    }, true);
+                    btnAccept.addEventListener('touchend', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        saveCookieConsent('all');
+                    }, true);
+                }
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCookieBanner);
+        } else {
+            initCookieBanner();
+        }
+        setTimeout(initCookieBanner, 300);
+        setTimeout(initCookieBanner, 700);
+
+        if (!window._topperConsentObserver) {
+            window._topperConsentObserver = new MutationObserver(function() {
+                if (hasCookieConsent()) {
+                    var banners = document.querySelectorAll('#topperCookieBanner, #topperAppCookieBanner, #cookieBanner, .cookie-banner');
+                    banners.forEach(function(b) {
+                        b.style.setProperty('display', 'none', 'important');
+                        if (b.parentNode) {
+                            try { b.parentNode.removeChild(b); } catch(e) {}
+                        }
+                    });
+                }
+            });
+            window._topperConsentObserver.observe(document.body, {childList: true, subtree: true});
+        }
     })();
     </script>
     """, unsafe_allow_javascript=True)

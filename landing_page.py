@@ -1004,121 +1004,6 @@ def render_landing_page(initial_theme=None):
             grid-template-columns: repeat(2, 1fr);
         }
 
-        /* Cookie Consent Banner */
-        .cookie-banner {
-            position: fixed;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%) translateY(140px);
-            width: calc(100% - 32px);
-            max-width: 860px;
-            background: rgba(14, 17, 23, 0.94);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1.5px solid rgba(88, 193, 200, 0.4);
-            border-radius: 16px;
-            box-shadow: 0 16px 45px rgba(0, 0, 0, 0.85), 0 0 25px rgba(88, 193, 200, 0.2);
-            padding: 18px 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-            z-index: 99999;
-            opacity: 0;
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
-            pointer-events: none;
-        }
-
-        .cookie-banner.visible {
-            transform: translateX(-50%) translateY(0);
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .cookie-content {
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            color: #e2e8f0;
-            font-size: 13.5px;
-            line-height: 1.5;
-        }
-
-        .cookie-icon {
-            font-size: 26px;
-            line-height: 1;
-            flex-shrink: 0;
-        }
-
-        .cookie-title {
-            color: #ffffff;
-            font-weight: 700;
-            font-size: 14.5px;
-            margin-bottom: 2px;
-        }
-
-        .cookie-desc {
-            color: #94a3b8;
-            font-size: 13px;
-        }
-
-        .cookie-link {
-            color: rgb(88, 193, 200);
-            text-decoration: underline;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .cookie-link:hover {
-            color: rgb(110, 210, 217);
-        }
-
-        .cookie-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-
-        .cookie-btn-primary {
-            background: rgb(88, 193, 200);
-            color: #0b0f19;
-            border: none;
-            font-weight: 700;
-            font-size: 13px;
-            padding: 9px 18px;
-            border-radius: 9999px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-            box-shadow: 0 0 12px rgba(88, 193, 200, 0.35);
-        }
-
-        .cookie-btn-primary:hover {
-            background: rgb(110, 210, 217);
-            box-shadow: 0 0 18px rgba(88, 193, 200, 0.6);
-            transform: translateY(-1px);
-        }
-
-        .cookie-btn-secondary {
-            background: rgba(255, 255, 255, 0.06);
-            color: #e2e8f0;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            font-weight: 600;
-            font-size: 13px;
-            padding: 8px 16px;
-            border-radius: 9999px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-
-        .cookie-btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.12);
-            border-color: rgba(255, 255, 255, 0.3);
-            transform: translateY(-1px);
-        }
-
         /* Legal Policy Modal */
         .legal-modal-backdrop {
             display: none;
@@ -1278,20 +1163,6 @@ def render_landing_page(initial_theme=None):
         }
 
         @media (max-width: 680px) {
-            .cookie-banner {
-                flex-direction: column;
-                align-items: stretch;
-                padding: 16px;
-                bottom: 16px;
-            }
-            .cookie-actions {
-                margin-top: 10px;
-                justify-content: flex-end;
-            }
-            .cookie-btn-primary, .cookie-btn-secondary {
-                flex: 1;
-                text-align: center;
-            }
             .legal-modal-card {
                 max-height: 94vh;
             }
@@ -1638,23 +1509,6 @@ def render_landing_page(initial_theme=None):
 
 </div>
 
-<!-- Cookie Consent Banner -->
-<div id="cookieBanner" class="cookie-banner" role="dialog" aria-label="Cookie Preferences">
-  <div class="cookie-content">
-    <div class="cookie-icon">🍪</div>
-    <div>
-      <div class="cookie-title">Cookie & Privacy Notice</div>
-      <div class="cookie-desc">
-        TopperGPT uses strictly necessary cookies and local storage to keep your session authenticated, preserve your dark theme, and cache study sessions. We <strong>never</strong> use advertising trackers or sell your personal data. Read our <a href="?page=privacy" data-legal-tab="privacy" class="cookie-link">Privacy Policy</a> and <a href="?page=cookies" data-legal-tab="cookies" class="cookie-link">Cookie Policy</a>.
-      </div>
-    </div>
-  </div>
-  <div class="cookie-actions">
-    <button type="button" class="cookie-btn-secondary" onclick="acceptEssentialCookies()">Essential Only</button>
-    <button type="button" class="cookie-btn-primary" onclick="acceptAllCookies()">Accept All</button>
-  </div>
-</div>
-
 <!-- Legal Policies In-Page Modal -->
 <div id="legalModalBackdrop" class="legal-modal-backdrop" onclick="if(event.target===this) closeLegalModal();">
   <div class="legal-modal-card" role="dialog" aria-label="TopperGPT Legal Center">
@@ -1781,30 +1635,10 @@ def render_landing_page(initial_theme=None):
     }
   }
 
-  // Cookie Consent handlers
-  function acceptAllCookies() {
-    try { localStorage.setItem('toppergpt_cookie_consent', 'all'); } catch(e) {}
-    const b = document.getElementById('cookieBanner');
-    if (b) b.classList.remove('visible');
-  }
-
-  function acceptEssentialCookies() {
-    try { localStorage.setItem('toppergpt_cookie_consent', 'essential'); } catch(e) {}
-    const b = document.getElementById('cookieBanner');
-    if (b) b.classList.remove('visible');
-  }
-
-  (function initConsent() {
-    try {
-      const consent = localStorage.getItem('toppergpt_cookie_consent');
-      if (!consent) {
-        setTimeout(function() {
-          const b = document.getElementById('cookieBanner');
-          if (b) b.classList.add('visible');
-        }, 700);
-      }
-    } catch(e) {}
-  })();
+  // Expose legal modal controls to window so cookie banner links can open the modal
+  window.openLegalModal = openLegalModal;
+  window.closeLegalModal = closeLegalModal;
+  window.switchLegalTab = switchLegalTab;
 
   // Keyboard accessibility
   document.addEventListener('keydown', function(e) {
