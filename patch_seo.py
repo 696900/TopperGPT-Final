@@ -8,12 +8,18 @@ SEO_DESCRIPTION = (
     "exam-ready answers, smart notes, summaries, and practice questions. "
     "Don't just study harder. Study with TopperGPT."
 )
+SEO_KEYWORDS = (
+    "TopperGPT, Mumbai University Engineering, MU C-Scheme, Engineering PYQs, "
+    "Solved Question Papers, Smart Notes, Academic AI, Exam Preparation, "
+    "Engineering Syllabus, Digital Circuits, Mechanics, Applied Mathematics"
+)
+SEO_IMAGE = "https://toppergpt.in/images/logo.jpeg"
 
 def patch_streamlit_static_index():
     """
     Patches Streamlit's static index.html template so that search engine crawlers (Google, Bingbot, etc.)
-    and social scrapers read the official title and meta description instead of the default
-    'Streamlit. You need to enable JavaScript to run this app.'
+    and social scrapers (WhatsApp, LinkedIn, Twitter/X, Discord, Facebook) read the official title,
+    meta description, open graph preview image, and favicon instead of default Streamlit metadata.
     """
     try:
         import streamlit
@@ -29,14 +35,29 @@ def patch_streamlit_static_index():
         seo_meta = (
             f"<title>{SEO_TITLE}</title>\n"
             f'    <meta name="description" content="{SEO_DESCRIPTION}" />\n'
+            f'    <meta name="keywords" content="{SEO_KEYWORDS}" />\n'
+            f'    <meta name="author" content="TopperGPT Inc." />\n'
             f'    <meta name="robots" content="index, follow" />\n'
+            f'    <meta name="theme-color" content="#0B0F19" />\n'
+            f'    <link rel="canonical" href="https://toppergpt.in" />\n'
+            f'    <link rel="icon" type="image/jpeg" href="{SEO_IMAGE}" />\n'
+            f'    <link rel="apple-touch-icon" href="{SEO_IMAGE}" />\n'
             f'    <meta property="og:title" content="{SEO_TITLE}" />\n'
             f'    <meta property="og:description" content="{SEO_DESCRIPTION}" />\n'
             f'    <meta property="og:type" content="website" />\n'
             f'    <meta property="og:url" content="https://toppergpt.in" />\n'
+            f'    <meta property="og:site_name" content="TopperGPT" />\n'
+            f'    <meta property="og:image" content="{SEO_IMAGE}" />\n'
+            f'    <meta property="og:image:secure_url" content="{SEO_IMAGE}" />\n'
+            f'    <meta property="og:image:type" content="image/jpeg" />\n'
+            f'    <meta property="og:image:width" content="1200" />\n'
+            f'    <meta property="og:image:height" content="630" />\n'
+            f'    <meta property="og:image:alt" content="TopperGPT - AI Academic Workspace for Engineering Students" />\n'
             f'    <meta name="twitter:card" content="summary_large_image" />\n'
             f'    <meta name="twitter:title" content="{SEO_TITLE}" />\n'
-            f'    <meta name="twitter:description" content="{SEO_DESCRIPTION}" />'
+            f'    <meta name="twitter:description" content="{SEO_DESCRIPTION}" />\n'
+            f'    <meta name="twitter:image" content="{SEO_IMAGE}" />\n'
+            f'    <meta name="twitter:image:alt" content="TopperGPT - AI Academic Workspace" />'
         )
 
         modified = False

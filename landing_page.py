@@ -1,4 +1,5 @@
 import streamlit as st
+from legal_content import get_terms_html, get_privacy_html, get_cookies_html
 
 def render_landing_page(initial_theme=None):
     initial_bg = "#0e1117"
@@ -35,15 +36,29 @@ def render_landing_page(initial_theme=None):
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TopperGPT - AI Academic Workspace</title>
   <meta name="description" content="Your syllabus. Your questions. Your AI study partner. From last-minute revision to deep concept learning, TopperGPT turns complex engineering topics into clear, exam-ready answers, smart notes, summaries, and practice questions. Don't just study harder. Study with TopperGPT." />
+  <meta name="keywords" content="TopperGPT, Mumbai University Engineering, MU C-Scheme, Engineering PYQs, Solved Question Papers, Smart Notes, Academic AI, Exam Preparation, Engineering Syllabus, Digital Circuits, Mechanics, Applied Mathematics" />
+  <meta name="author" content="TopperGPT Inc." />
   <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#0B0F19" />
+  <link rel="canonical" href="https://toppergpt.in" />
+  <link rel="icon" type="image/jpeg" href="https://toppergpt.in/images/logo.jpeg" />
+  <link rel="apple-touch-icon" href="https://toppergpt.in/images/logo.jpeg" />
   <meta property="og:title" content="TopperGPT - AI Academic Workspace" />
   <meta property="og:description" content="Your syllabus. Your questions. Your AI study partner. From last-minute revision to deep concept learning, TopperGPT turns complex engineering topics into clear, exam-ready answers, smart notes, summaries, and practice questions. Don't just study harder. Study with TopperGPT." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://toppergpt.in" />
+  <meta property="og:site_name" content="TopperGPT" />
+  <meta property="og:image" content="https://toppergpt.in/images/logo.jpeg" />
+  <meta property="og:image:secure_url" content="https://toppergpt.in/images/logo.jpeg" />
+  <meta property="og:image:type" content="image/jpeg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="TopperGPT - AI Academic Workspace for Engineering Students" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="TopperGPT - AI Academic Workspace" />
   <meta name="twitter:description" content="Your syllabus. Your questions. Your AI study partner. From last-minute revision to deep concept learning, TopperGPT turns complex engineering topics into clear, exam-ready answers, smart notes, summaries, and practice questions. Don't just study harder. Study with TopperGPT." />
-  <link rel="icon" type="image/jpeg" href="images/logo.jpeg" />
+  <meta name="twitter:image" content="https://toppergpt.in/images/logo.jpeg" />
+  <meta name="twitter:image:alt" content="TopperGPT - AI Academic Workspace" />
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -988,6 +1003,305 @@ def render_landing_page(initial_theme=None):
         .tool-quad-grid {
             grid-template-columns: repeat(2, 1fr);
         }
+
+        /* Cookie Consent Banner */
+        .cookie-banner {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(140px);
+            width: calc(100% - 32px);
+            max-width: 860px;
+            background: rgba(14, 17, 23, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1.5px solid rgba(88, 193, 200, 0.4);
+            border-radius: 16px;
+            box-shadow: 0 16px 45px rgba(0, 0, 0, 0.85), 0 0 25px rgba(88, 193, 200, 0.2);
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            z-index: 99999;
+            opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+            pointer-events: none;
+        }
+
+        .cookie-banner.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .cookie-content {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            color: #e2e8f0;
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+
+        .cookie-icon {
+            font-size: 26px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .cookie-title {
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 14.5px;
+            margin-bottom: 2px;
+        }
+
+        .cookie-desc {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .cookie-link {
+            color: rgb(88, 193, 200);
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .cookie-link:hover {
+            color: rgb(110, 210, 217);
+        }
+
+        .cookie-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .cookie-btn-primary {
+            background: rgb(88, 193, 200);
+            color: #0b0f19;
+            border: none;
+            font-weight: 700;
+            font-size: 13px;
+            padding: 9px 18px;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            box-shadow: 0 0 12px rgba(88, 193, 200, 0.35);
+        }
+
+        .cookie-btn-primary:hover {
+            background: rgb(110, 210, 217);
+            box-shadow: 0 0 18px rgba(88, 193, 200, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .cookie-btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            font-weight: 600;
+            font-size: 13px;
+            padding: 8px 16px;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .cookie-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* Legal Policy Modal */
+        .legal-modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 100000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+
+        .legal-modal-backdrop.open {
+            display: flex;
+        }
+
+        .legal-modal-card {
+            background: #0e1117;
+            border: 1.5px solid rgba(88, 193, 200, 0.4);
+            border-radius: 18px;
+            max-width: 860px;
+            width: 100%;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.95), 0 0 30px rgba(88, 193, 200, 0.2);
+            overflow: hidden;
+            animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalPop {
+            0% { transform: scale(0.94); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .legal-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(14, 17, 23, 0.98);
+        }
+
+        .legal-modal-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .legal-modal-close {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            transition: all 0.2s ease;
+        }
+
+        .legal-modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+            color: #ef4444;
+        }
+
+        .legal-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 0 16px;
+            gap: 8px;
+            overflow-x: auto;
+        }
+
+        .legal-tab-btn {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #94a3b8;
+            font-size: 13.5px;
+            font-weight: 600;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .legal-tab-btn:hover {
+            color: #e2e8f0;
+        }
+
+        .legal-tab-btn.active {
+            color: rgb(88, 193, 200);
+            border-bottom-color: rgb(88, 193, 200);
+        }
+
+        .legal-modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            color: #cbd5e1;
+            font-size: 14px;
+            line-height: 1.65;
+            flex: 1;
+        }
+
+        .legal-tab-pane {
+            display: none;
+        }
+
+        .legal-tab-pane.active {
+            display: block;
+        }
+
+        .legal-modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(14, 17, 23, 0.98);
+        }
+
+        .legal-fullpage-link {
+            color: rgb(88, 193, 200);
+            font-size: 13px;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .legal-close-btn {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            font-weight: 600;
+            font-size: 13px;
+            padding: 8px 18px;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .legal-close-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        @media (max-width: 680px) {
+            .cookie-banner {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 16px;
+                bottom: 16px;
+            }
+            .cookie-actions {
+                margin-top: 10px;
+                justify-content: flex-end;
+            }
+            .cookie-btn-primary, .cookie-btn-secondary {
+                flex: 1;
+                text-align: center;
+            }
+            .legal-modal-card {
+                max-height: 94vh;
+            }
+            .legal-modal-body {
+                padding: 16px;
+            }
+            .legal-modal-header {
+                padding: 14px 16px;
+            }
+        }
     }
   </style>
 <div class="landing-content" id="landingWrapper">
@@ -1315,13 +1629,63 @@ def render_landing_page(initial_theme=None):
         <strong style="color: #fff;">© 2024–2026 TopperGPT Inc.</strong> All rights reserved.
       </div>
       <div class="footer-links">
-        <a href="?page=login" >Terms of Use</a>
-        <a href="?page=login" >Privacy Policy</a>
-        <a href="?page=login" >Cookie Policy</a>
+        <a href="?page=terms" data-legal-tab="terms">Terms of Use</a>
+        <a href="?page=privacy" data-legal-tab="privacy">Privacy Policy</a>
+        <a href="?page=cookies" data-legal-tab="cookies">Cookie Policy</a>
       </div>
     </div>
   </footer>
 
+</div>
+
+<!-- Cookie Consent Banner -->
+<div id="cookieBanner" class="cookie-banner" role="dialog" aria-label="Cookie Preferences">
+  <div class="cookie-content">
+    <div class="cookie-icon">🍪</div>
+    <div>
+      <div class="cookie-title">Cookie & Privacy Notice</div>
+      <div class="cookie-desc">
+        TopperGPT uses strictly necessary cookies and local storage to keep your session authenticated, preserve your dark theme, and cache study sessions. We <strong>never</strong> use advertising trackers or sell your personal data. Read our <a href="?page=privacy" data-legal-tab="privacy" class="cookie-link">Privacy Policy</a> and <a href="?page=cookies" data-legal-tab="cookies" class="cookie-link">Cookie Policy</a>.
+      </div>
+    </div>
+  </div>
+  <div class="cookie-actions">
+    <button type="button" class="cookie-btn-secondary" onclick="acceptEssentialCookies()">Essential Only</button>
+    <button type="button" class="cookie-btn-primary" onclick="acceptAllCookies()">Accept All</button>
+  </div>
+</div>
+
+<!-- Legal Policies In-Page Modal -->
+<div id="legalModalBackdrop" class="legal-modal-backdrop" onclick="if(event.target===this) closeLegalModal();">
+  <div class="legal-modal-card" role="dialog" aria-label="TopperGPT Legal Center">
+    <div class="legal-modal-header">
+      <div class="legal-modal-title">
+        <span style="font-size: 20px;">⚖️</span>
+        <span>TopperGPT Legal, Compliance & Privacy Center</span>
+      </div>
+      <button type="button" class="legal-modal-close" onclick="closeLegalModal()" title="Close">&times;</button>
+    </div>
+    <div class="legal-tabs">
+      <button type="button" id="tabBtnTerms" class="legal-tab-btn active" onclick="switchLegalTab('terms')">📜 Terms of Service</button>
+      <button type="button" id="tabBtnPrivacy" class="legal-tab-btn" onclick="switchLegalTab('privacy')">🔒 Privacy Policy</button>
+      <button type="button" id="tabBtnCookies" class="legal-tab-btn" onclick="switchLegalTab('cookies')">🍪 Cookie Policy</button>
+    </div>
+    <div class="legal-modal-body">
+      <div id="tabPaneTerms" class="legal-tab-pane active">
+        <!-- LEGAL_TERMS_HTML_PLACEHOLDER -->
+      </div>
+      <div id="tabPanePrivacy" class="legal-tab-pane">
+        <!-- LEGAL_PRIVACY_HTML_PLACEHOLDER -->
+      </div>
+      <div id="tabPaneCookies" class="legal-tab-pane">
+        <!-- LEGAL_COOKIES_HTML_PLACEHOLDER -->
+      </div>
+    </div>
+    <div class="legal-modal-footer">
+      <a id="legalFullPageLink" href="?page=terms" class="legal-fullpage-link">Open in Dedicated Full Page ↗</a>
+      <button type="button" class="legal-close-btn" onclick="closeLegalModal()">Close Window</button>
+    </div>
+  </div>
 </div>
 
 <!-- Interactive Client-Side Handler -->
@@ -1376,12 +1740,89 @@ def render_landing_page(initial_theme=None):
     }
   });
 
+  // Legal modal handlers
+  function openLegalModal(tab) {
+    const backdrop = document.getElementById('legalModalBackdrop');
+    if (backdrop) {
+      backdrop.classList.add('open');
+      switchLegalTab(tab || 'terms');
+    }
+  }
 
+  function closeLegalModal() {
+    const backdrop = document.getElementById('legalModalBackdrop');
+    if (backdrop) {
+      backdrop.classList.remove('open');
+    }
+  }
+
+  function switchLegalTab(tab) {
+    const t = tab || 'terms';
+    const btnTerms = document.getElementById('tabBtnTerms');
+    const btnPriv = document.getElementById('tabBtnPrivacy');
+    const btnCook = document.getElementById('tabBtnCookies');
+
+    const paneTerms = document.getElementById('tabPaneTerms');
+    const panePriv = document.getElementById('tabPanePrivacy');
+    const paneCook = document.getElementById('tabPaneCookies');
+
+    const fullLink = document.getElementById('legalFullPageLink');
+
+    if (btnTerms) btnTerms.classList.toggle('active', t === 'terms');
+    if (btnPriv) btnPriv.classList.toggle('active', t === 'privacy');
+    if (btnCook) btnCook.classList.toggle('active', t === 'cookies');
+
+    if (paneTerms) paneTerms.classList.toggle('active', t === 'terms');
+    if (panePriv) panePriv.classList.toggle('active', t === 'privacy');
+    if (paneCook) paneCook.classList.toggle('active', t === 'cookies');
+
+    if (fullLink) {
+      fullLink.href = '?page=' + (t === 'privacy' ? 'privacy' : (t === 'cookies' ? 'cookies' : 'terms'));
+    }
+  }
+
+  // Cookie Consent handlers
+  function acceptAllCookies() {
+    try { localStorage.setItem('toppergpt_cookie_consent', 'all'); } catch(e) {}
+    const b = document.getElementById('cookieBanner');
+    if (b) b.classList.remove('visible');
+  }
+
+  function acceptEssentialCookies() {
+    try { localStorage.setItem('toppergpt_cookie_consent', 'essential'); } catch(e) {}
+    const b = document.getElementById('cookieBanner');
+    if (b) b.classList.remove('visible');
+  }
+
+  (function initConsent() {
+    try {
+      const consent = localStorage.getItem('toppergpt_cookie_consent');
+      if (!consent) {
+        setTimeout(function() {
+          const b = document.getElementById('cookieBanner');
+          if (b) b.classList.add('visible');
+        }, 700);
+      }
+    } catch(e) {}
+  })();
+
+  // Keyboard accessibility
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeLegalModal();
+    }
+  });
 
   // Global click listener for fast, reliable navigation
   document.addEventListener('click', function(e) {
     const link = e.target.closest('a');
     if (link) {
+      const legalTab = link.getAttribute('data-legal-tab');
+      if (legalTab) {
+        e.preventDefault();
+        openLegalModal(legalTab);
+        return;
+      }
       const href = link.getAttribute('href');
       if (href && (href.startsWith('?page=') || href.startsWith('/?page='))) {
         e.preventDefault();
@@ -1405,6 +1846,11 @@ def render_landing_page(initial_theme=None):
   } catch(e) {}
 </script>
 """
+    # Inject policy content placeholders into HTML
+    landing_html = landing_html.replace("<!-- LEGAL_TERMS_HTML_PLACEHOLDER -->", get_terms_html())
+    landing_html = landing_html.replace("<!-- LEGAL_PRIVACY_HTML_PLACEHOLDER -->", get_privacy_html())
+    landing_html = landing_html.replace("<!-- LEGAL_COOKIES_HTML_PLACEHOLDER -->", get_cookies_html())
+
     # 3. Render directly via Streamlit HTML Component with graceful fallback
     try:
         st.html(landing_html, unsafe_allow_javascript=True)

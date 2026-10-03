@@ -22,6 +22,7 @@ except ImportError:
     Image = None
 from supabase import create_client
 from landing_page import render_landing_page
+from legal_content import render_standalone_legal_page, show_legal_dialog
 
 # --- 1. CONFIGURATION & PAGE SETUP (FIRST STREAMLIT CALL) ---
 _ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1530,6 +1531,35 @@ div:has(> button[key="btn_logout_sidebar"]) button:hover {
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), 0 0 14px rgba(239, 68, 68, 0.2) !important;
 }
 
+/* Sidebar Legal & Privacy Policy Buttons */
+button[key="btn_sidebar_terms"],
+button[key="btn_sidebar_priv"],
+div:has(> button[key="btn_sidebar_terms"]) button,
+div:has(> button[key="btn_sidebar_priv"]) button {
+    width: 100% !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    background-color: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 9px !important;
+    padding: 7px 10px !important;
+    color: #94a3b8 !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+button[key="btn_sidebar_terms"]:hover,
+button[key="btn_sidebar_priv"]:hover,
+div:has(> button[key="btn_sidebar_terms"]) button:hover,
+div:has(> button[key="btn_sidebar_priv"]) button:hover {
+    background: rgba(88, 193, 200, 0.1) !important;
+    background-color: rgba(88, 193, 200, 0.1) !important;
+    border-color: rgba(88, 193, 200, 0.4) !important;
+    color: #58c1c8 !important;
+}
+
+
 /* Ensure column container vertically centers toggle with title */
 div[data-testid="stHorizontalBlock"]:has(button[key="main_header_toggle"]) {
     display: flex !important;
@@ -1938,9 +1968,22 @@ div[data-baseweb="menu"] li {
 </style>
 """, unsafe_allow_html=True)
 
-# Real-time client-side DOM enforcement for chat attachment '+' icon
+# Real-time client-side DOM enforcement for chat attachment '+' icon & Cookie Consent
 try:
     st.html("""
+    <div id="topperAppCookieBanner" style="display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:calc(100% - 32px); max-width:820px; background:rgba(14, 17, 23, 0.96); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1.5px solid rgba(88, 193, 200, 0.4); border-radius:14px; box-shadow:0 16px 45px rgba(0,0,0,0.85), 0 0 25px rgba(88,193,200,0.2); padding:16px 20px; align-items:center; justify-content:space-between; gap:16px; z-index:9999999;">
+      <div style="display:flex; align-items:flex-start; gap:12px; color:#e2e8f0; font-size:13px; line-height:1.45;">
+        <span style="font-size:24px; line-height:1;">🍪</span>
+        <div>
+          <div style="font-weight:700; color:#fff; font-size:14px; margin-bottom:2px;">Cookie & Storage Notice</div>
+          <div style="color:#94a3b8;">TopperGPT uses strictly necessary cookies and local storage to keep your session authenticated, preserve your dark theme, and cache study sessions. We <strong>never</strong> use advertising trackers or sell your personal data. Read our <a href="?page=privacy" style="color:#58c1c8; text-decoration:underline;">Privacy Policy</a> and <a href="?page=cookies" style="color:#58c1c8; text-decoration:underline;">Cookie Policy</a>.</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+        <button type="button" onclick="acceptTopperCookie('essential')" style="background:rgba(255,255,255,0.06); color:#e2e8f0; border:1px solid rgba(255,255,255,0.15); font-weight:600; font-size:12.5px; padding:7px 14px; border-radius:9999px; cursor:pointer;">Essential Only</button>
+        <button type="button" onclick="acceptTopperCookie('all')" style="background:rgb(88, 193, 200); color:#0b0f19; border:none; font-weight:700; font-size:12.5px; padding:7px 16px; border-radius:9999px; cursor:pointer; box-shadow:0 0 10px rgba(88,193,200,0.35);">Accept All</button>
+      </div>
+    </div>
     <script>
     (function() {
         function replacePaperclipWithPlus() {
@@ -1962,11 +2005,31 @@ try:
             window._topperPlusObserver = new MutationObserver(replacePaperclipWithPlus);
             window._topperPlusObserver.observe(document.body, {childList: true, subtree: true});
         }
+
+        window.acceptTopperCookie = function(type) {
+            try { localStorage.setItem('toppergpt_cookie_consent', type || 'all'); } catch(e) {}
+            var b = document.getElementById('topperAppCookieBanner');
+            if (b) b.style.setProperty('display', 'none', 'important');
+        };
+
+        try {
+            if (!localStorage.getItem('toppergpt_cookie_consent')) {
+                setTimeout(function() {
+                    var b = document.getElementById('topperAppCookieBanner');
+                    if (b) b.style.setProperty('display', 'flex', 'important');
+                }, 1000);
+            }
+        } catch(e) {}
     })();
     </script>
     """, unsafe_allow_javascript=True)
 except Exception:
     pass
+
+# --- Standalone Legal, Compliance & Privacy Center Route ---
+if qp_page in ("terms", "privacy", "cookies", "legal", "terms-of-service", "privacy-policy", "cookie-policy", "tos"):
+    render_standalone_legal_page(qp_page)
+    st.stop()
 
 # Default: If not logged in and not requesting login page, render landing page
 if st.session_state.get("user_data") is None and qp_page != "login":
@@ -3925,6 +3988,23 @@ with st.sidebar:
         st.session_state.clear()
         st.query_params.clear()
         st.rerun()
+
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    c_terms, c_priv = st.columns(2)
+    with c_terms:
+        if st.button("📜 Terms", key="btn_sidebar_terms", use_container_width=True):
+            show_legal_dialog("terms")
+    with c_priv:
+        if st.button("🔒 Privacy", key="btn_sidebar_priv", use_container_width=True):
+            show_legal_dialog("privacy")
+
+    st.markdown("""
+        <div style="text-align: center; color: #64748b; font-size: 11px; margin-top: 10px; line-height: 1.4;">
+            TopperGPT v2.4 • Mumbai Univ.<br>
+            <a href="?page=cookies" style="color: #64748b; text-decoration: underline;" target="_self">Cookie & Storage Policy</a>
+        </div>
+    """, unsafe_allow_html=True)
+
 
 # --- 8. TOP HEADER & STREAK BAR ---
 student_name = (st.session_state.user_data or {}).get("full_name", "Student")
