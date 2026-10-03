@@ -953,11 +953,11 @@ def render_landing_page(initial_theme=None):
 
     /* Footer */
     .footer {
-        border-top: 1px solid var(--border-subtle);
-        padding: 3rem 0 2rem;
-        background: #0e1117;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 2.25rem 0;
+        background: #090c13;
         color: var(--text-muted);
-        font-size: 0.875rem;
+        font-size: 0.85rem;
     }
 
     .footer-content {
@@ -965,24 +965,91 @@ def render_landing_page(initial_theme=None):
         flex-wrap: wrap;
         justify-content: space-between;
         align-items: center;
-        gap: 1.5rem;
+        gap: 1.25rem;
+    }
+
+    .footer-brand {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: #94a3b8;
+        font-size: 0.82rem;
     }
 
     .footer-links {
         display: flex;
-        gap: 1.5rem;
-        font-family: var(--font-mono);
-        font-size: 0.8rem;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
+    /* Sleek Vercel-like pill badge buttons for legal compliance */
     .footer-links a {
-        color: var(--text-muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 9999px;
+        color: #94a3b8;
+        font-size: 0.78rem;
+        font-weight: 500;
         text-decoration: none;
-        transition: color 0.2s ease;
+        letter-spacing: 0.2px;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        white-space: nowrap;
+    }
+
+    .footer-links a svg {
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
     }
 
     .footer-links a:hover {
-        color: var(--accent);
+        background: rgba(88, 193, 200, 0.08);
+        border-color: rgba(88, 193, 200, 0.35);
+        color: #58c1c8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 10px rgba(88, 193, 200, 0.15);
+    }
+
+    .footer-links a:hover svg {
+        opacity: 1;
+        stroke: #58c1c8;
+    }
+
+    /* Floating Compliance Trigger */
+    .floating-compliance-trigger {
+        position: fixed;
+        bottom: 18px;
+        left: 18px;
+        z-index: 9998;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 13px;
+        background: rgba(14, 17, 23, 0.88);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 9999px;
+        color: #94a3b8;
+        font-size: 11.5px;
+        font-weight: 500;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        user-select: none;
+    }
+
+    .floating-compliance-trigger:hover {
+        background: rgba(14, 17, 23, 0.98);
+        border-color: rgba(88, 193, 200, 0.45);
+        color: #58c1c8;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 12px rgba(88, 193, 200, 0.2);
     }
 
     @media (max-width: 768px) {
@@ -1004,174 +1071,230 @@ def render_landing_page(initial_theme=None):
             grid-template-columns: repeat(2, 1fr);
         }
 
-        /* Legal Policy Modal */
-        .legal-modal-backdrop {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.82);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            z-index: 100000;
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-            box-sizing: border-box;
-        }
-
-        .legal-modal-backdrop.open {
-            display: flex;
-        }
-
-        .legal-modal-card {
-            background: #0e1117;
-            border: 1.5px solid rgba(88, 193, 200, 0.4);
-            border-radius: 18px;
-            max-width: 860px;
-            width: 100%;
-            max-height: 88vh;
-            display: flex;
+        .footer-content {
             flex-direction: column;
-            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.95), 0 0 30px rgba(88, 193, 200, 0.2);
-            overflow: hidden;
-            animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes modalPop {
-            0% { transform: scale(0.94); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        .legal-modal-header {
-            display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 18px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(14, 17, 23, 0.98);
+            text-align: center;
+            gap: 1rem;
         }
 
-        .legal-modal-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 18px;
-            font-weight: 700;
-            color: #ffffff;
-        }
-
-        .legal-modal-close {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #cbd5e1;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
+        .footer-brand {
             justify-content: center;
-            cursor: pointer;
-            font-size: 18px;
-            line-height: 1;
-            transition: all 0.2s ease;
         }
 
-        .legal-modal-close:hover {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: rgba(239, 68, 68, 0.5);
-            color: #ef4444;
+        .footer-links {
+            justify-content: center;
         }
+    }
 
-        .legal-tabs {
-            display: flex;
-            background: rgba(255, 255, 255, 0.03);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 0 16px;
-            gap: 8px;
-            overflow-x: auto;
+    @media (max-width: 640px) {
+        .floating-compliance-trigger {
+            bottom: 12px;
+            left: 12px;
+            padding: 5px 10px;
+            font-size: 11px;
         }
+    }
 
-        .legal-tab-btn {
-            background: transparent;
-            border: none;
-            border-bottom: 2px solid transparent;
-            color: #94a3b8;
-            font-size: 13.5px;
-            font-weight: 600;
-            padding: 12px 16px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
+    /* Legal Policy Modal */
+    .legal-modal-backdrop {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        z-index: 100000;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        box-sizing: border-box;
+    }
+
+    .legal-modal-backdrop.open {
+        display: flex;
+    }
+
+    .legal-modal-card {
+        background: #0e1117;
+        border: 1.5px solid rgba(88, 193, 200, 0.35);
+        border-radius: 16px;
+        max-width: 840px;
+        width: 100%;
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.95), 0 0 35px rgba(88, 193, 200, 0.2);
+        overflow: hidden;
+        animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalPop {
+        0% { transform: scale(0.95); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    .legal-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 22px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(14, 17, 23, 0.98);
+    }
+
+    .legal-modal-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 17px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .legal-modal-close {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #cbd5e1;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        transition: all 0.2s ease;
+    }
+
+    .legal-modal-close:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.5);
+        color: #ef4444;
+    }
+
+    .legal-tabs {
+        display: flex;
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 4px 16px 0 16px;
+        gap: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .legal-tab-btn {
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: #94a3b8;
+        font-size: 13.5px;
+        font-weight: 600;
+        padding: 12px 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .legal-tab-btn:hover {
+        color: #e2e8f0;
+    }
+
+    .legal-tab-btn.active {
+        color: #58c1c8;
+        border-bottom-color: #58c1c8;
+    }
+
+    .legal-modal-body {
+        padding: 24px;
+        overflow-y: auto;
+        color: #cbd5e1;
+        font-size: 14px;
+        line-height: 1.65;
+        flex: 1;
+    }
+
+    .legal-tab-pane {
+        display: none;
+    }
+
+    .legal-tab-pane.active {
+        display: block;
+    }
+
+    .legal-modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 22px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(14, 17, 23, 0.98);
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .legal-fullpage-link {
+        color: #58c1c8;
+        font-size: 13px;
+        text-decoration: underline;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .legal-fullpage-link:hover {
+        opacity: 0.85;
+    }
+
+    .legal-close-btn {
+        background: rgba(255, 255, 255, 0.06);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-weight: 600;
+        font-size: 13px;
+        padding: 7px 18px;
+        border-radius: 9999px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .legal-close-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    @media (max-width: 680px) {
+        .legal-modal-card {
+            max-height: 92vh;
+            border-radius: 14px;
         }
-
-        .legal-tab-btn:hover {
-            color: #e2e8f0;
+        .legal-modal-header {
+            padding: 14px 16px;
         }
-
-        .legal-tab-btn.active {
-            color: rgb(88, 193, 200);
-            border-bottom-color: rgb(88, 193, 200);
+        .legal-modal-title {
+            font-size: 15px;
         }
-
         .legal-modal-body {
-            padding: 24px;
-            overflow-y: auto;
-            color: #cbd5e1;
-            font-size: 14px;
-            line-height: 1.65;
-            flex: 1;
+            padding: 16px;
+            font-size: 13px;
         }
-
-        .legal-tab-pane {
-            display: none;
+        .legal-tab-btn {
+            font-size: 12px;
+            padding: 10px 10px;
         }
-
-        .legal-tab-pane.active {
-            display: block;
-        }
-
         .legal-modal-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(14, 17, 23, 0.98);
+            padding: 12px 16px;
+            flex-direction: column-reverse;
+            gap: 10px;
+            align-items: stretch;
+            text-align: center;
         }
-
-        .legal-fullpage-link {
-            color: rgb(88, 193, 200);
-            font-size: 13px;
-            text-decoration: underline;
-            cursor: pointer;
-        }
-
         .legal-close-btn {
-            background: rgba(255, 255, 255, 0.08);
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            font-weight: 600;
-            font-size: 13px;
-            padding: 8px 18px;
-            border-radius: 9999px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .legal-close-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
-
-        @media (max-width: 680px) {
-            .legal-modal-card {
-                max-height: 94vh;
-            }
-            .legal-modal-body {
-                padding: 16px;
-            }
-            .legal-modal-header {
-                padding: 14px 16px;
-            }
+            width: 100%;
+            text-align: center;
         }
     }
   </style>
@@ -1496,18 +1619,35 @@ def render_landing_page(initial_theme=None):
   <!-- Footer -->
   <footer class="footer">
     <div class="container footer-content">
-      <div>
-        <strong style="color: #fff;">© 2024–2026 TopperGPT Inc.</strong> All rights reserved.
+      <div class="footer-brand">
+        <strong style="color: #fff;">© 2024–2026 TopperGPT Inc.</strong>
+        <span style="color: rgba(255, 255, 255, 0.2);">•</span>
+        <span>Mumbai University Academic AI</span>
       </div>
       <div class="footer-links">
-        <a href="?page=terms" data-legal-tab="terms">Terms of Use</a>
-        <a href="?page=privacy" data-legal-tab="privacy">Privacy Policy</a>
-        <a href="?page=cookies" data-legal-tab="cookies">Cookie Policy</a>
+        <a href="?page=terms" data-legal-tab="terms">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          Terms of Use
+        </a>
+        <a href="?page=privacy" data-legal-tab="privacy">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Privacy Policy
+        </a>
+        <a href="?page=cookies" data-legal-tab="cookies">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10 4 4 0 0 1-5 5 4 4 0 0 1-5-5c0-2-2-4-4-4a4 4 0 0 1 4-6z"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/></svg>
+          Cookie Policy
+        </a>
       </div>
     </div>
   </footer>
 
 </div>
+
+<!-- Floating Compliance Trigger Button -->
+<button id="floatingLegalBtn" class="floating-compliance-trigger" onclick="openLegalModal('terms')" title="Compliance & Legal Center" aria-label="Compliance & Legal Center">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#58c1c8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+  <span>Compliance</span>
+</button>
 
 <!-- Legal Policies In-Page Modal -->
 <div id="legalModalBackdrop" class="legal-modal-backdrop" onclick="if(event.target===this) closeLegalModal();">
@@ -1597,16 +1737,20 @@ def render_landing_page(initial_theme=None):
   // Legal modal handlers
   function openLegalModal(tab) {
     const backdrop = document.getElementById('legalModalBackdrop');
+    const floatBtn = document.getElementById('floatingLegalBtn');
     if (backdrop) {
       backdrop.classList.add('open');
       switchLegalTab(tab || 'terms');
+      if (floatBtn) floatBtn.style.display = 'none';
     }
   }
 
   function closeLegalModal() {
     const backdrop = document.getElementById('legalModalBackdrop');
+    const floatBtn = document.getElementById('floatingLegalBtn');
     if (backdrop) {
       backdrop.classList.remove('open');
+      if (floatBtn) floatBtn.style.display = 'inline-flex';
     }
   }
 

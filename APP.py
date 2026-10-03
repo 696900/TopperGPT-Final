@@ -1531,32 +1531,56 @@ div:has(> button[key="btn_logout_sidebar"]) button:hover {
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), 0 0 14px rgba(239, 68, 68, 0.2) !important;
 }
 
-/* Sidebar Legal & Privacy Policy Buttons */
-button[key="btn_sidebar_terms"],
-button[key="btn_sidebar_priv"],
-div:has(> button[key="btn_sidebar_terms"]) button,
-div:has(> button[key="btn_sidebar_priv"]) button {
-    width: 100% !important;
-    background: rgba(255, 255, 255, 0.04) !important;
-    background-color: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 9px !important;
-    padding: 7px 10px !important;
-    color: #94a3b8 !important;
-    font-size: 12.5px !important;
-    font-weight: 500 !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
+/* Sidebar Legal Footer & Sleek Inline Text Links */
+.sidebar-legal-footer {
+    margin-top: 14px;
+    padding: 12px 4px 6px 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-button[key="btn_sidebar_terms"]:hover,
-button[key="btn_sidebar_priv"]:hover,
-div:has(> button[key="btn_sidebar_terms"]) button:hover,
-div:has(> button[key="btn_sidebar_priv"]) button:hover {
-    background: rgba(88, 193, 200, 0.1) !important;
-    background-color: rgba(88, 193, 200, 0.1) !important;
-    border-color: rgba(88, 193, 200, 0.4) !important;
+.sidebar-legal-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.sidebar-legal-links a {
+    color: #94a3b8 !important;
+    text-decoration: none !important;
+    font-weight: 500;
+    font-size: 11.5px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.sidebar-legal-links a:hover {
     color: #58c1c8 !important;
+    background: rgba(88, 193, 200, 0.1);
+}
+
+.sidebar-legal-sep {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 10px;
+    user-select: none;
+}
+
+.sidebar-legal-copyright {
+    color: #64748b;
+    font-size: 10.5px;
+    margin-top: 6px;
+    letter-spacing: 0.2px;
 }
 
 
@@ -1599,8 +1623,9 @@ div[data-testid="stElementContainer"]:has(button[key="sidebar_collapse_btn"]) {
     margin-top: 4px !important;
 }
 
-/* Sidebar Brand and Toggle Row layout */
-[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"] {
+/* Sidebar Brand and Toggle Row layout (strictly scoped to header row) */
+[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:has(button[key="sidebar_collapse_btn"]),
+[data-testid="stSidebarUserContent"] > div:first-child div[data-testid="stHorizontalBlock"] {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
@@ -1611,17 +1636,28 @@ div[data-testid="stElementContainer"]:has(button[key="sidebar_collapse_btn"]) {
     margin-bottom: 2px !important;
 }
 
-[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child {
+[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:has(button[key="sidebar_collapse_btn"]) > div[data-testid="column"]:first-child,
+[data-testid="stSidebarUserContent"] > div:first-child div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child {
     flex: 1 1 auto !important;
     width: auto !important;
     min-width: 0 !important;
 }
 
-[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child {
+[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]:has(button[key="sidebar_collapse_btn"]) > div[data-testid="column"]:last-child,
+[data-testid="stSidebarUserContent"] > div:first-child div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child {
     flex: 0 0 38px !important;
     width: 38px !important;
     min-width: 38px !important;
     max-width: 38px !important;
+}
+
+/* Sidebar anti-overflow guarantees */
+[data-testid="stSidebar"],
+[data-testid="stSidebarUserContent"],
+[data-testid="stSidebarContent"] {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
 }
 
 /* Off-canvas mobile backdrop blur */
@@ -2332,6 +2368,10 @@ except Exception:
 if qp_page in ("terms", "privacy", "cookies", "legal", "terms-of-service", "privacy-policy", "cookie-policy", "tos"):
     render_standalone_legal_page(qp_page)
     st.stop()
+
+qp_dialog = str(st.query_params.get("dialog") or "").lower().strip()
+if qp_dialog in ("terms", "privacy", "cookies", "legal", "terms-of-service", "privacy-policy", "cookie-policy", "tos"):
+    show_legal_dialog(qp_dialog)
 
 # Default: If not logged in and not requesting login page, render landing page
 if st.session_state.get("user_data") is None and qp_page != "login":
@@ -4149,6 +4189,21 @@ def clean_email_auth():
                                 pass
                         st.session_state.user_data = new_u
                         st.rerun()
+
+        st.markdown("""
+            <div style="text-align: center; margin-top: 24px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11.5px; color: #64748b;">
+                <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px 14px;">
+                    <a href="?page=terms" target="_self" style="color: #94a3b8; text-decoration: none; font-size: 11.5px; transition: color 0.2s;">Terms of Use</a>
+                    <span style="color: rgba(255,255,255,0.2); font-size: 10px;">•</span>
+                    <a href="?page=privacy" target="_self" style="color: #94a3b8; text-decoration: none; font-size: 11.5px; transition: color 0.2s;">Privacy Policy</a>
+                    <span style="color: rgba(255,255,255,0.2); font-size: 10px;">•</span>
+                    <a href="?page=cookies" target="_self" style="color: #94a3b8; text-decoration: none; font-size: 11.5px; transition: color 0.2s;">Cookie Policy</a>
+                </div>
+                <div style="margin-top: 8px; font-size: 10.5px; color: #64748b;">
+                    © 2024–2026 TopperGPT Inc. • Mumbai University Academic AI
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
     st.stop()
 
 # --- 6. UNLIMITED ACCESS OVERRIDE (CREDITS TEMPORARILY DISABLED) ---
@@ -4291,19 +4346,18 @@ with st.sidebar:
         st.query_params.clear()
         st.rerun()
 
-    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
-    c_terms, c_priv = st.columns(2)
-    with c_terms:
-        if st.button("📜 Terms", key="btn_sidebar_terms", use_container_width=True):
-            show_legal_dialog("terms")
-    with c_priv:
-        if st.button("🔒 Privacy", key="btn_sidebar_priv", use_container_width=True):
-            show_legal_dialog("privacy")
-
     st.markdown("""
-        <div style="text-align: center; color: #64748b; font-size: 11px; margin-top: 10px; line-height: 1.4;">
-            TopperGPT v2.4 • Mumbai Univ.<br>
-            <a href="?page=cookies" style="color: #64748b; text-decoration: underline;" target="_self">Cookie & Storage Policy</a>
+        <div class="sidebar-legal-footer">
+            <div class="sidebar-legal-links">
+                <a href="?page=terms" target="_self">Terms of Use</a>
+                <span class="sidebar-legal-sep">•</span>
+                <a href="?page=privacy" target="_self">Privacy Policy</a>
+                <span class="sidebar-legal-sep">•</span>
+                <a href="?page=cookies" target="_self">Cookie Policy</a>
+            </div>
+            <div class="sidebar-legal-copyright">
+                TopperGPT v2.4 • Mumbai University
+            </div>
         </div>
     """, unsafe_allow_html=True)
 

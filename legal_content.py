@@ -342,6 +342,29 @@ def render_standalone_legal_page(initial_tab: str = "terms"):
     clean_tab = str(initial_tab or "").lower().strip()
 
     # Clean navigation header with Back button
+    st.markdown("""
+        <style>
+        button[key="legal_back_btn"],
+        div:has(> button[key="legal_back_btn"]) button {
+            background: rgba(255, 255, 255, 0.04) !important;
+            border: 1px solid rgba(88, 193, 200, 0.3) !important;
+            border-radius: 9999px !important;
+            color: #58c1c8 !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            padding: 7px 18px !important;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        button[key="legal_back_btn"]:hover,
+        div:has(> button[key="legal_back_btn"]) button:hover {
+            background: rgba(88, 193, 200, 0.12) !important;
+            border-color: rgba(88, 193, 200, 0.6) !important;
+            color: #ffffff !important;
+            transform: translateX(-2px) !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     col_nav, col_space = st.columns([2, 5])
     with col_nav:
         if st.button("← Back to Workspace", key="legal_back_btn", use_container_width=True):
@@ -417,9 +440,27 @@ if st is not None:
             st.markdown(TERMS_OF_SERVICE_MD)
         with tab_p:
             st.markdown(PRIVACY_POLICY_MD)
-        with tab_c:
-            st.markdown(COOKIE_POLICY_MD)
-
+        st.markdown("""
+            <style>
+            button[key="btn_close_legal_dialog"],
+            div:has(> button[key="btn_close_legal_dialog"]) button {
+                background: rgba(255, 255, 255, 0.05) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                border-radius: 9999px !important;
+                color: #e2e8f0 !important;
+                font-weight: 600 !important;
+                font-size: 13px !important;
+                padding: 7px 20px !important;
+                transition: all 0.2s ease !important;
+            }
+            button[key="btn_close_legal_dialog"]:hover,
+            div:has(> button[key="btn_close_legal_dialog"]) button:hover {
+                background: rgba(255, 255, 255, 0.12) !important;
+                border-color: rgba(255, 255, 255, 0.25) !important;
+                color: #ffffff !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
         if st.button("Close Window", key="btn_close_legal_dialog", use_container_width=True):
             st.rerun()
 else:
