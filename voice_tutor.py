@@ -30,6 +30,18 @@ except ImportError:
     HAS_GTTS = False
 
 
+def strip_html_indent(html_str: str) -> str:
+    """
+    Strips all leading whitespace and eliminates internal blank lines so that
+    Streamlit and CommonMark never terminate the HTML block early or mistake
+    indented HTML tags as preformatted code blocks.
+    """
+    if not html_str or not isinstance(html_str, str):
+        return ""
+    lines = [line.strip() for line in html_str.splitlines() if line.strip()]
+    return "\n".join(lines)
+
+
 # =============================================================================
 # 1. PHONETIC SANITIZER (CONVERT LATEX & MARKDOWN TO NATURAL SPOKEN SPEECH)
 # =============================================================================
@@ -277,7 +289,7 @@ def render_voice_player(text_to_speak: str, auto_play: bool = False, key: str = 
     }})();
     </script>
     """
-    st.markdown(player_html, unsafe_allow_html=True)
+    st.markdown(strip_html_indent(player_html), unsafe_allow_html=True)
 
 
 # =============================================================================
@@ -504,7 +516,7 @@ def render_microphone_widget(form_id: str = "voice_tutor_mic") -> None:
     }})();
     </script>
     """
-    st.markdown(mic_html, unsafe_allow_html=True)
+    st.markdown(strip_html_indent(mic_html), unsafe_allow_html=True)
 
 
 # =============================================================================
@@ -524,7 +536,7 @@ def render_voice_tutor_page(generate_response_fn, is_demo_mode: bool = False, st
     if not st:
         return
 
-    st.markdown("""
+    st.markdown(strip_html_indent("""
         <div class="topper-card" style="margin-bottom: 18px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -539,7 +551,7 @@ def render_voice_tutor_page(generate_response_fn, is_demo_mode: bool = False, st
                 <span class="research-card-tag research-tag-def" style="letter-spacing: 0.5px;">WISPR FLOW × SCALER</span>
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
 
     # Initialize session state stores for Voice Tutor
     if "voice_active_query" not in st.session_state:

@@ -23,7 +23,7 @@ try:
 except ImportError:
     st = None
 
-from voice_tutor import clean_text_for_speech, render_voice_player, render_microphone_widget
+from voice_tutor import clean_text_for_speech, render_voice_player, render_microphone_widget, strip_html_indent
 import demo_knowledge
 from demo_knowledge import VIVA_QUESTION_BANK, evaluate_viva_answer_locally
 
@@ -148,29 +148,36 @@ FOLLOW_UP: [Follow-up question]
     try:
         ai_raw = generate_fn(prompt, max_toks=800, temperature=0.2)
         if ai_raw and "SCORE:" in ai_raw:
-            # Parse response
-            score_m = re.search(r'SCORE:\s*(\d+)\s*/\s*5', ai_raw)
+            # Normalize markdown bold markers on headers
+            norm_raw = re.sub(r'\*\*(SCORE|FEEDBACK|MATCHED_KEYWORDS|MISSING_KEYWORDS|MODEL_ANSWER|EXAMINER_TRAP|FOLLOW_UP)\s*:\*\*', r'\1:', ai_raw)
+            norm_raw = re.sub(r'#{1,4}\s*(SCORE|FEEDBACK|MATCHED_KEYWORDS|MISSING_KEYWORDS|MODEL_ANSWER|EXAMINER_TRAP|FOLLOW_UP)\s*:', r'\1:', norm_raw)
+
+            # Score
+            score_m = re.search(r'SCORE:\s*(\d+)', norm_raw)
             score = int(score_m.group(1)) if score_m else 3
 
-            feedback_m = re.search(r'FEEDBACK:\s*([\s\S]*?)(?=MATCHED_KEYWORDS:|$)', ai_raw)
-            feedback = feedback_m.group(1).strip() if feedback_m else "Evaluated by AI Examiner."
+            ALL_FIELD_TAGS = ["SCORE", "FEEDBACK", "MATCHED_KEYWORDS", "MISSING_KEYWORDS", "MODEL_ANSWER", "EXAMINER_TRAP", "FOLLOW_UP"]
 
-            matched_m = re.search(r'MATCHED_KEYWORDS:\s*([\s\S]*?)(?=MISSING_KEYWORDS:|$)', ai_raw)
-            matched_raw = matched_m.group(1).strip() if matched_m else ""
-            matched = [k.strip(" []'\"") for k in matched_raw.split(",") if k.strip(" []'\"")]
+            def get_block(name):
+                other_tags = [t for t in ALL_FIELD_TAGS if t != name]
+                stop_pat = "|".join(other_tags)
+                pat = rf'(?:^|\n)\s*{name}\s*:\s*([\s\S]*?)(?=(?:\n\s*(?:{stop_pat})\s*:)|$)'
+                m = re.search(pat, norm_raw, re.IGNORECASE)
+                return m.group(1).strip() if m else ""
 
-            missing_m = re.search(r'MISSING_KEYWORDS:\s*([\s\S]*?)(?=MODEL_ANSWER:|$)', ai_raw)
-            missing_raw = missing_m.group(1).strip() if missing_m else ""
-            missing = [k.strip(" []'\"") for k in missing_raw.split(",") if k.strip(" []'\"")]
+            feedback = get_block("FEEDBACK") or "Evaluated by AI Examiner."
 
-            model_m = re.search(r'MODEL_ANSWER:\s*([\s\S]*?)(?=EXAMINER_TRAP:|$)', ai_raw)
-            model_ans = model_m.group(1).strip() if model_m else question_obj.get("model_answer", "")
+            matched_raw = get_block("MATCHED_KEYWORDS")
+            matched = [k.strip(" []'\"*") for k in matched_raw.split(",") if k.strip(" []'\"*")]
 
-            trap_m = re.search(r'EXAMINER_TRAP:\s*([\s\S]*?)(?=FOLLOW_UP:|$)', ai_raw)
-            trap = trap_m.group(1).strip() if trap_m else question_obj.get("examiner_trap", "")
+            missing_raw = get_block("MISSING_KEYWORDS")
+            missing = [k.strip(" []'\"*") for k in missing_raw.split(",") if k.strip(" []'\"*")]
 
-            follow_m = re.search(r'FOLLOW_UP:\s*([\s\S]*?)$', ai_raw)
-            follow_up = follow_m.group(1).strip() if follow_m else question_obj.get("follow_up", "")
+            model_ans = get_block("MODEL_ANSWER") or question_obj.get("model_answer", "")
+
+            trap = get_block("EXAMINER_TRAP") or question_obj.get("examiner_trap", "")
+
+            follow_up = get_block("FOLLOW_UP") or question_obj.get("follow_up", "")
 
             return {
                 "score": score,
@@ -202,7 +209,7 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
     if not st:
         return
 
-    st.markdown("""
+    st.markdown(strip_html_indent("""
         <div class="topper-card" style="margin-bottom: 18px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -220,7 +227,7 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
                 </div>
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
 
     # Load questions pool
     if "viva_question_pools" not in st.session_state:
@@ -264,20 +271,20 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
     # Progress Indicator
     q_num = st.session_state.viva_q_index + 1
     total_q = len(active_pool)
-    st.markdown(f"""
+    st.markdown(strip_html_indent(f"""
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <span style="font-size: 13px; font-weight: 700; color: #58c1c8; text-transform: uppercase; letter-spacing: 0.5px;">
                 EXAMINER QUESTION {q_num} OF {total_q}
             </span>
             <span style="font-size: 12px; color: #64748b;">Subject: {selected_subject}</span>
         </div>
-    """, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
 
     # -------------------------------------------------------------------------
     # EXAMINER QUESTION CARD (WITH SPOKEN AUDIO PLAYBACK)
     # -------------------------------------------------------------------------
     q_text = current_q.get("question", "")
-    st.markdown(f"""
+    st.markdown(strip_html_indent(f"""
         <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(88, 193, 200, 0.3); border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);">
             <div style="display: flex; align-items: flex-start; gap: 12px;">
                 <span style="font-size: 28px; line-height: 1;">👨‍🏫</span>
@@ -296,7 +303,7 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
                 </div>
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
 
     # Spoken audio player for the examiner's question
     spoken_q = f"Question {q_num}: {clean_text_for_speech(q_text)}"
@@ -370,7 +377,7 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
         # Score Color
         score_color = "#22c55e" if score >= 4 else ("#eab308" if score >= 3 else "#ef4444")
 
-        st.markdown(f"""
+        st.markdown(strip_html_indent(f"""
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                 <h3 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 800;">
                     📊 Viva Assessment Result
@@ -392,7 +399,7 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
                     </div>
                 </div>
             </div>
-        """, unsafe_allow_html=True)
+        """), unsafe_allow_html=True)
 
         # Keyword Analysis Chips
         matched_kw = eval_data.get("matched_keywords", [])
@@ -427,22 +434,22 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
         # Examiner Trap Alert
         trap_text = eval_data.get("examiner_trap", "")
         if trap_text:
-            st.markdown(f"""
+            st.markdown(strip_html_indent(f"""
                 <div style="background: rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308; padding: 12px 16px; border-radius: 6px; margin: 12px 0;">
                     <div style="color: #fef08a; font-size: 12px; font-weight: 800; text-transform: uppercase;">⚠️ Examiner Cross-Trap Alert:</div>
                     <div style="color: #ffffff; font-size: 13.5px; margin-top: 4px;">{trap_text}</div>
                 </div>
-            """, unsafe_allow_html=True)
+            """), unsafe_allow_html=True)
 
         # Follow-up Cross Question
         follow_up = eval_data.get("follow_up", "")
         if follow_up:
-            st.markdown(f"""
+            st.markdown(strip_html_indent(f"""
                 <div style="background: rgba(56, 189, 248, 0.08); border-left: 4px solid #38bdf8; padding: 12px 16px; border-radius: 6px; margin: 12px 0;">
                     <div style="color: #7dd3fc; font-size: 12px; font-weight: 800; text-transform: uppercase;">🎯 Cross-Question Follow-up:</div>
                     <div style="color: #ffffff; font-size: 14px; font-weight: 600; margin-top: 4px;">"{follow_up}"</div>
                 </div>
-            """, unsafe_allow_html=True)
+            """), unsafe_allow_html=True)
 
     # -------------------------------------------------------------------------
     # NAVIGATION BUTTONS: NEXT QUESTION / RANDOM QUESTION
