@@ -23,6 +23,9 @@ except ImportError:
 from supabase import create_client
 from landing_page import render_landing_page
 from legal_content import render_standalone_legal_page, show_legal_dialog
+from voice_tutor import render_voice_tutor_page
+from viva_examiner import render_viva_examiner_page
+import demo_knowledge
 
 # --- 1. CONFIGURATION & PAGE SETUP (FIRST STREAMLIT CALL) ---
 _ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -4046,6 +4049,17 @@ def generate_ai_response(prompt_or_messages, max_toks=700, messages_context=None
         if result and not is_generic_refusal(result):
             return result
 
+    # Offline Zero-Key Academic Fallback (Wispr Flow × Scaler Hackathon Resilience)
+    if not groq_keys and not gemini_keys and not openrouter_keys:
+        last_user_query = ""
+        for m in reversed(messages_array):
+            if m.get("role") == "user":
+                last_user_query = m.get("content", "")
+                break
+        if not last_user_query:
+            last_user_query = str(prompt_or_messages) if isinstance(prompt_or_messages, str) else "Engineering syllabus doubt"
+        return demo_knowledge.generate_fallback_academic_response(last_user_query)
+
     raise RuntimeError("All AI generation tiers (Groq, Gemini, OpenRouter) failed due to API timeout or rate limit. Please retry.")
 
 
@@ -4262,7 +4276,9 @@ with st.sidebar:
 
     nav_options = [
         "💡 AI Tutor",
-        "🎯 Predicted Qs",
+        "🎙️ Voice Tutor",
+        "🎯 Mock Viva Voce",
+        "🔮 Predicted Qs",
         "📄 Short Notes",
         "🔍 Topic Research",
         "💬 Feedback"
@@ -4271,14 +4287,18 @@ with st.sidebar:
     default_nav_idx = 0
     if "pending_feature" in st.session_state:
         feat = str(st.session_state.pop("pending_feature", "")).lower()
-        if "predict" in feat:
+        if "voice" in feat:
             default_nav_idx = 1
-        elif "note" in feat:
+        elif "viva" in feat:
             default_nav_idx = 2
-        elif any(k in feat for k in ["solver", "research", "analytics", "flashcard"]):
+        elif "predict" in feat:
             default_nav_idx = 3
-        elif "feedback" in feat:
+        elif "note" in feat:
             default_nav_idx = 4
+        elif any(k in feat for k in ["solver", "research", "analytics", "flashcard"]):
+            default_nav_idx = 5
+        elif "feedback" in feat:
+            default_nav_idx = 6
         st.session_state.pop("unified_nav_radio", None)
 
     nav_selection = st.radio(
@@ -4753,9 +4773,39 @@ if nav_selection == "💡 AI Tutor":
                         st.error("Generation failed due to API timeout or rate limit. Please retry.")
 
 # ==================================================
+# --- 1B. FEATURE: VOICE CONCEPT TUTOR (WISPR FLOW × SCALER) ---
+# ==================================================
+elif nav_selection == "🎙️ Voice Tutor":
+    _has_keys = bool(
+        (get_env_secret("GROQ_API_KEY") or "").strip() or 
+        (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip() or 
+        (get_env_secret("OPENROUTER_API_KEY") or "").strip()
+    )
+    render_voice_tutor_page(
+        generate_response_fn=generate_ai_response,
+        is_demo_mode=not _has_keys,
+        student_name=student_name
+    )
+
+# ==================================================
+# --- 1C. FEATURE: MOCK VIVA VOCE (WISPR FLOW × SCALER) ---
+# ==================================================
+elif nav_selection == "🎯 Mock Viva Voce":
+    _has_keys = bool(
+        (get_env_secret("GROQ_API_KEY") or "").strip() or 
+        (get_env_secret("GEMINI_API_KEY") or get_env_secret("GOOGLE_API_KEY", "")).strip() or 
+        (get_env_secret("OPENROUTER_API_KEY") or "").strip()
+    )
+    render_viva_examiner_page(
+        generate_response_fn=generate_ai_response,
+        is_demo_mode=not _has_keys,
+        student_name=student_name
+    )
+
+# ==================================================
 # --- 2. FEATURE: PREDICTED QUESTIONS ---
 # ==================================================
-elif nav_selection == "🎯 Predicted Qs":
+elif nav_selection == "🔮 Predicted Qs":
     st.markdown("""
         <div class="topper-card">
             <h3 style="margin-top:0; color:#58c1c8;">Target High-Probability Examination Questions</h3>
