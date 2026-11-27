@@ -1,0 +1,17 @@
+.git
+.github
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+venv
+ENV
+env
+.env
+.next
+node_modules
+topper-gpt-interface-development
+.DS_Store
+Thumbs.db
+tests/__pycache__
