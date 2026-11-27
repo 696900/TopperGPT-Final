@@ -9,6 +9,9 @@ venv
 ENV
 env
 .env
+.streamlit/secrets.toml
+.user_chats
+.user_feedback
 .next
 node_modules
 topper-gpt-interface-development
