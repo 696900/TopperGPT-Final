@@ -29,19 +29,21 @@ Since thickness $t = 0$ at the center, path difference equals $\\frac{\\lambda}{
 
 ---
 
-### 2. ⚡ Step-by-Step Technical Derivation (Determination of $\\mu$)
-1. **Dark Ring Diameter in Air Film ($\mu = 1$):**
-   $$D_n^2 = 4n\\lambda R$$
-   $$D_{n+p}^2 = 4(n+p)\\lambda R$$
-   Subtracting the two equations:
-   $$D_{n+p}^2 - D_n^2 = 4p\\lambda R \\quad \\implies \\quad \\lambda = \\frac{D_{n+p}^2 - D_n^2}{4pR}$$
+### 2. ⚡ Step-by-Step Technical Derivation (Determination of $\mu$)
 
-2. **Dark Ring Diameter with Liquid Film of Refractive Index $\\mu$:**
-   When the air space between the lens and plate is filled with a transparent liquid of refractive index $\\mu$:
-   $$D_{n+p}'^2 - D_n'^2 = \\frac{4p\\lambda R}{\\mu}$$
+**1. Dark Ring Diameter in Air Film ($\mu = 1$):**
+$$D_n^2 = 4n\lambda R$$
+$$D_{n+p}^2 = 4(n+p)\lambda R$$
 
-3. **Formula for Refractive Index ($\mu$):**
-   $$\\mu = \\frac{(D_{n+p}^2 - D_n^2)_{\\text{air}}}{(D_{n+p}'^2 - D_n'^2)_{\\text{liquid}}}$$
+Subtracting the two equations:
+$$D_{n+p}^2 - D_n^2 = 4p\lambda R \implies \lambda = \frac{D_{n+p}^2 - D_n^2}{4pR}$$
+
+**2. Dark Ring Diameter with Liquid Film of Refractive Index $\mu$:**
+When the air space between the lens and plate is filled with a transparent liquid of refractive index $\mu$:
+$$D_{n+p}'^2 - D_n'^2 = \frac{4p\lambda R}{\mu}$$
+
+**3. Formula for Refractive Index ($\mu$):**
+$$\mu = \frac{(D_{n+p}^2 - D_n^2)_{\text{air}}}{(D_{n+p}'^2 - D_n'^2)_{\text{liquid}}}$$
 
 ---
 
