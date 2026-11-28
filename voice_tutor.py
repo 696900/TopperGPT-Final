@@ -266,7 +266,7 @@ def render_voice_player(text_to_speak: str, auto_play: bool = False, key: str = 
         <span style="font-size: 18px;">🔊</span>
         <div>
           <span class="title-text">SPOKEN ACADEMIC EXPLANATION</span>
-          <span class="subtitle-text">(Wispr Voice Player)</span>
+          <span class="subtitle-text">(TopperGPT Audio Player)</span>
         </div>
       </div>
       <div style="display: flex; align-items: center; gap: 6px;">
@@ -393,18 +393,35 @@ def render_voice_player(text_to_speak: str, auto_play: bool = False, key: str = 
 # =============================================================================
 # 3. LIVE MICROPHONE INPUT INTERFACE (TRILINGUAL WEB SPEECH RECOGNITION)
 # =============================================================================
-def render_microphone_widget(form_id: str = "voice_tutor_mic", submit_label: Optional[str] = None) -> None:
+_VOICE_COMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "voice_component")
+_voice_component_fn = None
+try:
+    if components and hasattr(components, "declare_component") and os.path.isdir(_VOICE_COMP_DIR):
+        _voice_component_fn = components.declare_component("voice_dictation", path=_VOICE_COMP_DIR)
+except Exception:
+    _voice_component_fn = None
+
+
+def render_microphone_widget(form_id: str = "voice_tutor_mic", submit_label: Optional[str] = None):
     """
-    Renders an interactive, responsive voice input interface using Streamlit
-    components.v1.html to ensure speech recognition buttons and JavaScript
-    run natively without CommonMark escaping.
+    Renders an interactive, responsive voice input interface using Streamlit's
+    custom component architecture to ensure speech recognition buttons, 
+    live preview, and 1-click submission run natively without cross-origin blocks.
 
     Supports English (en-IN), Hindi (hi-IN), and Marathi (mr-IN).
     Displays real-time interim recognition, an editable confirmation text box,
-    one-click copy to clipboard, and parent-window query param synchronization.
+    one-click copy to clipboard, and instant component value return to Python.
     """
     if submit_label is None:
         submit_label = "Submit Voice Answer ⚡" if "viva" in form_id.lower() else "Submit Voice Doubt ⚡"
+
+    # Preferred: Streamlit Custom Component protocol (zero cross-origin blocks, 100% 1-click submit)
+    if _voice_component_fn is not None:
+        try:
+            comp_val = _voice_component_fn(key=form_id, submit_label=submit_label, default="")
+            return str(comp_val).strip() if comp_val else ""
+        except Exception:
+            pass
 
     # Unique DOM IDs
     btn_mic_id = f"toggleMicBtn_{form_id}"
@@ -630,8 +647,8 @@ def render_microphone_widget(form_id: str = "voice_tutor_mic", submit_label: Opt
     <div class="top-row">
       <div class="title-area">
         <div id="{indicator_id}" class="pulse-dot"></div>
-        <span class="brand-text">WISPR VOICE DICTATION</span>
-        <span class="hackathon-badge">HACKATHON EDITION</span>
+        <span class="brand-text">AI VOICE INPUT</span>
+        <span class="hackathon-badge">VOICE AI TUTOR</span>
       </div>
       <div class="lang-group">
         <label style="color: #94a3b8; font-size: 11px;">Language:</label>
@@ -665,7 +682,7 @@ def render_microphone_widget(form_id: str = "voice_tutor_mic", submit_label: Opt
         <span>⚠️ Microphone Permission Needed</span>
       </div>
       <p id="{error_msg_id}" class="error-text">
-        Microphone access was denied. Please allow microphone permissions in your browser or copy/type your question into the box below.
+        Microphone access was denied. Please allow microphone permissions in your browser or type your question in the text box.
       </p>
     </div>
 
@@ -676,6 +693,11 @@ def render_microphone_widget(form_id: str = "voice_tutor_mic", submit_label: Opt
         <span>{submit_label}</span>
       </button>
     </div>
+
+    <!-- Hidden native navigation form for seamless parent submission -->
+    <form id="voiceNavForm_{form_id}" method="GET" target="_parent" style="display:none;">
+      <input type="hidden" name="voice_q" id="voiceNavInput_{form_id}" value="" />
+    </form>
   </div>
 
   <script>
@@ -697,105 +719,124 @@ def render_microphone_widget(form_id: str = "voice_tutor_mic", submit_label: Opt
     const sendBtn = document.getElementById('{send_btn_id}');
 
     let recognition = null;
-    let isRecording = false;
+    let isListening = false;
 
     if (!SpeechRecognition) {{
-      statusText.innerText = "Browser voice recognition not supported in this browser. Please use Google Chrome or type below.";
+      statusText.innerText = "Browser voice recognition not supported. Please type your doubt in the box.";
       toggleBtn.disabled = true;
       toggleBtn.style.opacity = "0.5";
       return;
     }}
 
-    function setupRecognition() {{
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = langSelect.value || 'en-IN';
-
-      recognition.onstart = function() {{
-        isRecording = true;
+    function setListeningUI(active) {{
+      if (active) {{
         toggleBtn.style.background = "#ef4444";
         micIcon.innerText = "🔴";
         micBtnText.innerText = "Stop Listening";
-        statusText.innerText = "Listening live... Speak clearly";
+        statusText.innerText = "Listening... Speak clearly";
         statusText.style.color = "#f87171";
         indicator.style.background = "#ef4444";
         indicator.style.boxShadow = "0 0 10px #ef4444";
         liveContainer.style.display = "block";
         errorBox.style.display = "none";
-      }};
-
-      recognition.onresult = function(event) {{
-        let interimTranscript = '';
-        let finalTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {{
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {{
-            finalTranscript += transcript + ' ';
-          }} else {{
-            interimTranscript += transcript;
-          }}
-        }}
-
-        if (interimTranscript) {{
-          liveText.innerText = interimTranscript;
-        }}
-
-        if (finalTranscript) {{
-          const currentVal = textArea.value ? textArea.value.trim() + ' ' : '';
-          textArea.value = currentVal + finalTranscript.trim();
-          liveText.innerText = '...';
-        }}
-      }};
-
-      recognition.onerror = function(event) {{
-        console.warn('SpeechRecognition error:', event.error);
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {{
-          errorBox.style.display = "block";
-          errorMsg.innerText = "Microphone access blocked. Click lock icon in browser URL bar to allow.";
-        }} else if (event.error === 'no-speech') {{
-          statusText.innerText = "No speech detected. Click Start Speaking and try again.";
-        }}
-        stopRecording();
-      }};
-
-      recognition.onend = function() {{
-        stopRecording();
-      }};
+      }} else {{
+        toggleBtn.style.background = "#58c1c8";
+        micIcon.innerText = "🎙️";
+        micBtnText.innerText = "Start Speaking";
+        statusText.innerText = "Stopped. Review your text or click Submit.";
+        statusText.style.color = "#94a3b8";
+        indicator.style.background = "#64748b";
+        indicator.style.boxShadow = "none";
+        liveContainer.style.display = "none";
+      }}
     }}
 
-    function stopRecording() {{
-      isRecording = false;
-      toggleBtn.style.background = "#58c1c8";
-      micIcon.innerText = "🎙️";
-      micBtnText.innerText = "Start Speaking";
-      statusText.innerText = "Recording paused. Tap 'Start Speaking' to add more.";
-      statusText.style.color = "#94a3b8";
-      indicator.style.background = "#64748b";
-      indicator.style.boxShadow = "none";
-      liveContainer.style.display = "none";
+    function startListening() {{
+      stopListening();
+      try {{
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = langSelect.value || 'en-IN';
+
+        recognition.onstart = function() {{
+          isListening = true;
+          setListeningUI(true);
+        }};
+
+        recognition.onresult = function(event) {{
+          let interimTranscript = '';
+          let finalTranscript = '';
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {{
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {{
+              finalTranscript += transcript + ' ';
+            }} else {{
+              interimTranscript += transcript;
+            }}
+          }}
+
+          if (interimTranscript) {{
+            liveText.innerText = interimTranscript;
+          }}
+
+          if (finalTranscript) {{
+            const currentVal = textArea.value ? textArea.value.trim() + ' ' : '';
+            textArea.value = currentVal + finalTranscript.trim();
+            liveText.innerText = '...';
+          }}
+        }};
+
+        recognition.onerror = function(event) {{
+          console.warn('SpeechRecognition error:', event.error);
+          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {{
+            errorBox.style.display = "block";
+            errorMsg.innerText = "Microphone access blocked. Click lock icon in browser URL bar to allow.";
+          }} else if (event.error === 'no-speech') {{
+            statusText.innerText = "No speech detected. Click Start Speaking and try again.";
+          }}
+          stopListening();
+        }};
+
+        recognition.onend = function() {{
+          if (!isListening) {{
+            setListeningUI(false);
+          }}
+        }};
+
+        isListening = true;
+        setListeningUI(true);
+        recognition.start();
+      }} catch (err) {{
+        console.error('Failed to start speech recognition:', err);
+        stopListening();
+      }}
+    }}
+
+    function stopListening() {{
+      isListening = false;
+      if (recognition) {{
+        try {{ recognition.abort(); }} catch(e) {{}}
+        try {{ recognition.stop(); }} catch(e) {{}}
+        recognition = null;
+      }}
+      setListeningUI(false);
     }}
 
     toggleBtn.addEventListener('click', function(e) {{
       e.preventDefault();
-      if (isRecording) {{
-        if (recognition) recognition.stop();
+      if (isListening) {{
+        stopListening();
       }} else {{
-        setupRecognition();
-        try {{
-          recognition.start();
-        }} catch(err) {{
-          console.error('Recognition start error:', err);
-        }}
+        startListening();
       }}
     }});
 
     langSelect.addEventListener('change', function() {{
-      if (isRecording && recognition) {{
-        recognition.stop();
-        setupRecognition();
-        recognition.start();
+      if (isListening) {{
+        stopListening();
+        startListening();
       }}
     }});
 
@@ -831,24 +872,62 @@ def render_microphone_widget(form_id: str = "voice_tutor_mic", submit_label: Opt
       e.preventDefault();
       const queryText = textArea.value.trim();
       if (!queryText) {{
-        alert('Please speak or type your question before submitting!');
+        statusText.innerText = "Please speak or type a doubt before submitting.";
+        statusText.style.color = "#f87171";
         return;
       }}
+
+      // Immediately stop microphone and reset listening UI
+      stopListening();
+
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = "0.7";
+      statusText.innerText = "Submitting to AI Tutor...";
+      statusText.style.color = "#58c1c8";
+
+      // 1-Click Submission: navigate parent window without cross-origin read error
+      let submitted = false;
+
+      // Method A: Target top/parent via document.referrer
       try {{
-        const parentUrl = new URL(window.parent.location.href);
-        parentUrl.searchParams.set('voice_q', queryText);
-        window.parent.location.href = parentUrl.toString();
-      }} catch (err) {{
-        try {{
-          const topUrl = new URL(window.top.location.href);
-          topUrl.searchParams.set('voice_q', queryText);
-          window.top.location.href = topUrl.toString();
-        }} catch (e2) {{
-          if (navigator.clipboard && navigator.clipboard.writeText) {{
-            navigator.clipboard.writeText(queryText);
-            alert("Spoken text copied to clipboard! Please paste into the input below.");
-          }}
+        const ref = document.referrer;
+        if (ref && (ref.startsWith('http://') || ref.startsWith('https://'))) {{
+          const targetUrl = new URL(ref);
+          targetUrl.searchParams.set('voice_q', queryText);
+          targetUrl.hash = '';
+          window.parent.location.replace(targetUrl.toString());
+          submitted = true;
         }}
+      }} catch (err1) {{}}
+
+      // Method B: Target parent location href assignment directly
+      if (!submitted) {{
+        try {{
+          const targetUrl = new URL(window.location.href);
+          targetUrl.searchParams.set('voice_q', queryText);
+          targetUrl.hash = '';
+          window.parent.location.href = targetUrl.toString();
+          submitted = true;
+        }} catch (err2) {{}}
+      }}
+
+      // Method C: Submit hidden GET form with target="_parent"
+      if (!submitted) {{
+        try {{
+          const navForm = document.getElementById('voiceNavForm_{form_id}');
+          const navInput = document.getElementById('voiceNavInput_{form_id}');
+          if (navForm && navInput) {{
+            navInput.value = queryText;
+            if (document.referrer) navForm.action = document.referrer;
+            navForm.submit();
+            submitted = true;
+          }}
+        }} catch (err3) {{}}
+      }}
+
+      // Silent clipboard copy as background fallback (NO alert popup)
+      if (navigator.clipboard && navigator.clipboard.writeText) {{
+        navigator.clipboard.writeText(queryText);
       }}
     }});
   }})();
@@ -891,7 +970,7 @@ def render_voice_tutor_page(generate_response_fn, is_demo_mode: bool = False, st
                         </p>
                     </div>
                 </div>
-                <span class="research-card-tag research-tag-def" style="letter-spacing: 0.5px;">WISPR FLOW × SCALER</span>
+                <span class="research-card-tag research-tag-def" style="letter-spacing: 0.5px;">VOICE AI TUTOR</span>
             </div>
         </div>
     """), unsafe_allow_html=True)
@@ -921,7 +1000,10 @@ def render_voice_tutor_page(generate_response_fn, is_demo_mode: bool = False, st
 
     with tab_voice:
         # Render live browser speech-to-text dictation widget
-        render_microphone_widget(form_id="main_tutor_voice")
+        spoken_input = render_microphone_widget(form_id="main_tutor_voice", submit_label="Submit Voice Doubt ⚡")
+        if spoken_input:
+            st.session_state.voice_active_query = spoken_input
+            trigger_voice_query = True
 
         # Native Streamlit audio recorder fallback
         with st.expander("📁 Alternative: Record via Streamlit Audio Recorder", expanded=False):
