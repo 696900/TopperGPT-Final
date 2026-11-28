@@ -14,13 +14,16 @@ import os
 import re
 import io
 import html
+import json
 import base64
 from typing import Optional, Tuple, Dict, Any
 
 try:
     import streamlit as st
+    import streamlit.components.v1 as components
 except ImportError:
     st = None
+    components = None
 
 # Optional server-side TTS fallback using gTTS if installed
 try:
@@ -129,13 +132,13 @@ def clean_text_for_speech(text: str) -> str:
 
 
 # =============================================================================
-# 2. AUDIO PLAYBACK COMPONENT (WEB SPEECH SYNTHESIS + GTTS FALLBACK)
+# 2. AUDIO PLAYBACK COMPONENT (WEB SPEECH SYNTHESIS VIA COMPONENTS.HTML)
 # =============================================================================
 def render_voice_player(text_to_speak: str, auto_play: bool = False, key: str = "voice_player"):
     """
-    Renders a sleek, responsive dark-themed audio playback widget with:
-    1. Browser-native Web Speech Synthesis API (zero latency, zero API costs, full play/pause/stop/rate controls).
-    2. Server-side MP3 player fallback using gTTS if preferred or required.
+    Renders an audio playback widget using Streamlit components.v1.html so that
+    playback controls and JavaScript execute natively without markdown escaping.
+    Browser-native Web Speech Synthesis API (zero latency, zero API costs).
     """
     if not text_to_speak or not st:
         return
@@ -144,9 +147,9 @@ def render_voice_player(text_to_speak: str, auto_play: bool = False, key: str = 
     if not clean_speech:
         return
 
-    # Truncate extremely long responses for speech buffer safety (first 2500 chars ~ 2.5 mins of speech)
+    # Truncate extremely long responses for speech buffer safety (first 2800 chars ~ 3 mins of speech)
     speech_snippet = clean_speech[:2800]
-    json_safe_text = html.escape(speech_snippet).replace('"', '&quot;').replace("'", "&#39;")
+    speech_json = json.dumps(speech_snippet)
 
     # Unique DOM IDs
     btn_play_id = f"play_{key}"
@@ -154,369 +157,709 @@ def render_voice_player(text_to_speak: str, auto_play: bool = False, key: str = 
     rate_sel_id = f"rate_{key}"
     status_id = f"status_{key}"
 
-    player_html = f"""
-    <div style="background: linear-gradient(135deg, rgba(88, 193, 200, 0.08) 0%, rgba(17, 24, 39, 0.95) 100%);
-                border: 1.5px solid rgba(88, 193, 200, 0.35);
-                border-radius: 14px;
-                padding: 14px 18px;
-                margin: 14px 0;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);">
-        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 20px;">🔊</span>
-                <div>
-                    <span style="color: #58c1c8; font-weight: 700; font-size: 13.5px; letter-spacing: 0.3px;">SPOKEN ACADEMIC EXPLANATION</span>
-                    <span style="color: #94a3b8; font-size: 11px; margin-left: 6px;">(Wispr Voice Player)</span>
-                </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <label style="color: #94a3b8; font-size: 11px;">Speed:</label>
-                <select id="{rate_sel_id}" style="background: rgba(14, 17, 23, 0.9); color: #58c1c8; border: 1px solid rgba(88, 193, 200, 0.3); border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer;">
-                    <option value="0.9">0.9x Relaxed</option>
-                    <option value="1.0" selected>1.0x Normal</option>
-                    <option value="1.2">1.2x Exam Revision</option>
-                    <option value="1.4">1.4x Rapid Cram</option>
-                </select>
-            </div>
+    player_html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #e2e8f0;
+    padding: 2px;
+    overflow: hidden;
+  }}
+  .player-card {{
+    background: linear-gradient(135deg, rgba(88, 193, 200, 0.08) 0%, rgba(15, 23, 42, 0.98) 100%);
+    border: 1.5px solid rgba(88, 193, 200, 0.35);
+    border-radius: 12px;
+    padding: 11px 16px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  }}
+  .header-row {{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 9px;
+  }}
+  .title-group {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }}
+  .title-text {{
+    color: #58c1c8;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+  }}
+  .subtitle-text {{
+    color: #94a3b8;
+    font-size: 11px;
+    margin-left: 6px;
+  }}
+  .speed-select {{
+    background: rgba(14, 17, 23, 0.95);
+    color: #58c1c8;
+    border: 1px solid rgba(88, 193, 200, 0.35);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    outline: none;
+  }}
+  .ctrl-row {{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }}
+  .btn-play {{
+    background: #58c1c8;
+    color: #0b0f19;
+    border: none;
+    border-radius: 9999px;
+    padding: 6px 16px;
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+  }}
+  .btn-play:hover {{
+    background: #7dd3fc;
+    box-shadow: 0 0 12px rgba(88, 193, 200, 0.4);
+  }}
+  .btn-stop {{
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 9999px;
+    padding: 6px 14px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+  }}
+  .btn-stop:hover {{
+    background: rgba(239, 68, 68, 0.25);
+  }}
+  .status-label {{
+    color: #94a3b8;
+    font-size: 11.5px;
+    margin-left: 6px;
+  }}
+</style>
+</head>
+<body>
+  <div class="player-card">
+    <div class="header-row">
+      <div class="title-group">
+        <span style="font-size: 18px;">🔊</span>
+        <div>
+          <span class="title-text">SPOKEN ACADEMIC EXPLANATION</span>
+          <span class="subtitle-text">(Wispr Voice Player)</span>
         </div>
-
-        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <button id="{btn_play_id}" type="button" style="background: #58c1c8; color: #0b0f19; border: none; border-radius: 9999px; padding: 7px 18px; font-weight: 700; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
-                <span>▶</span>
-                <span id="{btn_play_id}_txt">Play Spoken Answer</span>
-            </button>
-            <button id="{btn_stop_id}" type="button" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 9999px; padding: 7px 14px; font-weight: 600; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                <span>⏹</span>
-                <span>Stop</span>
-            </button>
-            <span id="{status_id}" style="color: #94a3b8; font-size: 11.5px; margin-left: 6px;">Ready to listen</span>
-        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <label style="color: #94a3b8; font-size: 11px;">Speed:</label>
+        <select id="{rate_sel_id}" class="speed-select">
+          <option value="0.9">0.9x Relaxed</option>
+          <option value="1.0" selected>1.0x Normal</option>
+          <option value="1.2">1.2x Exam Revision</option>
+          <option value="1.4">1.4x Rapid Cram</option>
+        </select>
+      </div>
     </div>
+    <div class="ctrl-row">
+      <button id="{btn_play_id}" type="button" class="btn-play">
+        <span>▶</span>
+        <span id="{btn_play_id}_txt">Play Spoken Answer</span>
+      </button>
+      <button id="{btn_stop_id}" type="button" class="btn-stop">
+        <span>⏹</span>
+        <span>Stop</span>
+      </button>
+      <span id="{status_id}" class="status-label">Ready to listen</span>
+    </div>
+  </div>
 
-    <script>
-    (function() {{
-        const playBtn = document.getElementById('{btn_play_id}');
-        const stopBtn = document.getElementById('{btn_stop_id}');
-        const playTxt = document.getElementById('{btn_play_id}_txt');
-        const rateSel = document.getElementById('{rate_sel_id}');
-        const statusEl = document.getElementById('{status_id}');
-        const rawSpeech = "{json_safe_text}".replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  <script>
+  (function() {{
+    const playBtn = document.getElementById('{btn_play_id}');
+    const stopBtn = document.getElementById('{btn_stop_id}');
+    const playTxt = document.getElementById('{btn_play_id}_txt');
+    const rateSel = document.getElementById('{rate_sel_id}');
+    const statusEl = document.getElementById('{status_id}');
+    const rawSpeech = {speech_json};
 
-        let isSpeaking = false;
-        let isPaused = false;
-        let currentUtterance = null;
+    let isSpeaking = false;
+    let isPaused = false;
+    let currentUtterance = null;
 
-        if (!('speechSynthesis' in window)) {{
-            if (statusEl) statusEl.innerText = "Browser speech synthesis not supported. Audio reading unavailable.";
-            if (playBtn) playBtn.disabled = true;
-            return;
-        }}
+    if (!('speechSynthesis' in window)) {{
+      if (statusEl) statusEl.innerText = "Browser speech synthesis not supported in this environment.";
+      if (playBtn) playBtn.disabled = true;
+      return;
+    }}
 
-        function getBestVoice() {{
-            const voices = window.speechSynthesis.getVoices();
-            // Preference 1: Indian English voice
-            let v = voices.find(vox => vox.lang.includes('en-IN') || vox.name.includes('India'));
-            // Preference 2: Natural English voice
-            if (!v) v = voices.find(vox => vox.lang.startsWith('en') && (vox.name.includes('Natural') || vox.name.includes('Google') || vox.name.includes('Siri')));
-            // Preference 3: Any English
-            if (!v) v = voices.find(vox => vox.lang.startsWith('en'));
-            return v || voices[0];
-        }}
+    function getBestVoice() {{
+      const voices = window.speechSynthesis.getVoices();
+      let v = voices.find(vox => vox.lang && (vox.lang.includes('en-IN') || vox.name.includes('India')));
+      if (!v) v = voices.find(vox => vox.lang && vox.lang.startsWith('en') && (vox.name.includes('Natural') || vox.name.includes('Google') || vox.name.includes('Siri')));
+      if (!v) v = voices.find(vox => vox.lang && vox.lang.startsWith('en'));
+      return v || voices[0];
+    }}
 
-        playBtn.addEventListener('click', function(e) {{
-            e.preventDefault();
-            if (isSpeaking && !isPaused) {{
-                // Pause
-                window.speechSynthesis.pause();
-                isPaused = true;
-                playTxt.innerText = "Resume";
-                statusEl.innerText = "⏸ Paused";
-                statusEl.style.color = "#f59e0b";
-            }} else if (isSpeaking && isPaused) {{
-                // Resume
-                window.speechSynthesis.resume();
-                isPaused = false;
-                playTxt.innerText = "Pause";
-                statusEl.innerText = "🔊 Speaking...";
-                statusEl.style.color = "#58c1c8";
-            }} else {{
-                // Start fresh playback
-                window.speechSynthesis.cancel();
-                currentUtterance = new SpeechSynthesisUtterance(rawSpeech);
-                const rateVal = parseFloat(rateSel.value) || 1.0;
-                currentUtterance.rate = rateVal;
-                currentUtterance.pitch = 1.0;
-                const bestVox = getBestVoice();
-                if (bestVox) currentUtterance.voice = bestVox;
+    playBtn.addEventListener('click', function(e) {{
+      e.preventDefault();
+      if (isSpeaking && !isPaused) {{
+        window.speechSynthesis.pause();
+        isPaused = true;
+        playTxt.innerText = "Resume";
+        statusEl.innerText = "⏸ Paused";
+        statusEl.style.color = "#f59e0b";
+      }} else if (isSpeaking && isPaused) {{
+        window.speechSynthesis.resume();
+        isPaused = false;
+        playTxt.innerText = "Pause";
+        statusEl.innerText = "🔊 Speaking...";
+        statusEl.style.color = "#58c1c8";
+      }} else {{
+        window.speechSynthesis.cancel();
+        currentUtterance = new SpeechSynthesisUtterance(rawSpeech);
+        const rateVal = parseFloat(rateSel.value) || 1.0;
+        currentUtterance.rate = rateVal;
+        currentUtterance.pitch = 1.0;
+        const bestVox = getBestVoice();
+        if (bestVox) currentUtterance.voice = bestVox;
 
-                currentUtterance.onstart = function() {{
-                    isSpeaking = true;
-                    isPaused = false;
-                    playTxt.innerText = "Pause";
-                    statusEl.innerText = "🔊 Speaking solution...";
-                    statusEl.style.color = "#58c1c8";
-                }};
+        currentUtterance.onstart = function() {{
+          isSpeaking = true;
+          isPaused = false;
+          playTxt.innerText = "Pause";
+          statusEl.innerText = "🔊 Speaking solution...";
+          statusEl.style.color = "#58c1c8";
+        }};
 
-                currentUtterance.onend = function() {{
-                    isSpeaking = false;
-                    isPaused = false;
-                    playTxt.innerText = "Replay";
-                    statusEl.innerText = "✓ Finished reading";
-                    statusEl.style.color = "#22c55e";
-                }};
+        currentUtterance.onend = function() {{
+          isSpeaking = false;
+          isPaused = false;
+          playTxt.innerText = "Replay";
+          statusEl.innerText = "✓ Finished reading";
+          statusEl.style.color = "#22c55e";
+        }};
 
-                currentUtterance.onerror = function() {{
-                    isSpeaking = false;
-                    isPaused = false;
-                    playTxt.innerText = "Play Spoken Answer";
-                    statusEl.innerText = "Playback stopped";
-                    statusEl.style.color = "#94a3b8";
-                }};
+        currentUtterance.onerror = function() {{
+          isSpeaking = false;
+          isPaused = false;
+          playTxt.innerText = "Play Spoken Answer";
+          statusEl.innerText = "Playback stopped";
+          statusEl.style.color = "#94a3b8";
+        }};
 
-                window.speechSynthesis.speak(currentUtterance);
-            }}
-        }});
+        window.speechSynthesis.speak(currentUtterance);
+      }}
+    }});
 
-        stopBtn.addEventListener('click', function(e) {{
-            e.preventDefault();
-            window.speechSynthesis.cancel();
-            isSpeaking = false;
-            isPaused = false;
-            playTxt.innerText = "Play Spoken Answer";
-            statusEl.innerText = "Stopped";
-            statusEl.style.color = "#94a3b8";
-        }});
-    }})();
-    </script>
-    """
-    st.markdown(strip_html_indent(player_html), unsafe_allow_html=True)
+    stopBtn.addEventListener('click', function(e) {{
+      e.preventDefault();
+      window.speechSynthesis.cancel();
+      isSpeaking = false;
+      isPaused = false;
+      playTxt.innerText = "Play Spoken Answer";
+      statusEl.innerText = "Stopped";
+      statusEl.style.color = "#94a3b8";
+    }});
+  }})();
+  </script>
+</body>
+</html>"""
+
+    if components:
+        components.html(player_html, height=105, scrolling=False)
+    else:
+        st.markdown(strip_html_indent(player_html), unsafe_allow_html=True)
 
 
 # =============================================================================
 # 3. LIVE MICROPHONE INPUT INTERFACE (TRILINGUAL WEB SPEECH RECOGNITION)
 # =============================================================================
-def render_microphone_widget(form_id: str = "voice_tutor_mic") -> None:
+def render_microphone_widget(form_id: str = "voice_tutor_mic", submit_label: Optional[str] = None) -> None:
     """
-    Renders an interactive, responsive voice input interface inspired by Wispr Flow.
+    Renders an interactive, responsive voice input interface using Streamlit
+    components.v1.html to ensure speech recognition buttons and JavaScript
+    run natively without CommonMark escaping.
+
     Supports English (en-IN), Hindi (hi-IN), and Marathi (mr-IN).
     Displays real-time interim recognition, an editable confirmation text box,
-    and automatic synchronization into Streamlit state via clean URL parameters.
+    one-click copy to clipboard, and parent-window query param synchronization.
     """
-    mic_html = f"""
-    <div style="background: rgba(18, 22, 28, 0.95);
-                border: 1.5px solid rgba(88, 193, 200, 0.3);
-                border-radius: 14px;
-                padding: 18px 20px;
-                margin-bottom: 18px;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);">
+    if submit_label is None:
+        submit_label = "Submit Voice Answer ⚡" if "viva" in form_id.lower() else "Submit Voice Doubt ⚡"
 
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <div id="micIndicator_{form_id}" style="width: 12px; height: 12px; border-radius: 50%; background: #64748b; transition: all 0.3s ease;"></div>
-                <span style="color: #ffffff; font-weight: 700; font-size: 14px; letter-spacing: 0.3px;">WISPR VOICE DICTATION</span>
-                <span style="background: rgba(88, 193, 200, 0.15); color: #58c1c8; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">HACKATHON EDITION</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <label style="color: #94a3b8; font-size: 11.5px;">Recognition Language:</label>
-                <select id="voiceLang_{form_id}" style="background: rgba(11, 15, 25, 0.9); color: #58c1c8; border: 1px solid rgba(88, 193, 200, 0.35); border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
-                    <option value="en-IN" selected>🇬🇧 English (India)</option>
-                    <option value="hi-IN">🇮🇳 Hindi (हिंदी)</option>
-                    <option value="mr-IN">🚩 Marathi (मराठी)</option>
-                </select>
-            </div>
-        </div>
+    # Unique DOM IDs
+    btn_mic_id = f"toggleMicBtn_{form_id}"
+    mic_icon_id = f"micIcon_{form_id}"
+    mic_txt_id = f"micBtnText_{form_id}"
+    status_id = f"micStatusText_{form_id}"
+    indicator_id = f"micIndicator_{form_id}"
+    lang_id = f"voiceLang_{form_id}"
+    text_area_id = f"recognizedTextArea_{form_id}"
+    live_container_id = f"livePreviewContainer_{form_id}"
+    live_text_id = f"liveInterimText_{form_id}"
+    error_box_id = f"micErrorNotice_{form_id}"
+    error_msg_id = f"micErrorMsg_{form_id}"
+    clear_btn_id = f"clearSpokenBtn_{form_id}"
+    copy_btn_id = f"copySpokenBtn_{form_id}"
+    send_btn_id = f"sendVoiceQueryBtn_{form_id}"
 
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <button id="toggleMicBtn_{form_id}" type="button" style="background: #58c1c8; color: #0b0f19; border: none; border-radius: 9999px; padding: 10px 22px; font-weight: 700; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 0 16px rgba(88, 193, 200, 0.3); transition: all 0.2s ease;">
-                    <span id="micIcon_{form_id}" style="font-size: 16px;">🎙️</span>
-                    <span id="micBtnText_{form_id}">Start Speaking</span>
-                </button>
-                <span id="micStatusText_{form_id}" style="color: #94a3b8; font-size: 12.5px;">Click to speak your academic doubt or viva answer</span>
-            </div>
-
-            <!-- Real-Time Voice Transcription Preview -->
-            <div id="livePreviewContainer_{form_id}" style="display: none; background: rgba(88, 193, 200, 0.05); border: 1px dashed rgba(88, 193, 200, 0.4); border-radius: 8px; padding: 10px 14px; color: #58c1c8; font-size: 13px; font-style: italic;">
-                <span style="font-weight: 700;">Listening:</span> <span id="liveInterimText_{form_id}">...</span>
-            </div>
-
-            <!-- Editable Recognized Text (Student can verify and edit before sending) -->
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label style="color: #cbd5e1; font-size: 12px; font-weight: 600;">
-                    Recognized Text (Review & Edit before asking):
-                </label>
-                <textarea id="recognizedTextArea_{form_id}" rows="3" placeholder="Your spoken question will appear here in real time. You can tap here to edit formulas, variable names, or typos before asking..." style="width: 100%; box-sizing: border-box; background: rgba(11, 15, 25, 0.95); color: #ffffff; border: 1.5px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 10px 14px; font-size: 13.5px; line-height: 1.5; outline: none; transition: border-color 0.2s;"></textarea>
-            </div>
-
-            <!-- Troubleshooting Help Box (Hidden by default, shown on mic error) -->
-            <div id="micErrorNotice_{form_id}" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1.5px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 16px;">
-                <div style="display: flex; align-items: center; gap: 8px; color: #f87171; font-weight: 700; font-size: 13px; margin-bottom: 4px;">
-                    <span>⚠️ Microphone Permission Needed</span>
-                </div>
-                <p id="micErrorMsg_{form_id}" style="color: #cbd5e1; font-size: 12px; margin: 0; line-height: 1.4;">
-                    Microphone access was denied. Please click the lock/settings icon 🔒 next to the URL in your browser address bar, set Microphone to 'Allow', and try again. Alternatively, you can type your question in the text box below.
-                </p>
-            </div>
-
-            <!-- Action Row -->
-            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px;">
-                <button id="clearSpokenBtn_{form_id}" type="button" style="background: rgba(255, 255, 255, 0.05); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 6px 14px; font-size: 12px; cursor: pointer;">
-                    Clear Text
-                </button>
-                <button id="sendVoiceQueryBtn_{form_id}" type="button" style="background: linear-gradient(135deg, #58c1c8 0%, #00F2FE 100%); color: #0b0f19; border: none; border-radius: 8px; padding: 8px 20px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(0, 242, 254, 0.25);">
-                    <span>Consult Voice Tutor</span>
-                    <span>⚡</span>
-                </button>
-            </div>
-        </div>
+    mic_html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #e2e8f0;
+    padding: 2px;
+    overflow-y: auto;
+  }}
+  .mic-card {{
+    background: rgba(18, 22, 28, 0.95);
+    border: 1.5px solid rgba(88, 193, 200, 0.3);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  }}
+  .top-row {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }}
+  .title-area {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }}
+  .pulse-dot {{
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #64748b;
+    transition: all 0.3s ease;
+  }}
+  .brand-text {{
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 13.5px;
+    letter-spacing: 0.3px;
+  }}
+  .hackathon-badge {{
+    background: rgba(88, 193, 200, 0.15);
+    color: #58c1c8;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+  }}
+  .lang-group {{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }}
+  .lang-select {{
+    background: rgba(11, 15, 25, 0.95);
+    color: #58c1c8;
+    border: 1px solid rgba(88, 193, 200, 0.35);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+  }}
+  .mic-action-row {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }}
+  .btn-mic {{
+    background: #58c1c8;
+    color: #0b0f19;
+    border: none;
+    border-radius: 9999px;
+    padding: 8px 20px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 0 14px rgba(88, 193, 200, 0.3);
+    transition: all 0.2s ease;
+  }}
+  .btn-mic:hover {{
+    background: #7dd3fc;
+  }}
+  .mic-status {{
+    color: #94a3b8;
+    font-size: 12px;
+  }}
+  .live-box {{
+    display: none;
+    background: rgba(88, 193, 200, 0.06);
+    border: 1px dashed rgba(88, 193, 200, 0.4);
+    border-radius: 8px;
+    padding: 7px 12px;
+    color: #58c1c8;
+    font-size: 12.5px;
+    font-style: italic;
+    margin-bottom: 10px;
+  }}
+  .textarea-group {{
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+  }}
+  .textarea-label {{
+    color: #cbd5e1;
+    font-size: 11.5px;
+    font-weight: 600;
+  }}
+  .recognized-input {{
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(11, 15, 25, 0.95);
+    color: #ffffff;
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.45;
+    outline: none;
+    resize: vertical;
+    min-height: 62px;
+    font-family: inherit;
+  }}
+  .recognized-input:focus {{
+    border-color: #58c1c8;
+  }}
+  .error-box {{
+    display: none;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1.5px solid rgba(239, 68, 68, 0.35);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+  }}
+  .error-title {{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #f87171;
+    font-weight: 700;
+    font-size: 12px;
+    margin-bottom: 2px;
+  }}
+  .error-text {{
+    color: #cbd5e1;
+    font-size: 11px;
+    margin: 0;
+    line-height: 1.4;
+  }}
+  .action-bar {{
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }}
+  .btn-secondary {{
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }}
+  .btn-secondary:hover {{
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+  }}
+  .btn-submit {{
+    background: linear-gradient(135deg, #58c1c8 0%, #00F2FE 100%);
+    color: #0b0f19;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 18px;
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 14px rgba(0, 242, 254, 0.25);
+    transition: all 0.2s ease;
+  }}
+  .btn-submit:hover {{
+    box-shadow: 0 4px 18px rgba(0, 242, 254, 0.45);
+  }}
+</style>
+</head>
+<body>
+  <div class="mic-card">
+    <div class="top-row">
+      <div class="title-area">
+        <div id="{indicator_id}" class="pulse-dot"></div>
+        <span class="brand-text">WISPR VOICE DICTATION</span>
+        <span class="hackathon-badge">HACKATHON EDITION</span>
+      </div>
+      <div class="lang-group">
+        <label style="color: #94a3b8; font-size: 11px;">Language:</label>
+        <select id="{lang_id}" class="lang-select">
+          <option value="en-IN" selected>🇬🇧 English (India)</option>
+          <option value="hi-IN">🇮🇳 Hindi (हिंदी)</option>
+          <option value="mr-IN">🚩 Marathi (मराठी)</option>
+        </select>
+      </div>
     </div>
 
-    <script>
-    (function() {{
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const toggleBtn = document.getElementById('toggleMicBtn_{form_id}');
-        const micIcon = document.getElementById('micIcon_{form_id}');
-        const micBtnText = document.getElementById('micBtnText_{form_id}');
-        const statusText = document.getElementById('micStatusText_{form_id}');
-        const indicator = document.getElementById('micIndicator_{form_id}');
-        const langSelect = document.getElementById('voiceLang_{form_id}');
-        const textArea = document.getElementById('recognizedTextArea_{form_id}');
-        const liveContainer = document.getElementById('livePreviewContainer_{form_id}');
-        const liveText = document.getElementById('liveInterimText_{form_id}');
-        const errorBox = document.getElementById('micErrorNotice_{form_id}');
-        const errorMsg = document.getElementById('micErrorMsg_{form_id}');
-        const clearBtn = document.getElementById('clearSpokenBtn_{form_id}');
-        const sendBtn = document.getElementById('sendVoiceQueryBtn_{form_id}');
+    <div class="mic-action-row">
+      <button id="{btn_mic_id}" type="button" class="btn-mic">
+        <span id="{mic_icon_id}">🎙️</span>
+        <span id="{mic_txt_id}">Start Speaking</span>
+      </button>
+      <span id="{status_id}" class="mic-status">Click to speak your academic doubt or viva answer</span>
+    </div>
 
-        let recognition = null;
-        let isRecording = false;
+    <div id="{live_container_id}" class="live-box">
+      <span style="font-weight: 700;">Listening:</span> <span id="{live_text_id}">...</span>
+    </div>
 
-        if (!SpeechRecognition) {{
-            statusText.innerText = "Browser voice recognition not supported in this browser. Please use Google Chrome or type below.";
-            toggleBtn.disabled = true;
-            toggleBtn.style.opacity = "0.5";
-            return;
+    <div class="textarea-group">
+      <label class="textarea-label">Recognized Text (Review & Edit before asking):</label>
+      <textarea id="{text_area_id}" class="recognized-input" placeholder="Your spoken question will appear here in real time. You can edit before submitting..."></textarea>
+    </div>
+
+    <div id="{error_box_id}" class="error-box">
+      <div class="error-title">
+        <span>⚠️ Microphone Permission Needed</span>
+      </div>
+      <p id="{error_msg_id}" class="error-text">
+        Microphone access was denied. Please allow microphone permissions in your browser or copy/type your question into the box below.
+      </p>
+    </div>
+
+    <div class="action-bar">
+      <button id="{clear_btn_id}" type="button" class="btn-secondary">Clear</button>
+      <button id="{copy_btn_id}" type="button" class="btn-secondary">📋 Copy Text</button>
+      <button id="{send_btn_id}" type="button" class="btn-submit">
+        <span>{submit_label}</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+  (function() {{
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const toggleBtn = document.getElementById('{btn_mic_id}');
+    const micIcon = document.getElementById('{mic_icon_id}');
+    const micBtnText = document.getElementById('{mic_txt_id}');
+    const statusText = document.getElementById('{status_id}');
+    const indicator = document.getElementById('{indicator_id}');
+    const langSelect = document.getElementById('{lang_id}');
+    const textArea = document.getElementById('{text_area_id}');
+    const liveContainer = document.getElementById('{live_container_id}');
+    const liveText = document.getElementById('{live_text_id}');
+    const errorBox = document.getElementById('{error_box_id}');
+    const errorMsg = document.getElementById('{error_msg_id}');
+    const clearBtn = document.getElementById('{clear_btn_id}');
+    const copyBtn = document.getElementById('{copy_btn_id}');
+    const sendBtn = document.getElementById('{send_btn_id}');
+
+    let recognition = null;
+    let isRecording = false;
+
+    if (!SpeechRecognition) {{
+      statusText.innerText = "Browser voice recognition not supported in this browser. Please use Google Chrome or type below.";
+      toggleBtn.disabled = true;
+      toggleBtn.style.opacity = "0.5";
+      return;
+    }}
+
+    function setupRecognition() {{
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = langSelect.value || 'en-IN';
+
+      recognition.onstart = function() {{
+        isRecording = true;
+        toggleBtn.style.background = "#ef4444";
+        micIcon.innerText = "🔴";
+        micBtnText.innerText = "Stop Listening";
+        statusText.innerText = "Listening live... Speak clearly";
+        statusText.style.color = "#f87171";
+        indicator.style.background = "#ef4444";
+        indicator.style.boxShadow = "0 0 10px #ef4444";
+        liveContainer.style.display = "block";
+        errorBox.style.display = "none";
+      }};
+
+      recognition.onresult = function(event) {{
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {{
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {{
+            finalTranscript += transcript + ' ';
+          }} else {{
+            interimTranscript += transcript;
+          }}
         }}
 
-        function setupRecognition() {{
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = langSelect.value || 'en-IN';
-
-            recognition.onstart = function() {{
-                isRecording = true;
-                toggleBtn.style.background = "#ef4444";
-                micIcon.innerText = "🔴";
-                micBtnText.innerText = "Stop Listening";
-                statusText.innerText = "Listening live... Speak your academic doubt clearly";
-                statusText.style.color = "#f87171";
-                indicator.style.background = "#ef4444";
-                indicator.style.boxShadow = "0 0 10px #ef4444";
-                liveContainer.style.display = "block";
-                errorBox.style.display = "none";
-            }};
-
-            recognition.onresult = function(event) {{
-                let interimTranscript = '';
-                let finalTranscript = '';
-
-                for (let i = event.resultIndex; i < event.results.length; ++i) {{
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {{
-                        finalTranscript += transcript + ' ';
-                    }} else {{
-                        interimTranscript += transcript;
-                    }}
-                }}
-
-                if (interimTranscript) {{
-                    liveText.innerText = interimTranscript;
-                }}
-
-                if (finalTranscript) {{
-                    const currentVal = textArea.value ? textArea.value.trim() + ' ' : '';
-                    textArea.value = currentVal + finalTranscript.trim();
-                    liveText.innerText = '...';
-                }}
-            }};
-
-            recognition.onerror = function(event) {{
-                console.warn('SpeechRecognition error:', event.error);
-                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {{
-                    errorBox.style.display = "block";
-                    errorMsg.innerText = "Microphone permission is blocked. Please click the lock icon 🔒 next to the browser URL, allow 'Microphone', and try again.";
-                }} else if (event.error === 'no-speech') {{
-                    statusText.innerText = "No speech detected. Click Start Speaking and try again.";
-                }} else if (event.error === 'network') {{
-                    errorBox.style.display = "block";
-                    errorMsg.innerText = "Network timeout during speech recognition. You can type your question in the text box below.";
-                }}
-                stopRecording();
-            }};
-
-            recognition.onend = function() {{
-                stopRecording();
-            }};
+        if (interimTranscript) {{
+          liveText.innerText = interimTranscript;
         }}
 
-        function stopRecording() {{
-            isRecording = false;
-            toggleBtn.style.background = "#58c1c8";
-            micIcon.innerText = "🎙️";
-            micBtnText.innerText = "Start Speaking";
-            statusText.innerText = "Recording paused. Tap 'Start Speaking' to add more or send your question.";
-            statusText.style.color = "#94a3b8";
-            indicator.style.background = "#64748b";
-            indicator.style.boxShadow = "none";
-            liveContainer.style.display = "none";
+        if (finalTranscript) {{
+          const currentVal = textArea.value ? textArea.value.trim() + ' ' : '';
+          textArea.value = currentVal + finalTranscript.trim();
+          liveText.innerText = '...';
         }}
+      }};
 
-        toggleBtn.addEventListener('click', function(e) {{
-            e.preventDefault();
-            if (isRecording) {{
-                if (recognition) recognition.stop();
-            }} else {{
-                setupRecognition();
-                try {{
-                    recognition.start();
-                }} catch(err) {{
-                    console.error('Recognition start error:', err);
-                }}
-            }}
-        }});
+      recognition.onerror = function(event) {{
+        console.warn('SpeechRecognition error:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {{
+          errorBox.style.display = "block";
+          errorMsg.innerText = "Microphone access blocked. Click lock icon in browser URL bar to allow.";
+        }} else if (event.error === 'no-speech') {{
+          statusText.innerText = "No speech detected. Click Start Speaking and try again.";
+        }}
+        stopRecording();
+      }};
 
-        langSelect.addEventListener('change', function() {{
-            if (isRecording && recognition) {{
-                recognition.stop();
-                setupRecognition();
-                recognition.start();
-            }}
-        }});
+      recognition.onend = function() {{
+        stopRecording();
+      }};
+    }}
 
-        clearBtn.addEventListener('click', function(e) {{
-            e.preventDefault();
-            textArea.value = '';
-            liveText.innerText = '...';
-        }});
+    function stopRecording() {{
+      isRecording = false;
+      toggleBtn.style.background = "#58c1c8";
+      micIcon.innerText = "🎙️";
+      micBtnText.innerText = "Start Speaking";
+      statusText.innerText = "Recording paused. Tap 'Start Speaking' to add more.";
+      statusText.style.color = "#94a3b8";
+      indicator.style.background = "#64748b";
+      indicator.style.boxShadow = "none";
+      liveContainer.style.display = "none";
+    }}
 
-        // Send query to Streamlit by updating query param or finding Streamlit input
-        sendBtn.addEventListener('click', function(e) {{
-            e.preventDefault();
-            const queryText = textArea.value.trim();
-            if (!queryText) {{
-                alert('Please speak or type a doubt before submitting!');
-                return;
-            }}
-            // Navigate with query param to trigger Streamlit rerun cleanly
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('voice_q', queryText);
-            window.location.href = currentUrl.toString();
+    toggleBtn.addEventListener('click', function(e) {{
+      e.preventDefault();
+      if (isRecording) {{
+        if (recognition) recognition.stop();
+      }} else {{
+        setupRecognition();
+        try {{
+          recognition.start();
+        }} catch(err) {{
+          console.error('Recognition start error:', err);
+        }}
+      }}
+    }});
+
+    langSelect.addEventListener('change', function() {{
+      if (isRecording && recognition) {{
+        recognition.stop();
+        setupRecognition();
+        recognition.start();
+      }}
+    }});
+
+    clearBtn.addEventListener('click', function(e) {{
+      e.preventDefault();
+      textArea.value = '';
+      liveText.innerText = '...';
+    }});
+
+    copyBtn.addEventListener('click', function(e) {{
+      e.preventDefault();
+      const val = textArea.value.trim();
+      if (!val) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {{
+        navigator.clipboard.writeText(val).then(function() {{
+          copyBtn.innerText = "✓ Copied!";
+          setTimeout(function() {{ copyBtn.innerText = "📋 Copy Text"; }}, 2000);
+        }}).catch(function() {{
+          textArea.select();
+          document.execCommand('copy');
+          copyBtn.innerText = "✓ Copied!";
+          setTimeout(function() {{ copyBtn.innerText = "📋 Copy Text"; }}, 2000);
         }});
-    }})();
-    </script>
-    """
-    st.markdown(strip_html_indent(mic_html), unsafe_allow_html=True)
+      }} else {{
+        textArea.select();
+        document.execCommand('copy');
+        copyBtn.innerText = "✓ Copied!";
+        setTimeout(function() {{ copyBtn.innerText = "📋 Copy Text"; }}, 2000);
+      }}
+    }});
+
+    sendBtn.addEventListener('click', function(e) {{
+      e.preventDefault();
+      const queryText = textArea.value.trim();
+      if (!queryText) {{
+        alert('Please speak or type your question before submitting!');
+        return;
+      }}
+      try {{
+        const parentUrl = new URL(window.parent.location.href);
+        parentUrl.searchParams.set('voice_q', queryText);
+        window.parent.location.href = parentUrl.toString();
+      }} catch (err) {{
+        try {{
+          const topUrl = new URL(window.top.location.href);
+          topUrl.searchParams.set('voice_q', queryText);
+          window.top.location.href = topUrl.toString();
+        }} catch (e2) {{
+          if (navigator.clipboard && navigator.clipboard.writeText) {{
+            navigator.clipboard.writeText(queryText);
+            alert("Spoken text copied to clipboard! Please paste into the input below.");
+          }}
+        }}
+      }}
+    }});
+  }})();
+  </script>
+</body>
+</html>"""
+
+    if components:
+        components.html(mic_html, height=310, scrolling=False)
+    else:
+        st.markdown(strip_html_indent(mic_html), unsafe_allow_html=True)
 
 
 # =============================================================================
