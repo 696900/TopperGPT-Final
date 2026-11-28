@@ -51,8 +51,10 @@ class MockComponents:
         self.html_calls.append({"html": html_str, "height": height, "scrolling": scrolling})
 
 orig_comp = voice_tutor.components
+orig_fn = voice_tutor._voice_component_fn
 mock_comp = MockComponents()
 voice_tutor.components = mock_comp
+voice_tutor._voice_component_fn = None
 
 voice_tutor.render_voice_player("Test speech for Laser operation with $\\lambda$ wavelength", key="test_audio")
 assert len(mock_comp.html_calls) == 1, "render_voice_player failed to call components.html"
@@ -61,11 +63,12 @@ assert "SpeechSynthesisUtterance" in mock_comp.html_calls[0]["html"]
 
 voice_tutor.render_microphone_widget(form_id="test_mic", submit_label="Submit Voice Doubt ⚡")
 assert len(mock_comp.html_calls) == 2, "render_microphone_widget failed to call components.html"
-assert "WISPR VOICE DICTATION" in mock_comp.html_calls[1]["html"]
+assert "AI VOICE INPUT" in mock_comp.html_calls[1]["html"]
 assert "SpeechRecognition" in mock_comp.html_calls[1]["html"]
 assert "copySpokenBtn_test_mic" in mock_comp.html_calls[1]["html"]
 
 voice_tutor.components = orig_comp
+voice_tutor._voice_component_fn = orig_fn
 print("Voice Widgets (components.html): PASS")
 
 print("\n>>> ALL STAGE 1, 2, AND 3 TESTS PASSED PERFECTLY! <<<")

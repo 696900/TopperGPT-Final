@@ -322,7 +322,10 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
 
     with viva_tab_voice:
         st.markdown("<p style='font-size: 12px; color: #94a3b8;'>Click Start Speaking below. Explain your answer as you would in front of an external examiner:</p>", unsafe_allow_html=True)
-        render_microphone_widget(form_id=f"viva_mic_{q_num}", submit_label="Submit Voice Answer ⚡")
+        spoken_ans = render_microphone_widget(form_id=f"viva_mic_{q_num}", submit_label="Submit Voice Answer ⚡")
+        if spoken_ans:
+            student_final_answer = spoken_ans
+            ans_submitted = True
 
         # Check URL query param from JS speech recognition
         url_voice_q = st.query_params.get("voice_q", "").strip()
