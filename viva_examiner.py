@@ -315,37 +315,28 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
     # -------------------------------------------------------------------------
     # STUDENT ANSWER INPUT (VOICE OR TYPED)
     # -------------------------------------------------------------------------
-    viva_tab_voice, viva_tab_type = st.tabs(["🎙️ Speak Your Answer (Mic)", "⌨️ Type Your Answer (Manual)"])
-
     ans_submitted = False
     student_final_answer = ""
 
-    with viva_tab_voice:
-        st.markdown("<p style='font-size: 12px; color: #94a3b8;'>Click Start Speaking below. Explain your answer as you would in front of an external examiner:</p>", unsafe_allow_html=True)
-        spoken_ans = render_microphone_widget(form_id=f"viva_mic_{q_num}", submit_label="Submit Voice Answer ⚡")
-        if spoken_ans:
-            student_final_answer = spoken_ans
-            ans_submitted = True
+    st.markdown("<p style='font-size: 12px; color: #94a3b8; margin-bottom: 6px;'>Speak your answer below or type directly. Explain as you would in front of an external examiner:</p>", unsafe_allow_html=True)
+    spoken_ans = render_microphone_widget(
+        form_id=f"viva_mic_{q_num}",
+        submit_label="Submit Answer to Examiner ⚡",
+        textarea_label="Your Spoken Answer (Edit if needed before submitting):",
+        placeholder="State the core principle, governing formula, key conditions, and conclusion...",
+        status_submitting="Evaluating your viva answer...",
+        status_idle="Click to speak or type directly below"
+    )
+    if spoken_ans:
+        student_final_answer = spoken_ans
+        ans_submitted = True
 
-        # Check URL query param from JS speech recognition
-        url_voice_q = st.query_params.get("voice_q", "").strip()
-        if url_voice_q:
-            student_final_answer = url_voice_q
-            st.query_params.pop("voice_q", None)
-            ans_submitted = True
-
-    with viva_tab_type:
-        with st.form(f"viva_manual_form_{q_num}"):
-            manual_ans = st.text_area(
-                "Your Technical Answer:",
-                placeholder="State the core principle, governing formula, key conditions, and conclusion...",
-                height=110,
-                key=f"viva_manual_text_{q_num}"
-            ).strip()
-            submit_viva_btn = st.form_submit_button("Submit Answer to Examiner ⚡", use_container_width=True)
-            if submit_viva_btn and manual_ans:
-                student_final_answer = manual_ans
-                ans_submitted = True
+    # Check URL query param from JS speech recognition
+    url_voice_q = st.query_params.get("voice_q", "").strip()
+    if url_voice_q:
+        student_final_answer = url_voice_q
+        st.query_params.pop("voice_q", None)
+        ans_submitted = True
 
     # -------------------------------------------------------------------------
     # EVALUATION PROCESSING
@@ -381,22 +372,22 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
         score_color = "#22c55e" if score >= 4 else ("#eab308" if score >= 3 else "#ef4444")
 
         st.markdown(strip_html_indent(f"""
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                <h3 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 800;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                <h3 style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 800;">
                     📊 Viva Assessment Result
                 </h3>
                 {badge_html}
             </div>
 
-            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; margin-bottom: 16px;">
-                <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 14px;">
-                    <div style="background: rgba(0, 0, 0, 0.3); border: 2px solid {score_color}; border-radius: 12px; width: 85px; height: 85px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                        <span style="font-size: 28px; font-weight: 900; color: {score_color}; line-height: 1;">{score}</span>
-                        <span style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">OUT OF 5</span>
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 14px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div style="background: rgba(0, 0, 0, 0.3); border: 2px solid {score_color}; border-radius: 10px; width: 68px; height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <span style="font-size: 24px; font-weight: 900; color: {score_color}; line-height: 1;">{score}</span>
+                        <span style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">OUT OF 5</span>
                     </div>
                     <div style="flex: 1;">
-                        <div style="color: #94a3b8; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 3px;">Examiner Verdict</div>
-                        <div style="color: #ffffff; font-size: 15px; font-weight: 600; line-height: 1.4;">
+                        <div style="color: #94a3b8; font-size: 10.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Examiner Verdict</div>
+                        <div style="color: #ffffff; font-size: 14px; font-weight: 600; line-height: 1.4;">
                             {eval_data.get('feedback', '')}
                         </div>
                     </div>
@@ -404,28 +395,51 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
             </div>
         """), unsafe_allow_html=True)
 
-        # Keyword Analysis Chips
+        # Keyword Analysis Chips (Side-by-side)
         matched_kw = eval_data.get("matched_keywords", [])
         missing_kw = eval_data.get("missing_keywords", [])
 
         col_kw1, col_kw2 = st.columns(2)
         with col_kw1:
-            st.markdown("<p style='font-size: 12px; font-weight: 700; color: #22c55e;'>✅ KEYWORDS IDENTIFIED IN YOUR ANSWER:</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size: 11.5px; font-weight: 700; color: #22c55e; margin-bottom: 4px;'>✅ KEYWORDS IDENTIFIED IN YOUR ANSWER:</p>", unsafe_allow_html=True)
             if matched_kw:
-                chips_m = "".join([f'<span style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.35); color: #86efac; padding: 3px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 600; display: inline-block; margin: 2px 4px 2px 0;">{html.escape(k)}</span>' for k in matched_kw])
+                chips_m = "".join([f'<span style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.35); color: #86efac; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 600; display: inline-block; margin: 2px 4px 2px 0;">{html.escape(k)}</span>' for k in matched_kw])
                 st.markdown(chips_m, unsafe_allow_html=True)
             else:
                 st.caption("None of the essential syllabus keywords were articulated.")
 
         with col_kw2:
-            st.markdown("<p style='font-size: 12px; font-weight: 700; color: #ef4444;'>⚠️ MISSING CONCEPTS (DEDUCTION RISK):</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size: 11.5px; font-weight: 700; color: #ef4444; margin-bottom: 4px;'>⚠️ MISSING CONCEPTS (DEDUCTION RISK):</p>", unsafe_allow_html=True)
             if missing_kw:
-                chips_miss = "".join([f'<span style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; padding: 3px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 600; display: inline-block; margin: 2px 4px 2px 0;">{html.escape(k)}</span>' for k in missing_kw])
+                chips_miss = "".join([f'<span style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 600; display: inline-block; margin: 2px 4px 2px 0;">{html.escape(k)}</span>' for k in missing_kw])
                 st.markdown(chips_miss, unsafe_allow_html=True)
             else:
                 st.caption("None! All critical syllabus keywords were covered.")
 
-        st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+        # Side-by-Side Examiner Trap Alert & Cross-Question Follow-up
+        trap_text = eval_data.get("examiner_trap", "")
+        follow_up = eval_data.get("follow_up", "")
+        if trap_text or follow_up:
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+            col_trap, col_follow = st.columns(2)
+            with col_trap:
+                if trap_text:
+                    st.markdown(strip_html_indent(f"""
+                        <div style="background: rgba(234, 179, 8, 0.08); border-left: 3px solid #eab308; padding: 10px 14px; border-radius: 6px; height: 100%;">
+                            <div style="color: #fef08a; font-size: 11px; font-weight: 800; text-transform: uppercase;">⚠️ Examiner Cross-Trap Alert:</div>
+                            <div style="color: #ffffff; font-size: 13px; margin-top: 3px; line-height: 1.4;">{trap_text}</div>
+                        </div>
+                    """), unsafe_allow_html=True)
+            with col_follow:
+                if follow_up:
+                    st.markdown(strip_html_indent(f"""
+                        <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 10px 14px; border-radius: 6px; height: 100%;">
+                            <div style="color: #7dd3fc; font-size: 11px; font-weight: 800; text-transform: uppercase;">🎯 Cross-Question Follow-up:</div>
+                            <div style="color: #ffffff; font-size: 13px; font-weight: 600; margin-top: 3px; line-height: 1.4;">"{follow_up}"</div>
+                        </div>
+                    """), unsafe_allow_html=True)
+
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 
         # Topper's Model Answer & Spoken Feedback Player
         with st.expander("📖 View Topper's 5-Mark Model Viva Answer", expanded=True):
@@ -433,26 +447,6 @@ def render_viva_examiner_page(generate_response_fn, is_demo_mode: bool = False, 
             st.markdown(model_ans)
             st.markdown("<p style='font-size: 11.5px; color: #64748b; margin-top: 6px;'>🔊 Spoken audio of model answer:</p>", unsafe_allow_html=True)
             render_voice_player(model_ans, key=f"viva_model_speech_{q_num}")
-
-        # Examiner Trap Alert
-        trap_text = eval_data.get("examiner_trap", "")
-        if trap_text:
-            st.markdown(strip_html_indent(f"""
-                <div style="background: rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308; padding: 12px 16px; border-radius: 6px; margin: 12px 0;">
-                    <div style="color: #fef08a; font-size: 12px; font-weight: 800; text-transform: uppercase;">⚠️ Examiner Cross-Trap Alert:</div>
-                    <div style="color: #ffffff; font-size: 13.5px; margin-top: 4px;">{trap_text}</div>
-                </div>
-            """), unsafe_allow_html=True)
-
-        # Follow-up Cross Question
-        follow_up = eval_data.get("follow_up", "")
-        if follow_up:
-            st.markdown(strip_html_indent(f"""
-                <div style="background: rgba(56, 189, 248, 0.08); border-left: 4px solid #38bdf8; padding: 12px 16px; border-radius: 6px; margin: 12px 0;">
-                    <div style="color: #7dd3fc; font-size: 12px; font-weight: 800; text-transform: uppercase;">🎯 Cross-Question Follow-up:</div>
-                    <div style="color: #ffffff; font-size: 14px; font-weight: 600; margin-top: 4px;">"{follow_up}"</div>
-                </div>
-            """), unsafe_allow_html=True)
 
     # -------------------------------------------------------------------------
     # NAVIGATION BUTTONS: NEXT QUESTION / RANDOM QUESTION
