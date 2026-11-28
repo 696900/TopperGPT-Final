@@ -24,8 +24,8 @@ DEMO_TOPIC_ANSWERS: Dict[str, Dict[str, str]] = {
 Newton's rings are circular interference fringes formed by the division of amplitude of light reflected from the upper and lower surfaces of a thin wedge-shaped air film enclosed between a plano-convex lens of large radius of curvature ($R$) and an optical flat glass plate.
 
 At the point of contact, the path difference between reflected rays is:
-$$\\Delta = 2\\mu t \\cos(r + \\theta) + \\frac{\\lambda}{2}$$
-Since thickness $t = 0$ at the center, path difference equals $\\frac{\\lambda}{2}$, resulting in destructive interference (a central dark spot).
+$$\Delta = 2\mu t \cos(r + \theta) + \frac{\lambda}{2}$$
+Since thickness $t = 0$ at the center, path difference equals $\frac{\lambda}{2}$, resulting in destructive interference (a central dark spot).
 
 ---
 
@@ -48,7 +48,7 @@ $$\mu = \frac{(D_{n+p}^2 - D_n^2)_{\text{air}}}{(D_{n+p}'^2 - D_n'^2)_{\text{liq
 ---
 
 ### 3. ⚠️ Examiner Trap Alert (Common Pitfalls)
-- **Trap 1:** Forgetting the $\\frac{\\lambda}{2}$ phase change upon reflection at a denser medium (Stokes' principle). If omitted, the central ring would incorrectly be derived as bright instead of dark!
+- **Trap 1:** Forgetting the $\frac{\lambda}{2}$ phase change upon reflection at a denser medium (Stokes' principle). If omitted, the central ring would incorrectly be derived as bright instead of dark!
 - **Trap 2:** Always square the ring diameters ($D^2$), never use the radius directly unless the formula constant is altered from 4 to 1.
 """
     },
@@ -57,34 +57,34 @@ $$\mu = \frac{(D_{n+p}^2 - D_n^2)_{\text{air}}}{(D_{n+p}'^2 - D_n'^2)_{\text{liq
         "title": "Voltage Divider Biasing & Stability Factor Analysis for BJT",
         "subject": "Basic Electrical & Electronics",
         "answer": r"""### 1. 📌 University Definition & Core Principle (2-Mark Standard)
-Voltage Divider Biasing (also termed Self-Bias or Potential Divider Bias) is the most widely adopted biasing method for a Bipolar Junction Transistor (BJT) in common-emitter configuration. It establishes an operating point ($Q$-point: $I_C, V_{CE}$) that is virtually independent of transistor parameters like $\\beta$ and reverse saturation current $I_{CO}$.
+Voltage Divider Biasing (also termed Self-Bias or Potential Divider Bias) is the most widely adopted biasing method for a Bipolar Junction Transistor (BJT) in common-emitter configuration. It establishes an operating point ($Q$-point: $I_C, V_{CE}$) that is virtually independent of transistor parameters like $\beta$ and reverse saturation current $I_{CO}$.
 
 ---
 
 ### 2. ⚡ Step-by-Step Technical Execution & Derivation
 1. **Thevenin's Equivalent Circuit across Base-Emitter:**
-   $$V_{Th} = V_{CC} \\cdot \\frac{R_2}{R_1 + R_2}$$
-   $$R_{Th} = R_1 \\parallel R_2 = \\frac{R_1 R_2}{R_1 + R_2}$$
+   $$V_{Th} = V_{CC} \cdot \frac{R_2}{R_1 + R_2}$$
+   $$R_{Th} = R_1 \parallel R_2 = \frac{R_1 R_2}{R_1 + R_2}$$
 
 2. **Base-Emitter Loop KVL:**
    $$V_{Th} = I_B R_{Th} + V_{BE} + I_E R_E$$
-   Since $I_E \\approx I_C$ and $I_B = \\frac{I_C}{\\beta}$:
-   $$V_{Th} = \\frac{I_C}{\\beta} R_{Th} + V_{BE} + I_C R_E = I_C \\left( \\frac{R_{Th}}{\\beta} + R_E \\right) + V_{BE}$$
-   $$I_C = \\frac{V_{Th} - V_{BE}}{R_E + \\frac{R_{Th}}{\\beta}}$$
+   Since $I_E \approx I_C$ and $I_B = \frac{I_C}{\beta}$:
+   $$V_{Th} = \frac{I_C}{\beta} R_{Th} + V_{BE} + I_C R_E = I_C \left( \frac{R_{Th}}{\beta} + R_E \right) + V_{BE}$$
+   $$I_C = \frac{V_{Th} - V_{BE}}{R_E + \frac{R_{Th}}{\beta}}$$
 
 3. **Condition for Universal Stability:**
-   If we design the circuit such that $\\frac{R_{Th}}{\\beta} \\ll R_E$, then:
-   $$I_C \\approx \\frac{V_{Th} - V_{BE}}{R_E}$$
-   Here, $I_C$ is completely independent of $\\beta$.
+   If we design the circuit such that $\frac{R_{Th}}{\beta} \ll R_E$, then:
+   $$I_C \approx \frac{V_{Th} - V_{BE}}{R_E}$$
+   Here, $I_C$ is completely independent of $\beta$.
 
 4. **Stability Factor $S$:**
-   $$S = \\frac{1 + \\beta}{1 + \\beta \\left( \\frac{R_E}{R_E + R_{Th}} \\right)}$$
-   As $R_{Th} \\to 0$, $S \\to 1$ (the theoretical ideal stability minimum).
+   $$S = \frac{1 + \beta}{1 + \beta \left( \frac{R_E}{R_E + R_{Th}} \right)}$$
+   As $R_{Th} \to 0$, $S \to 1$ (the theoretical ideal stability minimum).
 
 ---
 
 ### 3. ⚠️ Examiner Trap Alert (Common Pitfalls)
-- **Trap 1:** Assuming $I_E = I_C$ without specifying that $\\beta$ is sufficiently large ($> 50$).
+- **Trap 1:** Assuming $I_E = I_C$ without specifying that $\beta$ is sufficiently large ($> 50$).
 - **Trap 2:** Overlooking the emitter bypass capacitor ($C_E$). In AC analysis, $C_E$ shorts $R_E$ to preserve voltage gain $A_v$.
 """
     },
@@ -92,9 +92,9 @@ Voltage Divider Biasing (also termed Self-Bias or Potential Divider Bias) is the
     "avl": {
         "title": "AVL Tree Rotations: Left-Right (LR) & Right-Left (RL) Imbalances",
         "subject": "Data Structures",
-        "answer": """### 1. 📌 University Definition & Core Principle (2-Mark Standard)
+        "answer": r"""### 1. 📌 University Definition & Core Principle (2-Mark Standard)
 An **AVL Tree** is a height-balanced binary search tree (BST) where the balance factor $BF$ of every node must strictly satisfy:
-$$BF = \\text{height}(\\text{left subtree}) - \\text{height}(\\text{right subtree}) \\in \\{-1, 0, +1\\}$$
+$$BF = \text{height}(\text{left subtree}) - \text{height}(\text{right subtree}) \in \\{-1, 0, +1\\}$$
 When an insertion violates this property ($|BF| > 1$), tree rotations restore balance in $O(1)$ time while maintaining BST invariants.
 
 ---
@@ -105,7 +105,7 @@ When an insertion violates this property ($|BF| > 1$), tree rotations restore ba
    - **Remedy:** A double rotation:
      1. Perform a **Left Rotation** on left child $B$.
      2. Perform a **Right Rotation** on root $A$.
-   - **Time Complexity:** $O(1)$ pointer adjustments; overall insertion remains $O(\\log N)$.
+   - **Time Complexity:** $O(1)$ pointer adjustments; overall insertion remains $O(\log N)$.
 
 2. **Right-Left (RL) Imbalance:**
    - **Cause:** Insertion into the *left* subtree of the *right* child of node $A$ ($BF(A) = -2$, $BF(C) = +1$).
@@ -125,21 +125,21 @@ When an insertion violates this property ($|BF| > 1$), tree rotations restore ba
         "title": "He-Ne Gas Laser: Construction, Energy Level Diagram & Working",
         "subject": "Applied Physics",
         "answer": r"""### 1. 📌 University Definition & Core Principle (2-Mark Standard)
-The Helium-Neon (He-Ne) gas laser is a continuous four-level gas laser producing a coherent, highly monochromatic red beam at wavelength $\\lambda = 632.8\\text{ nm}$. The active medium is a mixture of Helium and Neon gases in a ratio of approximately $10:1$ at a pressure of $\\approx 1\\text{ mm of Hg}$.
+The Helium-Neon (He-Ne) gas laser is a continuous four-level gas laser producing a coherent, highly monochromatic red beam at wavelength $\lambda = 632.8\text{ nm}$. The active medium is a mixture of Helium and Neon gases in a ratio of approximately $10:1$ at a pressure of $\approx 1\text{ mm of Hg}$.
 
 ---
 
 ### 2. ⚡ Step-by-Step Technical Execution & Derivation
 1. **Pumping Mechanism (Electric Discharge & Resonant Energy Transfer):**
    - High voltage DC discharge excites Helium atoms by electron impact:
-     $$e^- + \\text{He} \\to \\text{He}^* + e^-$$
-   - Helium atoms populate metastable levels ($2^1S_0$ at $20.61\\text{ eV}$ and $2^3S_1$ at $19.81\\text{ eV}$).
-   - These levels coincide closely with the $3s$ and $2s$ levels of Neon ($20.66\\text{ eV}$ and $19.78\\text{ eV}$).
+     $$e^- + \text{He} \to \text{He}^* + e^-$$
+   - Helium atoms populate metastable levels ($2^1S_0$ at $20.61\text{ eV}$ and $2^3S_1$ at $19.81\text{ eV}$).
+   - These levels coincide closely with the $3s$ and $2s$ levels of Neon ($20.66\text{ eV}$ and $19.78\text{ eV}$).
    - Collision of the first kind transfers energy from He to Ne:
-     $$\\text{He}^* + \\text{Ne} \\to \\text{He} + \\text{Ne}^*$$
+     $$\text{He}^* + \text{Ne} \to \text{He} + \text{Ne}^*$$
 
 2. **Lasing Transitions in Neon:**
-   - **Principal Red Transition:** $3s_2 \\to 2p_4$ produces light of wavelength $\\lambda = 632.8\\text{ nm}$.
+   - **Principal Red Transition:** $3s_2 \to 2p_4$ produces light of wavelength $\lambda = 632.8\text{ nm}$.
    - Neon atoms then drop rapidly from $2p_4$ to $1s$ level via spontaneous radiation.
    - Ground state de-excitation occurs via collisions with tube walls (preventing bottle-necking).
 
@@ -147,7 +147,7 @@ The Helium-Neon (He-Ne) gas laser is a continuous four-level gas laser producing
 
 ### 3. ⚠️ Examiner Trap Alert (Common Pitfalls)
 - **Trap 1:** Writing that Helium provides the lasing emission. Neon is the actual lasing atom; Helium acts solely as an energy transfer booster!
-- **Trap 2:** Forgetting the discharge tube diameter must be narrow ($\approx 2-8\\text{ mm}$) to ensure quick wall de-excitation of Neon atoms.
+- **Trap 2:** Forgetting the discharge tube diameter must be narrow ($\approx 2-8\text{ mm}$) to ensure quick wall de-excitation of Neon atoms.
 """
     },
 
@@ -158,23 +158,23 @@ The Helium-Neon (He-Ne) gas laser is a continuous four-level gas laser producing
 Maxwell's Fourth Equation represents the generalized Ampère's Law, incorporating Maxwell's displacement current ($J_D$) to reconcile charge conservation with time-varying electric fields.
 
 **Differential Form:**
-$$\\nabla \\times \\mathbf{B} = \\mu_0 \\mathbf{J} + \\mu_0 \\varepsilon_0 \\frac{\\partial \\mathbf{E}}{\\partial t}$$
+$$\nabla \times \mathbf{B} = \mu_0 \mathbf{J} + \mu_0 \varepsilon_0 \frac{\partial \mathbf{E}}{\partial t}$$
 
 ---
 
 ### 2. ⚡ Step-by-Step Technical Derivation (Need for Displacement Current)
-1. **Standard Ampère's Law:** $\\nabla \\times \\mathbf{B} = \\mu_0 \\mathbf{J}$.
+1. **Standard Ampère's Law:** $\nabla \times \mathbf{B} = \mu_0 \mathbf{J}$.
 2. Taking divergence of both sides:
-   $$\\nabla \\cdot (\\nabla \\times \\mathbf{B}) = \\mu_0 (\\nabla \\cdot \\mathbf{J})$$
+   $$\nabla \cdot (\nabla \times \mathbf{B}) = \mu_0 (\nabla \cdot \mathbf{J})$$
    Vector identity states the divergence of the curl of any vector field is identically zero:
-   $$0 = \\mu_0 (\\nabla \\cdot \\mathbf{J}) \\quad \\implies \\quad \\nabla \\cdot \\mathbf{J} = 0$$
+   $$0 = \mu_0 (\nabla \cdot \mathbf{J}) \quad \implies \quad \nabla \cdot \mathbf{J} = 0$$
 3. However, the **Equation of Continuity** states:
-   $$\\nabla \\cdot \\mathbf{J} = -\\frac{\\partial \\rho}{\\partial t}$$
-   For time-varying fields (such as charging a capacitor), $\\frac{\\partial \\rho}{\\partial t} \\neq 0$, producing a fatal contradiction!
-4. By substituting Gauss's Law $\\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\varepsilon_0}$:
-   $$\\nabla \\cdot \\mathbf{J} + \\frac{\\partial}{\\partial t}(\\varepsilon_0 \\nabla \\cdot \\mathbf{E}) = 0 \\quad \\implies \\quad \\nabla \\cdot \\left( \\mathbf{J} + \\varepsilon_0 \\frac{\\partial \\mathbf{E}}{\\partial t} \\right) = 0$$
+   $$\nabla \cdot \mathbf{J} = -\frac{\partial \rho}{\partial t}$$
+   For time-varying fields (such as charging a capacitor), $\frac{\partial \rho}{\partial t} \neq 0$, producing a fatal contradiction!
+4. By substituting Gauss's Law $\nabla \cdot \mathbf{E} = \frac{\rho}{\varepsilon_0}$:
+   $$\nabla \cdot \mathbf{J} + \frac{\partial}{\partial t}(\varepsilon_0 \nabla \cdot \mathbf{E}) = 0 \quad \implies \quad \nabla \cdot \left( \mathbf{J} + \varepsilon_0 \frac{\partial \mathbf{E}}{\partial t} \right) = 0$$
 5. Thus, the total current density consists of conduction current plus displacement current:
-   $$\\mathbf{J}_D = \\varepsilon_0 \\frac{\\partial \\mathbf{E}}{\\partial t}$$
+   $$\mathbf{J}_D = \varepsilon_0 \frac{\partial \mathbf{E}}{\partial t}$$
 
 ---
 
