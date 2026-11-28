@@ -63,9 +63,9 @@ assert "SpeechSynthesisUtterance" in mock_comp.html_calls[0]["html"]
 
 voice_tutor.render_microphone_widget(form_id="test_mic", submit_label="Submit Voice Doubt ⚡")
 assert len(mock_comp.html_calls) == 2, "render_microphone_widget failed to call components.html"
-assert "AI VOICE INPUT" in mock_comp.html_calls[1]["html"]
+assert "Start Speaking" in mock_comp.html_calls[1]["html"]
 assert "SpeechRecognition" in mock_comp.html_calls[1]["html"]
-assert "copySpokenBtn_test_mic" in mock_comp.html_calls[1]["html"]
+assert "clearSpokenBtn_test_mic" in mock_comp.html_calls[1]["html"]
 
 voice_tutor.components = orig_comp
 voice_tutor._voice_component_fn = orig_fn
